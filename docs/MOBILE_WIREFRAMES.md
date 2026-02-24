@@ -1,0 +1,443 @@
+# 📱 HearthOS — Mobile App Wireframe Descriptions
+
+**Platform:** iOS + Android (React Native)  
+**Version:** 1.0
+
+---
+
+## Design Principles
+
+- **Thumb-friendly**: All primary actions reachable with one thumb
+- **Glanceable**: Key info visible without scrolling
+- **Offline-first**: All screens functional without internet
+- **High contrast**: Readable in bright outdoor light
+- **Large tap targets**: Minimum 44×44pt touch areas
+
+---
+
+## Screen 1: Login Screen
+
+```
+┌─────────────────────────────┐
+│                             │
+│      🔥 HearthOS            │
+│                             │
+│  ┌─────────────────────┐   │
+│  │  Email              │   │
+│  └─────────────────────┘   │
+│  ┌─────────────────────┐   │
+│  │  Password           │   │
+│  └─────────────────────┘   │
+│                             │
+│  [    Sign In    ]          │
+│                             │
+│  Forgot Password?           │
+│                             │
+│  ─────── or ───────         │
+│  [  Sign in with SSO  ]     │
+│                             │
+└─────────────────────────────┘
+```
+
+**Notes:**
+- Biometric login (Face ID / fingerprint) after first login
+- Remember me toggle
+- Company logo replaces HearthOS for white-label
+
+---
+
+## Screen 2: Today's Jobs (Home)
+
+```
+┌─────────────────────────────┐
+│ ☰  Today — Mon Feb 24  🔔  │
+│─────────────────────────────│
+│ 📍 You have 4 jobs today    │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ 🟡 8:00 AM              │ │
+│ │ INSTALL • 3 hrs est.    │ │
+│ │ Johnson Residence       │ │
+│ │ 142 Oak St, Springfield │ │
+│ │ Gas Insert — Napoleon   │ │
+│ │ [Navigate] [View Job]   │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ 🟢 11:30 AM             │ │
+│ │ SERVICE • 1.5 hrs est.  │ │
+│ │ Martinez Home           │ │
+│ │ 88 Pine Ave, Riverside  │ │
+│ │ Annual Clean & Burn     │ │
+│ │ [Navigate] [View Job]   │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ ⚪ 2:00 PM              │ │
+│ │ ESTIMATE • 45 min est.  │ │
+│ │ Thompson Property       │ │
+│ │ 55 Elm Rd, Lakewood     │ │
+│ │ [Navigate] [View Job]   │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ─── Map View ───────────── │
+│ [Switch to Map View 🗺️]    │
+│─────────────────────────────│
+│ 🏠  📅  🔧  💬  👤         │
+└─────────────────────────────┘
+```
+
+**Status Colors:**
+- 🔴 Red = Emergency / Overdue
+- 🟡 Yellow = Upcoming (next job)
+- 🟢 Green = In Progress
+- ⚪ Gray = Scheduled (later)
+- ✅ Green check = Completed
+
+---
+
+## Screen 3: Map View
+
+```
+┌─────────────────────────────┐
+│ ← Today's Jobs    🗺️ Map   │
+│─────────────────────────────│
+│                             │
+│  [Google Maps / MapBox]     │
+│                             │
+│  📍 Your location           │
+│  1️⃣  8:00 AM - Johnson      │
+│  2️⃣  11:30 AM - Martinez    │
+│  3️⃣  2:00 PM - Thompson     │
+│  4️⃣  4:00 PM - Williams     │
+│                             │
+│  Route line shown           │
+│  between jobs               │
+│                             │
+│─────────────────────────────│
+│ ┌─────────────────────────┐ │
+│ │ 1️⃣ Johnson Residence    │ │
+│ │ 8:00 AM • 3 hrs         │ │
+│ │ 142 Oak St              │ │
+│ │ [Navigate] [Details]    │ │
+│ └─────────────────────────┘ │
+│─────────────────────────────│
+│ 🏠  📅  🔧  💬  👤         │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 4: Job Detail
+
+```
+┌─────────────────────────────┐
+│ ← Jobs    JOB-2026-00142   │
+│─────────────────────────────│
+│ INSTALL  🔴 HIGH PRIORITY   │
+│ Johnson Residence           │
+│ 142 Oak St, Springfield     │
+│                             │
+│ ┌─ Customer ──────────────┐ │
+│ │ 👤 Mike Johnson         │ │
+│ │ 📞 (555) 234-5678       │ │
+│ │ 📝 Has a dog. Side gate │ │
+│ │    code: 4821           │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─ Fireplace ─────────────┐ │
+│ │ Napoleon GX70 Gas Insert│ │
+│ │ S/N: NAP-2024-88821     │ │
+│ │ Location: Living Room   │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─ Schedule ──────────────┐ │
+│ │ 📅 Mon Feb 24, 8:00 AM  │ │
+│ │ ⏱️  Est. 3 hours        │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ─── STATUS ─────────────── │
+│                             │
+│ [  🚗 On My Way  ]          │
+│                             │
+│ ─── TABS ───────────────── │
+│ Checklist | Photos | Notes  │
+│─────────────────────────────│
+│ 🏠  📅  🔧  💬  👤         │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 5: Job Status Bar (Active Job)
+
+```
+┌─────────────────────────────┐
+│ ← JOB-2026-00142           │
+│─────────────────────────────│
+│                             │
+│  ●────●────○────○           │
+│  En   On   Work  Done       │
+│  Route Site ing             │
+│                             │
+│  ✅ Arrived 8:14 AM         │
+│  ⏱️  Working: 1h 23m        │
+│                             │
+│  [  ✅ Complete Job  ]       │
+│  [  ⚠️ Flag Issue   ]       │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 6: Checklist
+
+```
+┌─────────────────────────────┐
+│ ← Job Detail    Checklist  │
+│─────────────────────────────│
+│ Progress: ████████░░ 80%    │
+│ 8 of 10 items complete      │
+│─────────────────────────────│
+│                             │
+│ ── SAFETY ─────────────── │
+│                             │
+│ ✅ Venting verified         │
+│    📷 Photo attached        │
+│                             │
+│ ✅ Clearances confirmed     │
+│    📷 Photo attached        │
+│    📏 Min clearance: 6"     │
+│                             │
+│ ── GAS ────────────────── │
+│                             │
+│ ✅ Gas pressure tested      │
+│    📷 Photo attached        │
+│    📊 Inlet: 7.0 inWC       │
+│    📊 Manifold: 3.5 inWC    │
+│                             │
+│ ⬜ Burn-in completed  *REQ* │
+│    ┌─────────────────────┐  │
+│    │ Duration (minutes): │  │
+│    │ [___________]       │  │
+│    └─────────────────────┘  │
+│    [📷 Take Photo]          │
+│                             │
+│ ── DOCUMENTATION ────────── │
+│                             │
+│ ⬜ Customer walkthrough     │
+│    [Mark Complete]          │
+│                             │
+│ ⬜ Customer signature  *REQ*│
+│    [Capture Signature]      │
+│                             │
+│─────────────────────────────│
+│ 🏠  📅  🔧  💬  👤         │
+└─────────────────────────────┘
+```
+
+**Legend:**
+- ✅ = Completed
+- ⬜ = Pending
+- *REQ* = Required (cannot skip)
+- 📷 = Photo required
+
+---
+
+## Screen 7: Photo Capture
+
+```
+┌─────────────────────────────┐
+│ ← Checklist    Take Photo  │
+│─────────────────────────────│
+│                             │
+│  Step: Gas pressure tested  │
+│  📸 Photo required          │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │                         │ │
+│ │   [CAMERA VIEWFINDER]   │ │
+│ │                         │ │
+│ │   📐 Align gauge in     │ │
+│ │      frame              │ │
+│ │                         │ │
+│ └─────────────────────────┘ │
+│                             │
+│  [📷 Capture]  [🖼️ Gallery] │
+│                             │
+│  ── Recent Photos ──────── │
+│  [img] [img] [img] [img]   │
+│                             │
+│  AI Tag: gas_connection ✓   │
+│                             │
+│  Caption: [____________]    │
+│                             │
+│  [  ✅ Use This Photo  ]    │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 8: Customer Signature
+
+```
+┌─────────────────────────────┐
+│ ← Checklist    Sign-Off    │
+│─────────────────────────────│
+│                             │
+│  Job Complete!              │
+│  Please have the customer   │
+│  review and sign below.     │
+│                             │
+│ ┌─ Summary ───────────────┐ │
+│ │ ✅ Napoleon GX70 Install │ │
+│ │ ✅ All safety checks done│ │
+│ │ ✅ Burn-in: 45 min       │ │
+│ │ ✅ Customer walkthrough  │ │
+│ └─────────────────────────┘ │
+│                             │
+│  Customer Name:             │
+│  [Mike Johnson_________]    │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │                         │ │
+│ │   SIGNATURE PAD         │ │
+│ │   (draw here)           │ │
+│ │                         │ │
+│ └─────────────────────────┘ │
+│                             │
+│  [Clear]                    │
+│                             │
+│  [  ✅ Submit & Complete  ] │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 9: Photos Gallery (Job)
+
+```
+┌─────────────────────────────┐
+│ ← Job Detail      Photos   │
+│─────────────────────────────│
+│ 12 photos  [+ Add Photo]    │
+│─────────────────────────────│
+│                             │
+│ BEFORE (3)                  │
+│ ┌────┐ ┌────┐ ┌────┐       │
+│ │img │ │img │ │img │       │
+│ └────┘ └────┘ └────┘       │
+│                             │
+│ VENTING (2)                 │
+│ ┌────┐ ┌────┐               │
+│ │img │ │img │               │
+│ └────┘ └────┘               │
+│                             │
+│ GAS CONNECTION (3)          │
+│ ┌────┐ ┌────┐ ┌────┐       │
+│ │img │ │img │ │img │       │
+│ └────┘ └────┘ └────┘       │
+│                             │
+│ AFTER (4)                   │
+│ ┌────┐ ┌────┐ ┌────┐ ┌───┐ │
+│ │img │ │img │ │img │ │img│ │
+│ └────┘ └────┘ └────┘ └───┘ │
+│                             │
+│─────────────────────────────│
+│ 🏠  📅  🔧  💬  👤         │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 10: Notes & Communication
+
+```
+┌─────────────────────────────┐
+│ ← Job Detail       Notes   │
+│─────────────────────────────│
+│                             │
+│ ── INTERNAL NOTES ──────── │
+│                             │
+│ 👤 Sarah (Dispatcher)       │
+│ 9:45 AM                     │
+│ "Customer confirmed 8am.    │
+│  Has a golden retriever."   │
+│                             │
+│ 👤 You                      │
+│ 10:22 AM                    │
+│ "Gas pressure slightly low  │
+│  on inlet. Adjusted at      │
+│  meter. Now 7.2 inWC."      │
+│                             │
+│ ── ─────────────────────── │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ Add note...             │ │
+│ └─────────────────────────┘ │
+│ [📷 Photo] [🎤 Voice] [Send]│
+│                             │
+│ ── AI SUMMARY ──────────── │
+│ 🤖 "Gas insert installation │
+│  completed. Inlet pressure  │
+│  adjusted to 7.2 inWC.      │
+│  All safety checks passed.  │
+│  Customer walkthrough done."│
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## Screen 11: Offline Mode Banner
+
+```
+┌─────────────────────────────┐
+│ ⚠️  OFFLINE MODE            │
+│ Changes saved locally       │
+│─────────────────────────────│
+│                             │
+│  [rest of screen normal]    │
+│                             │
+│  Syncing when connected:    │
+│  • 3 checklist items        │
+│  • 5 photos                 │
+│  • 1 signature              │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## Navigation Structure
+
+```
+Bottom Tab Bar (5 tabs):
+├── 🏠 Home (Today's Jobs)
+├── 📅 Schedule (Calendar)
+├── 🔧 Jobs (All Jobs List)
+├── 💬 Messages (Dispatcher Chat)
+└── 👤 Profile (Settings, Clock Out)
+
+Job Detail Sub-Navigation:
+├── Overview
+├── Checklist
+├── Photos
+└── Notes
+```
+
+---
+
+## Component Library Notes
+
+| Component | Behavior |
+|-----------|----------|
+| Job Card | Swipe right = Navigate, Swipe left = Call customer |
+| Checklist Item | Tap = Toggle complete, Long press = Add note |
+| Photo Thumbnail | Tap = Full screen, Long press = Delete/retag |
+| Status Button | Large, full-width, color-coded by next action |
+| Signature Pad | Smooth drawing, clear button, submit locks it |
+| Offline Banner | Sticky top, dismissible, shows pending sync count |
