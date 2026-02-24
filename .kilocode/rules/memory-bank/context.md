@@ -53,6 +53,18 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 - **Target:** Fireplace installation, service, and retail companies
 - **Positioning:** Niche ServiceTitan competitor — fireplace-specific
 
+## Tech App Structure
+
+| File/Directory | Purpose | Status |
+|----------------|---------|--------|
+| `src/app/tech/page.tsx` | Tech home — today's jobs + shift clock-in/out | ✅ Built |
+| `src/app/tech/layout.tsx` | Mobile-optimized layout wrapper | ✅ Built |
+| `src/app/tech/job/[jobId]/page.tsx` | Job detail — tabs: details, checklist, photos, customer | ✅ Built |
+| `src/app/tech/gabe/page.tsx` | GABE AI fireplace expert chat assistant | ✅ Built |
+| `src/app/tech/manuals/page.tsx` | Manuals library with search + PDF upload | ✅ Built |
+| `src/app/tech/estimate/page.tsx` | AI estimate builder with line items | ✅ Built |
+| `src/app/tech/profile/page.tsx` | Tech profile + GPS tracking toggles | ✅ Built |
+
 ## Next Steps (Suggested)
 
 1. Build `/jobs` page — full job list with search, filters, create job modal
@@ -61,6 +73,8 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 4. Build `/dispatch` page — full map view with tech tracking
 5. Build `/invoices` page — invoice list + create/send flow
 6. Add database layer (Drizzle + Neon PostgreSQL) via recipe
+7. Wire up real AI for GABE (OpenAI/Anthropic API)
+8. Wire up real AI for estimate generation
 
 ## Session History
 
@@ -69,3 +83,4 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | 2026-02-24 | Initial template created |
 | 2026-02-24 | HearthOS FSM platform — full docs suite + dashboard UI built |
 | 2026-02-24 | Professional dark theme redesign — Inter font, dark navy palette, SVG icons, QuickBooks integration page |
+| 2026-02-24 | Service Tech mobile app built — 7 pages: jobs, job detail, GABE AI, manuals, estimate builder, profile with GPS |
