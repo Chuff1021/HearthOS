@@ -1,3 +1,5 @@
+"use client";
+
 const activities = [
   {
     id: 1,

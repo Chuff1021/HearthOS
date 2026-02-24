@@ -1,3 +1,5 @@
+"use client";
+
 const stats = [
   {
     label: "Jobs Today",
