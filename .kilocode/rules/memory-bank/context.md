@@ -65,6 +65,40 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `src/app/tech/estimate/page.tsx` | AI estimate builder with line items | ✅ Built |
 | `src/app/tech/profile/page.tsx` | Tech profile + GPS tracking toggles | ✅ Built |
 
+## Tech App — Materials & Invoice Tracking
+
+| File | Feature | Status |
+|------|---------|--------|
+| `src/app/tech/job/[jobId]/page.tsx` | Materials Used section in checklist tab | ✅ Built |
+| | 18-item material catalog (pipe, fittings, parts, supplies) | ✅ Built |
+| | Qty +/- controls, auto-calculates invoice total | ✅ Built |
+| | Invoice preview modal with line items, tax, send/draft | ✅ Built |
+| | "Ask GABE about this job" shortcut on details tab | ✅ Built |
+
+## GABE AI — Job Context Awareness
+
+| Feature | Status |
+|---------|--------|
+| Reads job context from URL params (fireplace, jobType, jobId) | ✅ Built |
+| Context-aware greeting and quick questions | ✅ Built |
+| Job context banner shows current unit | ✅ Built |
+| Pipe sizing, thermopile, Regency-specific knowledge | ✅ Built |
+| `buildGabeSystemPrompt()` exported for real API wiring | ✅ Built |
+| Wrapped in Suspense for useSearchParams | ✅ Built |
+
+## Sales Pipeline Dashboard Tab
+
+| Feature | Status |
+|---------|--------|
+| `src/components/dashboard/SalesFunnel.tsx` | ✅ Built |
+| 6-stage funnel: Lead → Quoted → Approved → Ordered → Scheduled → Installed | ✅ Built |
+| Per-project product/order tracking (ordered, in transit, arrived, delayed) | ✅ Built |
+| ETA dates, days-until countdown, parts readiness indicator | ✅ Built |
+| Expandable project cards with order timeline | ✅ Built |
+| Kanban board view + list view toggle | ✅ Built |
+| Pipeline value, MTD installed, ready-to-install summary stats | ✅ Built |
+| Tab switcher on main dashboard (Overview / Sales Pipeline) | ✅ Built |
+
 ## Next Steps (Suggested)
 
 1. Build `/jobs` page — full job list with search, filters, create job modal
@@ -73,7 +107,7 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 4. Build `/dispatch` page — full map view with tech tracking
 5. Build `/invoices` page — invoice list + create/send flow
 6. Add database layer (Drizzle + Neon PostgreSQL) via recipe
-7. Wire up real AI for GABE (OpenAI/Anthropic API)
+7. Wire up real AI for GABE — use Groq (llama-3.1-8b-instant, ~$0.05/1M tokens) with `buildGabeSystemPrompt()`
 8. Wire up real AI for estimate generation
 
 ## Session History
@@ -84,3 +118,4 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | 2026-02-24 | HearthOS FSM platform — full docs suite + dashboard UI built |
 | 2026-02-24 | Professional dark theme redesign — Inter font, dark navy palette, SVG icons, QuickBooks integration page |
 | 2026-02-24 | Service Tech mobile app built — 7 pages: jobs, job detail, GABE AI, manuals, estimate builder, profile with GPS |
+| 2026-02-24 | Materials tracking on checklist (auto-invoice), GABE job context awareness, Sales Pipeline dashboard tab |
