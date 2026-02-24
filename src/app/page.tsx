@@ -8,19 +8,19 @@ import QuickActions from "@/components/dashboard/QuickActions";
 
 export default function DashboardPage() {
   return (
-    <div className="flex h-screen bg-[#f8f7f4] overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-[1600px] mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto p-5">
+          <div className="max-w-[1600px] mx-auto space-y-5">
             {/* Page Title */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-[#1a1a2e]">
+                <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
                   Good morning, Sarah 👋
                 </h1>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Monday, February 24, 2026 · 8 jobs scheduled today
                 </p>
               </div>
@@ -31,7 +31,7 @@ export default function DashboardPage() {
             <DashboardStats />
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
               {/* Today's Jobs — takes 2 cols */}
               <div className="xl:col-span-2">
                 <TodaysJobs />

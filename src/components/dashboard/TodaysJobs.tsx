@@ -16,6 +16,7 @@ interface Job {
   duration: string;
   type: string;
   typeColor: string;
+  typeBg: string;
   status: JobStatus;
   customer: string;
   address: string;
@@ -37,7 +38,8 @@ const jobs: Job[] = [
     time: "8:00 AM",
     duration: "3h",
     type: "Install",
-    typeColor: "bg-blue-100 text-blue-700",
+    typeColor: "#60a5fa",
+    typeBg: "rgba(96,165,250,0.12)",
     status: "completed",
     customer: "Mike Johnson",
     address: "142 Oak St",
@@ -45,7 +47,7 @@ const jobs: Job[] = [
     unit: "Napoleon GX70 Gas Insert",
     tech: "Dave Torres",
     techInitials: "DT",
-    techColor: "bg-orange-500",
+    techColor: "#f97316",
     checklistPct: 100,
     photosCount: 12,
   },
@@ -55,7 +57,8 @@ const jobs: Job[] = [
     time: "9:30 AM",
     duration: "2h",
     type: "Service",
-    typeColor: "bg-purple-100 text-purple-700",
+    typeColor: "#c084fc",
+    typeBg: "rgba(192,132,252,0.12)",
     status: "in_progress",
     customer: "Linda Martinez",
     address: "88 Pine Ave",
@@ -63,7 +66,7 @@ const jobs: Job[] = [
     unit: "Regency P36 Gas Fireplace",
     tech: "Dave Torres",
     techInitials: "DT",
-    techColor: "bg-orange-500",
+    techColor: "#f97316",
     checklistPct: 65,
     photosCount: 4,
     notes: "Customer mentioned pilot keeps going out",
@@ -74,7 +77,8 @@ const jobs: Job[] = [
     time: "11:00 AM",
     duration: "1.5h",
     type: "Clean & Burn",
-    typeColor: "bg-amber-100 text-amber-700",
+    typeColor: "#fbbf24",
+    typeBg: "rgba(251,191,36,0.12)",
     status: "en_route",
     customer: "Robert Chen",
     address: "55 Elm Rd",
@@ -82,7 +86,7 @@ const jobs: Job[] = [
     unit: "Heatilator CNXT36 Wood",
     tech: "Amy Walsh",
     techInitials: "AW",
-    techColor: "bg-pink-500",
+    techColor: "#ec4899",
     checklistPct: 0,
     photosCount: 0,
   },
@@ -92,7 +96,8 @@ const jobs: Job[] = [
     time: "1:00 PM",
     duration: "4h",
     type: "Install",
-    typeColor: "bg-blue-100 text-blue-700",
+    typeColor: "#60a5fa",
+    typeBg: "rgba(96,165,250,0.12)",
     status: "scheduled",
     customer: "Patricia Williams",
     address: "301 Maple Dr",
@@ -100,7 +105,7 @@ const jobs: Job[] = [
     unit: "Valor H4 Gas Insert (new)",
     tech: "Jake Rivera",
     techInitials: "JR",
-    techColor: "bg-teal-500",
+    techColor: "#2dd4bf",
     checklistPct: 0,
     photosCount: 0,
     priority: "high",
@@ -111,7 +116,8 @@ const jobs: Job[] = [
     time: "2:30 PM",
     duration: "1h",
     type: "Warranty",
-    typeColor: "bg-red-100 text-red-700",
+    typeColor: "#f87171",
+    typeBg: "rgba(248,113,113,0.12)",
     status: "scheduled",
     customer: "Tom Bradley",
     address: "19 Cedar Ln",
@@ -119,7 +125,7 @@ const jobs: Job[] = [
     unit: "Fireplace Xtrordinair 564 SS",
     tech: "Amy Walsh",
     techInitials: "AW",
-    techColor: "bg-pink-500",
+    techColor: "#ec4899",
     checklistPct: 0,
     photosCount: 0,
     notes: "Callback from last week — igniter issue",
@@ -130,7 +136,8 @@ const jobs: Job[] = [
     time: "3:30 PM",
     duration: "45m",
     type: "Estimate",
-    typeColor: "bg-gray-100 text-gray-700",
+    typeColor: "#94a3b8",
+    typeBg: "rgba(148,163,184,0.12)",
     status: "scheduled",
     customer: "Susan Park",
     address: "77 Birch Blvd",
@@ -138,7 +145,7 @@ const jobs: Job[] = [
     unit: "TBD — outdoor fireplace",
     tech: "Jake Rivera",
     techInitials: "JR",
-    techColor: "bg-teal-500",
+    techColor: "#2dd4bf",
     checklistPct: 0,
     photosCount: 0,
   },
@@ -148,7 +155,8 @@ const jobs: Job[] = [
     time: "4:30 PM",
     duration: "2h",
     type: "Service",
-    typeColor: "bg-purple-100 text-purple-700",
+    typeColor: "#c084fc",
+    typeBg: "rgba(192,132,252,0.12)",
     status: "scheduled",
     customer: "James O'Brien",
     address: "200 Willow Way",
@@ -156,7 +164,7 @@ const jobs: Job[] = [
     unit: "SL-550 Slim Line Gas",
     tech: "Carlos Mendez",
     techInitials: "CM",
-    techColor: "bg-indigo-500",
+    techColor: "#818cf8",
     checklistPct: 0,
     photosCount: 0,
     priority: "emergency",
@@ -167,7 +175,8 @@ const jobs: Job[] = [
     time: "5:00 PM",
     duration: "1h",
     type: "Inspect",
-    typeColor: "bg-cyan-100 text-cyan-700",
+    typeColor: "#22d3ee",
+    typeBg: "rgba(34,211,238,0.12)",
     status: "scheduled",
     customer: "Nancy Foster",
     address: "14 Spruce Ct",
@@ -175,7 +184,7 @@ const jobs: Job[] = [
     unit: "Majestic Quartz 36 Gas",
     tech: "Carlos Mendez",
     techInitials: "CM",
-    techColor: "bg-indigo-500",
+    techColor: "#818cf8",
     checklistPct: 0,
     photosCount: 0,
   },
@@ -183,32 +192,42 @@ const jobs: Job[] = [
 
 const statusConfig: Record<
   JobStatus,
-  { label: string; color: string; dot: string }
+  { label: string; color: string; bg: string; dotColor: string; pulse: boolean }
 > = {
   completed: {
     label: "Completed",
-    color: "bg-green-100 text-green-700",
-    dot: "bg-green-500",
+    color: "#4ade80",
+    bg: "rgba(74,222,128,0.12)",
+    dotColor: "#4ade80",
+    pulse: false,
   },
   in_progress: {
     label: "In Progress",
-    color: "bg-blue-100 text-blue-700",
-    dot: "bg-blue-500 animate-pulse",
+    color: "#60a5fa",
+    bg: "rgba(96,165,250,0.12)",
+    dotColor: "#60a5fa",
+    pulse: true,
   },
   en_route: {
     label: "En Route",
-    color: "bg-amber-100 text-amber-700",
-    dot: "bg-amber-500 animate-pulse",
+    color: "#fbbf24",
+    bg: "rgba(251,191,36,0.12)",
+    dotColor: "#fbbf24",
+    pulse: true,
   },
   scheduled: {
     label: "Scheduled",
-    color: "bg-gray-100 text-gray-600",
-    dot: "bg-gray-400",
+    color: "#94a3b8",
+    bg: "rgba(148,163,184,0.1)",
+    dotColor: "#64748b",
+    pulse: false,
   },
   callback: {
     label: "Callback",
-    color: "bg-red-100 text-red-700",
-    dot: "bg-red-500",
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.12)",
+    dotColor: "#f87171",
+    pulse: false,
   },
 };
 
@@ -227,22 +246,49 @@ export default function TodaysJobs() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: "var(--color-surface-2)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div
+        className="px-5 py-4 flex items-center justify-between"
+        style={{ borderBottom: "1px solid var(--color-border)" }}
+      >
         <div>
-          <h2 className="font-semibold text-[#1a1a2e]">Today&#39;s Jobs</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
+            {"Today's Jobs"}
+          </h2>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
             Monday, February 24, 2026
           </p>
         </div>
-        <button className="text-xs font-medium text-[#e85d04] hover:text-[#c44d03] transition-colors">
+        <button
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: "rgba(249,115,22,0.15)",
+            color: "#f97316",
+            border: "1px solid rgba(249,115,22,0.2)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(249,115,22,0.25)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(249,115,22,0.15)";
+          }}
+        >
           + New Job
         </button>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 px-5 py-3 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+      <div
+        className="flex gap-1.5 px-5 py-3 overflow-x-auto scrollbar-hide"
+        style={{ borderBottom: "1px solid var(--color-border)" }}
+      >
         {(
           [
             "all",
@@ -255,11 +301,12 @@ export default function TodaysJobs() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              filter === f
-                ? "bg-[#1a1a2e] text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{
+              background: filter === f ? "var(--color-ember)" : "var(--color-surface-3)",
+              color: filter === f ? "white" : "var(--color-text-secondary)",
+              border: `1px solid ${filter === f ? "transparent" : "var(--color-border)"}`,
+            }}
           >
             {f === "all"
               ? `All (${counts.all})`
@@ -275,71 +322,102 @@ export default function TodaysJobs() {
       </div>
 
       {/* Job list */}
-      <div className="divide-y divide-gray-50">
-        {filtered.map((job) => {
+      <div>
+        {filtered.map((job, idx) => {
           const sc = statusConfig[job.status];
           return (
             <div
               key={job.id}
-              className={`px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                job.priority === "emergency"
-                  ? "border-l-4 border-l-red-500"
+              className="px-5 py-3.5 cursor-pointer transition-all"
+              style={{
+                borderBottom: idx < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
+                borderLeft: job.priority === "emergency"
+                  ? "3px solid #ef4444"
                   : job.priority === "high"
-                    ? "border-l-4 border-l-amber-500"
-                    : ""
-              }`}
+                    ? "3px solid #f59e0b"
+                    : "3px solid transparent",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-3)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = "transparent";
+              }}
             >
               <div className="flex items-start gap-3">
                 {/* Time column */}
-                <div className="w-16 flex-shrink-0 text-center">
-                  <div className="text-xs font-semibold text-[#1a1a2e]">
+                <div className="w-14 flex-shrink-0 text-center pt-0.5">
+                  <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
                     {job.time}
                   </div>
-                  <div className="text-[10px] text-gray-400">{job.duration}</div>
+                  <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                    {job.duration}
+                  </div>
                 </div>
 
                 {/* Main content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    {/* Type badge */}
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${job.typeColor}`}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                      style={{ background: job.typeBg, color: job.typeColor }}
                     >
                       {job.type}
                     </span>
+                    {/* Status badge */}
                     <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${sc.color}`}
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
+                      style={{ background: sc.bg, color: sc.color }}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`}></span>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${sc.pulse ? "pulse-dot" : ""}`}
+                        style={{ background: sc.dotColor }}
+                      ></span>
                       {sc.label}
                     </span>
+                    {/* Priority badges */}
                     {job.priority === "emergency" && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">
-                        🚨 EMERGENCY
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
+                      >
+                        ⚡ EMERGENCY
                       </span>
                     )}
                     {job.priority === "high" && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
-                        ⚡ HIGH
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}
+                      >
+                        ↑ HIGH
                       </span>
                     )}
-                    <span className="text-[10px] text-gray-400 ml-auto">
+                    <span className="text-[10px] ml-auto" style={{ color: "var(--color-text-muted)" }}>
                       {job.jobNumber}
                     </span>
                   </div>
 
-                  <div className="font-medium text-sm text-[#1a1a2e]">
+                  <div className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
                     {job.customer}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
                     {job.address}, {job.city}
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    🔥 {job.unit}
+                  <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                    {job.unit}
                   </div>
 
                   {job.notes && (
-                    <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
-                      📝 {job.notes}
+                    <div
+                      className="mt-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+                      style={{
+                        background: "rgba(245,158,11,0.1)",
+                        color: "#fbbf24",
+                        border: "1px solid rgba(245,158,11,0.15)",
+                      }}
+                    >
+                      {job.notes}
                     </div>
                   )}
 
@@ -347,25 +425,30 @@ export default function TodaysJobs() {
                   {job.status !== "scheduled" && (
                     <div className="flex items-center gap-4 mt-2">
                       {job.checklistPct !== undefined && (
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-20 h-1 rounded-full overflow-hidden"
+                            style={{ background: "var(--color-surface-4)" }}
+                          >
                             <div
-                              className={`h-full rounded-full transition-all ${
-                                job.checklistPct === 100
-                                  ? "bg-green-500"
-                                  : "bg-[#e85d04]"
-                              }`}
-                              style={{ width: `${job.checklistPct}%` }}
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${job.checklistPct}%`,
+                                background: job.checklistPct === 100 ? "#22c55e" : "#f97316",
+                              }}
                             ></div>
                           </div>
-                          <span className="text-[10px] text-gray-500">
-                            {job.checklistPct}% checklist
+                          <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                            {job.checklistPct}%
                           </span>
                         </div>
                       )}
                       {job.photosCount !== undefined && job.photosCount > 0 && (
-                        <span className="text-[10px] text-gray-500">
-                          📷 {job.photosCount} photos
+                        <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                          </svg>
+                          {job.photosCount} photos
                         </span>
                       )}
                     </div>
@@ -375,11 +458,15 @@ export default function TodaysJobs() {
                 {/* Tech avatar */}
                 <div className="flex-shrink-0 flex flex-col items-center gap-1">
                   <div
-                    className={`w-8 h-8 rounded-full ${job.techColor} text-white text-xs font-bold flex items-center justify-center`}
+                    className="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center"
+                    style={{ background: job.techColor }}
                   >
                     {job.techInitials}
                   </div>
-                  <span className="text-[9px] text-gray-400 text-center leading-tight max-w-[40px]">
+                  <span
+                    className="text-[9px] text-center leading-tight max-w-[40px]"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     {job.tech.split(" ")[0]}
                   </span>
                 </div>
@@ -390,11 +477,22 @@ export default function TodaysJobs() {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-        <span className="text-xs text-gray-500">
+      <div
+        className="px-5 py-3 flex items-center justify-between"
+        style={{
+          borderTop: "1px solid var(--color-border)",
+          background: "var(--color-surface-1)",
+        }}
+      >
+        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
           Showing {filtered.length} of {jobs.length} jobs
         </span>
-        <button className="text-xs text-[#e85d04] font-medium hover:text-[#c44d03]">
+        <button
+          className="text-xs font-medium transition-colors"
+          style={{ color: "#f97316" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#fb923c")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#f97316")}
+        >
           View full schedule →
         </button>
       </div>

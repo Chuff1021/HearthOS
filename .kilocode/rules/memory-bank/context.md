@@ -68,3 +68,4 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 |------|---------|
 | 2026-02-24 | Initial template created |
 | 2026-02-24 | HearthOS FSM platform — full docs suite + dashboard UI built |
+| 2026-02-24 | Professional dark theme redesign — Inter font, dark navy palette, SVG icons, QuickBooks integration page |
