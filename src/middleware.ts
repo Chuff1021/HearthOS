@@ -1,18 +1,28 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Routes that require authentication
-const isProtectedRoute = createRouteMatcher([
-  "/admin(.*)",
-  "/tech(.*)",
-]);
+// Routes that require authentication when Clerk is configured
+const isProtectedRoute = createRouteMatcher(["/admin(.*)", "/tech(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+// Check if Clerk is configured
+const clerkConfigured = !!(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+  process.env.CLERK_SECRET_KEY
+);
+
+function passthrough(_req: NextRequest) {
+  return NextResponse.next();
+}
+
+const clerkHandler = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    await auth.protect({
-      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
-    });
+    await auth.protect();
   }
 });
+
+// Use Clerk middleware only when configured, otherwise pass through
+export default clerkConfigured ? clerkHandler : passthrough;
 
 export const config = {
   matcher: [
