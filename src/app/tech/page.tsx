@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 
 // Mock data for demo
 const mockJobs = [
@@ -42,6 +43,8 @@ export default function TechApp() {
   const [shiftStartTime, setShiftStartTime] = useState<Date | null>(null);
   const [activeJob, setActiveJob] = useState<string | null>(null);
   const [jobStartTime, setJobStartTime] = useState<Date | null>(null);
+  const { user } = useUser();
+  const displayName = user?.firstName || user?.fullName || "Tech";
 
   const handleClockIn = () => {
     if (!isClockedIn) {
@@ -80,7 +83,7 @@ export default function TechApp() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">HearthOS</h1>
-            <p className="text-xs text-gray-400">Tech Dashboard</p>
+            <p className="text-xs text-gray-400">Tech Dashboard · {displayName}</p>
           </div>
           <div className="flex items-center gap-3">
             {/* GABE AI Button */}

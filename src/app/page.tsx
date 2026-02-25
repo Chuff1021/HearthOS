@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -14,6 +15,8 @@ type DashboardTab = "overview" | "pipeline";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const { user } = useUser();
+  const displayName = user?.firstName || user?.fullName || "there";
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -26,7 +29,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  Good morning, Sarah 👋
+                  Good morning, {displayName} 👋
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Monday, February 24, 2026 · 8 jobs scheduled today
