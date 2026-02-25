@@ -195,3 +195,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | Fixed admin login redirect loop (moved /admin/login → /login), built local data store with 8 customers + 8 invoices, full CRUD on customers/invoices pages, dashboard stats wired to live data |
 | 2026-02-25 | Consistent layout: replaced inline sidebars/headers on all sub-pages (jobs, customers, invoices, schedule, dispatch, quickbooks) with shared Sidebar + Header components matching dashboard home |
 | 2026-02-25 | Added Clerk auth: ClerkProvider in root layout, middleware protects /admin and /tech routes, sign-in/sign-up pages, UserButton in Header, dynamic user in Sidebar, removed old password-based login |
+| 2026-02-25 | Made Clerk auth optional: middleware skips auth when env vars not set, admin layout allows access without Clerk, sign-in/sign-up pages have cross-links, added src/lib/auth.ts helper |
