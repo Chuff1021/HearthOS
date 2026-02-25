@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
+
+const emptySubscribe = () => () => {};
+
+function useHydrated() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
 
 const navItems = [
   {
@@ -167,6 +177,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { user } = useUser();
+  const hydrated = useHydrated();
 
   return (
     <aside
@@ -237,7 +248,7 @@ export default function Sidebar() {
               </div>
             )}
             {group.items.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = hydrated && pathname === item.href;
               return (
                 <Link
                   key={item.label}
@@ -303,17 +314,17 @@ export default function Sidebar() {
               collapsed ? "justify-center" : ""
             }`}
             style={{
-              background: pathname === "/integrations/quickbooks" ? "rgba(44,160,28,0.15)" : "transparent",
-              color: pathname === "/integrations/quickbooks" ? "#2ca01c" : "var(--color-text-secondary)",
+              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(44,160,28,0.15)" : "transparent",
+              color: hydrated && pathname === "/integrations/quickbooks" ? "#2ca01c" : "var(--color-text-secondary)",
             }}
             onMouseEnter={(e) => {
-              if (pathname !== "/integrations/quickbooks") {
+              if (!(hydrated && pathname === "/integrations/quickbooks")) {
                 e.currentTarget.style.background = "rgba(255,255,255,0.05)";
                 e.currentTarget.style.color = "var(--color-text-primary)";
               }
             }}
             onMouseLeave={(e) => {
-              if (pathname !== "/integrations/quickbooks") {
+              if (!(hydrated && pathname === "/integrations/quickbooks")) {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.color = "var(--color-text-secondary)";
               }
