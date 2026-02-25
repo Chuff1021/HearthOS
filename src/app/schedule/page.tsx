@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
 
 // Mock schedule data
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -157,85 +158,13 @@ export default function SchedulePage() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
-      {/* Sidebar */}
-      <div
-        className="w-[220px] flex-shrink-0 flex flex-col"
-        style={{ background: "var(--color-surface-1)", borderRight: "1px solid var(--color-border)" }}
-      >
-        <div className="flex items-center gap-3 px-4 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", boxShadow: "0 0 16px rgba(249,115,22,0.35)" }}
-          >
-            <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
-              <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <div className="font-bold text-sm" style={{ color: "var(--color-text-primary)" }}>HearthOS</div>
-            <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Field Service</div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-3 space-y-1">
-          {[
-            { href: "/", label: "Dashboard", icon: "📊" },
-            { href: "/jobs", label: "Jobs", icon: "📋" },
-            { href: "/customers", label: "Customers", icon: "👥" },
-            { href: "/schedule", label: "Schedule", icon: "📅", active: true },
-            { href: "/dispatch", label: "Dispatch", icon: "🗺️" },
-            { href: "/invoices", label: "Invoices", icon: "💰" },
-            { href: "/integrations/quickbooks", label: "QuickBooks", icon: "📗" },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${item.active ? "font-semibold" : ""}`}
-              style={{
-                background: item.active ? "var(--color-surface-3)" : "transparent",
-                color: item.active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-              }}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Tech Filter */}
-        <div className="p-3 border-t" style={{ borderColor: "var(--color-border)" }}>
-          <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>TECHNICIANS</div>
-          <div className="space-y-1">
-            {mockTechs.map((tech) => (
-              <button
-                key={tech.id}
-                onClick={() => toggleTech(tech.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all"
-                style={{
-                  background: selectedTechs.includes(tech.id) ? "var(--color-surface-3)" : "transparent",
-                  color: selectedTechs.includes(tech.id) ? "var(--color-text-primary)" : "var(--color-text-muted)",
-                  opacity: selectedTechs.includes(tech.id) ? 1 : 0.5,
-                }}
-              >
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                  style={{ background: tech.color }}
-                >
-                  {tech.initials}
-                </div>
-                {tech.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        <Header />
+        {/* Page Header */}
         <div
           className="px-6 py-4 flex items-center justify-between flex-shrink-0"
-          style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
+          style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-4">
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Schedule</h1>
@@ -294,6 +223,35 @@ export default function SchedulePage() {
               Schedule Job
             </button>
           </div>
+        </div>
+
+        {/* Tech Filter Bar */}
+        <div
+          className="px-6 py-3 flex items-center gap-3 flex-shrink-0"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Techs:</span>
+          {mockTechs.map((tech) => (
+            <button
+              key={tech.id}
+              onClick={() => toggleTech(tech.id)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all"
+              style={{
+                background: selectedTechs.includes(tech.id) ? "var(--color-surface-3)" : "transparent",
+                color: selectedTechs.includes(tech.id) ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                border: `1px solid ${selectedTechs.includes(tech.id) ? "var(--color-border-hover)" : "var(--color-border)"}`,
+                opacity: selectedTechs.includes(tech.id) ? 1 : 0.6,
+              }}
+            >
+              <div
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0"
+                style={{ background: tech.color }}
+              >
+                {tech.initials}
+              </div>
+              {tech.name}
+            </button>
+          ))}
         </div>
 
         {/* Calendar Grid */}

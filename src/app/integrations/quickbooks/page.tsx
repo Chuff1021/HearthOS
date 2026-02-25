@@ -1,4 +1,5 @@
-import Link from "next/link";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
@@ -28,45 +29,13 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
-      {/* Sidebar */}
-      <div
-        className="w-[220px] flex-shrink-0 flex flex-col"
-        style={{ background: "var(--color-surface-1)", borderRight: "1px solid var(--color-border)" }}
-      >
-        <div className="flex items-center gap-3 px-4 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", boxShadow: "0 0 16px rgba(249,115,22,0.35)" }}
-          >
-            <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
-              <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <div className="font-bold text-sm" style={{ color: "var(--color-text-primary)" }}>HearthOS</div>
-            <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Field Service</div>
-          </div>
-        </div>
-        <div className="p-3">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-
-      {/* Main content */}
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        <Header />
+        {/* Page Header */}
         <div
           className="px-6 py-4 flex items-center justify-between flex-shrink-0"
-          style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
+          style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-3">
             <div
