@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({
@@ -6,12 +6,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Simple session check - check for admin session cookie
-  const cookieStore = await cookies();
-  const session = cookieStore.get("admin_session")?.value;
-  
-  if (!session) {
-    redirect("/login");
+  // Clerk handles the redirect to sign-in via middleware,
+  // but we double-check here for safety
+  const user = await currentUser();
+
+  if (!user) {
+    redirect("/sign-in");
   }
 
   return <>{children}</>;

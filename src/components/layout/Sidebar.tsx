@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 
 const navItems = [
   {
@@ -164,6 +166,7 @@ const navItems = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user } = useUser();
 
   return (
     <aside
@@ -343,24 +346,48 @@ export default function Sidebar() {
         className="p-3 flex-shrink-0"
         style={{ borderTop: "1px solid var(--color-border)" }}
       >
-        <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 text-white"
-            style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)" }}
-          >
-            S
+        <SignedIn>
+          <div className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
+            {user?.imageUrl ? (
+              <Image
+                src={user.imageUrl}
+                alt={user.fullName || "User"}
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-full flex-shrink-0"
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 text-white"
+                style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)" }}
+              >
+                {user?.firstName?.[0] || "U"}
+              </div>
+            )}
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+                  {user?.fullName || "User"}
+                </div>
+                <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                  {user?.primaryEmailAddress?.emailAddress || ""}
+                </div>
+              </div>
+            )}
           </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
-                Sarah Mitchell
-              </div>
-              <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                Dispatcher
-              </div>
-            </div>
-          )}
-        </div>
+        </SignedIn>
+        <SignedOut>
+          <Link
+            href="/sign-in"
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${collapsed ? "justify-center" : ""}`}
+            style={{ color: "#f97316" }}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            {!collapsed && <span>Sign In</span>}
+          </Link>
+        </SignedOut>
       </div>
     </aside>
   );

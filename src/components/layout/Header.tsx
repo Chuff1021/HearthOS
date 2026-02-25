@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 
 export default function Header() {
   return (
@@ -136,13 +137,29 @@ export default function Header() {
         {/* Divider */}
         <div className="w-px h-5 mx-1" style={{ background: "var(--color-border)" }}></div>
 
-        {/* Date/Time */}
-        <div className="text-xs text-right">
-          <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
-            Mon, Feb 24
-          </div>
-          <div style={{ color: "var(--color-text-muted)" }}>8:42 AM</div>
-        </div>
+        {/* User / Auth */}
+        <SignedIn>
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                avatarBox: "w-8 h-8",
+              },
+            }}
+          />
+        </SignedIn>
+        <SignedOut>
+          <Link
+            href="/sign-in"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{
+              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+              color: "white",
+            }}
+          >
+            Sign In
+          </Link>
+        </SignedOut>
       </div>
     </header>
   );

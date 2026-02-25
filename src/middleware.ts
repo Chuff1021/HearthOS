@@ -1,13 +1,22 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Simple middleware - Clerk is optional
-// If Clerk env vars are set, it will be handled by Clerk's injected middleware
-export function middleware(request: NextRequest) {
-  // Continue to the next middleware/handler
-  return NextResponse.next();
-}
+// Routes that require authentication
+const isProtectedRoute = createRouteMatcher([
+  "/admin(.*)",
+  "/tech(.*)",
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+  }
+});
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/(api|trpc)(.*)"],
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
+  ],
 };
