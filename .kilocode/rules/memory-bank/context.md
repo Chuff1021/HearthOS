@@ -193,3 +193,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
 | 2026-02-25 | Removed Clerk dependency — now uses simple password auth for admin area (ADMIN_PASSWORD env var) |
 | 2026-02-25 | Fixed admin login redirect loop (moved /admin/login → /login), built local data store with 8 customers + 8 invoices, full CRUD on customers/invoices pages, dashboard stats wired to live data |
+| 2026-02-25 | Consistent layout: replaced inline sidebars/headers on all sub-pages (jobs, customers, invoices, schedule, dispatch, quickbooks) with shared Sidebar + Header components matching dashboard home |
