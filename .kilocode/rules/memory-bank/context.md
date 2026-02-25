@@ -196,3 +196,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | Consistent layout: replaced inline sidebars/headers on all sub-pages (jobs, customers, invoices, schedule, dispatch, quickbooks) with shared Sidebar + Header components matching dashboard home |
 | 2026-02-25 | Added Clerk auth: ClerkProvider in root layout, middleware protects /admin and /tech routes, sign-in/sign-up pages, UserButton in Header, dynamic user in Sidebar, removed old password-based login |
 | 2026-02-25 | Made Clerk auth optional: middleware skips auth when env vars not set, admin layout allows access without Clerk, sign-in/sign-up pages have cross-links, added src/lib/auth.ts helper |
+| 2026-02-25 | Fixed hydration mismatch in Sidebar: Clerk's `/clerk-sync` route caused pathname to differ between SSR and client, making active link styles mismatch. Used `useSyncExternalStore` to defer active state to client-only rendering |
