@@ -129,9 +129,7 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `src/app/admin/settings/page.tsx` | Admin org settings | ✅ Added |
 | `src/app/admin/page.tsx` | Admin home | ✅ Added |
 | `src/app/admin/layout.tsx` | Admin auth gate | ✅ Added |
-| `src/app/admin/login/page.tsx` | Admin login page | ✅ Added |
-| `src/app/api/admin/login/route.ts` | Admin login API | ✅ Added |
-| `src/middleware.ts` | Simple pass-through middleware | ✅ Updated |
+| `src/proxy.ts` | Clerk middleware (proxy) | ✅ Added |
 | `src/lib/org.ts` | Default org helper | ✅ Added |
 
 ## Database Layer
@@ -159,7 +157,9 @@ See `.env.local.example` for all required env vars:
 - `QUICKBOOKS_ENVIRONMENT` — `sandbox` or `production`
 - `GROQ_API_KEY` — For GABE AI (llama-3.1-8b-instant)
 - `GROQ_MODEL` — Override model (optional)
-- `ADMIN_PASSWORD` — Password for admin area access
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk auth
+- `CLERK_SECRET_KEY` — Clerk auth
+- `ADMIN_EMAIL` — Admin-only access email
 
 ## Local Data Store
 
@@ -191,9 +191,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | QuickBooks API integration (OAuth, sync, customers/items/invoices), PostgreSQL schema (18 tables), /jobs, /customers, /invoices, /schedule, /dispatch pages, GABE AI wired to Groq API |
 | 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
-| 2026-02-25 | Removed Clerk dependency — now uses simple password auth for admin area (ADMIN_PASSWORD env var) |
-| 2026-02-25 | Fixed admin login redirect loop (moved /admin/login → /login), built local data store with 8 customers + 8 invoices, full CRUD on customers/invoices pages, dashboard stats wired to live data |
-| 2026-02-25 | Consistent layout: replaced inline sidebars/headers on all sub-pages (jobs, customers, invoices, schedule, dispatch, quickbooks) with shared Sidebar + Header components matching dashboard home |
-| 2026-02-25 | Added Clerk auth: ClerkProvider in root layout, middleware protects /admin and /tech routes, sign-in/sign-up pages, UserButton in Header, dynamic user in Sidebar, removed old password-based login |
-| 2026-02-25 | Made Clerk auth optional: middleware skips auth when env vars not set, admin layout allows access without Clerk, sign-in/sign-up pages have cross-links, added src/lib/auth.ts helper |
-| 2026-02-25 | Fixed hydration mismatch in Sidebar: Clerk's `/clerk-sync` route caused pathname to differ between SSR and client, making active link styles mismatch. Used `useSyncExternalStore` to defer active state to client-only rendering |
+| 2026-02-25 | Updated Clerk integration to use proxy.ts + layout header auth UI |
