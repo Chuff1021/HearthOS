@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
   { label: "Invoices Synced", value: "1,284", sub: "Last 90 days", color: "#4ade80", bg: "rgba(74,222,128,0.12)" },
@@ -16,7 +18,26 @@ const recentSyncs = [
   { id: "INV-00888", type: "Invoice", customer: "Susan Park", amount: "$280", status: "error", time: "4h ago" },
 ];
 
-export default function QuickBooksPage() {
+type QuickBooksPageProps = {
+  searchParams?: {
+    connected?: string;
+    error?: string;
+  };
+};
+
+export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
+  const qbRealm = cookies().get("qb_realm_id")?.value;
+  const connected = Boolean(qbRealm) || searchParams?.connected === "true";
+  const error = searchParams?.error;
+  const errorMessage =
+    error === "missing_params"
+      ? "QuickBooks connection failed: missing parameters."
+      : error === "oauth_failed"
+      ? "QuickBooks connection failed: OAuth exchange failed."
+      : error
+      ? `QuickBooks connection failed: ${error}`
+      : null;
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       {/* Sidebar placeholder — in a real app this would be the shared Sidebar component */}
@@ -81,33 +102,49 @@ export default function QuickBooksPage() {
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
-                background: "rgba(74,222,128,0.1)",
-                border: "1px solid rgba(74,222,128,0.2)",
-                color: "#4ade80",
+                background: connected ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.12)",
+                border: connected ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(248,113,113,0.2)",
+                color: connected ? "#4ade80" : "#f87171",
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
-              Connected
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`}
+              ></span>
+              {connected ? "Connected" : "Not Connected"}
             </div>
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{
-                background: "linear-gradient(135deg, #2ca01c, #1e7a14)",
-                color: "white",
-                boxShadow: "0 0 16px rgba(44,160,28,0.25)",
-              }}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-              </svg>
-              Sync Now
-            </button>
+            {connected ? (
+              <QuickBooksActions connected={connected} />
+            ) : (
+              <a
+                href="/api/quickbooks/connect"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #2ca01c, #1e7a14)",
+                  color: "white",
+                  boxShadow: "0 0 16px rgba(44,160,28,0.25)",
+                }}
+              >
+                Connect QuickBooks
+              </a>
+            )}
           </div>
         </div>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-5xl mx-auto space-y-6">
+            {errorMessage ? (
+              <div
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.2)",
+                  color: "#f87171",
+                }}
+              >
+                {errorMessage}
+              </div>
+            ) : null}
 
             {/* Sync Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

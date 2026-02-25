@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncAllFromQuickBooks, getSyncStatus, getClientFromTokens } from '@/lib/quickbooks/sync';
+import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,10 +10,17 @@ export async function POST(request: NextRequest) {
     const realmId = request.cookies.get('qb_realm_id')?.value;
 
     if (!accessToken || !refreshToken || !realmId) {
-      return NextResponse.json(
-        { error: 'Not connected to QuickBooks' },
-        { status: 401 }
-      );
+      const org = await getOrCreateDefaultOrg();
+      if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+        accessToken = org.qbAccessToken;
+        refreshToken = org.qbRefreshToken;
+        realmId = org.qbRealmId;
+      } else {
+        return NextResponse.json(
+          { error: 'Not connected to QuickBooks' },
+          { status: 401 }
+        );
+      }
     }
 
     // Create client with stored tokens

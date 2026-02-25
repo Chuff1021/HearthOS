@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
+    const modelOverride = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
     if (!groqApiKey) {
       // Fallback to mock response if no API key configured
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant', // Fast and cheap: ~$0.05/1M tokens
+        model: modelOverride,
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,

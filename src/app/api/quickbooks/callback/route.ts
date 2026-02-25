@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
+import { db, organizations } from '@/db';
+import { eq } from 'drizzle-orm';
+import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -31,17 +34,26 @@ export async function GET(request: NextRequest) {
     // Set realm ID
     client.setRealmId(realmId);
 
-    // In a real app, you would:
-    // 1. Store tokens and realmId in the database associated with the user/org
-    // 2. Set up a secure session or JWT
-    // 3. Schedule token refresh before expiration
+    // Persist tokens + realm ID to org (real backend storage)
+    const org = await getOrCreateDefaultOrg();
+    await db
+      .update(organizations)
+      .set({
+        qbRealmId: realmId,
+        qbAccessToken: tokens.access_token,
+        qbRefreshToken: tokens.refresh_token,
+        qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        qbConnected: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, org.id));
 
     // For now, we'll redirect with success and store in cookies (demo only)
     const response = NextResponse.redirect(
       new URL('/integrations/quickbooks?connected=true', request.url)
     );
 
-    // Store tokens in secure HTTP-only cookies (in production, use database)
+    // Store tokens in secure HTTP-only cookies (also persisted in DB above)
     response.cookies.set('qb_access_token', tokens.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

@@ -6,6 +6,7 @@ import {
   syncCustomers,
   getClientFromTokens 
 } from '@/lib/quickbooks/sync';
+import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +17,22 @@ export async function GET(request: NextRequest) {
 
     // If sync requested, pull fresh data from QuickBooks
     if (sync === 'true') {
-      const accessToken = request.cookies.get('qb_access_token')?.value;
-      const refreshToken = request.cookies.get('qb_refresh_token')?.value;
-      const realmId = request.cookies.get('qb_realm_id')?.value;
+      let accessToken = request.cookies.get('qb_access_token')?.value;
+      let refreshToken = request.cookies.get('qb_refresh_token')?.value;
+      let realmId = request.cookies.get('qb_realm_id')?.value;
 
       if (!accessToken || !refreshToken || !realmId) {
-        return NextResponse.json(
-          { error: 'Not connected to QuickBooks' },
-          { status: 401 }
-        );
+        const org = await getOrCreateDefaultOrg();
+        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+          accessToken = org.qbAccessToken;
+          refreshToken = org.qbRefreshToken;
+          realmId = org.qbRealmId;
+        } else {
+          return NextResponse.json(
+            { error: 'Not connected to QuickBooks' },
+            { status: 401 }
+          );
+        }
       }
 
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
