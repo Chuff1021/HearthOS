@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -122,6 +122,10 @@ export default function JobsPage() {
   const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState<{ id: string; name: string }[]>([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
 
   // Filter jobs
   const filteredJobs = mockJobs.filter((job) => {
@@ -144,6 +148,50 @@ export default function JobsPage() {
 
     return matchesSearch && matchesStatus && matchesJobType && matchesDate;
   });
+
+  useEffect(() => {
+    if (!showCreateModal) {
+      setCustomerQuery("");
+      setCustomerResults([]);
+      setSelectedCustomer(null);
+      return;
+    }
+
+    const q = customerQuery.trim();
+    if (q.length < 2) {
+      setCustomerResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setCustomerLoading(true);
+
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setCustomerResults([]);
+          return;
+        }
+        const items = (data.customers || []).map((c: any) => ({
+          id: c.Id || c.id || "",
+          name: c.DisplayName || c.FullyQualifiedName || c.CompanyName || c.GivenName || "Customer",
+        }));
+        setCustomerResults(items);
+      } catch {
+        if (!cancelled) setCustomerResults([]);
+      } finally {
+        if (!cancelled) setCustomerLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [customerQuery, showCreateModal]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -442,6 +490,11 @@ export default function JobsPage() {
                 <input
                   type="text"
                   placeholder="Search customers..."
+                  value={selectedCustomer?.name || customerQuery}
+                  onChange={(e) => {
+                    setSelectedCustomer(null);
+                    setCustomerQuery(e.target.value);
+                  }}
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{
                     background: "var(--color-surface-2)",
@@ -449,6 +502,32 @@ export default function JobsPage() {
                     color: "var(--color-text-primary)",
                   }}
                 />
+                {customerLoading && (
+                  <div className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    Searching QuickBooks...
+                  </div>
+                )}
+                {customerResults.length > 0 && !selectedCustomer && (
+                  <div
+                    className="mt-2 rounded-lg overflow-hidden"
+                    style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}
+                  >
+                    {customerResults.slice(0, 8).map((cust) => (
+                      <button
+                        key={cust.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomer(cust);
+                          setCustomerResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {cust.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Job Title */}

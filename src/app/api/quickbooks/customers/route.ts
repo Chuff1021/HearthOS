@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q');
     const id = searchParams.get('id');
     const sync = searchParams.get('sync');
+    const live = searchParams.get('live');
 
-    // If sync requested, pull fresh data from QuickBooks
-    if (sync === 'true') {
+    // If sync/live requested, pull fresh data from QuickBooks
+    if (sync === 'true' || live === 'true' || query) {
       let accessToken = request.cookies.get('qb_access_token')?.value;
       let refreshToken = request.cookies.get('qb_refresh_token')?.value;
       let realmId = request.cookies.get('qb_realm_id')?.value;
