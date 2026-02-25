@@ -27,6 +27,11 @@ export class QuickBooksClient {
     this.realmId = realmId;
   }
 
+  // Get current tokens (for checking if refreshed)
+  getTokens(): QBTokens | null {
+    return this.tokens;
+  }
+
   // Get authorization URL for OAuth flow
   getAuthorizationUrl(state?: string): string {
     const params = new URLSearchParams({

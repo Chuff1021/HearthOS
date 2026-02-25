@@ -1,21 +1,11 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
-  { label: "Invoices Synced", value: "1,284", sub: "Last 90 days", color: "#4ade80", bg: "rgba(74,222,128,0.12)" },
-  { label: "Payments Matched", value: "1,201", sub: "94% match rate", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  { label: "Customers Linked", value: "347", sub: "Active accounts", color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
-  { label: "Last Sync", value: "2m ago", sub: "Auto every 5 min", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-];
-
-const recentSyncs = [
-  { id: "INV-00891", type: "Invoice", customer: "Linda Martinez", amount: "$1,840", status: "synced", time: "2 min ago" },
-  { id: "INV-00890", type: "Invoice", customer: "Mike Johnson", amount: "$3,200", status: "synced", time: "18 min ago" },
-  { id: "PAY-00445", type: "Payment", customer: "Robert Chen", amount: "$920", status: "synced", time: "1h ago" },
-  { id: "INV-00889", type: "Invoice", customer: "Patricia Williams", amount: "$5,400", status: "pending", time: "2h ago" },
-  { id: "PAY-00444", type: "Payment", customer: "Tom Bradley", amount: "$640", status: "synced", time: "3h ago" },
-  { id: "INV-00888", type: "Invoice", customer: "Susan Park", amount: "$280", status: "error", time: "4h ago" },
+  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#4ade80", bg: "rgba(74,222,128,0.12)" },
+  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+  { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
+  { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
 ];
 
 type QuickBooksPageProps = {
@@ -26,8 +16,6 @@ type QuickBooksPageProps = {
 };
 
 export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
-  const qbRealm = cookies().get("qb_realm_id")?.value;
-  const connected = Boolean(qbRealm) || searchParams?.connected === "true";
   const error = searchParams?.error;
   const errorMessage =
     error === "missing_params"
@@ -40,7 +28,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
-      {/* Sidebar placeholder — in a real app this would be the shared Sidebar component */}
+      {/* Sidebar */}
       <div
         className="w-[220px] flex-shrink-0 flex flex-col"
         style={{ background: "var(--color-surface-1)", borderRight: "1px solid var(--color-border)" }}
@@ -98,36 +86,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{
-                background: connected ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.12)",
-                border: connected ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(248,113,113,0.2)",
-                color: connected ? "#4ade80" : "#f87171",
-              }}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-red-400"}`}
-              ></span>
-              {connected ? "Connected" : "Not Connected"}
-            </div>
-            {connected ? (
-              <QuickBooksActions connected={connected} />
-            ) : (
-              <a
-                href="/api/quickbooks/connect"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                style={{
-                  background: "linear-gradient(135deg, #2ca01c, #1e7a14)",
-                  color: "white",
-                  boxShadow: "0 0 16px rgba(44,160,28,0.25)",
-                }}
-              >
-                Connect QuickBooks
-              </a>
-            )}
-          </div>
+          <QuickBooksActions />
         </div>
 
         {/* Content */}
@@ -145,6 +104,43 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
                 {errorMessage}
               </div>
             ) : null}
+
+            {searchParams?.connected === "true" && (
+              <div
+                className="rounded-lg px-4 py-3 text-sm"
+                style={{
+                  background: "rgba(74,222,128,0.12)",
+                  border: "1px solid rgba(74,222,128,0.2)",
+                  color: "#4ade80",
+                }}
+              >
+                ✓ Successfully connected to QuickBooks! Click &quot;Sync Now&quot; to pull your data.
+              </div>
+            )}
+
+            {/* Setup Instructions */}
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: "var(--color-surface-2)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <h2 className="font-semibold text-sm mb-4" style={{ color: "var(--color-text-primary)" }}>
+                📘 How QuickBooks Integration Works
+              </h2>
+              <div className="space-y-3 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                <p>
+                  <strong>1. Connect:</strong> Click &quot;Connect QuickBooks&quot; to authorize HearthOS to access your QuickBooks Online company.
+                </p>
+                <p>
+                  <strong>2. Sync:</strong> After connecting, click &quot;Sync Now&quot; to pull your customers, invoices, items, and payments.
+                </p>
+                <p>
+                  <strong>3. Manage:</strong> Once synced, your QuickBooks customers will appear in the Customers page, and you can create invoices that sync back to QuickBooks.
+                </p>
+              </div>
+            </div>
 
             {/* Sync Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -223,137 +219,23 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               </div>
             </div>
 
-            {/* Recent Sync Activity */}
+            {/* Requirements */}
             <div
-              className="rounded-xl overflow-hidden"
+              className="rounded-xl p-5"
               style={{
-                background: "var(--color-surface-2)",
-                border: "1px solid var(--color-border)",
+                background: "rgba(251,191,36,0.08)",
+                border: "1px solid rgba(251,191,36,0.2)",
               }}
             >
-              <div
-                className="px-5 py-4 flex items-center justify-between"
-                style={{ borderBottom: "1px solid var(--color-border)" }}
-              >
-                <h2 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
-                  Recent Sync Activity
-                </h2>
-                <button className="text-xs font-medium" style={{ color: "#f97316" }}>
-                  View all →
-                </button>
-              </div>
-              <div>
-                {recentSyncs.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 px-5 py-3.5"
-                    style={{
-                      borderBottom: idx < recentSyncs.length - 1 ? "1px solid var(--color-border)" : "none",
-                    }}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: item.type === "Invoice" ? "rgba(96,165,250,0.12)" : "rgba(74,222,128,0.12)",
-                        color: item.type === "Invoice" ? "#60a5fa" : "#4ade80",
-                      }}
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        {item.type === "Invoice" ? (
-                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                        ) : (
-                          <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                        )}
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
-                          {item.id}
-                        </span>
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
-                          style={{
-                            background: item.type === "Invoice" ? "rgba(96,165,250,0.12)" : "rgba(74,222,128,0.12)",
-                            color: item.type === "Invoice" ? "#60a5fa" : "#4ade80",
-                          }}
-                        >
-                          {item.type}
-                        </span>
-                      </div>
-                      <div className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                        {item.customer}
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                      {item.amount}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                        style={{
-                          background:
-                            item.status === "synced"
-                              ? "rgba(74,222,128,0.12)"
-                              : item.status === "pending"
-                                ? "rgba(251,191,36,0.12)"
-                                : "rgba(248,113,113,0.12)",
-                          color:
-                            item.status === "synced"
-                              ? "#4ade80"
-                              : item.status === "pending"
-                                ? "#fbbf24"
-                                : "#f87171",
-                        }}
-                      >
-                        {item.status === "synced" ? "✓ Synced" : item.status === "pending" ? "⏳ Pending" : "✗ Error"}
-                      </span>
-                      <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                        {item.time}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Connect / Reconnect CTA */}
-            <div
-              className="rounded-xl p-6 flex items-center justify-between"
-              style={{
-                background: "linear-gradient(135deg, rgba(44,160,28,0.08), rgba(44,160,28,0.04))",
-                border: "1px solid rgba(44,160,28,0.2)",
-              }}
-            >
-              <div>
-                <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                  QuickBooks Online — Connected
-                </div>
-                <div className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-                  Authorized as <span style={{ color: "#4ade80" }}>admin@hearthpro.com</span> · Company: Hearth Pro Services LLC
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  className="text-sm px-4 py-2 rounded-lg font-medium transition-all"
-                  style={{
-                    background: "var(--color-surface-3)",
-                    color: "var(--color-text-secondary)",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  Disconnect
-                </button>
-                <button
-                  className="text-sm px-4 py-2 rounded-lg font-semibold transition-all"
-                  style={{
-                    background: "linear-gradient(135deg, #2ca01c, #1e7a14)",
-                    color: "white",
-                  }}
-                >
-                  Open QuickBooks →
-                </button>
-              </div>
+              <h2 className="font-semibold text-sm mb-3" style={{ color: "#fbbf24" }}>
+                ⚠️ Requirements
+              </h2>
+              <ul className="space-y-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                <li>• QuickBooks Online account (not QuickBooks Desktop)</li>
+                <li>• Admin access to your QuickBooks company</li>
+                <li>• Environment variables set: QUICKBOOKS_CLIENT_ID, QUICKBOOKS_CLIENT_SECRET, QUICKBOOKS_REDIRECT_URI</li>
+                <li>• Redirect URI must match what&apos;s configured in your Intuit Developer app</li>
+              </ul>
             </div>
 
           </div>
