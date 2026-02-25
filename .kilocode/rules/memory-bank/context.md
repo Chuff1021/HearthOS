@@ -161,6 +161,15 @@ See `.env.local.example` for all required env vars:
 - `GROQ_MODEL` — Override model (optional)
 - `ADMIN_PASSWORD` — Password for admin area access
 
+## Local Data Store
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/lib/data-store.ts` | In-memory data store with 8 seed customers + 8 seed invoices | ✅ Built |
+| `src/app/api/customers/route.ts` | CRUD API for customers (GET/POST/PUT/DELETE) | ✅ Built |
+| `src/app/api/invoices/route.ts` | CRUD API for invoices (GET/POST/PUT/DELETE) | ✅ Built |
+| `src/app/api/dashboard/route.ts` | Dashboard stats API (computed from data store) | ✅ Built |
+
 ## Next Steps (Remaining)
 
 1. **Set up real database** — Create Neon/Supabase PostgreSQL, add `DATABASE_URL` to env
@@ -168,8 +177,7 @@ See `.env.local.example` for all required env vars:
 3. **Get Groq API key** — console.groq.com (free tier available)
 4. **Run DB migrations** — `bun db:generate && bun db:push`
 5. **Deploy to Vercel** — `vercel deploy`, add env vars in Vercel dashboard
-6. **Add authentication** — Clerk or NextAuth for user login/roles
-7. **Connect Google Maps** — Add `NEXT_PUBLIC_GOOGLE_MAPS_KEY` for real dispatch map
+6. **Connect Google Maps** — Add `NEXT_PUBLIC_GOOGLE_MAPS_KEY` for real dispatch map
 
 ## Session History
 
@@ -184,3 +192,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
 | 2026-02-25 | Removed Clerk dependency — now uses simple password auth for admin area (ADMIN_PASSWORD env var) |
+| 2026-02-25 | Fixed admin login redirect loop (moved /admin/login → /login), built local data store with 8 customers + 8 invoices, full CRUD on customers/invoices pages, dashboard stats wired to live data |

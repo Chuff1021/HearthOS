@@ -1,89 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
-// Mock invoice data (will be replaced with QuickBooks data)
-const mockInvoices = [
-  {
-    id: "inv-001",
-    invoiceNumber: "INV-2024-0891",
-    qbInvoiceId: "QB-INV-891",
-    customer: { id: "cust-001", name: "Linda Martinez" },
-    jobNumber: "JOB-2024-0089",
-    jobTitle: "Annual Cleaning & Inspection",
-    issueDate: "2024-02-20",
-    dueDate: "2024-03-20",
-    status: "sent",
-    subtotal: 250.00,
-    taxAmount: 20.00,
-    totalAmount: 270.00,
-    balance: 270.00,
-    lineItems: [
-      { description: "Annual Fireplace Cleaning", qty: 1, unitPrice: 185.00, total: 185.00 },
-      { description: "Safety Inspection", qty: 1, unitPrice: 65.00, total: 65.00 },
-    ],
-  },
-  {
-    id: "inv-002",
-    invoiceNumber: "INV-2024-0890",
-    qbInvoiceId: "QB-INV-890",
-    customer: { id: "cust-002", name: "Robert Chen" },
-    jobNumber: "JOB-2024-0090",
-    jobTitle: "Gas Fireplace Installation",
-    issueDate: "2024-02-25",
-    dueDate: "2024-03-25",
-    status: "draft",
-    subtotal: 3800.00,
-    taxAmount: 304.00,
-    totalAmount: 4104.00,
-    balance: 4104.00,
-    lineItems: [
-      { description: "Napoleon GVFL60 Gas Fireplace Unit", qty: 1, unitPrice: 2400.00, total: 2400.00 },
-      { description: "Installation Labor (8 hrs)", qty: 8, unitPrice: 125.00, total: 1000.00 },
-      { description: "Gas Line Connection", qty: 1, unitPrice: 250.00, total: 250.00 },
-      { description: "Permits & Inspection", qty: 1, unitPrice: 150.00, total: 150.00 },
-    ],
-  },
-  {
-    id: "inv-003",
-    invoiceNumber: "INV-2024-0889",
-    qbInvoiceId: "QB-INV-889",
-    customer: { id: "cust-003", name: "Patricia Williams" },
-    jobNumber: "JOB-2024-0091",
-    jobTitle: "Pilot Light Repair",
-    issueDate: "2024-02-24",
-    dueDate: "2024-03-24",
-    status: "paid",
-    subtotal: 165.00,
-    taxAmount: 13.20,
-    totalAmount: 178.20,
-    balance: 0,
-    lineItems: [
-      { description: "Pilot Light Repair - Labor (1.5 hrs)", qty: 1.5, unitPrice: 95.00, total: 142.50 },
-      { description: "Thermocouple Replacement", qty: 1, unitPrice: 22.50, total: 22.50 },
-    ],
-  },
-  {
-    id: "inv-004",
-    invoiceNumber: "INV-2024-0888",
-    qbInvoiceId: "QB-INV-888",
-    customer: { id: "cust-005", name: "Susan Park" },
-    jobNumber: "JOB-2024-0093",
-    jobTitle: "Pellet Stove Service",
-    issueDate: "2024-02-10",
-    dueDate: "2024-03-10",
-    status: "overdue",
-    subtotal: 245.00,
-    taxAmount: 19.60,
-    totalAmount: 264.60,
-    balance: 264.60,
-    lineItems: [
-      { description: "Pellet Stove Annual Service", qty: 1, unitPrice: 195.00, total: 195.00 },
-      { description: "Auger Motor Replacement", qty: 1, unitPrice: 50.00, total: 50.00 },
-    ],
-  },
-];
+interface InvoiceLineItem {
+  id: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+  total: number;
+}
+
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  jobNumber?: string;
+  jobTitle: string;
+  issueDate: string;
+  dueDate: string;
+  status: "draft" | "sent" | "paid" | "overdue" | "void";
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  totalAmount: number;
+  balance: number;
+  lineItems: InvoiceLineItem[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Customer {
+  id: string;
+  displayName: string;
+}
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
@@ -94,27 +46,189 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 };
 
 export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedInvoice, setSelectedInvoice] = useState<typeof mockInvoices[0] | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const filteredInvoices = mockInvoices.filter((inv) => {
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    customerId: "",
+    customerName: "",
+    jobTitle: "",
+    jobNumber: "",
+    issueDate: new Date().toISOString().split("T")[0],
+    dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+    taxRate: 8,
+    notes: "",
+    lineItems: [{ description: "", qty: 1, unitPrice: 0 }],
+  });
+
+  const fetchInvoices = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/invoices");
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setInvoices(data.invoices || []);
+      }
+    } catch {
+      setError("Failed to load invoices");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/customers");
+      const data = await res.json();
+      setCustomers(data.customers || []);
+    } catch {
+      // Silently fail — customers are optional for display
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchCustomers();
+  }, [fetchInvoices, fetchCustomers]);
+
+  const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
       inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalOutstanding = mockInvoices
-    .filter((i) => i.balance > 0)
-    .reduce((sum, i) => sum + i.balance, 0);
+  const totalOutstanding = invoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);
+  const totalOverdue = invoices.filter((i) => i.status === "overdue").reduce((sum, i) => sum + i.balance, 0);
+  const paidTotal = invoices.filter((i) => i.status === "paid").reduce((sum, i) => sum + i.totalAmount, 0);
+  const draftCount = invoices.filter((i) => i.status === "draft").length;
 
-  const totalOverdue = mockInvoices
-    .filter((i) => i.status === "overdue")
-    .reduce((sum, i) => sum + i.balance, 0);
+  const resetCreateForm = () => {
+    setCreateForm({
+      customerId: "",
+      customerName: "",
+      jobTitle: "",
+      jobNumber: "",
+      issueDate: new Date().toISOString().split("T")[0],
+      dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+      taxRate: 8,
+      notes: "",
+      lineItems: [{ description: "", qty: 1, unitPrice: 0 }],
+    });
+  };
+
+  const addLineItem = () => {
+    setCreateForm({
+      ...createForm,
+      lineItems: [...createForm.lineItems, { description: "", qty: 1, unitPrice: 0 }],
+    });
+  };
+
+  const removeLineItem = (idx: number) => {
+    if (createForm.lineItems.length <= 1) return;
+    setCreateForm({
+      ...createForm,
+      lineItems: createForm.lineItems.filter((_, i) => i !== idx),
+    });
+  };
+
+  const updateLineItem = (idx: number, field: string, value: string | number) => {
+    const items = [...createForm.lineItems];
+    items[idx] = { ...items[idx], [field]: value };
+    setCreateForm({ ...createForm, lineItems: items });
+  };
+
+  const handleCreateInvoice = async () => {
+    setSaving(true);
+    try {
+      const lineItems = createForm.lineItems.map((li) => ({
+        description: li.description,
+        qty: li.qty,
+        unitPrice: li.unitPrice,
+        total: li.qty * li.unitPrice,
+      }));
+
+      const res = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: createForm.customerId,
+          customerName: createForm.customerName,
+          jobTitle: createForm.jobTitle,
+          jobNumber: createForm.jobNumber || undefined,
+          issueDate: createForm.issueDate,
+          dueDate: createForm.dueDate,
+          taxRate: createForm.taxRate,
+          notes: createForm.notes || undefined,
+          lineItems,
+        }),
+      });
+
+      if (res.ok) {
+        setShowCreateModal(false);
+        resetCreateForm();
+        fetchInvoices();
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to create invoice");
+      }
+    } catch {
+      setError("Failed to create invoice");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      const res = await fetch("/api/invoices", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          status,
+          ...(status === "paid" ? { balance: 0 } : {}),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedInvoice(data.invoice);
+        fetchInvoices();
+      }
+    } catch {
+      setError("Failed to update invoice");
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
+    try {
+      const res = await fetch(`/api/invoices?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setSelectedInvoice(null);
+        fetchInvoices();
+      }
+    } catch {
+      setError("Failed to delete invoice");
+    }
+  };
+
+  const createSubtotal = createForm.lineItems.reduce((sum, li) => sum + li.qty * li.unitPrice, 0);
+  const createTax = createSubtotal * (createForm.taxRate / 100);
+  const createTotal = createSubtotal + createTax;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -145,15 +259,14 @@ export default function InvoicesPage() {
             { href: "/schedule", label: "Schedule", icon: "📅" },
             { href: "/dispatch", label: "Dispatch", icon: "🗺️" },
             { href: "/invoices", label: "Invoices", icon: "💰", active: true },
-            { href: "/integrations/quickbooks", label: "QuickBooks", icon: "📗" },
           ].map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${item.active ? "font-semibold" : ""}`}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${"active" in item && item.active ? "font-semibold" : ""}`}
               style={{
-                background: item.active ? "var(--color-surface-3)" : "transparent",
-                color: item.active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                background: "active" in item && item.active ? "var(--color-surface-3)" : "transparent",
+                color: "active" in item && item.active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
               }}
             >
               <span>{item.icon}</span>
@@ -173,30 +286,19 @@ export default function InvoicesPage() {
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Invoices</h1>
             <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-              Synced with QuickBooks Online
+              {loading ? "Loading..." : `${invoices.length} invoices`}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-              style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-              </svg>
-              Sync from QB
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white", boxShadow: "0 0 16px rgba(249,115,22,0.25)" }}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              New Invoice
-            </button>
-          </div>
+          <button
+            onClick={() => { resetCreateForm(); setShowCreateModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white", boxShadow: "0 0 16px rgba(249,115,22,0.25)" }}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            New Invoice
+          </button>
         </div>
 
         {/* Summary Stats */}
@@ -207,14 +309,10 @@ export default function InvoicesPage() {
           {[
             { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#60a5fa" },
             { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#f87171" },
-            { label: "Paid This Month", value: "$178", color: "#4ade80" },
-            { label: "Draft", value: `${mockInvoices.filter(i => i.status === "draft").length} invoices`, color: "#9ca3af" },
+            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#4ade80" },
+            { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
           ].map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-lg p-3"
-              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-            >
+            <div key={stat.label} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
               <div className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}</div>
               <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{stat.label}</div>
             </div>
@@ -257,68 +355,74 @@ export default function InvoicesPage() {
         <div className="flex-1 flex overflow-hidden">
           {/* Invoice List */}
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-3">
-              {filteredInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  onClick={() => setSelectedInvoice(invoice)}
-                  className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.005] ${selectedInvoice?.id === invoice.id ? "ring-2 ring-orange-500" : ""}`}
-                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>
-                          {invoice.invoiceNumber}
-                        </span>
-                        <span
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                          style={{ background: statusColors[invoice.status].bg, color: statusColors[invoice.status].text, border: `1px solid ${statusColors[invoice.status].border}` }}
-                        >
-                          {invoice.status.toUpperCase()}
-                        </span>
-                        {invoice.qbInvoiceId && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(44,160,28,0.12)", color: "#2ca01c" }}>
-                            QB Synced
+            {error && (
+              <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171" }}>
+                {error}
+              </div>
+            )}
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <svg className="animate-spin w-8 h-8" viewBox="0 0 24 24" fill="none" style={{ color: "var(--color-text-muted)" }}>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredInvoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    onClick={() => setSelectedInvoice(invoice)}
+                    className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.005] ${selectedInvoice?.id === invoice.id ? "ring-2 ring-orange-500" : ""}`}
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>
+                            {invoice.invoiceNumber}
                           </span>
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                            style={{ background: statusColors[invoice.status].bg, color: statusColors[invoice.status].text, border: `1px solid ${statusColors[invoice.status].border}` }}
+                          >
+                            {invoice.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{invoice.customerName}</h3>
+                        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{invoice.jobTitle}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                          <span>Issued: {invoice.issueDate}</span>
+                          <span>Due: {invoice.dueDate}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>
+                          ${invoice.totalAmount.toLocaleString()}
+                        </div>
+                        {invoice.balance > 0 && (
+                          <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#f87171" : "var(--color-text-muted)" }}>
+                            ${invoice.balance.toLocaleString()} due
+                          </div>
+                        )}
+                        {invoice.balance === 0 && invoice.status === "paid" && (
+                          <div className="text-sm mt-0.5" style={{ color: "#4ade80" }}>Paid in full</div>
                         )}
                       </div>
-                      <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>
-                        {invoice.customer.name}
-                      </h3>
-                      <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                        {invoice.jobTitle}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        <span>Issued: {invoice.issueDate}</span>
-                        <span>Due: {invoice.dueDate}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>
-                        ${invoice.totalAmount.toLocaleString()}
-                      </div>
-                      {invoice.balance > 0 && (
-                        <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#f87171" : "var(--color-text-muted)" }}>
-                          ${invoice.balance.toLocaleString()} due
-                        </div>
-                      )}
-                      {invoice.balance === 0 && (
-                        <div className="text-sm mt-0.5" style={{ color: "#4ade80" }}>Paid in full</div>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {filteredInvoices.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-3">💰</div>
-                  <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>No invoices found</p>
-                  <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>Try adjusting your filters or create a new invoice</p>
-                </div>
-              )}
-            </div>
+                {filteredInvoices.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-4xl mb-3">💰</div>
+                    <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>No invoices found</p>
+                    <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>Try adjusting your filters or create a new invoice</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Invoice Detail Panel */}
@@ -348,7 +452,7 @@ export default function InvoicesPage() {
                       {selectedInvoice.status.toUpperCase()}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>{selectedInvoice.customer.name}</h3>
+                  <h3 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>{selectedInvoice.customerName}</h3>
                   <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{selectedInvoice.jobTitle}</p>
                   <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
                     <span>Issued: {selectedInvoice.issueDate}</span>
@@ -382,7 +486,7 @@ export default function InvoicesPage() {
                       <span>${selectedInvoice.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                      <span>Tax (8%)</span>
+                      <span>Tax ({selectedInvoice.taxRate}%)</span>
                       <span>${selectedInvoice.taxAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-2" style={{ color: "var(--color-text-primary)", borderTop: "1px solid var(--color-border)" }}>
@@ -398,46 +502,50 @@ export default function InvoicesPage() {
                   </div>
                 </div>
 
+                {/* Notes */}
+                {selectedInvoice.notes && (
+                  <div>
+                    <h4 className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>NOTES</h4>
+                    <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedInvoice.notes}</p>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="space-y-2">
                   {selectedInvoice.status === "draft" && (
                     <button
+                      onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #2ca01c, #1e7a14)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #60a5fa, #3b82f6)", color: "white" }}
                     >
-                      Send to QuickBooks & Email Customer
+                      Mark as Sent
                     </button>
                   )}
-                  {selectedInvoice.status === "sent" && (
+                  {(selectedInvoice.status === "sent" || selectedInvoice.status === "overdue") && (
                     <button
+                      onClick={() => handleUpdateStatus(selectedInvoice.id, "paid")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
                       style={{ background: "linear-gradient(135deg, #4ade80, #22c55e)", color: "white" }}
                     >
-                      Record Payment
+                      Record Payment (Mark Paid)
                     </button>
                   )}
-                  {selectedInvoice.status === "overdue" && (
+                  {selectedInvoice.status !== "void" && selectedInvoice.status !== "paid" && (
                     <button
-                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white" }}
+                      onClick={() => handleUpdateStatus(selectedInvoice.id, "void")}
+                      className="w-full px-4 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                     >
-                      Send Payment Reminder
+                      Void Invoice
                     </button>
                   )}
-                  <div className="flex gap-2">
-                    <button
-                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
-                    >
-                      Download PDF
-                    </button>
-                    <button
-                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
-                    >
-                      Open in QB →
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleDeleteInvoice(selectedInvoice.id)}
+                    className="w-full px-4 py-2 rounded-lg text-sm font-medium"
+                    style={{ background: "rgba(248,113,113,0.12)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+                  >
+                    Delete Invoice
+                  </button>
                 </div>
               </div>
             </div>
@@ -463,24 +571,71 @@ export default function InvoicesPage() {
             </div>
 
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Customer Selection */}
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Customer *</label>
+                <select
+                  value={createForm.customerId}
+                  onChange={(e) => {
+                    const cust = customers.find((c) => c.id === e.target.value);
+                    setCreateForm({
+                      ...createForm,
+                      customerId: e.target.value,
+                      customerName: cust?.displayName || "",
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                >
+                  <option value="">Select a customer...</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.displayName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Job Title *</label>
                 <input
                   type="text"
-                  placeholder="Search QuickBooks customers..."
+                  value={createForm.jobTitle}
+                  onChange={(e) => setCreateForm({ ...createForm, jobTitle: e.target.value })}
+                  placeholder="e.g. Annual Cleaning & Inspection"
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Issue Date *</label>
-                  <input type="date" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Issue Date</label>
+                  <input
+                    type="date"
+                    value={createForm.issueDate}
+                    onChange={(e) => setCreateForm({ ...createForm, issueDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Due Date</label>
-                  <input type="date" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  <input
+                    type="date"
+                    value={createForm.dueDate}
+                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Tax Rate %</label>
+                  <input
+                    type="number"
+                    value={createForm.taxRate}
+                    onChange={(e) => setCreateForm({ ...createForm, taxRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                  />
                 </div>
               </div>
 
@@ -488,56 +643,92 @@ export default function InvoicesPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Line Items *</label>
-                  <button className="text-xs font-medium" style={{ color: "#f97316" }}>+ Add Item from QB</button>
+                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#f97316" }}>+ Add Line Item</button>
                 </div>
                 <div className="space-y-2">
-                  {[1].map((_, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2">
+                  {createForm.lineItems.map((li, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                       <input
                         type="text"
                         placeholder="Description"
-                        className="col-span-6 px-3 py-2 rounded-lg text-sm"
+                        value={li.description}
+                        onChange={(e) => updateLineItem(idx, "description", e.target.value)}
+                        className="col-span-5 px-3 py-2 rounded-lg text-sm"
                         style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                       />
                       <input
                         type="number"
                         placeholder="Qty"
+                        value={li.qty}
+                        onChange={(e) => updateLineItem(idx, "qty", parseFloat(e.target.value) || 0)}
                         className="col-span-2 px-3 py-2 rounded-lg text-sm"
                         style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                       />
                       <input
                         type="number"
                         placeholder="Price"
+                        value={li.unitPrice}
+                        onChange={(e) => updateLineItem(idx, "unitPrice", parseFloat(e.target.value) || 0)}
                         className="col-span-3 px-3 py-2 rounded-lg text-sm"
                         style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                       />
-                      <button className="col-span-1 flex items-center justify-center rounded-lg" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "#f87171" }}>
-                        ×
-                      </button>
+                      <div className="col-span-2 flex items-center gap-2">
+                        <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                          ${(li.qty * li.unitPrice).toFixed(2)}
+                        </span>
+                        {createForm.lineItems.length > 1 && (
+                          <button onClick={() => removeLineItem(idx)} className="text-xs" style={{ color: "#f87171" }}>✕</button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-                <button className="mt-2 text-sm font-medium" style={{ color: "#f97316" }}>+ Add Line Item</button>
+              </div>
+
+              {/* Totals Preview */}
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                  <span>Subtotal</span>
+                  <span>${createSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
+                  <span>Tax ({createForm.taxRate}%)</span>
+                  <span>${createTax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg mt-2 pt-2" style={{ color: "var(--color-text-primary)", borderTop: "1px solid var(--color-border)" }}>
+                  <span>Total</span>
+                  <span>${createTotal.toFixed(2)}</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Notes</label>
-                <textarea rows={2} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <textarea
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                />
               </div>
             </div>
 
-            <div className="px-6 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+            <div className="px-6 py-4 flex justify-end gap-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+              >
                 Cancel
               </button>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
-                  Save as Draft
-                </button>
-                <button className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "linear-gradient(135deg, #2ca01c, #1e7a14)", color: "white" }}>
-                  Create & Send to QB
-                </button>
-              </div>
+              <button
+                onClick={handleCreateInvoice}
+                disabled={saving || !createForm.customerName || !createForm.jobTitle || createForm.lineItems.every((li) => !li.description)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white" }}
+              >
+                {saving ? "Creating..." : "Create Invoice"}
+              </button>
             </div>
           </div>
         </div>
