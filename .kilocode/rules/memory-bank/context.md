@@ -123,6 +123,14 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `src/app/api/quickbooks/customers/route.ts` | Customer API | ✅ Done |
 | `src/app/api/quickbooks/items/route.ts` | Products/services API | ✅ Done |
 | `src/app/api/quickbooks/invoices/route.ts` | Invoice API (GET + POST) | ✅ Done |
+| `src/components/integrations/QuickBooksActions.tsx` | Client sync action UI | ✅ Added |
+| `src/app/integrations/quickbooks/page.tsx` | Connect + status UI wired | ✅ Updated |
+| `src/app/admin/integrations/page.tsx` | Admin integrations hub | ✅ Added |
+| `src/app/admin/settings/page.tsx` | Admin org settings | ✅ Added |
+| `src/app/admin/page.tsx` | Admin home | ✅ Added |
+| `src/app/admin/layout.tsx` | Admin auth gate | ✅ Added |
+| `src/middleware.ts` | Clerk auth middleware | ✅ Added |
+| `src/lib/org.ts` | Default org helper | ✅ Added |
 
 ## Database Layer
 
@@ -148,6 +156,10 @@ See `.env.local.example` for all required env vars:
 - `QUICKBOOKS_REDIRECT_URI` — OAuth callback URL
 - `QUICKBOOKS_ENVIRONMENT` — `sandbox` or `production`
 - `GROQ_API_KEY` — For GABE AI (llama-3.1-8b-instant)
+- `GROQ_MODEL` — Override model (optional)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk auth
+- `CLERK_SECRET_KEY` — Clerk auth
+- `ADMIN_EMAIL` — Admin-only access email
 
 ## Next Steps (Remaining)
 
@@ -169,3 +181,5 @@ See `.env.local.example` for all required env vars:
 | 2026-02-24 | Service Tech mobile app built — 7 pages: jobs, job detail, GABE AI, manuals, estimate builder, profile with GPS |
 | 2026-02-24 | Materials tracking on checklist (auto-invoice), GABE job context awareness, Sales Pipeline dashboard tab |
 | 2026-02-25 | QuickBooks API integration (OAuth, sync, customers/items/invoices), PostgreSQL schema (18 tables), /jobs, /customers, /invoices, /schedule, /dispatch pages, GABE AI wired to Groq API |
+| 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
+| 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
