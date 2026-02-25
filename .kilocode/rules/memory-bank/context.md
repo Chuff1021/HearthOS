@@ -129,7 +129,9 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `src/app/admin/settings/page.tsx` | Admin org settings | ✅ Added |
 | `src/app/admin/page.tsx` | Admin home | ✅ Added |
 | `src/app/admin/layout.tsx` | Admin auth gate | ✅ Added |
-| `src/middleware.ts` | Clerk auth middleware | ✅ Added |
+| `src/app/admin/login/page.tsx` | Admin login page | ✅ Added |
+| `src/app/api/admin/login/route.ts` | Admin login API | ✅ Added |
+| `src/middleware.ts` | Simple pass-through middleware | ✅ Updated |
 | `src/lib/org.ts` | Default org helper | ✅ Added |
 
 ## Database Layer
@@ -157,9 +159,7 @@ See `.env.local.example` for all required env vars:
 - `QUICKBOOKS_ENVIRONMENT` — `sandbox` or `production`
 - `GROQ_API_KEY` — For GABE AI (llama-3.1-8b-instant)
 - `GROQ_MODEL` — Override model (optional)
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk auth
-- `CLERK_SECRET_KEY` — Clerk auth
-- `ADMIN_EMAIL` — Admin-only access email
+- `ADMIN_PASSWORD` — Password for admin area access
 
 ## Next Steps (Remaining)
 
@@ -183,3 +183,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | QuickBooks API integration (OAuth, sync, customers/items/invoices), PostgreSQL schema (18 tables), /jobs, /customers, /invoices, /schedule, /dispatch pages, GABE AI wired to Groq API |
 | 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
+| 2026-02-25 | Removed Clerk dependency — now uses simple password auth for admin area (ADMIN_PASSWORD env var) |
