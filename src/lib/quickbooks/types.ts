@@ -1,0 +1,202 @@
+// QuickBooks Online API Types
+
+export interface QBConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  environment: 'sandbox' | 'production';
+}
+
+export interface QBTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  x_refresh_token_expires_in: number;
+  token_type: string;
+}
+
+export interface QBCustomer {
+  Id: string;
+  DisplayName: string;
+  CompanyName?: string;
+  GivenName?: string;
+  FamilyName?: string;
+  PrimaryEmailAddr?: {
+    Address: string;
+  };
+  PrimaryPhone?: {
+    FreeFormNumber: string;
+  };
+  BillAddr?: {
+    Line1?: string;
+    Line2?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  ShipAddr?: {
+    Line1?: string;
+    Line2?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  Active: boolean;
+  Balance: number;
+  CreatedTime: string;
+  LastUpdatedTime: string;
+}
+
+export interface QBItem {
+  Id: string;
+  Name: string;
+  Description?: string;
+  Type: 'Service' | 'Inventory' | 'NonInventory' | 'Category';
+  UnitPrice?: number;
+  PurchaseCost?: number;
+  QtyOnHand?: number;
+  IncomeAccountRef?: {
+    value: string;
+    name: string;
+  };
+  ExpenseAccountRef?: {
+    value: string;
+    name: string;
+  };
+  AssetAccountRef?: {
+    value: string;
+    name: string;
+  };
+  Active: boolean;
+  FullyQualifiedName: string;
+  CreatedTime: string;
+  LastUpdatedTime: string;
+}
+
+export interface QBInvoiceLine {
+  Id?: string;
+  LineNum?: number;
+  Description?: string;
+  Amount: number;
+  DetailType: 'SalesItemLineDetail' | 'DescriptionOnly';
+  SalesItemLineDetail?: {
+    ItemRef: {
+      value: string;
+      name?: string;
+    };
+    UnitPrice?: number;
+    Qty?: number;
+    TaxCodeRef?: {
+      value: string;
+    };
+  };
+}
+
+export interface QBInvoice {
+  Id: string;
+  DocNumber: string;
+  TxnDate: string;
+  CustomerRef: {
+    value: string;
+    name: string;
+  };
+  BillAddr?: {
+    Line1?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  ShipAddr?: {
+    Line1?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  Line: QBInvoiceLine[];
+  TxnTaxDetail?: {
+    TotalTax: number;
+  };
+  TotalAmt: number;
+  Balance: number;
+  DueDate?: string;
+  EmailStatus?: 'NeedToSend' | 'NotSet' | 'EmailSent';
+  BillEmail?: {
+    Address: string;
+  };
+  PrivateNote?: string;
+  CreatedTime: string;
+  LastUpdatedTime: string;
+}
+
+export interface QBPayment {
+  Id: string;
+  TxnDate: string;
+  CustomerRef: {
+    value: string;
+    name: string;
+  };
+  TotalAmt: number;
+  UnappliedAmt?: number;
+  Line?: {
+    Amount: number;
+    LinkedTxn: {
+      TxnId: string;
+      TxnType: string;
+    };
+  }[];
+  PaymentMethodRef?: {
+    value: string;
+    name: string;
+  };
+  DepositToAccountRef?: {
+    value: string;
+    name: string;
+  };
+  CreatedTime: string;
+  LastUpdatedTime: string;
+}
+
+export interface QBQueryResponse<T> {
+  QueryResponse: {
+    startPosition?: number;
+    maxResults?: number;
+    totalCount?: number;
+    [key: string]: T[] | number | undefined;
+  };
+  time: string;
+}
+
+export interface QBErrorResponse {
+  Fault: {
+    Error: {
+      Message: string;
+      Code: string;
+      Detail?: string;
+    }[];
+    type: string;
+  };
+  time: string;
+}
+
+// Sync tracking types
+export interface QBSyncStatus {
+  lastSync: Date;
+  status: 'idle' | 'syncing' | 'error';
+  error?: string;
+  recordsSynced: {
+    customers: number;
+    items: number;
+    invoices: number;
+    payments: number;
+  };
+}
+
+export interface QBSyncLog {
+  id: string;
+  timestamp: Date;
+  type: 'customers' | 'items' | 'invoices' | 'payments';
+  direction: 'import' | 'export';
+  recordsProcessed: number;
+  status: 'success' | 'partial' | 'error';
+  error?: string;
+}

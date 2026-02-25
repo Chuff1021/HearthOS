@@ -171,20 +171,49 @@ function GABEInner() {
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI thinking (replace with real API call)
-    await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 800));
+    // Call real GABE AI API (Groq llama-3.1-8b-instant)
+    try {
+      const apiMessages = messages
+        .filter((m) => m.id !== "1") // Skip the initial greeting
+        .map((m) => ({ role: m.role, content: m.content }));
+      apiMessages.push({ role: "user", content: text });
 
-    const response = getGabeResponse(text, jobContext);
+      const res = await fetch("/api/gabe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages, jobContext }),
+      });
 
-    const assistantMessage: Message = {
-      id: (msgCounter.current + 1).toString(),
-      role: "assistant",
-      content: response,
-      timestamp: new Date(),
-    };
+      let responseText: string;
+      if (res.ok) {
+        const data = await res.json() as { message: string };
+        responseText = data.message;
+      } else {
+        // Fallback to local responses if API fails
+        responseText = getGabeResponse(text, jobContext);
+      }
 
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsTyping(false);
+      const assistantMessage: Message = {
+        id: (msgCounter.current + 1).toString(),
+        role: "assistant",
+        content: responseText,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch {
+      // Fallback to local responses on network error
+      const response = getGabeResponse(text, jobContext);
+      const assistantMessage: Message = {
+        id: (msgCounter.current + 1).toString(),
+        role: "assistant",
+        content: response,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   // Context-aware quick questions

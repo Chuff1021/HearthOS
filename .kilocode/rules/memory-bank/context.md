@@ -99,16 +99,65 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | Pipeline value, MTD installed, ready-to-install summary stats | ✅ Built |
 | Tab switcher on main dashboard (Overview / Sales Pipeline) | ✅ Built |
 
-## Next Steps (Suggested)
+## Core Pages Built
 
-1. Build `/jobs` page — full job list with search, filters, create job modal
-2. Build `/customers` page — customer list + customer detail with fireplace history
-3. Build `/schedule` page — drag-and-drop calendar
-4. Build `/dispatch` page — full map view with tech tracking
-5. Build `/invoices` page — invoice list + create/send flow
-6. Add database layer (Drizzle + Neon PostgreSQL) via recipe
-7. Wire up real AI for GABE — use Groq (llama-3.1-8b-instant, ~$0.05/1M tokens) with `buildGabeSystemPrompt()`
-8. Wire up real AI for estimate generation
+| Page | File | Status |
+|------|------|--------|
+| `/jobs` | `src/app/jobs/page.tsx` | ✅ Built — job list, search, filters, create modal |
+| `/customers` | `src/app/customers/page.tsx` | ✅ Built — QB customer list, detail panel, fireplace history |
+| `/invoices` | `src/app/invoices/page.tsx` | ✅ Built — invoice list, detail panel, create modal, QB sync |
+| `/schedule` | `src/app/schedule/page.tsx` | ✅ Built — weekly calendar, tech color-coding, tech filter |
+| `/dispatch` | `src/app/dispatch/page.tsx` | ✅ Built — live map, tech status, unassigned jobs |
+
+## QuickBooks Integration
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/lib/quickbooks/types.ts` | QB API types | ✅ Done |
+| `src/lib/quickbooks/client.ts` | QB OAuth + API client | ✅ Done |
+| `src/lib/quickbooks/sync.ts` | Sync service + cache | ✅ Done |
+| `src/lib/quickbooks/index.ts` | Barrel export | ✅ Done |
+| `src/app/api/quickbooks/connect/route.ts` | OAuth initiation | ✅ Done |
+| `src/app/api/quickbooks/callback/route.ts` | OAuth callback | ✅ Done |
+| `src/app/api/quickbooks/sync/route.ts` | Trigger full sync | ✅ Done |
+| `src/app/api/quickbooks/customers/route.ts` | Customer API | ✅ Done |
+| `src/app/api/quickbooks/items/route.ts` | Products/services API | ✅ Done |
+| `src/app/api/quickbooks/invoices/route.ts` | Invoice API (GET + POST) | ✅ Done |
+
+## Database Layer
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/db/schema.ts` | Full PostgreSQL schema (18 tables) | ✅ Done |
+| `src/db/index.ts` | Drizzle + postgres-js client | ✅ Done |
+| `drizzle.config.ts` | Drizzle Kit config | ✅ Done |
+
+## GABE AI
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/lib/gabe/prompts.ts` | System prompt builder | ✅ Done |
+| `src/app/api/gabe/route.ts` | Groq API endpoint | ✅ Done |
+| `src/app/tech/gabe/page.tsx` | Chat UI (calls real API) | ✅ Done |
+
+## Environment Variables Required
+
+See `.env.local.example` for all required env vars:
+- `DATABASE_URL` — PostgreSQL connection string
+- `QUICKBOOKS_CLIENT_ID` / `QUICKBOOKS_CLIENT_SECRET` — QB OAuth app
+- `QUICKBOOKS_REDIRECT_URI` — OAuth callback URL
+- `QUICKBOOKS_ENVIRONMENT` — `sandbox` or `production`
+- `GROQ_API_KEY` — For GABE AI (llama-3.1-8b-instant)
+
+## Next Steps (Remaining)
+
+1. **Set up real database** — Create Neon/Supabase PostgreSQL, add `DATABASE_URL` to env
+2. **Register QuickBooks app** — Get client ID/secret from developer.intuit.com
+3. **Get Groq API key** — console.groq.com (free tier available)
+4. **Run DB migrations** — `bun db:generate && bun db:push`
+5. **Deploy to Vercel** — `vercel deploy`, add env vars in Vercel dashboard
+6. **Add authentication** — Clerk or NextAuth for user login/roles
+7. **Connect Google Maps** — Add `NEXT_PUBLIC_GOOGLE_MAPS_KEY` for real dispatch map
 
 ## Session History
 
@@ -119,3 +168,4 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | 2026-02-24 | Professional dark theme redesign — Inter font, dark navy palette, SVG icons, QuickBooks integration page |
 | 2026-02-24 | Service Tech mobile app built — 7 pages: jobs, job detail, GABE AI, manuals, estimate builder, profile with GPS |
 | 2026-02-24 | Materials tracking on checklist (auto-invoice), GABE job context awareness, Sales Pipeline dashboard tab |
+| 2026-02-25 | QuickBooks API integration (OAuth, sync, customers/items/invoices), PostgreSQL schema (18 tables), /jobs, /customers, /invoices, /schedule, /dispatch pages, GABE AI wired to Groq API |
