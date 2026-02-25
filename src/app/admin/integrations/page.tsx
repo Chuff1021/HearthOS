@@ -19,11 +19,17 @@ async function updateIntegrationSettings(formData: FormData) {
     gabeModel: formData.get("gabeModel")?.toString() || "llama-3.1-8b-instant",
   };
 
+  const org = await getOrCreateDefaultOrg();
+  const baseSettings =
+    typeof org.settings === "object" && org.settings !== null
+      ? (org.settings as Record<string, unknown>)
+      : {};
+
   await db
     .update(organizations)
     .set({
       settings: {
-        ...(await getOrCreateDefaultOrg()).settings,
+        ...baseSettings,
         integrations: settings,
       },
       updatedAt: new Date(),

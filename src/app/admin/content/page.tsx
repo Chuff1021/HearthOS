@@ -24,11 +24,17 @@ async function updateContent(formData: FormData) {
     featureThreeBody: formData.get("featureThreeBody")?.toString() || "",
   };
 
+  const org = await getOrCreateDefaultOrg();
+  const baseSettings =
+    typeof org.settings === "object" && org.settings !== null
+      ? (org.settings as Record<string, unknown>)
+      : {};
+
   await db
     .update(organizations)
     .set({
       settings: {
-        ...(await getOrCreateDefaultOrg()).settings,
+        ...baseSettings,
         content,
       },
       updatedAt: new Date(),
