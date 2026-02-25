@@ -5,9 +5,9 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 export async function POST(request: NextRequest) {
   try {
     // Get tokens from cookies
-    const accessToken = request.cookies.get('qb_access_token')?.value;
-    const refreshToken = request.cookies.get('qb_refresh_token')?.value;
-    const realmId = request.cookies.get('qb_realm_id')?.value;
+    let accessToken = request.cookies.get('qb_access_token')?.value;
+    let refreshToken = request.cookies.get('qb_refresh_token')?.value;
+    let realmId = request.cookies.get('qb_realm_id')?.value;
 
     if (!accessToken || !refreshToken || !realmId) {
       const org = await getOrCreateDefaultOrg();
