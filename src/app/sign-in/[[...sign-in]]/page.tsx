@@ -1,4 +1,5 @@
 import { SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function SignInPage() {
   return (
@@ -45,6 +46,18 @@ export default function SignInPage() {
             },
           }}
         />
+
+        {/* Sign up link */}
+        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/sign-up"
+            className="font-semibold hover:underline"
+            style={{ color: "#f97316" }}
+          >
+            Sign up here
+          </Link>
+        </p>
       </div>
     </div>
   );
