@@ -195,3 +195,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-26 | Created Jobs, Schedule, Dispatch, Techs API routes with CRUD operations |
 | 2026-02-26 | Fixed Jobs page "New Job" button - added form state and API handler |
 | 2026-02-26 | Fixed QuickActions dropdown - now navigates to Jobs, Customers, Invoices, Estimate pages |
+| 2026-02-26 | Added dashboard search functionality - searches customers, jobs, invoices with dropdown results |

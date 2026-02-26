@@ -206,6 +206,11 @@ const seedJobs: Job[] = [
 let jobs: Job[] = [...seedJobs];
 let nextJobNum = 150;
 
+// Export jobs data for other modules
+export function getJobs(): Job[] {
+  return jobs;
+}
+
 // GET - List all jobs or search
 export async function GET(request: Request) {
   try {

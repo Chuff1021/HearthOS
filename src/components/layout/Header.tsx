@@ -1,9 +1,66 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 
+interface SearchResult {
+  id: string;
+  type: "customer" | "job" | "invoice";
+  title: string;
+  subtitle: string;
+  href: string;
+}
+
 export default function Header() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<{ customers: SearchResult[]; jobs: SearchResult[]; invoices: SearchResult[] }>({
+    customers: [],
+    jobs: [],
+    invoices: [],
+  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Debounced search
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults({ customers: [], jobs: [], invoices: [] });
+      setIsOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setResults(data);
+        setIsOpen(true);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const totalResults = results.customers.length + results.jobs.length + results.invoices.length;
+
   return (
     <header
       className="flex items-center gap-4 px-6 py-3 flex-shrink-0"
@@ -13,7 +70,7 @@ export default function Header() {
       }}
     >
       {/* Search */}
-      <div className="flex-1 max-w-sm">
+      <div className="flex-1 max-w-sm relative">
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -32,11 +89,14 @@ export default function Header() {
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "rgba(249,115,22,0.5)";
               e.currentTarget.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.1)";
+              if (query.length >= 2) setIsOpen(true);
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = "var(--color-border)";
               e.currentTarget.style.boxShadow = "none";
             }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
           <kbd
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 rounded border"
@@ -49,6 +109,140 @@ export default function Header() {
             ⌘K
           </kbd>
         </div>
+        {/* Search Dropdown */}
+        {isOpen && (
+          <div
+            ref={searchRef}
+            className="absolute top-full left-0 right-0 mt-2 rounded-lg shadow-xl border overflow-hidden z-50"
+            style={{
+              background: "var(--color-surface-1)",
+              borderColor: "var(--color-border)",
+            }}
+          >
+            {isLoading ? (
+              <div className="p-4 text-center" style={{ color: "var(--color-text-muted)" }}>
+                Searching...
+              </div>
+            ) : totalResults === 0 ? (
+              <div className="p-4 text-center" style={{ color: "var(--color-text-muted)" }}>
+                No results found for &quot;{query}&quot;
+              </div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto">
+                {results.customers.length > 0 && (
+                  <div>
+                    <div
+                      className="px-4 py-2 text-xs font-medium uppercase"
+                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
+                    >
+                      Customers
+                    </div>
+                    {results.customers.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className="flex items-center gap-3 px-4 py-3 transition-colors"
+                        style={{ color: "var(--color-text-primary)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ background: "rgba(59,130,246,0.2)", color: "#60a5fa" }}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{item.title}</div>
+                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
+                            {item.subtitle}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {results.jobs.length > 0 && (
+                  <div>
+                    <div
+                      className="px-4 py-2 text-xs font-medium uppercase"
+                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
+                    >
+                      Jobs
+                    </div>
+                    {results.jobs.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className="flex items-center gap-3 px-4 py-3 transition-colors"
+                        style={{ color: "var(--color-text-primary)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ background: "rgba(249,115,22,0.2)", color: "#fb923c" }}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+                            <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{item.title}</div>
+                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
+                            {item.subtitle}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {results.invoices.length > 0 && (
+                  <div>
+                    <div
+                      className="px-4 py-2 text-xs font-medium uppercase"
+                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
+                    >
+                      Invoices
+                    </div>
+                    {results.invoices.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className="flex items-center gap-3 px-4 py-3 transition-colors"
+                        style={{ color: "var(--color-text-primary)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80" }}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{item.title}</div>
+                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
+                            {item.subtitle}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right side */}
