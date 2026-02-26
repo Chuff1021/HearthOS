@@ -179,6 +179,37 @@ See `.env.local.example` for all required env vars:
 5. **Deploy to Vercel** — `vercel deploy`, add env vars in Vercel dashboard
 6. **Connect Google Maps** — Add `NEXT_PUBLIC_GOOGLE_MAPS_KEY` for real dispatch map
 
+## Manual Library
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/app/api/manuals/route.ts` | Comprehensive fireplace manual API | ✅ Built |
+| `src/app/tech/manuals/page.tsx` | Tech app manuals UI with search + upload | ✅ Built |
+| `src/lib/gabe/prompts.ts` | GABE AI reads manuals for context | ✅ Built |
+
+### Manual Library Contents (102 total)
+- **Majestic (52 models)**: DVLL, DVCT, DVG, DVSL, BFDV, BV, QBDM, QCB, QCF, QLD, 36BDV, Ruby, Meridian, Avalon, Bronze, 8000/8500/9000 Series, DCV, SL-600/700/900, SLE Electric, SHAWNEE, Bristol, Welch, Monroe, IDV/MDV Inserts, Outdoor, Trilogy
+- **Regency (6)**: F1100, F5100, HZ40E, HZ50E, U29, C3
+- **Napoleon (5)**: AS35, T450, T500, X450, X500
+- **Heat & Glo (5)**: SLR, SLR-II, 6000CLX, 8000CLX, Gemini
+- **Vermont Castings (4)**: Defiant, Resolute, Intrepid, Majestic
+- **Dimplex (4)**: Opti-Myst, Opti-V, Revillusion, Linear
+- **Travis Industries (3)**: LW1100, Lopi, Apex
+- **Quadra-Fire (3)**: Santa Fe, Explorer, Denali
+- **Harman (3)**: P68, Trophy, Advance
+- **Buck Stove (4)**: Model 20, 24, 27, 91
+- **Pacific Energy (3)**: Alderlea, Summit, Fireview
+- **SBI (3)**: Enerzone, Drolet, Flexiheat
+- **Mont (3)**: Deluxe, Enchantment, Excalibur
+- **Empire (4)**: Vail, Alta, DVC, Palisade
+- **SimpliFire (4)**: Allusion, Scorpius, Vortex, Motion
+- **Modern Flames (3)**: Aurora, Landscape Pro, Wildland
+- **American Fireglass (3)**: Burner Systems, Fireballs, Fireplace Logs
+- **Rinnai (3)**: Enclaves, EnergySaver, Contour
+- **Lennox (3)**: Merritt, Brockway, Whitby
+- **Superior (3)**: DRT, DRL, XTR
+- **Kozy Heat (3)**: Taylor, Spartan, Bayport
+
 ## Session History
 
 | Date | Changes |
@@ -196,3 +227,4 @@ See `.env.local.example` for all required env vars:
 | 2026-02-26 | Fixed Jobs page "New Job" button - added form state and API handler |
 | 2026-02-26 | Fixed QuickActions dropdown - now navigates to Jobs, Customers, Invoices, Estimate pages |
 | 2026-02-26 | Added dashboard search functionality - searches customers, jobs, invoices with dropdown results |
+| 2026-02-26 | Added comprehensive fireplace manual library - 52 Majestic + 50 other brand manuals (102 total) |
