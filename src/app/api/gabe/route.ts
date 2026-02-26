@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildGabeSystemPrompt, manualKnowledgeBase, type Manual } from '@/lib/gabe/prompts';
+import { saveGabeMessage } from '@/lib/gabe-messages';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -29,9 +30,13 @@ export async function POST(request: NextRequest) {
         jobType?: string;
         jobId?: string;
       };
+      techId?: string;
+      techName?: string;
     };
 
-    const { messages, jobContext } = body;
+    const { messages, jobContext, techId, techName } = body;
+    const jobId = jobContext?.jobId;
+    const jobNumber = jobContext?.jobId ? `JOB-2026-${jobContext.jobId.split('-').pop()}` : undefined;
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
@@ -100,6 +105,28 @@ However, I still have knowledge from the manual library! Here are some common fi
 
 Would you like help with a specific fireplace model or issue?`;
       
+      // Save message to log for audit
+      try {
+        saveGabeMessage({
+          techId,
+          techName,
+          jobId,
+          jobNumber,
+          customerName: jobContext?.fireplace,
+          fireplace: jobContext?.fireplace,
+          messages: [
+            ...messages.filter(m => m.role !== 'system').map(m => ({ 
+              role: m.role as 'user' | 'assistant', 
+              content: m.content, 
+              timestamp: new Date().toISOString() 
+            })),
+            { role: 'assistant' as const, content: fallbackResponse, timestamp: new Date().toISOString() },
+          ],
+        });
+      } catch (e) {
+        console.error('Failed to save message log:', e);
+      }
+      
       return NextResponse.json({
         message: fallbackResponse,
         usage: null,
@@ -142,6 +169,28 @@ Would you like help with a specific fireplace model or issue?`;
         { error: 'No response from AI' },
         { status: 500 }
       );
+    }
+
+    // Save message to log for audit
+    try {
+      saveGabeMessage({
+        techId,
+        techName,
+        jobId,
+        jobNumber,
+        customerName: jobContext?.fireplace,
+        fireplace: jobContext?.fireplace,
+        messages: [
+          ...messages.filter(m => m.role !== 'system').map(m => ({ 
+            role: m.role as 'user' | 'assistant', 
+            content: m.content, 
+            timestamp: new Date().toISOString() 
+          })),
+          { role: 'assistant' as const, content: assistantMessage, timestamp: new Date().toISOString() },
+        ],
+      });
+    } catch (e) {
+      console.error('Failed to save message log:', e);
     }
 
     return NextResponse.json({
