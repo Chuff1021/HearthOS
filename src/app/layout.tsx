@@ -16,8 +16,11 @@ const inter = Inter({
   display: "swap",
 });
 
+// Force dynamic rendering to avoid Clerk prerender issues
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
-  title: "HearthOS — Fireplace Field Service Management",
+  title: "HearthOS  Fireplace Field Service Management",
   description:
     "Purpose-built field service management for fireplace installation, service, and retail companies.",
 };
