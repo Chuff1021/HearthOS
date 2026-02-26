@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { user, isLoaded } = useUser();
   const [gpsEnabled, setGpsEnabled] = useState(true);
+
+  const handleSignOut = async () => {
+    // Sign out and redirect to sign-in page
+    window.location.href = "/sign-out";
+  };
+
+  // Use Clerk user data if available, otherwise use mock data
+  const userName = user?.fullName || user?.username || "Service Tech";
+  const userEmail = user?.primaryEmailAddress?.emailAddress || "tech@hearthos.com";
+  const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const [isTracking, setIsTracking] = useState(true);
 
   // Derived state — no useEffect needed
   const currentLocation = gpsEnabled && isTracking ? "Springfield, IL" : null;
 
-  const user = {
-    name: "Mike Johnson",
-    email: "mike@hearthos.com",
-    phone: "(555) 123-4567",
-    role: "Service Technician",
-    employeeId: "EMP-001",
-  };
-
+  // User info from Clerk or defaults
   const todayStats = {
     jobsCompleted: 2,
     hoursWorked: "5h 32m",
@@ -37,12 +44,12 @@ export default function ProfilePage() {
         <div className="bg-[#1a1a2e] rounded-xl p-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center text-2xl font-bold">
-              {user.name.split(" ").map((n) => n[0]).join("")}
+              {userInitials}
             </div>
             <div>
-              <h2 className="text-lg font-semibold">{user.name}</h2>
-              <p className="text-sm text-gray-400">{user.role}</p>
-              <p className="text-xs text-gray-500">{user.employeeId}</p>
+              <h2 className="text-lg font-semibold">{userName}</h2>
+              <p className="text-sm text-gray-400">Service Technician</p>
+              <p className="text-xs text-gray-500">{userEmail}</p>
             </div>
           </div>
         </div>
@@ -130,11 +137,11 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Email</span>
-              <span className="text-sm">{user.email}</span>
+              <span className="text-sm">{userEmail}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Phone</span>
-              <span className="text-sm">{user.phone}</span>
+              <span className="text-sm">{user?.phoneNumbers?.[0]?.phoneNumber || "(555) 123-4567"}</span>
             </div>
           </div>
         </div>
@@ -162,7 +169,10 @@ export default function ProfilePage() {
         </div>
 
         {/* Logout */}
-        <button className="w-full bg-red-500/20 text-red-400 rounded-xl p-4 font-medium border border-red-500/50">
+        <button 
+          onClick={handleSignOut}
+          className="w-full bg-red-500/20 text-red-400 rounded-xl p-4 font-medium border border-red-500/50 cursor-pointer"
+        >
           Sign Out
         </button>
       </div>

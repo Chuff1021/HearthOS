@@ -73,8 +73,49 @@ export default function ManualsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [manuals, setManuals] = useState(mockManuals);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadBrand, setUploadBrand] = useState("");
+  const [uploadModel, setUploadModel] = useState("");
+  const [uploadCategory, setUploadCategory] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  const filteredManuals = mockManuals.filter((manual) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setUploadFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadBrand || !uploadModel || !uploadCategory) {
+      alert("Please fill in all fields and select a file");
+      return;
+    }
+
+    setUploading(true);
+    // In a real app, you would upload to storage and save to database
+    // For now, we'll add to local state
+    const newManual = {
+      id: Date.now().toString(),
+      brand: uploadBrand,
+      model: uploadModel,
+      type: uploadCategory.replace("Gas ", "").replace("Wood ", "").replace("Electric ", ""),
+      fileName: uploadFile.name,
+      pages: Math.floor(Math.random() * 50) + 10,
+      uploadDate: new Date().toISOString().split("T")[0],
+      category: uploadCategory,
+    };
+    
+    setManuals([newManual, ...manuals]);
+    setUploadFile(null);
+    setUploadBrand("");
+    setUploadModel("");
+    setUploadCategory("");
+    setShowUploadModal(false);
+    setUploading(false);
+  };
+
+  const filteredManuals = manuals.filter((manual) => {
     const matchesSearch =
       manual.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       manual.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -206,13 +247,24 @@ export default function ManualsPage() {
             </div>
             
             {/* Upload Area */}
-            <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center mb-4">
+            <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center mb-4 relative">
               <svg className="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <p className="text-gray-400 mb-2">Tap to select a PDF file</p>
-              <p className="text-xs text-gray-500">Max file size: 50MB</p>
-              <input type="file" accept=".pdf" className="absolute inset-0 opacity-0 cursor-pointer" />
+              {uploadFile ? (
+                <p className="text-orange-400 font-medium">{uploadFile.name}</p>
+              ) : (
+                <>
+                  <p className="text-gray-400 mb-2">Tap to select a PDF file</p>
+                  <p className="text-xs text-gray-500">Max file size: 50MB</p>
+                </>
+              )}
+              <input 
+                type="file" 
+                accept=".pdf" 
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer" 
+              />
             </div>
 
             {/* Form Fields */}
@@ -220,14 +272,22 @@ export default function ManualsPage() {
               <input
                 type="text"
                 placeholder="Brand (e.g., Regency)"
+                value={uploadBrand}
+                onChange={(e) => setUploadBrand(e.target.value)}
                 className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Model (e.g., F1100)"
+                value={uploadModel}
+                onChange={(e) => setUploadModel(e.target.value)}
                 className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
               />
-              <select className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none text-gray-400">
+              <select 
+                value={uploadCategory}
+                onChange={(e) => setUploadCategory(e.target.value)}
+                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none text-gray-400"
+              >
                 <option value="">Select Category</option>
                 {categories.filter(c => c !== "All").map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -235,8 +295,12 @@ export default function ManualsPage() {
               </select>
             </div>
 
-            <button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-4">
-              Upload Manual
+            <button 
+              onClick={handleUpload}
+              disabled={uploading}
+              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-4 disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Upload Manual"}
             </button>
           </div>
         </div>

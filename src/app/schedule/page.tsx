@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -125,6 +126,7 @@ function getWeekDates(baseDate: Date): Date[] {
 }
 
 export default function SchedulePage() {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"week" | "day">("week");
   const [selectedTechs, setSelectedTechs] = useState<string[]>(mockTechs.map((t) => t.id));
@@ -214,6 +216,7 @@ export default function SchedulePage() {
               ))}
             </div>
             <button
+              onClick={() => router.push("/jobs")}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
               style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white", boxShadow: "0 0 16px rgba(249,115,22,0.25)" }}
             >
