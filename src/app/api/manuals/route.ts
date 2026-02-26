@@ -8,6 +8,17 @@ let manuals: Manual[] = [
   // ============================================
   
   {
+    id: "m-000",
+    brand: "Majestic",
+    model: "DVLINEAR36",
+    type: "Direct Vent Linear Fireplace",
+    fileName: "Majestic_DVLINEAR36_Install.pdf",
+    pages: 48,
+    uploadDate: "2025-02-26",
+    category: "Direct Vent",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLINEAR36_INSTALL.pdf",
+  },
+  {
     id: "m-001",
     brand: "Majestic",
     model: "DVLL36",
@@ -16,7 +27,7 @@ let manuals: Manual[] = [
     pages: 48,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL36_INSTALL.pdf",
   },
   {
     id: "m-002",
@@ -27,7 +38,7 @@ let manuals: Manual[] = [
     pages: 52,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL42_INSTALL.pdf",
   },
   {
     id: "m-003",
@@ -38,7 +49,7 @@ let manuals: Manual[] = [
     pages: 56,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL54_INSTALL.pdf",
   },
   {
     id: "m-004",
