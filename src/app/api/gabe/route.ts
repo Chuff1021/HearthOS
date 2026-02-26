@@ -67,9 +67,21 @@ export async function POST(request: NextRequest) {
 
     if (!groqApiKey) {
       // Fallback response that includes manual knowledge but no AI
-      const fallbackResponse = `🔥 **GABE AI is not configured** — To enable real AI responses, add your GROQ_API_KEY to .env.local.
+      const manualList = manuals.length > 0 
+        ? manuals.slice(0, 30).map(m => `- ${m.brand} ${m.model} (${m.pages} pages)`).join('\n')
+        : 'No manuals loaded - check /api/manuals endpoint';
+      
+      const fallbackResponse = `🔥 **GABE AI is not configured** — To enable real AI responses, add your GROQ_API_KEY to Vercel project settings.
 
-However, I still have knowledge from the manual library! Here are some common fireplace questions I can help with:
+**Currently loaded manuals: ${manuals.length}**
+
+Here are the manuals I have access to:
+${manualList}
+${manuals.length > 30 ? `\n...and ${manuals.length - 30} more manuals` : ''}
+
+---
+
+**However, I can still help with common fireplace questions!**
 
 **Pilot Light Issues:**
 1. Check gas valve is ON at unit and main
@@ -94,17 +106,15 @@ However, I still have knowledge from the manual library! Here are some common fi
 - Vertical: 3' above roof penetration
 - Each 90° elbow = 5 ft equivalent length
 
-**Popular Majestic Models I have manuals for:**
-- Al Fresco, Ashland (36/42/50), Aura, Biltmore, Bravo, Cameo, Carolina
-- Jade Series, Meridian, Monroe, Quartz, Ruby, TruFlush
-- And 30+ more models with PDF links
-
 ⚠️ **Safety First:** If you smell gas, shut off supply and ventilate before troubleshooting.
 
-**To enable full AI responses:** Get a free Groq API key at console.groq.com and add it to your .env.local file.
+**To enable full AI responses:**
+1. Go to https://console.groq.com to get a free API key
+2. Add GROQ_API_KEY to your Vercel project settings (Environment Variables)
+3. Redeploy the application
 
 Would you like help with a specific fireplace model or issue?`;
-      
+
       // Save message to log for audit
       try {
         saveGabeMessage({
@@ -130,6 +140,7 @@ Would you like help with a specific fireplace model or issue?`;
       return NextResponse.json({
         message: fallbackResponse,
         usage: null,
+        manualsCount: manuals.length,
       });
     }
 
@@ -156,7 +167,7 @@ Would you like help with a specific fireplace model or issue?`;
       const error = await response.text();
       console.error('Groq API error:', error);
       return NextResponse.json(
-        { error: 'AI service temporarily unavailable' },
+        { error: 'AI service temporarily unavailable', details: error },
         { status: 503 }
       );
     }
@@ -196,6 +207,7 @@ Would you like help with a specific fireplace model or issue?`;
     return NextResponse.json({
       message: assistantMessage,
       usage: data.usage,
+      manualsCount: manuals.length,
     });
   } catch (err) {
     console.error('GABE API error:', err);
