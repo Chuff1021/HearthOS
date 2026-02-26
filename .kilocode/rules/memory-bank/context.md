@@ -192,3 +192,6 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
 | 2026-02-25 | Updated Clerk integration to use proxy.ts + layout header auth UI |
+| 2026-02-26 | Created Jobs, Schedule, Dispatch, Techs API routes with CRUD operations |
+| 2026-02-26 | Fixed Jobs page "New Job" button - added form state and API handler |
+| 2026-02-26 | Fixed QuickActions dropdown - now navigates to Jobs, Customers, Invoices, Estimate pages |
