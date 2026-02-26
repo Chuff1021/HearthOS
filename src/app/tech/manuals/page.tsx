@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { manuals as apiManuals, Manual } from "../../../lib/manuals";
 
-// Default manuals (shown when API is empty or unavailable)
+// Default manuals - will be replaced by API data if available
 const defaultManuals: Array<{
   id: string;
   brand: string;
@@ -83,7 +84,7 @@ export default function ManualsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [manuals, setManuals] = useState(defaultManuals);
+  const [manuals, setManuals] = useState(apiManuals.length > 0 ? apiManuals : defaultManuals);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadBrand, setUploadBrand] = useState("");
   const [uploadModel, setUploadModel] = useState("");
