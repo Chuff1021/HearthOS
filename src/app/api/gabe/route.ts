@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildGabeSystemPrompt } from '@/lib/gabe/prompts';
+import { buildGabeSystemPrompt, type Manual } from '@/lib/gabe/prompts';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -40,6 +40,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch manuals from API
+    let manuals: Manual[] = [];
+    try {
+      const manualsRes = await fetch(new URL('/api/manuals', request.url).toString(), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (manualsRes.ok) {
+        manuals = await manualsRes.json();
+      }
+    } catch (err) {
+      console.error('Failed to fetch manuals:', err);
+    }
+
     const groqApiKey = process.env.GROQ_API_KEY;
     const modelOverride = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
@@ -51,8 +65,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Build system prompt with job context
-    const systemPrompt = buildGabeSystemPrompt(jobContext);
+    // Build system prompt with job context and manuals
+    const systemPrompt = buildGabeSystemPrompt(jobContext, manuals);
 
     // Call Groq API
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

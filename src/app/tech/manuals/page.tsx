@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// Mock manuals data
-const mockManuals = [
+// Default manuals (shown when API is empty or unavailable)
+const defaultManuals = [
   {
     id: "1",
     brand: "Regency",
@@ -73,12 +73,28 @@ export default function ManualsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [manuals, setManuals] = useState(mockManuals);
+  const [manuals, setManuals] = useState(defaultManuals);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadBrand, setUploadBrand] = useState("");
   const [uploadModel, setUploadModel] = useState("");
   const [uploadCategory, setUploadCategory] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  // Load manuals from API on mount
+  useEffect(() => {
+    async function loadManuals() {
+      try {
+        const response = await fetch("/api/manuals");
+        if (response.ok) {
+          const data = await response.json();
+          setManuals(data);
+        }
+      } catch (error) {
+        console.error("Failed to load manuals:", error);
+      }
+    }
+    loadManuals();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -93,20 +109,38 @@ export default function ManualsPage() {
     }
 
     setUploading(true);
-    // In a real app, you would upload to storage and save to database
-    // For now, we'll add to local state
+    
     const newManual = {
-      id: Date.now().toString(),
       brand: uploadBrand,
       model: uploadModel,
       type: uploadCategory.replace("Gas ", "").replace("Wood ", "").replace("Electric ", ""),
       fileName: uploadFile.name,
       pages: Math.floor(Math.random() * 50) + 10,
-      uploadDate: new Date().toISOString().split("T")[0],
       category: uploadCategory,
     };
     
-    setManuals([newManual, ...manuals]);
+    try {
+      const response = await fetch("/api/manuals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newManual),
+      });
+      
+      if (response.ok) {
+        const savedManual = await response.json();
+        setManuals([savedManual, ...manuals]);
+      } else {
+        // Fallback to local state if API fails
+        const localManual = { ...newManual, id: Date.now().toString(), uploadDate: new Date().toISOString().split("T")[0] };
+        setManuals([localManual, ...manuals]);
+      }
+    } catch (error) {
+      console.error("Failed to save manual:", error);
+      // Fallback to local state
+      const localManual = { ...newManual, id: Date.now().toString(), uploadDate: new Date().toISOString().split("T")[0] };
+      setManuals([localManual, ...manuals]);
+    }
+    
     setUploadFile(null);
     setUploadBrand("");
     setUploadModel("");
