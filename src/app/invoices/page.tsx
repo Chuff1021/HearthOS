@@ -56,6 +56,7 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -74,15 +75,31 @@ export default function InvoicesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/invoices");
+      // Try QuickBooks endpoint first
+      const res = await fetch("/api/quickbooks/invoices?live=true");
       const data = await res.json();
+      
       if (data.error) {
-        setError(data.error);
+        // Fallback to local if QB not connected
+        const localRes = await fetch("/api/invoices");
+        const localData = await localRes.json();
+        if (localData.error) {
+          setError(localData.error);
+        } else {
+          setInvoices(localData.invoices || []);
+        }
       } else {
         setInvoices(data.invoices || []);
       }
     } catch {
-      setError("Failed to load invoices");
+      // Fallback to local API on error
+      try {
+        const localRes = await fetch("/api/invoices");
+        const localData = await localRes.json();
+        setInvoices(localData.invoices || []);
+      } catch {
+        setError("Failed to load invoices");
+      }
     } finally {
       setLoading(false);
     }
@@ -90,9 +107,17 @@ export default function InvoicesPage() {
 
   const fetchCustomers = useCallback(async () => {
     try {
-      const res = await fetch("/api/customers");
+      // Try QuickBooks first
+      const res = await fetch("/api/quickbooks/customers?live=true");
       const data = await res.json();
-      setCustomers(data.customers || []);
+      if (data.customers) {
+        setCustomers(data.customers || []);
+        return;
+      }
+      // Fallback to local
+      const localRes = await fetch("/api/customers");
+      const localData = await localRes.json();
+      setCustomers(localData.customers || []);
     } catch {
       // Silently fail — customers are optional for display
     }
@@ -162,6 +187,41 @@ export default function InvoicesPage() {
         total: li.qty * li.unitPrice,
       }));
 
+      // Try QuickBooks first
+      const qbRes = await fetch("/api/quickbooks/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: createForm.customerId,
+          customerName: createForm.customerName,
+          jobTitle: createForm.jobTitle,
+          jobNumber: createForm.jobNumber || undefined,
+          issueDate: createForm.issueDate,
+          dueDate: createForm.dueDate,
+          taxRate: createForm.taxRate,
+          notes: createForm.notes || undefined,
+          lineItems,
+        }),
+      });
+
+      const qbData = await qbRes.json();
+      
+      if (qbData.success) {
+        // Success from QB
+        setShowCreateModal(false);
+        resetCreateForm();
+        fetchInvoices();
+        return;
+      }
+      
+      // If QB fails with 401/not connected, fall through to local
+      if (qbRes.status !== 401 && !qbData.error?.includes('Not connected')) {
+        setError(qbData.error || "Failed to create invoice in QuickBooks");
+        setSaving(false);
+        return;
+      }
+
+      // Fallback to local API
       const res = await fetch("/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,6 +291,23 @@ export default function InvoicesPage() {
   const createTax = createSubtotal * (createForm.taxRate / 100);
   const createTotal = createSubtotal + createTax;
 
+  const handleSyncWithQuickBooks = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/quickbooks/invoices?sync=true", { method: "POST" });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        fetchInvoices();
+      }
+    } catch {
+      setError("Failed to sync with QuickBooks");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
@@ -256,6 +333,17 @@ export default function InvoicesPage() {
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             New Invoice
+          </button>
+          <button
+            onClick={handleSyncWithQuickBooks}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            style={{ background: "#2CA01C", color: "white" }}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`}>
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            {syncing ? 'Syncing...' : 'Sync QB'}
           </button>
         </div>
 

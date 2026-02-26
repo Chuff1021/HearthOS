@@ -38,6 +38,7 @@ export default function CustomersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -58,18 +59,42 @@ export default function CustomersPage() {
     setLoading(true);
     setError(null);
     try {
-      const url = searchQuery ? `/api/customers?q=${encodeURIComponent(searchQuery)}` : "/api/customers";
+      // Try QuickBooks endpoint first (with live to trigger sync)
+      const url = searchQuery 
+        ? `/api/quickbooks/customers?q=${encodeURIComponent(searchQuery)}&live=true` 
+        : "/api/quickbooks/customers?live=true";
       const res = await fetch(url);
       const data = await res.json();
+      
       if (data.error) {
-        setError(data.error);
-        setCustomers([]);
+        // Fallback to local if QB not connected
+        const localUrl = searchQuery 
+          ? `/api/customers?q=${encodeURIComponent(searchQuery)}` 
+          : "/api/customers";
+        const localRes = await fetch(localUrl);
+        const localData = await localRes.json();
+        if (localData.error) {
+          setError(localData.error);
+          setCustomers([]);
+        } else {
+          setCustomers(localData.customers || []);
+        }
       } else {
         setCustomers(data.customers || []);
       }
     } catch {
-      setError("Failed to load customers");
-      setCustomers([]);
+      // Fallback to local API on error
+      try {
+        const localUrl = searchQuery 
+          ? `/api/customers?q=${encodeURIComponent(searchQuery)}` 
+          : "/api/customers";
+        const localRes = await fetch(localUrl);
+        const localData = await localRes.json();
+        setCustomers(localData.customers || []);
+      } catch {
+        setError("Failed to load customers");
+        setCustomers([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -127,6 +152,31 @@ export default function CustomersPage() {
         active: true,
       };
 
+      // Try QuickBooks first for new customers
+      if (!isEdit) {
+        const qbRes = await fetch("/api/quickbooks/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        
+        const qbData = await qbRes.json();
+        if (qbData.success) {
+          // Success from QB
+          setShowAddModal(false);
+          setShowEditModal(false);
+          fetchCustomers();
+          return;
+        }
+        // If QB fails with 401/not connected, fall through to local
+        if (qbRes.status !== 401 && !qbData.error?.includes('Not connected')) {
+          setError(qbData.error || "Failed to save customer to QuickBooks");
+          setSaving(false);
+          return;
+        }
+      }
+      
+      // Fallback to local API
       const res = await fetch("/api/customers", {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,6 +215,23 @@ export default function CustomersPage() {
     }
   };
 
+  const handleSyncWithQuickBooks = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/quickbooks/customers?sync=true", { method: "POST" });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        fetchCustomers();
+      }
+    } catch {
+      setError("Failed to sync with QuickBooks");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const filteredCustomers = customers;
 
   return (
@@ -192,6 +259,17 @@ export default function CustomersPage() {
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             Add Customer
+          </button>
+          <button
+            onClick={handleSyncWithQuickBooks}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
+            style={{ background: "#2CA01C", color: "white" }}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`}>
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            {syncing ? 'Syncing...' : 'Sync QB'}
           </button>
         </div>
 
