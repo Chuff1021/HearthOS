@@ -23,6 +23,8 @@ HearthOS is a purpose-built field service management platform for fireplace inst
   - Dispatch Board with 6-tech grid, live status, current job, quick actions
   - Live Activity Feed with 10 activity types
   - Quick Actions dropdown
+- [x] **Manual Library** — `/tech/manuals` page with 6 default manuals, search, category filters, upload modal, view modal with Open PDF button
+- [x] **Manual Library API** — `/api/manuals` endpoint for CRUD operations
 
 ## Current Structure
 
