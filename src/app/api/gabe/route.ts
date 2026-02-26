@@ -66,14 +66,26 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildGabeSystemPrompt(jobContext, manuals);
 
     if (!groqApiKey) {
-      // Fallback response that includes manual knowledge but no AI
+      // Calculate brand counts for fallback display
+      const brandCounts = manuals.reduce((acc, m) => {
+        acc[m.brand] = (acc[m.brand] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const brandSummary = Object.entries(brandCounts)
+        .sort(([,a], [,b]) => b - a)
+        .map(([brand, count]) => `${brand}: ${count}`)
+        .join(', ');
+      
       const manualList = manuals.length > 0 
-        ? manuals.slice(0, 30).map(m => `- ${m.brand} ${m.model} (${m.pages} pages)`).join('\n')
+        ? manuals.slice(0, 30).map(m => `- ${m.brand} ${m.model} (${m.pages} pages)${m.url ? ` — 🔗` : ''}`).join('\n')
         : 'No manuals loaded - check /api/manuals endpoint';
       
       const fallbackResponse = `🔥 **GABE AI is not configured** — To enable real AI responses, add your GROQ_API_KEY to Vercel project settings.
 
-**Currently loaded manuals: ${manuals.length}**
+**📚 Manual Library Status:**
+- **Total Manuals:** ${manuals.length}
+- **Brand Distribution:** ${brandSummary}
 
 Here are the manuals I have access to:
 ${manualList}
