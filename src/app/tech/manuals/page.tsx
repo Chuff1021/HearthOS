@@ -79,6 +79,7 @@ export default function ManualsPage() {
   const [uploadModel, setUploadModel] = useState("");
   const [uploadCategory, setUploadCategory] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [viewingManual, setViewingManual] = useState<typeof defaultManuals[0] | null>(null);
 
   // Load manuals from API on mount
   useEffect(() => {
@@ -246,8 +247,11 @@ export default function ManualsPage() {
                 </div>
                 {/* Actions */}
                 <div className="flex gap-2 mt-3">
-                  <button className="flex-1 bg-[#252540] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors">
-                    View PDF
+                  <button 
+                    onClick={() => setViewingManual(manual)}
+                    className="flex-1 bg-[#252540] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors"
+                  >
+                    View
                   </button>
                   <button className="flex-1 bg-orange-500/20 text-orange-400 py-2 rounded-lg text-sm font-medium hover:bg-orange-500/30 transition-colors">
                     Download
@@ -266,6 +270,73 @@ export default function ManualsPage() {
           </div>
         )}
       </div>
+
+      {/* View Manual Modal */}
+      {viewingManual && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a2e] w-full max-w-md rounded-2xl p-6">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-xl font-bold">{viewingManual.brand}</h2>
+                <p className="text-orange-400 text-lg">{viewingManual.model}</p>
+              </div>
+              <button onClick={() => setViewingManual(null)} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-[#252540] rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium">{viewingManual.fileName}</p>
+                    <p className="text-sm text-gray-400">{viewingManual.pages} pages</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500">Type</p>
+                    <p className="font-medium">{viewingManual.type}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Category</p>
+                    <p className="font-medium">{viewingManual.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Upload Date</p>
+                    <p className="font-medium">{viewingManual.uploadDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Manual ID</p>
+                    <p className="font-medium">#{viewingManual.id}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button className="flex-1 bg-orange-500 py-3 rounded-xl font-medium">
+                  Open PDF
+                </button>
+                <button className="flex-1 bg-[#252540] py-3 rounded-xl font-medium">
+                  Share
+                </button>
+              </div>
+              
+              <p className="text-center text-sm text-gray-500">
+                This is a reference manual for {viewingManual.brand} {viewingManual.model}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Modal */}
       {showUploadModal && (
