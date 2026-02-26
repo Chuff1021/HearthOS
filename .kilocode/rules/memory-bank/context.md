@@ -224,6 +224,7 @@ See `.env.local.example` for all required env vars:
 | 2026-02-25 | QuickBooks API integration (OAuth, sync, customers/items/invoices), PostgreSQL schema (18 tables), /jobs, /customers, /invoices, /schedule, /dispatch pages, GABE AI wired to Groq API |
 | 2026-02-25 | QuickBooks integration UI wired to connect + sync actions; status driven by cookies/query params |
 | 2026-02-26 | Team page delete functionality, GABE AI manual citations, restored 124 manuals to Manual Library |
+| 2026-02-26 | Add .env.local.example documenting GROQ_API_KEY, improve GABE fallback to show loaded manuals count |
 | 2026-02-25 | Added Clerk auth, admin backend pages, org settings, and persisted QuickBooks tokens to DB |
 | 2026-02-25 | Updated Clerk integration to use proxy.ts + layout header auth UI |
 | 2026-02-26 | Created Jobs, Schedule, Dispatch, Techs API routes with CRUD operations |
