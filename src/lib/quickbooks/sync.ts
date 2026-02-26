@@ -206,6 +206,16 @@ export function searchItems(query: string): QBItem[] {
   );
 }
 
+export function searchInvoices(query: string): QBInvoice[] {
+  const lowerQuery = query.toLowerCase();
+  return invoicesCache.filter(
+    (i) =>
+      i.DocNumber?.toLowerCase().includes(lowerQuery) ||
+      i.CustomerRef?.name?.toLowerCase().includes(lowerQuery) ||
+      i.TotalAmt?.toString().includes(query)
+  );
+}
+
 // Get items by type
 export function getServiceItems(): QBItem[] {
   return itemsCache.filter((i) => i.Type === 'Service');

@@ -17,6 +17,7 @@ export {
   createCustomerInQuickBooks,
   searchCustomers,
   searchItems,
+  searchInvoices,
   getServiceItems,
   getInventoryItems,
   getCustomerById,
