@@ -126,7 +126,6 @@ export default function ManualsPage() {
       model: uploadModel,
       type: uploadCategory.replace("Gas ", "").replace("Wood ", "").replace("Electric ", ""),
       fileName: uploadFile.name,
-      url: "", // Empty URL - can be updated later
       pages: Math.floor(Math.random() * 50) + 10,
       category: uploadCategory,
     };
