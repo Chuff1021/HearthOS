@@ -11,6 +11,7 @@ const defaultManuals = [
     model: "F1100",
     type: "Gas Insert",
     fileName: "Regency_F1100_Manual.pdf",
+    url: "https://www.regency-fire.com/products/gas-inserts/f1100",
     pages: 48,
     uploadDate: "2025-01-15",
     category: "Gas Inserts",
@@ -21,6 +22,7 @@ const defaultManuals = [
     model: "AS35",
     type: "Gas Stove",
     fileName: "Napoleon_AS35_Manual.pdf",
+    url: "https://www.napoleon.com/products/gas-stoves/as35",
     pages: 36,
     uploadDate: "2025-01-10",
     category: "Gas Stoves",
@@ -31,6 +33,7 @@ const defaultManuals = [
     model: "SLR",
     type: "Gas Fireplace",
     fileName: "HeatGlo_SLR_Manual.pdf",
+    url: "https://www.heatnglo.com/products/gas-fireplaces/slr",
     pages: 52,
     uploadDate: "2025-01-08",
     category: "Gas Fireplaces",
@@ -41,6 +44,7 @@ const defaultManuals = [
     model: "Defiant",
     type: "Wood Stove",
     fileName: "VC_Defiant_Manual.pdf",
+    url: "https://www.vermontcastings.com/wood-stoves/defiant",
     pages: 44,
     uploadDate: "2024-12-20",
     category: "Wood Stoves",
@@ -51,6 +55,7 @@ const defaultManuals = [
     model: "Opti-Myst",
     type: "Electric Fireplace",
     fileName: "Dimplex_OptiMyst_Manual.pdf",
+    url: "https://www.dimplex.com/products/electric-fireplaces/opti-myst",
     pages: 28,
     uploadDate: "2024-12-15",
     category: "Electric",
@@ -61,6 +66,7 @@ const defaultManuals = [
     model: "Ruby 36",
     type: "Gas Fireplace",
     fileName: "Majestic_Ruby36_Manual.pdf",
+    url: "https://www.majesticproducts.com/support/manuals",
     pages: 40,
     uploadDate: "2024-12-10",
     category: "Gas Fireplaces",
@@ -116,6 +122,7 @@ export default function ManualsPage() {
       model: uploadModel,
       type: uploadCategory.replace("Gas ", "").replace("Wood ", "").replace("Electric ", ""),
       fileName: uploadFile.name,
+      url: "", // Empty URL - can be updated later
       pages: Math.floor(Math.random() * 50) + 10,
       category: uploadCategory,
     };
@@ -324,8 +331,8 @@ export default function ManualsPage() {
               <div className="flex gap-3">
                 <button 
                   onClick={() => {
-                    // Open the PDF file in a new tab
-                    const pdfUrl = `/manuals/${viewingManual.fileName}`;
+                    // Use URL if available, otherwise fall back to local file
+                    const pdfUrl = viewingManual.url || `/manuals/${viewingManual.fileName}`;
                     window.open(pdfUrl, '_blank');
                   }}
                   className="flex-1 bg-orange-500 py-3 rounded-xl font-medium hover:bg-orange-600 transition-colors"

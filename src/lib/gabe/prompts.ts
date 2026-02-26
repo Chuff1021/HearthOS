@@ -8,6 +8,7 @@ export interface Manual {
   model: string;
   type: string;
   fileName: string;
+  url?: string; // URL to manufacturer manual
   pages: number;
   uploadDate: string;
   category: string;
@@ -15,12 +16,12 @@ export interface Manual {
 
 // Current uploaded manuals - this would come from a database in production
 export const uploadedManuals: Manual[] = [
-  { id: "1", brand: "Regency", model: "F1100", type: "Gas Insert", fileName: "Regency_F1100_Manual.pdf", pages: 48, uploadDate: "2025-01-15", category: "Gas Inserts" },
-  { id: "2", brand: "Napoleon", model: "AS35", type: "Gas Stove", fileName: "Napoleon_AS35_Manual.pdf", pages: 36, uploadDate: "2025-01-10", category: "Gas Stoves" },
-  { id: "3", brand: "Heat & Glo", model: "SLR", type: "Gas Fireplace", fileName: "HeatGlo_SLR_Manual.pdf", pages: 52, uploadDate: "2025-01-08", category: "Gas Fireplaces" },
-  { id: "4", brand: "Vermont Castings", model: "Defiant", type: "Wood Stove", fileName: "VC_Defiant_Manual.pdf", pages: 44, uploadDate: "2024-12-20", category: "Wood Stoves" },
-  { id: "5", brand: "Dimplex", model: "Opti-Myst", type: "Electric Fireplace", fileName: "Dimplex_OptiMyst_Manual.pdf", pages: 28, uploadDate: "2024-12-15", category: "Electric" },
-  { id: "6", brand: "Majestic", model: "Ruby 36", type: "Gas Fireplace", fileName: "Majestic_Ruby36_Manual.pdf", pages: 40, uploadDate: "2024-12-10", category: "Gas Fireplaces" },
+  { id: "1", brand: "Regency", model: "F1100", type: "Gas Insert", fileName: "Regency_F1100_Manual.pdf", url: "https://www.regency-fire.com/products/gas-inserts/f1100", pages: 48, uploadDate: "2025-01-15", category: "Gas Inserts" },
+  { id: "2", brand: "Napoleon", model: "AS35", type: "Gas Stove", fileName: "Napoleon_AS35_Manual.pdf", url: "https://www.napoleon.com/products/gas-stoves/as35", pages: 36, uploadDate: "2025-01-10", category: "Gas Stoves" },
+  { id: "3", brand: "Heat & Glo", model: "SLR", type: "Gas Fireplace", fileName: "HeatGlo_SLR_Manual.pdf", url: "https://www.heatnglo.com/products/gas-fireplaces/slr", pages: 52, uploadDate: "2025-01-08", category: "Gas Fireplaces" },
+  { id: "4", brand: "Vermont Castings", model: "Defiant", type: "Wood Stove", fileName: "VC_Defiant_Manual.pdf", url: "https://www.vermontcastings.com/wood-stoves/defiant", pages: 44, uploadDate: "2024-12-20", category: "Wood Stoves" },
+  { id: "5", brand: "Dimplex", model: "Opti-Myst", type: "Electric Fireplace", fileName: "Dimplex_OptiMyst_Manual.pdf", url: "https://www.dimplex.com/products/electric-fireplaces/opti-myst", pages: 28, uploadDate: "2024-12-15", category: "Electric" },
+  { id: "6", brand: "Majestic", model: "Ruby 36", type: "Gas Fireplace", fileName: "Majestic_Ruby36_Manual.pdf", url: "https://www.majesticproducts.com/support/manuals", pages: 40, uploadDate: "2024-12-10", category: "Gas Fireplaces" },
 ];
 
 export function buildGabeSystemPrompt(jobContext?: {
@@ -33,7 +34,7 @@ export function buildGabeSystemPrompt(jobContext?: {
   const manualsBlock = `
 ## Available Manuals Library
 You have access to the following uploaded manuals. When a technician asks about a specific model, reference the manual:
-${manualsList.map(m => `- **${m.brand} ${m.model}** (${m.type}) — ${m.pages} pages, uploaded ${m.uploadDate}`).join("\n")}
+${manualsList.map(m => `- **${m.brand} ${m.model}** (${m.type}) — ${m.pages} pages, uploaded ${m.uploadDate}${m.url ? `\n  🔗 Manual URL: ${m.url}` : ''}`).join("\n")}
 
 IMPORTANT: When asked about a specific fireplace model that matches one of these manuals, reference the manual specs and provide model-specific guidance.
 `;
