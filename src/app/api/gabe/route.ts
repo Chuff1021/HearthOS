@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
     const groqApiKey = process.env.GROQ_API_KEY;
     const modelOverride = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
+    // Debug: log key presence (never log the actual key)
+    console.log('[GABE] GROQ_API_KEY present:', !!groqApiKey);
+    console.log('[GABE] GROQ_MODEL:', modelOverride);
+
     // Build system prompt with job context and manuals (for both API and fallback)
     const systemPrompt = buildGabeSystemPrompt(jobContext, manuals);
 
@@ -81,7 +85,11 @@ export async function POST(request: NextRequest) {
         ? manuals.slice(0, 30).map(m => `- ${m.brand} ${m.model} (${m.pages} pages)${m.url ? ` — 🔗` : ''}`).join('\n')
         : 'No manuals loaded - check /api/manuals endpoint';
       
-      const fallbackResponse = `🔥 **GABE AI is not configured** — To enable real AI responses, add your GROQ_API_KEY to Vercel project settings.
+      const fallbackResponse = `🔥 **GABE AI is not configured** — Missing GROQ_API_KEY environment variable.
+
+**Current Status:** Key is ${groqApiKey ? 'present but not working' : 'NOT FOUND'}
+
+To fix:
 
 **📚 Manual Library Status:**
 - **Total Manuals:** ${manuals.length}
@@ -157,6 +165,7 @@ Would you like help with a specific fireplace model or issue?`;
     }
 
     // Call Groq API
+    console.log('[GABE] Calling Groq API with', messages.length, 'messages');
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -178,10 +187,24 @@ Would you like help with a specific fireplace model or issue?`;
     if (!response.ok) {
       const error = await response.text();
       console.error('Groq API error:', error);
-      return NextResponse.json(
-        { error: 'AI service temporarily unavailable', details: error },
-        { status: 503 }
-      );
+      
+      // Check for auth errors vs other errors
+      const isAuthError = response.status === 401 || response.status === 403;
+      let errorMessage = 'AI service temporarily unavailable';
+      
+      try {
+        const errorJson = JSON.parse(error);
+        if (errorJson.error?.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch {}
+      
+      return NextResponse.json({
+        error: errorMessage,
+        isKeyConfigured: !!groqApiKey, // Help debug whether key was found
+        isAuthError,
+        details: error,
+      }, { status: isAuthError ? 401 : 503 });
     }
 
     const data = await response.json() as GroqResponse;
