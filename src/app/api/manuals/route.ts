@@ -60,7 +60,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVCT36_INSTALL.pdf",
   },
   {
     id: "m-005",
@@ -71,7 +71,7 @@ let manuals: Manual[] = [
     pages: 48,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVCT42_INSTALL.pdf",
   },
   {
     id: "m-006",
@@ -82,7 +82,7 @@ let manuals: Manual[] = [
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVG36_INSTALL.pdf",
   },
   {
     id: "m-007",
@@ -93,7 +93,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVG42_INSTALL.pdf",
   },
   {
     id: "m-008",
@@ -104,7 +104,7 @@ let manuals: Manual[] = [
     pages: 46,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVSL36_INSTALL.pdf",
   },
   {
     id: "m-009",
@@ -115,7 +115,7 @@ let manuals: Manual[] = [
     pages: 50,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVSL42_INSTALL.pdf",
   },
   {
     id: "m-010",
@@ -126,7 +126,7 @@ let manuals: Manual[] = [
     pages: 42,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BFDV36_INSTALL.pdf",
   },
   {
     id: "m-011",
@@ -137,7 +137,7 @@ let manuals: Manual[] = [
     pages: 46,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BFDV42_INSTALL.pdf",
   },
   {
     id: "m-012",
@@ -148,7 +148,7 @@ let manuals: Manual[] = [
     pages: 38,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BV36_INSTALL.pdf",
   },
   {
     id: "m-013",
@@ -159,7 +159,7 @@ let manuals: Manual[] = [
     pages: 42,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BV42_INSTALL.pdf",
   },
   {
     id: "m-014",
@@ -170,7 +170,7 @@ let manuals: Manual[] = [
     pages: 24,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QBDM36_INSTALL.pdf",
   },
   {
     id: "m-015",
@@ -181,7 +181,7 @@ let manuals: Manual[] = [
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QCB36_INSTALL.pdf",
   },
   {
     id: "m-016",
@@ -192,7 +192,7 @@ let manuals: Manual[] = [
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QCF36_INSTALL.pdf",
   },
   {
     id: "m-017",
@@ -203,7 +203,7 @@ let manuals: Manual[] = [
     pages: 20,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QLD36_INSTALL.pdf",
   },
   {
     id: "m-018",
@@ -214,7 +214,7 @@ let manuals: Manual[] = [
     pages: 22,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QLD42_INSTALL.pdf",
   },
   {
     id: "m-019",
@@ -225,7 +225,7 @@ let manuals: Manual[] = [
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_36BDV_INSTALL.pdf",
   },
   {
     id: "m-020",
@@ -236,7 +236,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.majesticproducts.com/support/manuals",
+    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_42BDV_INSTALL.pdf",
   },
 
   // ============================================
