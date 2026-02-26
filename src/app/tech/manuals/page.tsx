@@ -344,7 +344,7 @@ export default function ManualsPage() {
                   }}
                   className="flex-1 bg-orange-500 py-3 rounded-xl font-medium hover:bg-orange-600 transition-colors"
                 >
-                  Search Manual
+                  View Manual
                 </button>
                 <button className="flex-1 bg-[#252540] py-3 rounded-xl font-medium">
                   Share
@@ -352,7 +352,7 @@ export default function ManualsPage() {
               </div>
               
               <p className="text-center text-sm text-gray-500">
-                Search for {viewingManual.brand} {viewingManual.model} installation manual
+                View {viewingManual.brand} {viewingManual.model} installation manual
               </p>
             </div>
           </div>
