@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { manualKnowledgeBase } from "@/lib/gabe/prompts";
 
 interface Message {
   id: string;
@@ -75,7 +76,23 @@ const gabeResponses: Record<string, string> = {
   noise: "**Gas Fireplace Noise Diagnosis:**\n\n**Whistling:**\n- Gas pressure too high (check with manometer)\n- Restricted gas line or orifice\n- Dirty burner ports\n\n**Rumbling/Roaring:**\n- Improper gas pressure\n- Loose components vibrating\n- Fan motor issues\n\n**Clicking:**\n- Normal during ignition (3–5 clicks)\n- If continuous: igniter gap too wide or wet\n- Expansion/contraction: normal during heat-up/cool-down\n\n**Fan Noise:**\n- Clean fan blades (dust buildup causes imbalance)\n- Check mounting screws\n- Variable speed may cause hum at low settings\n\n⚠️ Always check gas pressure with manometer — should match rating plate.\n\nNeed more help? Ask me to walk through it step by step.",
   pipe: "**Gas Pipe Sizing Guide:**\n\n**Common Residential Sizing:**\n| BTU Input | Pipe Size | Max Run |\n|-----------|-----------|----------|\n| Up to 50K | 1/2\" | 30 ft |\n| 50K–100K | 3/4\" | 50 ft |\n| 100K–200K | 1\" | 75 ft |\n\n**Flex Connector:**\n- Use corrugated stainless steel (CSST) or appliance connector\n- Max 6 ft for appliance connectors\n- CSST requires bonding per local code\n\n**Venting Pipe:**\n- Match pipe diameter to unit collar (typically 4\" or 6\")\n- Use manufacturer-approved pipe only (co-axial for direct vent)\n- Max horizontal run: check manufacturer specs (typically 10–20 ft)\n- Each 90° elbow = 5 ft equivalent length\n\n⚠️ Never mix pipe brands on direct vent systems.\n\nNeed more help? Ask me to walk through it step by step.",
   regency: "**Regency Fireplace — Common Service Notes:**\n\n**F1100 Gas Insert:**\n- Pilot: IPI (Intermittent Pilot Ignition) — normal to click 3–5x before lighting\n- Thermopile: Should read 450–650mV when hot\n- Glass: Use Regency-approved cleaner only\n- Venting: 4\" co-linear or 4\"×6.5\" co-axial\n- BTU: 26,000 (high) / 16,000 (low)\n\n**P33 / P36 Gas Insert:**\n- Uses SIT Nova gas valve\n- Thermopile target: 500–700mV\n- Common issue: ODS (Oxygen Depletion Sensor) tripping — check room ventilation\n\n**General Regency Tips:**\n- Parts available at regency-fire.com or through distributor\n- Tech support: 1-800-268-4328\n\nNeed more help? Ask me to walk through it step by step.",
-  default: "🔥 I'm **GABE**, your Fireplace Expert AI assistant!\n\nI can help with:\n\n• **Troubleshooting** — Pilot issues, ignition problems, noise\n• **Installation** — Venting requirements, clearances, gas sizing\n• **Service** — Cleaning, maintenance, inspections\n• **Parts** — Thermocouples, remotes, blowers, glass\n• **Safety** — CO detection, gas leaks, proper operation\n• **Pipe Sizing** — Gas line and vent pipe calculations\n\nJust ask your question and I'll provide expert guidance. If you're on a job, I already know what unit you're working on!",
+  default: `🔥 I'm **GABE**, your Fireplace Expert AI assistant!
+
+I can help with:
+
+• **Troubleshooting** — Pilot issues, ignition problems, noise
+• **Installation** — Venting requirements, clearances, gas sizing
+• **Service** — Cleaning, maintenance, inspections
+• **Parts** — Thermocouples, remotes, blowers, glass
+• **Safety** — CO detection, gas leaks, proper operation
+• **Pipe Sizing** — Gas line and vent pipe calculations
+
+📖 **I have ${manualKnowledgeBase.includes('Majestic') ? '50+' : ''} fireplace manuals available!**
+Ask me about specific models like:
+- Majestic: Ashland, Jade, Meridian, Ruby, Biltmore, Cameo, Carolina
+- And many more with PDF installation guides
+
+Just ask your question and I'll provide expert guidance. If you're on a job, I already know what unit you're working on!`
 };
 
 function getGabeResponse(query: string, jobContext?: { fireplace?: string; jobType?: string }): string {
