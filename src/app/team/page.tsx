@@ -30,6 +30,8 @@ export default function TeamPage() {
   const [selectedTech, setSelectedTech] = useState<Tech | null>(null);
   const [filter, setFilter] = useState<"all" | "available" | "on_job" | "off">("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadTechs() {
     setLoading(true);
@@ -53,6 +55,27 @@ export default function TeamPage() {
       console.error("Failed to load techs:", error);
     }
     setLoading(false);
+  }
+
+  async function deleteTech(id: string) {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/techs?id=${id}`, {
+        method: "DELETE",
+      });
+      
+      if (res.ok) {
+        setTechs(techs.filter((t) => t.id !== id));
+        setSelectedTech(null);
+        setShowDeleteConfirm(false);
+      } else {
+        alert("Failed to delete technician");
+      }
+    } catch (error) {
+      console.error("Failed to delete tech:", error);
+      alert("Failed to delete technician");
+    }
+    setDeleting(false);
   }
 
   useEffect(() => {
@@ -327,6 +350,12 @@ export default function TeamPage() {
               <button className="px-4 py-2 rounded-lg font-medium bg-gray-700 text-white hover:bg-gray-600 transition-colors">
                 View Schedule
               </button>
+              <button 
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 rounded-lg font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -382,6 +411,40 @@ export default function TeamPage() {
             <button className="w-full mt-6 py-3 rounded-xl font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
               Add Team Member
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedTech && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+          <div className="bg-[#1a1a2e] w-full max-w-sm rounded-2xl p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold mb-2">Delete Team Member?</h3>
+              <p className="text-gray-400 mb-6">
+                Are you sure you want to delete <span className="text-white font-medium">{selectedTech.name}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-2 rounded-lg font-medium bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => deleteTech(selectedTech.id)}
+                  disabled={deleting}
+                  className="flex-1 py-2 rounded-lg font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

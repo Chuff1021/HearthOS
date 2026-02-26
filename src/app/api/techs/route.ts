@@ -146,3 +146,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create technician" }, { status: 500 });
   }
 }
+
+// DELETE - Remove technician
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    
+    if (!id) {
+      return NextResponse.json({ error: "Tech ID required" }, { status: 400 });
+    }
+    
+    const index = techs.findIndex((t) => t.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "Technician not found" }, { status: 404 });
+    }
+    
+    const deleted = techs.splice(index, 1)[0];
+    return NextResponse.json({ tech: deleted });
+  } catch (err) {
+    console.error("Failed to delete tech:", err);
+    return NextResponse.json({ error: "Failed to delete technician" }, { status: 500 });
+  }
+}
