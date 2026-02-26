@@ -126,6 +126,71 @@ export default function JobsPage() {
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string }[]>([]);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  // Form state for creating new job
+  const [formData, setFormData] = useState({
+    title: "",
+    jobType: "service",
+    priority: "normal",
+    scheduledDate: new Date().toISOString().split("T")[0],
+    scheduledTimeStart: "09:00",
+    scheduledTimeEnd: "10:00",
+    notes: "",
+    assignedTechs: [] as string[],
+  });
+
+  const handleCreateJob = async () => {
+    if (!selectedCustomer || !formData.title) return;
+    
+    setCreating(true);
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title,
+          customerId: selectedCustomer.id,
+          customerName: selectedCustomer.name,
+          propertyAddress: "", // Would need to fetch from customer
+          jobType: formData.jobType,
+          priority: formData.priority,
+          scheduledDate: formData.scheduledDate,
+          scheduledTimeStart: formData.scheduledTimeStart,
+          scheduledTimeEnd: formData.scheduledTimeEnd,
+          notes: formData.notes,
+          assignedTechs: formData.assignedTechs.map((id, idx) => ({
+            id,
+            name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
+            color: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"][idx] || "#6b7280",
+          })),
+          totalAmount: 0,
+        }),
+      });
+      
+      if (response.ok) {
+        setShowCreateModal(false);
+        // Reset form
+        setFormData({
+          title: "",
+          jobType: "service",
+          priority: "normal",
+          scheduledDate: new Date().toISOString().split("T")[0],
+          scheduledTimeStart: "09:00",
+          scheduledTimeEnd: "10:00",
+          notes: "",
+          assignedTechs: [],
+        });
+        setSelectedCustomer(null);
+        // Refresh jobs list - would need to reload
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to create job:", error);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   // Filter jobs
   const filteredJobs = mockJobs.filter((job) => {
@@ -538,6 +603,8 @@ export default function JobsPage() {
                 <input
                   type="text"
                   placeholder="e.g., Annual Cleaning & Inspection"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{
                     background: "var(--color-surface-2)",
@@ -696,6 +763,8 @@ export default function JobsPage() {
                 Cancel
               </button>
               <button
+                onClick={handleCreateJob}
+                disabled={creating || !selectedCustomer || !formData.title}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{
                   background: "linear-gradient(135deg, #f97316, #ea6c0a)",

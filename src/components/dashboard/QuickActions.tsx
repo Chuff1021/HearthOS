@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const actions = [
   {
     label: "New Job",
     color: "#f97316",
     bg: "rgba(249,115,22,0.12)",
+    href: "/jobs",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -18,6 +20,7 @@ const actions = [
     label: "New Customer",
     color: "#60a5fa",
     bg: "rgba(96,165,250,0.12)",
+    href: "/customers",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
@@ -28,6 +31,7 @@ const actions = [
     label: "New Invoice",
     color: "#4ade80",
     bg: "rgba(74,222,128,0.12)",
+    href: "/invoices",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
@@ -38,6 +42,7 @@ const actions = [
     label: "New Estimate",
     color: "#c084fc",
     bg: "rgba(192,132,252,0.12)",
+    href: "/tech/estimate",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
@@ -49,6 +54,12 @@ const actions = [
 
 export default function QuickActions() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  const handleAction = (href: string) => {
+    setOpen(false);
+    router.push(href);
+  };
 
   return (
     <div className="relative">
@@ -100,7 +111,7 @@ export default function QuickActions() {
               {actions.map((action) => (
                 <button
                   key={action.label}
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleAction(action.href)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all"
                   style={{ color: "var(--color-text-secondary)" }}
                   onMouseEnter={(e) => {

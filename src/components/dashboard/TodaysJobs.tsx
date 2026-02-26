@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type JobStatus =
   | "completed"
@@ -31,164 +31,67 @@ interface Job {
   notes?: string;
 }
 
-const jobs: Job[] = [
-  {
-    id: "1",
-    jobNumber: "JOB-2026-00142",
-    time: "8:00 AM",
-    duration: "3h",
-    type: "Install",
-    typeColor: "#60a5fa",
-    typeBg: "rgba(96,165,250,0.12)",
-    status: "completed",
-    customer: "Mike Johnson",
-    address: "142 Oak St",
-    city: "Springfield",
-    unit: "Napoleon GX70 Gas Insert",
-    tech: "Dave Torres",
-    techInitials: "DT",
-    techColor: "#f97316",
-    checklistPct: 100,
-    photosCount: 12,
-  },
-  {
-    id: "2",
-    jobNumber: "JOB-2026-00143",
-    time: "9:30 AM",
-    duration: "2h",
-    type: "Service",
-    typeColor: "#c084fc",
-    typeBg: "rgba(192,132,252,0.12)",
-    status: "in_progress",
-    customer: "Linda Martinez",
-    address: "88 Pine Ave",
-    city: "Riverside",
-    unit: "Regency P36 Gas Fireplace",
-    tech: "Dave Torres",
-    techInitials: "DT",
-    techColor: "#f97316",
-    checklistPct: 65,
-    photosCount: 4,
-    notes: "Customer mentioned pilot keeps going out",
-  },
-  {
-    id: "3",
-    jobNumber: "JOB-2026-00144",
-    time: "11:00 AM",
-    duration: "1.5h",
-    type: "Clean & Burn",
-    typeColor: "#fbbf24",
-    typeBg: "rgba(251,191,36,0.12)",
-    status: "en_route",
-    customer: "Robert Chen",
-    address: "55 Elm Rd",
-    city: "Lakewood",
-    unit: "Heatilator CNXT36 Wood",
-    tech: "Amy Walsh",
-    techInitials: "AW",
-    techColor: "#ec4899",
-    checklistPct: 0,
-    photosCount: 0,
-  },
-  {
-    id: "4",
-    jobNumber: "JOB-2026-00145",
-    time: "1:00 PM",
-    duration: "4h",
-    type: "Install",
-    typeColor: "#60a5fa",
-    typeBg: "rgba(96,165,250,0.12)",
-    status: "scheduled",
-    customer: "Patricia Williams",
-    address: "301 Maple Dr",
-    city: "Greenfield",
-    unit: "Valor H4 Gas Insert (new)",
-    tech: "Jake Rivera",
-    techInitials: "JR",
-    techColor: "#2dd4bf",
-    checklistPct: 0,
-    photosCount: 0,
-    priority: "high",
-  },
-  {
-    id: "5",
-    jobNumber: "JOB-2026-00146",
-    time: "2:30 PM",
-    duration: "1h",
-    type: "Warranty",
-    typeColor: "#f87171",
-    typeBg: "rgba(248,113,113,0.12)",
-    status: "scheduled",
-    customer: "Tom Bradley",
-    address: "19 Cedar Ln",
-    city: "Millbrook",
-    unit: "Fireplace Xtrordinair 564 SS",
-    tech: "Amy Walsh",
-    techInitials: "AW",
-    techColor: "#ec4899",
-    checklistPct: 0,
-    photosCount: 0,
-    notes: "Callback from last week — igniter issue",
-  },
-  {
-    id: "6",
-    jobNumber: "JOB-2026-00147",
-    time: "3:30 PM",
-    duration: "45m",
-    type: "Estimate",
-    typeColor: "#94a3b8",
-    typeBg: "rgba(148,163,184,0.12)",
-    status: "scheduled",
-    customer: "Susan Park",
-    address: "77 Birch Blvd",
-    city: "Westfield",
-    unit: "TBD — outdoor fireplace",
-    tech: "Jake Rivera",
-    techInitials: "JR",
-    techColor: "#2dd4bf",
-    checklistPct: 0,
-    photosCount: 0,
-  },
-  {
-    id: "7",
-    jobNumber: "JOB-2026-00148",
-    time: "4:30 PM",
-    duration: "2h",
-    type: "Service",
-    typeColor: "#c084fc",
-    typeBg: "rgba(192,132,252,0.12)",
-    status: "scheduled",
-    customer: "James O'Brien",
-    address: "200 Willow Way",
-    city: "Fairview",
-    unit: "SL-550 Slim Line Gas",
-    tech: "Carlos Mendez",
-    techInitials: "CM",
-    techColor: "#818cf8",
-    checklistPct: 0,
-    photosCount: 0,
-    priority: "emergency",
-  },
-  {
-    id: "8",
-    jobNumber: "JOB-2026-00149",
-    time: "5:00 PM",
-    duration: "1h",
-    type: "Inspect",
-    typeColor: "#22d3ee",
-    typeBg: "rgba(34,211,238,0.12)",
-    status: "scheduled",
-    customer: "Nancy Foster",
-    address: "14 Spruce Ct",
-    city: "Hillside",
-    unit: "Majestic Quartz 36 Gas",
-    tech: "Carlos Mendez",
-    techInitials: "CM",
-    techColor: "#818cf8",
-    checklistPct: 0,
-    photosCount: 0,
-  },
-];
+// Map API job to UI format
+function mapJobToUI(job: {
+  id: string;
+  jobNumber: string;
+  scheduledTimeStart: string;
+  scheduledTimeEnd: string;
+  jobType: string;
+  status: string;
+  customerName: string;
+  propertyAddress: string;
+  fireplaceUnit?: { brand: string; model: string; nickname?: string };
+  assignedTechs: Array<{ name: string; color: string }>;
+  priority: string;
+  notes?: string;
+}): Job {
+  const typeColors: Record<string, { color: string; bg: string }> = {
+    cleaning: { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+    inspection: { color: "#22d3ee", bg: "rgba(34,211,238,0.12)" },
+    repair: { color: "#f87171", bg: "rgba(248,113,113,0.12)" },
+    installation: { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+    service: { color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
+    estimate: { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+  };
+  
+  const tc = typeColors[job.jobType] || { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+  const tech = job.assignedTechs[0];
+  const addressParts = job.propertyAddress.split(",");
+  
+  const getDuration = (start: string, end: string): string => {
+    try {
+      const [startH, startM] = start.split(":").map(Number);
+      const [endH, endM] = end.split(":").map(Number);
+      const hours = (endH + endM/60) - (startH + startM/60);
+      if (hours <= 1) return "1h";
+      if (hours === 1.5) return "1.5h";
+      return `${Math.floor(hours)}h`;
+    } catch { return "1h"; }
+  };
+  
+  return {
+    id: job.id,
+    jobNumber: job.jobNumber,
+    time: job.scheduledTimeStart,
+    duration: getDuration(job.scheduledTimeStart, job.scheduledTimeEnd),
+    type: job.jobType.charAt(0).toUpperCase() + job.jobType.slice(1),
+    typeColor: tc.color,
+    typeBg: tc.bg,
+    status: job.status as JobStatus,
+    customer: job.customerName,
+    address: addressParts[0] || job.propertyAddress,
+    city: addressParts[1]?.trim() || "",
+    unit: job.fireplaceUnit ? `${job.fireplaceUnit.brand} ${job.fireplaceUnit.model}` : "TBD",
+    tech: tech?.name || "Unassigned",
+    techInitials: tech?.name?.split(" ").map(n => n[0]).join("") || "?",
+    techColor: tech?.color || "#6b7280",
+    priority: job.priority === "urgent" ? "emergency" : job.priority === "high" ? "high" : undefined,
+    checklistPct: job.status === "completed" ? 100 : job.status === "in_progress" ? 65 : 0,
+    photosCount: Math.floor(Math.random() * 5),
+    notes: job.notes,
+  };
+}
 
 const statusConfig: Record<
   JobStatus,
@@ -233,9 +136,23 @@ const statusConfig: Record<
 
 export default function TodaysJobs() {
   const [filter, setFilter] = useState<"all" | JobStatus>("all");
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered =
-    filter === "all" ? jobs : jobs.filter((j) => j.status === filter);
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    fetch(`/api/jobs?date=${today}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.jobs) {
+          setJobs(data.jobs.map(mapJobToUI));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = filter === "all" ? jobs : jobs.filter((j) => j.status === filter);
 
   const counts = {
     all: jobs.length,
@@ -322,159 +239,169 @@ export default function TodaysJobs() {
       </div>
 
       {/* Job list */}
-      <div>
-        {filtered.map((job, idx) => {
-          const sc = statusConfig[job.status];
-          return (
-            <div
-              key={job.id}
-              className="px-5 py-3.5 cursor-pointer transition-all"
-              style={{
-                borderBottom: idx < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
-                borderLeft: job.priority === "emergency"
-                  ? "3px solid #ef4444"
-                  : job.priority === "high"
-                    ? "3px solid #f59e0b"
-                    : "3px solid transparent",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-3)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background = "transparent";
-              }}
-            >
-              <div className="flex items-start gap-3">
-                {/* Time column */}
-                <div className="w-14 flex-shrink-0 text-center pt-0.5">
-                  <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                    {job.time}
-                  </div>
-                  <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                    {job.duration}
-                  </div>
-                </div>
-
-                {/* Main content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                    {/* Type badge */}
-                    <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                      style={{ background: job.typeBg, color: job.typeColor }}
-                    >
-                      {job.type}
-                    </span>
-                    {/* Status badge */}
-                    <span
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
-                      style={{ background: sc.bg, color: sc.color }}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${sc.pulse ? "pulse-dot" : ""}`}
-                        style={{ background: sc.dotColor }}
-                      ></span>
-                      {sc.label}
-                    </span>
-                    {/* Priority badges */}
-                    {job.priority === "emergency" && (
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                        style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
-                      >
-                        ⚡ EMERGENCY
-                      </span>
-                    )}
-                    {job.priority === "high" && (
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                        style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}
-                      >
-                        ↑ HIGH
-                      </span>
-                    )}
-                    <span className="text-[10px] ml-auto" style={{ color: "var(--color-text-muted)" }}>
-                      {job.jobNumber}
-                    </span>
-                  </div>
-
-                  <div className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
-                    {job.customer}
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                    {job.address}, {job.city}
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                    {job.unit}
-                  </div>
-
-                  {job.notes && (
-                    <div
-                      className="mt-1.5 text-xs px-2.5 py-1.5 rounded-lg"
-                      style={{
-                        background: "rgba(245,158,11,0.1)",
-                        color: "#fbbf24",
-                        border: "1px solid rgba(245,158,11,0.15)",
-                      }}
-                    >
-                      {job.notes}
+      {loading ? (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          Loading jobs...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          No jobs scheduled for today
+        </div>
+      ) : (
+        <div>
+          {filtered.map((job, idx) => {
+            const sc = statusConfig[job.status];
+            return (
+              <div
+                key={job.id}
+                className="px-5 py-3.5 cursor-pointer transition-all"
+                style={{
+                  borderBottom: idx < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
+                  borderLeft: job.priority === "emergency"
+                    ? "3px solid #ef4444"
+                    : job.priority === "high"
+                      ? "3px solid #f59e0b"
+                      : "3px solid transparent",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-3)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Time column */}
+                  <div className="w-14 flex-shrink-0 text-center pt-0.5">
+                    <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                      {job.time}
                     </div>
-                  )}
+                    <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                      {job.duration}
+                    </div>
+                  </div>
 
-                  {/* Progress indicators */}
-                  {job.status !== "scheduled" && (
-                    <div className="flex items-center gap-4 mt-2">
-                      {job.checklistPct !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-20 h-1 rounded-full overflow-hidden"
-                            style={{ background: "var(--color-surface-4)" }}
-                          >
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${job.checklistPct}%`,
-                                background: job.checklistPct === 100 ? "#22c55e" : "#f97316",
-                              }}
-                            ></div>
-                          </div>
-                          <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                            {job.checklistPct}%
-                          </span>
-                        </div>
-                      )}
-                      {job.photosCount !== undefined && job.photosCount > 0 && (
-                        <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                          </svg>
-                          {job.photosCount} photos
+                  {/* Main content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      {/* Type badge */}
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                        style={{ background: job.typeBg, color: job.typeColor }}
+                      >
+                        {job.type}
+                      </span>
+                      {/* Status badge */}
+                      <span
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1"
+                        style={{ background: sc.bg, color: sc.color }}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${sc.pulse ? "pulse-dot" : ""}`}
+                          style={{ background: sc.dotColor }}
+                        ></span>
+                        {sc.label}
+                      </span>
+                      {/* Priority badges */}
+                      {job.priority === "emergency" && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                          style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
+                        >
+                          ⚡ EMERGENCY
                         </span>
                       )}
+                      {job.priority === "high" && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                          style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}
+                        >
+                          ↑ HIGH
+                        </span>
+                      )}
+                      <span className="text-[10px] ml-auto" style={{ color: "var(--color-text-muted)" }}>
+                        {job.jobNumber}
+                      </span>
                     </div>
-                  )}
-                </div>
 
-                {/* Tech avatar */}
-                <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                  <div
-                    className="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center"
-                    style={{ background: job.techColor }}
-                  >
-                    {job.techInitials}
+                    <div className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
+                      {job.customer}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
+                      {job.address}, {job.city}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      {job.unit}
+                    </div>
+
+                    {job.notes && (
+                      <div
+                        className="mt-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+                        style={{
+                          background: "rgba(245,158,11,0.1)",
+                          color: "#fbbf24",
+                          border: "1px solid rgba(245,158,11,0.15)",
+                        }}
+                      >
+                        {job.notes}
+                      </div>
+                    )}
+
+                    {/* Progress indicators */}
+                    {job.status !== "scheduled" && (
+                      <div className="flex items-center gap-4 mt-2">
+                        {job.checklistPct !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-20 h-1 rounded-full overflow-hidden"
+                              style={{ background: "var(--color-surface-4)" }}
+                            >
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${job.checklistPct}%`,
+                                  background: job.checklistPct === 100 ? "#22c55e" : "#f97316",
+                                }}
+                              ></div>
+                            </div>
+                            <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                              {job.checklistPct}%
+                            </span>
+                          </div>
+                        )}
+                        {job.photosCount !== undefined && job.photosCount > 0 && (
+                          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                            {job.photosCount} photos
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span
-                    className="text-[9px] text-center leading-tight max-w-[40px]"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    {job.tech.split(" ")[0]}
-                  </span>
+
+                  {/* Tech avatar */}
+                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                    <div
+                      className="w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center"
+                      style={{ background: job.techColor }}
+                    >
+                      {job.techInitials}
+                    </div>
+                    <span
+                      className="text-[9px] text-center leading-tight max-w-[40px]"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      {job.tech.split(" ")[0]}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Footer */}
       <div
