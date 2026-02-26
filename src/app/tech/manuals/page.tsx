@@ -334,7 +334,7 @@ export default function ManualsPage() {
               <div className="flex gap-3">
                 <button 
                   onClick={() => {
-                    // Use URL if available, otherwise fall back to local file
+                    // Use URL if available (Google Search for manuals), otherwise show alert
                     const pdfUrl = viewingManual.url;
                   if (pdfUrl) {
                     window.open(pdfUrl, '_blank');
@@ -344,7 +344,7 @@ export default function ManualsPage() {
                   }}
                   className="flex-1 bg-orange-500 py-3 rounded-xl font-medium hover:bg-orange-600 transition-colors"
                 >
-                  View Manual
+                  Search Manual
                 </button>
                 <button className="flex-1 bg-[#252540] py-3 rounded-xl font-medium">
                   Share
@@ -352,7 +352,7 @@ export default function ManualsPage() {
               </div>
               
               <p className="text-center text-sm text-gray-500">
-                This is a reference manual for {viewingManual.brand} {viewingManual.model}
+                Search for {viewingManual.brand} {viewingManual.model} installation manual
               </p>
             </div>
           </div>

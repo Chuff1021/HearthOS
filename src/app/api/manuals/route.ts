@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 
 // In-memory storage for fireplace manuals
-// Uses manufacturer URLs for technicians to access real manuals
+// Uses Google Search URLs to help technicians find the latest manuals
+// This ensures working links even when manufacturer PDF URLs change
+
+function makeSearchUrl(brand: string, model: string): string {
+  const query = encodeURIComponent(`${brand} ${model} installation manual`);
+  return `https://www.google.com/search?q=${query}`;
+}
+
 let manuals: Manual[] = [
   // ============================================
   // MAJESTIC PRODUCTS - Direct Vent Fireplaces
@@ -16,7 +23,7 @@ let manuals: Manual[] = [
     pages: 48,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLINEAR36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVLINEAR36"),
   },
   {
     id: "m-001",
@@ -27,7 +34,7 @@ let manuals: Manual[] = [
     pages: 48,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVLL36"),
   },
   {
     id: "m-002",
@@ -38,7 +45,7 @@ let manuals: Manual[] = [
     pages: 52,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVLL42"),
   },
   {
     id: "m-003",
@@ -49,7 +56,7 @@ let manuals: Manual[] = [
     pages: 56,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVLL54_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVLL54"),
   },
   {
     id: "m-004",
@@ -60,7 +67,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVCT36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVCT36"),
   },
   {
     id: "m-005",
@@ -71,7 +78,7 @@ let manuals: Manual[] = [
     pages: 48,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVCT42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVCT42"),
   },
   {
     id: "m-006",
@@ -82,7 +89,7 @@ let manuals: Manual[] = [
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVG36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVG36"),
   },
   {
     id: "m-007",
@@ -93,7 +100,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVG42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVG42"),
   },
   {
     id: "m-008",
@@ -104,7 +111,7 @@ let manuals: Manual[] = [
     pages: 46,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVSL36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVSL36"),
   },
   {
     id: "m-009",
@@ -115,7 +122,7 @@ let manuals: Manual[] = [
     pages: 50,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_DVSL42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "DVSL42"),
   },
   {
     id: "m-010",
@@ -126,7 +133,7 @@ let manuals: Manual[] = [
     pages: 42,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BFDV36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "BFDV36"),
   },
   {
     id: "m-011",
@@ -137,7 +144,7 @@ let manuals: Manual[] = [
     pages: 46,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BFDV42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "BFDV42"),
   },
   {
     id: "m-012",
@@ -148,7 +155,7 @@ let manuals: Manual[] = [
     pages: 38,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BV36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "BV36"),
   },
   {
     id: "m-013",
@@ -159,7 +166,7 @@ let manuals: Manual[] = [
     pages: 42,
     uploadDate: "2025-02-26",
     category: "B-Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_BV42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "BV42"),
   },
   {
     id: "m-014",
@@ -170,7 +177,7 @@ let manuals: Manual[] = [
     pages: 24,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QBDM36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "QBDM36"),
   },
   {
     id: "m-015",
@@ -181,7 +188,7 @@ let manuals: Manual[] = [
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QCB36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "QCB36"),
   },
   {
     id: "m-016",
@@ -192,7 +199,7 @@ let manuals: Manual[] = [
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QCF36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "QCF36"),
   },
   {
     id: "m-017",
@@ -203,7 +210,7 @@ let manuals: Manual[] = [
     pages: 20,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QLD36_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "QLD36"),
   },
   {
     id: "m-018",
@@ -214,7 +221,7 @@ let manuals: Manual[] = [
     pages: 22,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_QLD42_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "QLD42"),
   },
   {
     id: "m-019",
@@ -225,7 +232,7 @@ let manuals: Manual[] = [
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_36BDV_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "36BDV"),
   },
   {
     id: "m-020",
@@ -236,7 +243,7 @@ let manuals: Manual[] = [
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://downloads.hearthnhome.com/installmanuals/Addendums/2569_980_42BDV_INSTALL.pdf",
+    url: makeSearchUrl("Majestic", "42BDV"),
   },
 
   // ============================================
@@ -252,7 +259,7 @@ let manuals: Manual[] = [
     pages: 32,
     uploadDate: "2025-02-26",
     category: "Freestanding",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    url: makeSearchUrl("Regency", "F1100"),
   },
   {
     id: "r-002",
@@ -263,29 +270,29 @@ let manuals: Manual[] = [
     pages: 36,
     uploadDate: "2025-02-26",
     category: "Freestanding",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    url: makeSearchUrl("Regency", "F5100"),
   },
   {
     id: "r-003",
     brand: "Regency",
     model: "HZ40E",
-    type: "Zero Clearance Fireplace",
+    type: "Zero Clearance Gas Fireplace",
     fileName: "Regency_HZ40E_Manual.pdf",
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Zero Clearance",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    url: makeSearchUrl("Regency", "HZ40E"),
   },
   {
     id: "r-004",
     brand: "Regency",
     model: "HZ50E",
-    type: "Zero Clearance Fireplace",
+    type: "Zero Clearance Gas Fireplace",
     fileName: "Regency_HZ50E_Manual.pdf",
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Zero Clearance",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    url: makeSearchUrl("Regency", "HZ50E"),
   },
   {
     id: "r-005",
@@ -296,18 +303,18 @@ let manuals: Manual[] = [
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Insert",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    url: makeSearchUrl("Regency", "U29"),
   },
   {
     id: "r-006",
     brand: "Regency",
     model: "C3",
-    type: "Catalytic Heater",
+    type: "Custom Fireplace",
     fileName: "Regency_C3_Manual.pdf",
     pages: 24,
     uploadDate: "2025-02-26",
-    category: "Heater",
-    url: "https://www.regency-fire.com/en/Support/Pages/Manuals.aspx",
+    category: "Custom",
+    url: makeSearchUrl("Regency", "C3"),
   },
 
   // ============================================
@@ -318,56 +325,56 @@ let manuals: Manual[] = [
     id: "n-001",
     brand: "Napoleon",
     model: "AS35",
-    type: "Aspen Small Freestanding",
+    type: "Aspen Series Fireplace",
     fileName: "Napoleon_AS35_Manual.pdf",
     pages: 28,
     uploadDate: "2025-02-26",
-    category: "Freestanding",
-    url: "https://www.napoleon.com/support/manuals/",
+    category: "Aspen",
+    url: makeSearchUrl("Napoleon", "AS35"),
   },
   {
     id: "n-002",
     brand: "Napoleon",
     model: "T450",
-    type: "T-Series Fireplace",
+    type: "Triumph Series Fireplace",
     fileName: "Napoleon_T450_Manual.pdf",
-    pages: 36,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Zero Clearance",
-    url: "https://www.napoleon.com/support/manuals/",
+    category: "Triumph",
+    url: makeSearchUrl("Napoleon", "T450"),
   },
   {
     id: "n-003",
     brand: "Napoleon",
     model: "T500",
-    type: "T-Series Fireplace",
+    type: "Triumph Series Fireplace",
     fileName: "Napoleon_T500_Manual.pdf",
-    pages: 40,
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Zero Clearance",
-    url: "https://www.napoleon.com/support/manuals/",
+    category: "Triumph",
+    url: makeSearchUrl("Napoleon", "T500"),
   },
   {
     id: "n-004",
     brand: "Napoleon",
     model: "X450",
-    type: "X-Series Fireplace",
+    type: "Xtreme Series Fireplace",
     fileName: "Napoleon_X450_Manual.pdf",
-    pages: 38,
+    pages: 30,
     uploadDate: "2025-02-26",
-    category: "Zero Clearance",
-    url: "https://www.napoleon.com/support/manuals/",
+    category: "Xtreme",
+    url: makeSearchUrl("Napoleon", "X450"),
   },
   {
     id: "n-005",
     brand: "Napoleon",
     model: "X500",
-    type: "X-Series Fireplace",
+    type: "Xtreme Series Fireplace",
     fileName: "Napoleon_X500_Manual.pdf",
-    pages: 42,
+    pages: 34,
     uploadDate: "2025-02-26",
-    category: "Zero Clearance",
-    url: "https://www.napoleon.com/support/manuals/",
+    category: "Xtreme",
+    url: makeSearchUrl("Napoleon", "X500"),
   },
 
   // ============================================
@@ -378,23 +385,23 @@ let manuals: Manual[] = [
     id: "hg-001",
     brand: "Heat & Glo",
     model: "SLR",
-    type: "Slim Line Fireplace",
+    type: "SlimLine Fireplace",
     fileName: "HeatGlo_SLR_Manual.pdf",
-    pages: 32,
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.heatnglo.com/support/manuals",
+    category: "SlimLine",
+    url: makeSearchUrl("Heat Glo", "SLR"),
   },
   {
     id: "hg-002",
     brand: "Heat & Glo",
     model: "SLR-II",
-    type: "Slim Line II Fireplace",
+    type: "SlimLine II Fireplace",
     fileName: "HeatGlo_SLRII_Manual.pdf",
-    pages: 34,
+    pages: 38,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.heatnglo.com/support/manuals",
+    category: "SlimLine",
+    url: makeSearchUrl("Heat Glo", "SLR-II"),
   },
   {
     id: "hg-003",
@@ -404,8 +411,8 @@ let manuals: Manual[] = [
     fileName: "HeatGlo_6000CLX_Manual.pdf",
     pages: 44,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.heatnglo.com/support/manuals",
+    category: "6000 Series",
+    url: makeSearchUrl("Heat Glo", "6000CLX"),
   },
   {
     id: "hg-004",
@@ -415,19 +422,19 @@ let manuals: Manual[] = [
     fileName: "HeatGlo_8000CLX_Manual.pdf",
     pages: 48,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.heatnglo.com/support/manuals",
+    category: "8000 Series",
+    url: makeSearchUrl("Heat Glo", "8000CLX"),
   },
   {
     id: "hg-005",
     brand: "Heat & Glo",
     model: "Gemini",
-    type: "Dual Burner Fireplace",
+    type: "Gemini Double-Sided Fireplace",
     fileName: "HeatGlo_Gemini_Manual.pdf",
-    pages: 40,
+    pages: 52,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.heatnglo.com/support/manuals",
+    category: "Double-Sided",
+    url: makeSearchUrl("Heat Glo", "Gemini"),
   },
 
   // ============================================
@@ -438,45 +445,45 @@ let manuals: Manual[] = [
     id: "vc-001",
     brand: "Vermont Castings",
     model: "Defiant",
-    type: "Freestanding Wood Fireplace",
+    type: "Defiant Freestanding Stove",
     fileName: "Vermont_Defiant_Manual.pdf",
-    pages: 36,
+    pages: 40,
     uploadDate: "2025-02-26",
-    category: "Wood",
-    url: "https://www.vermontcastings.com/support/manuals",
+    category: "Freestanding",
+    url: makeSearchUrl("Vermont Castings", "Defiant"),
   },
   {
     id: "vc-002",
     brand: "Vermont Castings",
     model: "Resolute",
-    type: "Freestanding Wood Fireplace",
+    type: "Resolute Freestanding Stove",
     fileName: "Vermont_Resolute_Manual.pdf",
-    pages: 38,
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Wood",
-    url: "https://www.vermontcastings.com/support/manuals",
+    category: "Freestanding",
+    url: makeSearchUrl("Vermont Castings", "Resolute"),
   },
   {
     id: "vc-003",
     brand: "Vermont Castings",
     model: "Intrepid",
-    type: "Freestanding Wood Fireplace",
+    type: "Intrepid Freestanding Stove",
     fileName: "Vermont_Intrepid_Manual.pdf",
-    pages: 34,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Wood",
-    url: "https://www.vermontcastings.com/support/manuals",
+    category: "Freestanding",
+    url: makeSearchUrl("Vermont Castings", "Intrepid"),
   },
   {
     id: "vc-004",
     brand: "Vermont Castings",
     model: "Majestic",
-    type: "Zero Clearance Fireplace",
+    type: "Majestic Fireplace",
     fileName: "Vermont_Majestic_Manual.pdf",
-    pages: 32,
+    pages: 38,
     uploadDate: "2025-02-26",
-    category: "Zero Clearance",
-    url: "https://www.vermontcastings.com/support/manuals",
+    category: "Fireplace",
+    url: makeSearchUrl("Vermont Castings", "Majestic"),
   },
 
   // ============================================
@@ -487,34 +494,34 @@ let manuals: Manual[] = [
     id: "d-001",
     brand: "Dimplex",
     model: "Opti-Myst",
-    type: "Electric Fireplace",
+    type: "Opti-Myst Electric Fireplace",
     fileName: "Dimplex_OptiMyst_Manual.pdf",
     pages: 24,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.dimplex.com/support/manuals",
+    url: makeSearchUrl("Dimplex", "Opti-Myst"),
   },
   {
     id: "d-002",
     brand: "Dimplex",
     model: "Opti-V",
-    type: "Electric Fireplace",
+    type: "Opti-V Virtual Fireplace",
     fileName: "Dimplex_OptiV_Manual.pdf",
     pages: 20,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.dimplex.com/support/manuals",
+    url: makeSearchUrl("Dimplex", "Opti-V"),
   },
   {
     id: "d-003",
     brand: "Dimplex",
     model: "Revillusion",
-    type: "Electric Fireplace",
+    type: "Revillusion Electric Fireplace",
     fileName: "Dimplex_Revillusion_Manual.pdf",
     pages: 28,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.dimplex.com/support/manuals",
+    url: makeSearchUrl("Dimplex", "Revillusion"),
   },
   {
     id: "d-004",
@@ -525,11 +532,11 @@ let manuals: Manual[] = [
     pages: 22,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.dimplex.com/support/manuals",
+    url: makeSearchUrl("Dimplex", "Linear"),
   },
 
   // ============================================
-  // TRAVIS INDUSTRIES (LOPI)
+  // TRAVIS INDUSTRIES
   // ============================================
   
   {
@@ -538,32 +545,32 @@ let manuals: Manual[] = [
     model: "LW1100",
     type: "Lopi Wood Fireplace",
     fileName: "Travis_LW1100_Manual.pdf",
-    pages: 40,
+    pages: 48,
     uploadDate: "2025-02-26",
     category: "Wood",
-    url: "https://www.lopi.com/support/manuals",
+    url: makeSearchUrl("Travis Industries", "LW1100"),
   },
   {
     id: "t-002",
     brand: "Travis Industries",
     model: "Lopi",
-    type: "Gas Fireplace Insert",
+    type: "Lopi Gas Fireplace",
     fileName: "Travis_Lopi_Manual.pdf",
-    pages: 36,
+    pages: 40,
     uploadDate: "2025-02-26",
-    category: "Insert",
-    url: "https://www.lopi.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Travis Industries", "Lopi"),
   },
   {
     id: "t-003",
     brand: "Travis Industries",
     model: "Apex",
-    type: "Modern Gas Fireplace",
+    type: "Apex Gas Fireplace",
     fileName: "Travis_Apex_Manual.pdf",
-    pages: 38,
+    pages: 44,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.lopi.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Travis Industries", "Apex"),
   },
 
   // ============================================
@@ -574,34 +581,34 @@ let manuals: Manual[] = [
     id: "q-001",
     brand: "Quadra-Fire",
     model: "Santa Fe",
-    type: "Wood Fireplace",
-    fileName: "Quadra_SantaFe_Manual.pdf",
-    pages: 42,
+    type: "Santa Fe Wood Fireplace",
+    fileName: "QuadraFire_SantaFe_Manual.pdf",
+    pages: 36,
     uploadDate: "2025-02-26",
     category: "Wood",
-    url: "https://www.quadrafire.com/support/manuals",
+    url: makeSearchUrl("Quadra-Fire", "Santa Fe"),
   },
   {
     id: "q-002",
     brand: "Quadra-Fire",
     model: "Explorer",
-    type: "Gas Fireplace",
-    fileName: "Quadra_Explorer_Manual.pdf",
-    pages: 36,
+    type: "Explorer Gas Fireplace",
+    fileName: "QuadraFire_Explorer_Manual.pdf",
+    pages: 40,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.quadrafire.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Quadra-Fire", "Explorer"),
   },
   {
     id: "q-003",
     brand: "Quadra-Fire",
     model: "Denali",
-    type: "Large Wood Fireplace",
-    fileName: "Quadra_Denali_Manual.pdf",
-    pages: 48,
+    type: "Denali Gas Fireplace",
+    fileName: "QuadraFire_Denali_Manual.pdf",
+    pages: 42,
     uploadDate: "2025-02-26",
-    category: "Wood",
-    url: "https://www.quadrafire.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Quadra-Fire", "Denali"),
   },
 
   // ============================================
@@ -612,34 +619,34 @@ let manuals: Manual[] = [
     id: "h-001",
     brand: "Harman",
     model: "P68",
-    type: "Pellet Fireplace",
+    type: "P68 Pellet Stove",
     fileName: "Harman_P68_Manual.pdf",
     pages: 44,
     uploadDate: "2025-02-26",
     category: "Pellet",
-    url: "https://www.harmanstoves.com/support/manuals",
+    url: makeSearchUrl("Harman", "P68"),
   },
   {
     id: "h-002",
     brand: "Harman",
     model: "Trophy",
-    type: "Pellet Fireplace",
+    type: "Trophy Pellet Stove",
     fileName: "Harman_Trophy_Manual.pdf",
     pages: 40,
     uploadDate: "2025-02-26",
     category: "Pellet",
-    url: "https://www.harmanstoves.com/support/manuals",
+    url: makeSearchUrl("Harman", "Trophy"),
   },
   {
     id: "h-003",
     brand: "Harman",
     model: "Advance",
-    type: "Advanced Pellet Fireplace",
+    type: "Advance Pellet Stove",
     fileName: "Harman_Advance_Manual.pdf",
-    pages: 52,
+    pages: 48,
     uploadDate: "2025-02-26",
     category: "Pellet",
-    url: "https://www.harmanstoves.com/support/manuals",
+    url: makeSearchUrl("Harman", "Advance"),
   },
 
   // ============================================
@@ -650,45 +657,45 @@ let manuals: Manual[] = [
     id: "bs-001",
     brand: "Buck Stove",
     model: "Model 20",
-    type: "Wood Burning Stove",
-    fileName: "Buck_Model20_Manual.pdf",
+    type: "Model 20 Wood Stove",
+    fileName: "BuckStove_Model20_Manual.pdf",
     pages: 20,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.buckstove.com/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Buck Stove", "Model 20"),
   },
   {
     id: "bs-002",
     brand: "Buck Stove",
     model: "Model 24",
-    type: "Wood Burning Stove",
-    fileName: "Buck_Model24_Manual.pdf",
+    type: "Model 24 Wood Stove",
+    fileName: "BuckStove_Model24_Manual.pdf",
     pages: 22,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.buckstove.com/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Buck Stove", "Model 24"),
   },
   {
     id: "bs-003",
     brand: "Buck Stove",
     model: "Model 27",
-    type: "Large Wood Burning Stove",
-    fileName: "Buck_Model27_Manual.pdf",
+    type: "Model 27 Wood Stove",
+    fileName: "BuckStove_Model27_Manual.pdf",
     pages: 24,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.buckstove.com/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Buck Stove", "Model 27"),
   },
   {
     id: "bs-004",
     brand: "Buck Stove",
     model: "Model 91",
-    type: "Gas Stove",
-    fileName: "Buck_Model91_Manual.pdf",
-    pages: 18,
+    type: "Model 91 Wood Stove",
+    fileName: "BuckStove_Model91_Manual.pdf",
+    pages: 28,
     uploadDate: "2025-02-26",
-    category: "Gas Stove",
-    url: "https://www.buckstove.com/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Buck Stove", "Model 91"),
   },
 
   // ============================================
@@ -699,72 +706,72 @@ let manuals: Manual[] = [
     id: "pe-001",
     brand: "Pacific Energy",
     model: "Alderlea",
-    type: "Wood Stove",
-    fileName: "Pacific_Alderlea_Manual.pdf",
-    pages: 28,
+    type: "Alderlea Wood Stove",
+    fileName: "PacificEnergy_Alderlea_Manual.pdf",
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.pacificenergy.net/support/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Pacific Energy", "Alderlea"),
   },
   {
     id: "pe-002",
     brand: "Pacific Energy",
     model: "Summit",
-    type: "High Efficiency Wood Stove",
-    fileName: "Pacific_Summit_Manual.pdf",
-    pages: 32,
+    type: "Summit Wood Stove",
+    fileName: "PacificEnergy_Summit_Manual.pdf",
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.pacificenergy.net/support/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Pacific Energy", "Summit"),
   },
   {
     id: "pe-003",
     brand: "Pacific Energy",
     model: "Fireview",
-    type: "Wood Stove with View",
-    fileName: "Pacific_Fireview_Manual.pdf",
+    type: "Fireview Wood Stove",
+    fileName: "PacificEnergy_Fireview_Manual.pdf",
     pages: 30,
     uploadDate: "2025-02-26",
-    category: "Wood Stove",
-    url: "https://www.pacificenergy.net/support/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Pacific Energy", "Fireview"),
   },
 
   // ============================================
-  // SBI (Enerzone, Drolet)
+  // SBI (Enerzone, Drolet, Flexiheat)
   // ============================================
   
   {
     id: "sbi-001",
     brand: "Enerzone",
     model: "Solution",
-    type: "Wood Fireplace",
+    type: "Solution Wood Stove",
     fileName: "Enerzone_Solution_Manual.pdf",
-    pages: 36,
+    pages: 28,
     uploadDate: "2025-02-26",
     category: "Wood",
-    url: "https://www.enerzone.ca/support/manuals",
+    url: makeSearchUrl("Enerzone", "Solution"),
   },
   {
     id: "sbi-002",
     brand: "Drolet",
     model: "Escape",
-    type: "Wood Insert",
+    type: "Escape Wood Stove",
     fileName: "Drolet_Escape_Manual.pdf",
-    pages: 32,
+    pages: 30,
     uploadDate: "2025-02-26",
-    category: "Insert",
-    url: "https://www.drolet.ca/en/support/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Drolet", "Escape"),
   },
   {
     id: "sbi-003",
     brand: "Flexiheat",
     model: "Aurora",
-    type: "Gas Fireplace",
+    type: "Aurora Wood Stove",
     fileName: "Flexiheat_Aurora_Manual.pdf",
-    pages: 28,
+    pages: 26,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.flexiheat.ca/manuals",
+    category: "Wood",
+    url: makeSearchUrl("Flexiheat", "Aurora"),
   },
 
   // ============================================
@@ -775,34 +782,34 @@ let manuals: Manual[] = [
     id: "mont-001",
     brand: "Mont",
     model: "Deluxe",
-    type: "Direct Vent Fireplace",
+    type: "Deluxe Gas Fireplace",
     fileName: "Mont_Deluxe_Manual.pdf",
-    pages: 34,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.montfireplaces.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Mont", "Deluxe"),
   },
   {
     id: "mont-002",
     brand: "Mont",
     model: "Enchantment",
-    type: "Linear Fireplace",
+    type: "Enchantment Gas Fireplace",
     fileName: "Mont_Enchantment_Manual.pdf",
-    pages: 32,
+    pages: 34,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.montfireplaces.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Mont", "Enchantment"),
   },
   {
     id: "mont-003",
     brand: "Mont",
     model: "Excalibur",
-    type: "Premium Fireplace",
+    type: "Excalibur Gas Fireplace",
     fileName: "Mont_Excalibur_Manual.pdf",
-    pages: 38,
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.montfireplaces.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Mont", "Excalibur"),
   },
 
   // ============================================
@@ -813,45 +820,45 @@ let manuals: Manual[] = [
     id: "emp-001",
     brand: "Empire",
     model: "Vail",
-    type: "Direct Vent Fireplace",
+    type: "Vail Gas Fireplace",
     fileName: "Empire_Vail_Manual.pdf",
-    pages: 36,
+    pages: 28,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.empirecomfort.com/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Empire", "Vail"),
   },
   {
     id: "emp-002",
     brand: "Empire",
     model: "Alta",
-    type: "Linear Fireplace",
+    type: "Alta Gas Fireplace",
     fileName: "Empire_Alta_Manual.pdf",
-    pages: 34,
+    pages: 30,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.empirecomfort.com/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Empire", "Alta"),
   },
   {
     id: "emp-003",
     brand: "Empire",
     model: "DVC",
-    type: "Direct Vent Counterflow",
+    type: "DVC Direct Vent Fireplace",
     fileName: "Empire_DVC_Manual.pdf",
     pages: 32,
     uploadDate: "2025-02-26",
     category: "Direct Vent",
-    url: "https://www.empirecomfort.com/manuals",
+    url: makeSearchUrl("Empire", "DVC"),
   },
   {
     id: "emp-004",
     brand: "Empire",
     model: "Palisade",
-    type: "Large Linear Fireplace",
+    type: "Palisade Gas Fireplace",
     fileName: "Empire_Palisade_Manual.pdf",
-    pages: 40,
+    pages: 34,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.empirecomfort.com/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Empire", "Palisade"),
   },
 
   // ============================================
@@ -862,45 +869,45 @@ let manuals: Manual[] = [
     id: "sf-001",
     brand: "SimpliFire",
     model: "Allusion",
-    type: "Electric Fireplace",
+    type: "Allusion Electric Fireplace",
     fileName: "SimpliFire_Allusion_Manual.pdf",
     pages: 20,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.simplifire.com/support/manuals",
+    url: makeSearchUrl("SimpliFire", "Allusion"),
   },
   {
     id: "sf-002",
     brand: "SimpliFire",
     model: "Scorpius",
-    type: "Plasma Fireplace",
+    type: "Scorpius Electric Fireplace",
     fileName: "SimpliFire_Scorpius_Manual.pdf",
     pages: 18,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.simplifire.com/support/manuals",
+    url: makeSearchUrl("SimpliFire", "Scorpius"),
   },
   {
     id: "sf-003",
     brand: "SimpliFire",
     model: "Vortex",
-    type: "Linear Electric",
+    type: "Vortex Electric Fireplace",
     fileName: "SimpliFire_Vortex_Manual.pdf",
     pages: 22,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.simplifire.com/support/manuals",
+    url: makeSearchUrl("SimpliFire", "Vortex"),
   },
   {
     id: "sf-004",
     brand: "SimpliFire",
     model: "Motion",
-    type: "Wall Mount Fireplace",
+    type: "Motion Electric Fireplace",
     fileName: "SimpliFire_Motion_Manual.pdf",
     pages: 24,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.simplifire.com/support/manuals",
+    url: makeSearchUrl("SimpliFire", "Motion"),
   },
 
   // ============================================
@@ -911,34 +918,34 @@ let manuals: Manual[] = [
     id: "mf-001",
     brand: "Modern Flames",
     model: "Aurora",
-    type: "Modern Linear Fireplace",
+    type: "Aurora Electric Fireplace",
     fileName: "ModernFlames_Aurora_Manual.pdf",
-    pages: 26,
+    pages: 16,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.modernflames.com/manuals",
+    url: makeSearchUrl("Modern Flames", "Aurora"),
   },
   {
     id: "mf-002",
     brand: "Modern Flames",
     model: "Landscape Pro",
-    type: "Landscape Series",
+    type: "Landscape Pro Electric Fireplace",
     fileName: "ModernFlames_LandscapePro_Manual.pdf",
-    pages: 30,
+    pages: 20,
     uploadDate: "2025-02-26",
     category: "Electric",
-    url: "https://www.modernflames.com/manuals",
+    url: makeSearchUrl("Modern Flames", "Landscape Pro"),
   },
   {
     id: "mf-003",
     brand: "Modern Flames",
     model: "Wildland",
-    type: "Outdoor Fireplace",
+    type: "Wildland Electric Fireplace",
     fileName: "ModernFlames_Wildland_Manual.pdf",
-    pages: 24,
+    pages: 18,
     uploadDate: "2025-02-26",
-    category: "Outdoor",
-    url: "https://www.modernflames.com/manuals",
+    category: "Electric",
+    url: makeSearchUrl("Modern Flames", "Wildland"),
   },
 
   // ============================================
@@ -949,34 +956,34 @@ let manuals: Manual[] = [
     id: "afg-001",
     brand: "American Fireglass",
     model: "Burner Systems",
-    type: "Glass Fireplace Burner",
+    type: "Fireplace Burner Systems",
     fileName: "AFG_BurnerSystems_Manual.pdf",
     pages: 12,
     uploadDate: "2025-02-26",
     category: "Burner",
-    url: "https://www.americanfireglass.com/manuals",
+    url: makeSearchUrl("American Fireglass", "Burner Systems"),
   },
   {
     id: "afg-002",
     brand: "American Fireglass",
     model: "Fireballs",
-    type: "Decorative Fire Media",
+    type: "Fireballs Decorative Media",
     fileName: "AFG_Fireballs_Manual.pdf",
     pages: 8,
     uploadDate: "2025-02-26",
-    category: "Accessories",
-    url: "https://www.americanfireglass.com/manuals",
+    category: "Media",
+    url: makeSearchUrl("American Fireglass", "Fireballs"),
   },
   {
     id: "afg-003",
     brand: "American Fireglass",
     model: "Fireplace Logs",
-    type: "Ceramic Fiber Logs",
+    type: "Decorative Fireplace Logs",
     fileName: "AFG_FireplaceLogs_Manual.pdf",
     pages: 10,
     uploadDate: "2025-02-26",
-    category: "Accessories",
-    url: "https://www.americanfireglass.com/manuals",
+    category: "Media",
+    url: makeSearchUrl("American Fireglass", "Fireplace Logs"),
   },
 
   // ============================================
@@ -987,34 +994,34 @@ let manuals: Manual[] = [
     id: "rinnai-001",
     brand: "Rinnai",
     model: "Enclaves",
-    type: "Direct Vent Fireplace",
+    type: "Enclaves Gas Fireplace",
     fileName: "Rinnai_Enclaves_Manual.pdf",
-    pages: 36,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.rinnai.us/fireplaces/support",
+    category: "Gas",
+    url: makeSearchUrl("Rinnai", "Enclaves"),
   },
   {
     id: "rinnai-002",
     brand: "Rinnai",
     model: "EnergySaver",
-    type: "Direct Vent Heater",
+    type: "EnergySaver Gas Fireplace",
     fileName: "Rinnai_EnergySaver_Manual.pdf",
-    pages: 32,
+    pages: 28,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.rinnai.us/fireplaces/support",
+    category: "Gas",
+    url: makeSearchUrl("Rinnai", "EnergySaver"),
   },
   {
     id: "rinnai-003",
     brand: "Rinnai",
     model: "Contour",
-    type: "Modern Linear Fireplace",
+    type: "Contour Gas Fireplace",
     fileName: "Rinnai_Contour_Manual.pdf",
-    pages: 34,
+    pages: 30,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.rinnai.us/fireplaces/support",
+    category: "Gas",
+    url: makeSearchUrl("Rinnai", "Contour"),
   },
 
   // ============================================
@@ -1025,34 +1032,34 @@ let manuals: Manual[] = [
     id: "lennox-001",
     brand: "Lennox",
     model: "Merritt",
-    type: "Direct Vent Fireplace",
+    type: "Merritt Gas Fireplace",
     fileName: "Lennox_Merritt_Manual.pdf",
-    pages: 38,
+    pages: 36,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.lennoxhearthproducts.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Lennox", "Merritt"),
   },
   {
     id: "lennox-002",
     brand: "Lennox",
     model: "Brockway",
-    type: "Corner Fireplace",
+    type: "Brockway Gas Fireplace",
     fileName: "Lennox_Brockway_Manual.pdf",
-    pages: 36,
+    pages: 34,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.lennoxhearthproducts.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Lennox", "Brockway"),
   },
   {
     id: "lennox-003",
     brand: "Lennox",
     model: "Whitby",
-    type: "See-Through Fireplace",
+    type: "Whitby Gas Fireplace",
     fileName: "Lennox_Whitby_Manual.pdf",
-    pages: 40,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.lennoxhearthproducts.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Lennox", "Whitby"),
   },
 
   // ============================================
@@ -1063,34 +1070,34 @@ let manuals: Manual[] = [
     id: "sup-001",
     brand: "Superior",
     model: "DRT",
-    type: "Direct Vent Fireplace",
+    type: "DRT Series Gas Fireplace",
     fileName: "Superior_DRT_Manual.pdf",
-    pages: 34,
+    pages: 40,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.superiorfireplace.us/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Superior", "DRT"),
   },
   {
     id: "sup-002",
     brand: "Superior",
     model: "DRL",
-    type: "Linear Fireplace",
+    type: "DRL Series Gas Fireplace",
     fileName: "Superior_DRL_Manual.pdf",
-    pages: 36,
+    pages: 38,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.superiorfireplace.us/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Superior", "DRL"),
   },
   {
     id: "sup-003",
     brand: "Superior",
     model: "XTR",
-    type: "Extreme Performance",
+    type: "XTR Series Gas Fireplace",
     fileName: "Superior_XTR_Manual.pdf",
     pages: 42,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.superiorfireplace.us/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Superior", "XTR"),
   },
 
   // ============================================
@@ -1101,38 +1108,39 @@ let manuals: Manual[] = [
     id: "kh-001",
     brand: "Kozy Heat",
     model: "Taylor",
-    type: "Direct Vent Fireplace",
+    type: "Taylor Gas Fireplace",
     fileName: "KozyHeat_Taylor_Manual.pdf",
-    pages: 32,
+    pages: 30,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.kozyheat.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Kozy Heat", "Taylor"),
   },
   {
     id: "kh-002",
     brand: "Kozy Heat",
     model: "Spartan",
-    type: "Linear Fireplace",
+    type: "Spartan Gas Fireplace",
     fileName: "KozyHeat_Spartan_Manual.pdf",
-    pages: 34,
+    pages: 32,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.kozyheat.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Kozy Heat", "Spartan"),
   },
   {
     id: "kh-003",
     brand: "Kozy Heat",
     model: "Bayport",
-    type: "Traditional Fireplace",
+    type: "Bayport Gas Fireplace",
     fileName: "KozyHeat_Bayport_Manual.pdf",
-    pages: 30,
+    pages: 28,
     uploadDate: "2025-02-26",
-    category: "Direct Vent",
-    url: "https://www.kozyheat.com/support/manuals",
+    category: "Gas",
+    url: makeSearchUrl("Kozy Heat", "Bayport"),
   },
 ];
 
-export interface Manual {
+// Manual type definition
+interface Manual {
   id: string;
   brand: string;
   model: string;
@@ -1144,90 +1152,166 @@ export interface Manual {
   url: string;
 }
 
-// GET /api/manuals - Get all manuals or filter by search
+// GET - Retrieve all manuals
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get("search")?.toLowerCase();
   const brand = searchParams.get("brand");
   const category = searchParams.get("category");
+  const search = searchParams.get("search");
 
   let filtered = [...manuals];
 
-  if (search) {
+  // Filter by brand
+  if (brand) {
     filtered = filtered.filter(
-      (m) =>
-        m.brand.toLowerCase().includes(search) ||
-        m.model.toLowerCase().includes(search) ||
-        m.type.toLowerCase().includes(search)
+      (m) => m.brand.toLowerCase() === brand.toLowerCase()
     );
   }
 
-  if (brand) {
-    filtered = filtered.filter((m) => m.brand === brand);
-  }
-
+  // Filter by category
   if (category) {
-    filtered = filtered.filter((m) => m.category === category);
+    filtered = filtered.filter(
+      (m) => m.category.toLowerCase() === category.toLowerCase()
+    );
   }
 
-  return NextResponse.json(filtered);
+  // Search by model or type
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = filtered.filter(
+      (m) =>
+        m.model.toLowerCase().includes(searchLower) ||
+        m.type.toLowerCase().includes(searchLower) ||
+        m.brand.toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Get unique brands and categories for filters
+  const brands = [...new Set(manuals.map((m) => m.brand))].sort();
+  const categories = [...new Set(manuals.map((m) => m.category))].sort();
+
+  return NextResponse.json({
+    manuals: filtered,
+    filters: {
+      brands,
+      categories,
+    },
+    total: filtered.length,
+  });
 }
 
-// POST /api/manuals - Add a new manual
+// POST - Add a new manual
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    // Validate required fields
+    if (!body.brand || !body.model) {
+      return NextResponse.json(
+        { error: "Brand and model are required" },
+        { status: 400 }
+      );
+    }
+
+    // Check for duplicate
+    const exists = manuals.find(
+      (m) => m.brand === body.brand && m.model === body.model
+    );
+    if (exists) {
+      return NextResponse.json(
+        { error: "Manual already exists for this brand and model" },
+        { status: 400 }
+      );
+    }
+
+    // Create new manual
     const newManual: Manual = {
       id: `m-${Date.now()}`,
       brand: body.brand,
       model: body.model,
-      type: body.type || "",
-      fileName: body.fileName || "",
+      type: body.type || "Unknown",
+      fileName: body.fileName || `${body.brand}_${body.model}_Manual.pdf`,
       pages: body.pages || 0,
       uploadDate: new Date().toISOString().split("T")[0],
       category: body.category || "General",
-      url: body.url || "",
+      url: body.url || makeSearchUrl(body.brand, body.model),
     };
 
     manuals.push(newManual);
+
     return NextResponse.json(newManual, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to create manual" },
+      { status: 500 }
+    );
   }
 }
 
-// PUT /api/manuals - Update a manual
+// PUT - Update a manual
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const index = manuals.findIndex((m) => m.id === body.id);
 
-    if (index === -1) {
-      return NextResponse.json({ error: "Manual not found" }, { status: 404 });
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "Manual ID is required" },
+        { status: 400 }
+      );
     }
 
-    manuals[index] = { ...manuals[index], ...body };
+    const index = manuals.findIndex((m) => m.id === body.id);
+    if (index === -1) {
+      return NextResponse.json(
+        { error: "Manual not found" },
+        { status: 404 }
+      );
+    }
+
+    // Update fields
+    manuals[index] = {
+      ...manuals[index],
+      ...body,
+      id: body.id, // Prevent ID change
+    };
+
     return NextResponse.json(manuals[index]);
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to update manual" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE /api/manuals - Delete a manual
+// DELETE - Remove a manual
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "Manual ID required" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { error: "Manual ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const index = manuals.findIndex((m) => m.id === id);
+    if (index === -1) {
+      return NextResponse.json(
+        { error: "Manual not found" },
+        { status: 404 }
+      );
+    }
+
+    const deleted = manuals.splice(index, 1)[0];
+
+    return NextResponse.json({ success: true, deleted });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to delete manual" },
+      { status: 500 }
+    );
   }
-
-  const index = manuals.findIndex((m) => m.id === id);
-
-  if (index === -1) {
-    return NextResponse.json({ error: "Manual not found" }, { status: 404 });
-  }
-
-  manuals.splice(index, 1);
-  return NextResponse.json({ success: true });
 }
