@@ -335,12 +335,16 @@ export default function ManualsPage() {
                 <button 
                   onClick={() => {
                     // Use URL if available, otherwise fall back to local file
-                    const pdfUrl = viewingManual.url || `/manuals/${viewingManual.fileName}`;
+                    const pdfUrl = viewingManual.url;
+                  if (pdfUrl) {
                     window.open(pdfUrl, '_blank');
+                  } else {
+                    alert('No manual URL available. Please contact your administrator to add manufacturer links.');
+                  }
                   }}
                   className="flex-1 bg-orange-500 py-3 rounded-xl font-medium hover:bg-orange-600 transition-colors"
                 >
-                  Open PDF
+                  View Manual
                 </button>
                 <button className="flex-1 bg-[#252540] py-3 rounded-xl font-medium">
                   Share
