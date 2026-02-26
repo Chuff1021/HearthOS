@@ -322,7 +322,14 @@ export default function ManualsPage() {
               </div>
               
               <div className="flex gap-3">
-                <button className="flex-1 bg-orange-500 py-3 rounded-xl font-medium">
+                <button 
+                  onClick={() => {
+                    // In production, this would open the actual PDF file
+                    // For demo, show an alert
+                    alert(`Opening PDF for ${viewingManual.brand} ${viewingManual.model}\n\nFile: ${viewingManual.fileName}\n\nIn production, this would display the actual PDF document.`);
+                  }}
+                  className="flex-1 bg-orange-500 py-3 rounded-xl font-medium hover:bg-orange-600 transition-colors"
+                >
                   Open PDF
                 </button>
                 <button className="flex-1 bg-[#252540] py-3 rounded-xl font-medium">
