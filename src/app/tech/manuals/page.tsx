@@ -4,14 +4,23 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 // Default manuals (shown when API is empty or unavailable)
-const defaultManuals = [
+const defaultManuals: Array<{
+  id: string;
+  brand: string;
+  model: string;
+  type: string;
+  fileName: string;
+  url?: string;
+  pages: number;
+  uploadDate: string;
+  category: string;
+}> = [
   {
     id: "1",
     brand: "Regency",
     model: "F1100",
     type: "Gas Insert",
     fileName: "Regency_F1100_Manual.pdf",
-    url: "https://www.regency-fire.com/products/gas-inserts/f1100",
     pages: 48,
     uploadDate: "2025-01-15",
     category: "Gas Inserts",
@@ -22,7 +31,6 @@ const defaultManuals = [
     model: "AS35",
     type: "Gas Stove",
     fileName: "Napoleon_AS35_Manual.pdf",
-    url: "https://www.napoleon.com/products/gas-stoves/as35",
     pages: 36,
     uploadDate: "2025-01-10",
     category: "Gas Stoves",
@@ -33,7 +41,6 @@ const defaultManuals = [
     model: "SLR",
     type: "Gas Fireplace",
     fileName: "HeatGlo_SLR_Manual.pdf",
-    url: "https://www.heatnglo.com/products/gas-fireplaces/slr",
     pages: 52,
     uploadDate: "2025-01-08",
     category: "Gas Fireplaces",
@@ -44,7 +51,6 @@ const defaultManuals = [
     model: "Defiant",
     type: "Wood Stove",
     fileName: "VC_Defiant_Manual.pdf",
-    url: "https://www.vermontcastings.com/wood-stoves/defiant",
     pages: 44,
     uploadDate: "2024-12-20",
     category: "Wood Stoves",
@@ -55,7 +61,6 @@ const defaultManuals = [
     model: "Opti-Myst",
     type: "Electric Fireplace",
     fileName: "Dimplex_OptiMyst_Manual.pdf",
-    url: "https://www.dimplex.com/products/electric-fireplaces/opti-myst",
     pages: 28,
     uploadDate: "2024-12-15",
     category: "Electric",
@@ -66,7 +71,6 @@ const defaultManuals = [
     model: "Ruby 36",
     type: "Gas Fireplace",
     fileName: "Majestic_Ruby36_Manual.pdf",
-    url: "https://www.majesticproducts.com/support/manuals",
     pages: 40,
     uploadDate: "2024-12-10",
     category: "Gas Fireplaces",
