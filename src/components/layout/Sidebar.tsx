@@ -182,7 +182,7 @@ const navItems = [
       },
       {
         label: "Settings",
-        href: "/settings",
+        href: "/admin/settings",
         badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
