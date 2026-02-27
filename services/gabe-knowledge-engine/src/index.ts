@@ -59,14 +59,23 @@ app.post("/query", async (request, reply) => {
   if (!body?.question) return reply.status(400).send({ error: "question required" });
 
   const [queryVector] = await embed([body.question]);
-  const manualResults = await searchManualChunks(queryVector, 5);
-  const manualMatches = manualResults.filter((r) => r.score >= similarityThreshold);
+  const manualResults = await searchManualChunks(queryVector, 8);
+  const boostedManualResults = applyKeywordBoost(body.question, manualResults);
+  const manualMatches = boostedManualResults.filter((r) => r.score >= similarityThreshold);
 
   let selectedChunks: RetrievedChunk[] = [];
   if (manualMatches.length > 0) {
-    selectedChunks = manualMatches.slice(0, 3);
+    selectedChunks = manualMatches
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
   } else {
-    const webResults = await braveSearch(body.question, 5);
+    // Fallback: still use top manual chunks even if below threshold
+    if (boostedManualResults.length > 0) {
+      selectedChunks = boostedManualResults
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+    } else {
+      const webResults = await braveSearch(body.question, 5);
     for (const result of webResults) {
       const { title, text } = await fetchPageText(result.url);
       const chunks = chunkWebText(text, 800, 100);
@@ -91,6 +100,7 @@ app.post("/query", async (request, reply) => {
     }
 
     selectedChunks = selectedChunks.slice(0, 3);
+    }
   }
 
   if (selectedChunks.length === 0) {
@@ -125,6 +135,21 @@ function cosineSimilarity(a: number[], b: number[]) {
     nb += b[i] * b[i];
   }
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
+  const q = question.toLowerCase();
+  const keywords: string[] = [];
+  if (q.includes("outside air") || q.includes("combustion air") || q.includes("air intake") || q.includes("oak")) {
+    keywords.push("outside air", "combustion air", "air intake", "outside combustion", "oak");
+  }
+  if (keywords.length === 0) return results;
+
+  return results.map((r) => {
+    const text = r.chunk_text.toLowerCase();
+    const hit = keywords.some((k) => text.includes(k));
+    return hit ? { ...r, score: Math.min(1, r.score + 0.08) } : r;
+  });
 }
 
 app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
