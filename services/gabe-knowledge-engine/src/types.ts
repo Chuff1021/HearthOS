@@ -5,6 +5,8 @@ export type ManualChunk = {
   page_number: number;
   source_url: string;
   chunk_text: string;
+  section_title?: string;
+  doc_type?: "installation" | "owner" | "flyer" | "other";
 };
 
 export type RetrievedChunk = ManualChunk & {

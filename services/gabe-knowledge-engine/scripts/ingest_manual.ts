@@ -39,6 +39,7 @@ async function run() {
   if (process.env.SKIP_COLLECTION_CHECK !== "1") {
     await ensureCollection(embeddings[0].length);
   }
+  const docType = inferDocType(manualTitle);
 
   const points = chunks.map((c, idx) => ({
     id: stableUuid(`${sourceUrl}|${c.page}|${c.text}`),
@@ -50,6 +51,8 @@ async function run() {
       page_number: c.page,
       source_url: sourceUrl,
       chunk_text: c.text,
+      section_title: c.section_title,
+      doc_type: docType,
       source_type: "manual"
     }
   }));
@@ -67,6 +70,14 @@ run().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+function inferDocType(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes("installation manual") || t.includes("install manual")) return "installation";
+  if (t.includes("owner") || t.includes("owner's") || t.includes("owners")) return "owner";
+  if (t.includes("flyer") || t.includes("single page")) return "flyer";
+  return "other";
+}
 
 function stableUuid(input: string) {
   const hex = createHash("sha1").update(input).digest("hex").slice(0, 32);

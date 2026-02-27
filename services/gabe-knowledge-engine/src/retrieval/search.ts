@@ -18,6 +18,8 @@ export async function searchManualChunks(vector: number[], limit = 5): Promise<R
       page_number: payload.page_number,
       source_url: payload.source_url,
       chunk_text: payload.chunk_text,
+      section_title: payload.section_title,
+      doc_type: payload.doc_type,
       score: r.score,
       source_type: payload.source_type ?? "manual",
       section: payload.section
@@ -49,6 +51,8 @@ export async function keywordSearchManualChunks(terms: string[], limit = 50): Pr
       page_number: payload.page_number,
       source_url: payload.source_url,
       chunk_text: payload.chunk_text,
+      section_title: payload.section_title,
+      doc_type: payload.doc_type,
       score: 1,
       source_type: payload.source_type ?? "manual",
       section: payload.section

@@ -34,6 +34,7 @@ app.post("/ingest/manual", async (request, reply) => {
   const embeddings = await embed(chunks.map((c) => c.text));
 
   await ensureCollection(embeddings[0].length);
+  const docType = inferDocType(body.manual_title);
 
   const points = chunks.map((c, idx) => ({
     id: randomUUID(),
@@ -45,6 +46,8 @@ app.post("/ingest/manual", async (request, reply) => {
       page_number: c.page,
       source_url: body.source_url,
       chunk_text: c.text,
+      section_title: c.section_title,
+      doc_type: docType,
       source_type: "manual"
     }
   }));
@@ -361,7 +364,9 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
 
   // Prefer Installation Manual over Owner's Manual for install/requirements.
   if (prefersInstall) {
-    const installOnly = filtered.filter((r) => /installation manual/i.test(r.manual_title));
+    const installOnly = filtered.filter((r) =>
+      r.doc_type === "installation" || /installation manual/i.test(r.manual_title)
+    );
     if (installOnly.length > 0) filtered = installOnly;
   }
 
@@ -382,12 +387,23 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
     return keywords.some((k) => text.includes(k));
   });
   if (keywordHits.length > 0) {
-    filtered = keywordHits;
+    const sectionHits = keywordHits.filter((r) =>
+      (r.section_title || "").toLowerCase().includes("air intake")
+    );
+    filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
   } else {
     return { filtered: [] };
   }
 
   return { filtered };
+}
+
+function inferDocType(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes("installation manual") || t.includes("install manual")) return "installation";
+  if (t.includes("owner") || t.includes("owner's") || t.includes("owners")) return "owner";
+  if (t.includes("flyer") || t.includes("single page")) return "flyer";
+  return "other";
 }
 
 app.listen({ port: Number(env.PORT), host: "0.0.0.0" });

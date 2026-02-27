@@ -21,7 +21,7 @@ Rules:
 function buildContext(chunks: RetrievedChunk[]) {
   return chunks.map((c, idx) => {
     const header = c.source_type === "manual"
-      ? `Chunk ${idx + 1} (manual) | ${c.manual_title} | p.${c.page_number} | ${c.source_url}`
+      ? `Chunk ${idx + 1} (manual) | ${c.manual_title} | p.${c.page_number} | ${c.section_title || "Section"} | ${c.source_url}`
       : `Chunk ${idx + 1} (web) | ${c.section || "Section"} | ${c.source_url}`;
     return `${header}\n${c.chunk_text}`;
   }).join("\n\n");
