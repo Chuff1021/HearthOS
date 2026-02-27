@@ -1,0 +1,60 @@
+import { env } from "../config";
+import { fetch } from "undici";
+import { RetrievedChunk, GabeAnswer } from "../types";
+
+function buildSystemPrompt(chunks: RetrievedChunk[]) {
+  return `You are GABE (Gas Appliance & Burner Expert), a certified master fireplace technician.
+
+Rules:
+- Only answer using the provided context chunks.
+- Never guess or infer beyond context.
+- If the answer is not in context, respond exactly:
+"This information is not available in verified manufacturer documentation."
+- Output JSON only. No extra text.
+- If you use manual chunks, output source_type = "manual" with manual_title, page_number, source_url.
+- If you use web chunks, output source_type = "web" with url and section.
+- Include confidence score 0-100.`;
+}
+
+function buildContext(chunks: RetrievedChunk[]) {
+  return chunks.map((c, idx) => {
+    const header = c.source_type === "manual"
+      ? `Chunk ${idx + 1} (manual) | ${c.manual_title} | p.${c.page_number} | ${c.source_url}`
+      : `Chunk ${idx + 1} (web) | ${c.section || "Section"} | ${c.source_url}`;
+    return `${header}\n${c.chunk_text}`;
+  }).join("\n\n");
+}
+
+export async function callGroq(chunks: RetrievedChunk[], question: string) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: env.GROQ_MODEL,
+      messages: [
+        { role: "system", content: buildSystemPrompt(chunks) },
+        { role: "user", content: `Context:\n${buildContext(chunks)}\n\nQuestion: ${question}` }
+      ],
+      temperature: 0.1,
+      top_p: 0.9,
+      max_tokens: 500,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+      response_format: { type: "json_object" }
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Groq error: ${err}`);
+  }
+
+  const data = await res.json() as any;
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Missing Groq content");
+
+  return JSON.parse(content) as GabeAnswer;
+}

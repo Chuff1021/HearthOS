@@ -1,0 +1,20 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  gabe-knowledge-engine:
+    build:
+      context: ./services/gabe-knowledge-engine
+    env_file:
+      - ./services/gabe-knowledge-engine/.env.example
+    ports:
+      - "4100:4100"
+    depends_on:
+      - qdrant
+
+volumes:
+  qdrant_data:

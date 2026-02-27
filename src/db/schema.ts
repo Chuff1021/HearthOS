@@ -124,6 +124,43 @@ export const fireplaceUnits = pgTable('fireplace_units', {
   orgIdx: index('idx_fireplace_units_org_id').on(table.orgId),
 }));
 
+// Manuals Library
+export const manuals = pgTable('manuals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  brand: varchar('brand', { length: 100 }).notNull(),
+  model: varchar('model', { length: 100 }).notNull(),
+  type: varchar('type', { length: 100 }),
+  category: varchar('category', { length: 100 }),
+  url: text('url').notNull(),
+  pages: integer('pages'),
+  source: varchar('source', { length: 50 }).default('url'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_manuals_org_id').on(table.orgId),
+  brandIdx: index('idx_manuals_brand').on(table.brand),
+  modelIdx: index('idx_manuals_model').on(table.model),
+  categoryIdx: index('idx_manuals_category').on(table.category),
+}));
+
+// Manual Sections (for citations/page references)
+export const manualSections = pgTable('manual_sections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  manualId: uuid('manual_id').references(() => manuals.id, { onDelete: 'cascade' }).notNull(),
+  pageStart: integer('page_start').notNull(),
+  pageEnd: integer('page_end'),
+  title: varchar('title', { length: 255 }),
+  snippet: text('snippet').notNull(),
+  tags: jsonb('tags').default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  manualIdx: index('idx_manual_sections_manual_id').on(table.manualId),
+  pageIdx: index('idx_manual_sections_page').on(table.pageStart),
+}));
+
 // Jobs
 export const jobs = pgTable('jobs', {
   id: uuid('id').primaryKey().defaultRandom(),

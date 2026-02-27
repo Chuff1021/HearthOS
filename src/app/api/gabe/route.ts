@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { buildGabeSystemPrompt, manualKnowledgeBase, type Manual } from '@/lib/gabe/prompts';
-import { saveGabeMessage } from '@/lib/gabe-messages';
+import { NextRequest, NextResponse } from "next/server";
+import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
+import { listManuals, listManualSections } from "@/lib/manuals";
+import { saveGabeMessage } from "@/lib/gabe-messages";
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
@@ -36,68 +37,93 @@ export async function POST(request: NextRequest) {
 
     const { messages, jobContext, techId, techName } = body;
     const jobId = jobContext?.jobId;
-    const jobNumber = jobContext?.jobId ? `JOB-2026-${jobContext.jobId.split('-').pop()}` : undefined;
+    const jobNumber = jobContext?.jobId ? `JOB-2026-${jobContext.jobId.split("-").pop()}` : undefined;
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
-        { error: 'Messages are required' },
+        { error: "Messages are required" },
         { status: 400 }
       );
     }
 
-    // Fetch manuals from API
-    let manuals: Manual[] = [];
-    try {
-      const manualsRes = await fetch(new URL('/api/manuals', request.url).toString(), {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
+    const engineUrl = process.env.GABE_ENGINE_URL;
+
+    if (engineUrl && lastUserMessage) {
+      const engineRes = await fetch(`${engineUrl.replace(/\/$/, "")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: lastUserMessage }),
       });
-      if (manualsRes.ok) {
-        manuals = await manualsRes.json();
+
+      if (!engineRes.ok) {
+        const error = await engineRes.text();
+        console.error("GABE engine error:", error);
+      } else {
+        const data = await engineRes.json();
+        const assistantMessage = data?.answer ?? data?.message ?? "";
+
+        try {
+          saveGabeMessage({
+            techId,
+            techName,
+            jobId,
+            jobNumber,
+            customerName: jobContext?.fireplace,
+            fireplace: jobContext?.fireplace,
+            messages: [
+              ...messages.filter((m) => m.role !== "system").map((m) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                timestamp: new Date().toISOString(),
+              })),
+              { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
+            ],
+          });
+        } catch (e) {
+          console.error("Failed to save message log:", e);
+        }
+
+        return NextResponse.json(data);
       }
-    } catch (err) {
-      console.error('Failed to fetch manuals:', err);
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
-    const modelOverride = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+    const modelOverride = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
-    // Debug: log key presence (never log the actual key)
-    console.log('[GABE] GROQ_API_KEY present:', !!groqApiKey);
-    console.log('[GABE] GROQ_MODEL:', modelOverride);
+    console.log("[GABE] GROQ_API_KEY present:", !!groqApiKey);
+    console.log("[GABE] GROQ_MODEL:", modelOverride);
 
-    // Build system prompt with job context and manuals (for both API and fallback)
-    const systemPrompt = buildGabeSystemPrompt(jobContext, manuals);
+    const allManuals = await listManuals();
 
     if (!groqApiKey) {
-      // Calculate brand counts for fallback display
-      const brandCounts = manuals.reduce((acc, m) => {
+      const brandCounts = allManuals.reduce((acc, m) => {
         acc[m.brand] = (acc[m.brand] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
-      
+
       const brandSummary = Object.entries(brandCounts)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([, a], [, b]) => b - a)
         .map(([brand, count]) => `${brand}: ${count}`)
-        .join(', ');
-      
-      const manualList = manuals.length > 0 
-        ? manuals.slice(0, 30).map(m => `- ${m.brand} ${m.model} (${m.pages} pages)${m.url ? ` — 🔗` : ''}`).join('\n')
-        : 'No manuals loaded - check /api/manuals endpoint';
-      
+        .join(", ");
+
+      const manualList = allManuals.length > 0
+        ? allManuals.slice(0, 30).map(m => `- ${m.brand} ${m.model}${m.pages ? ` (${m.pages} pages)` : ""}${m.url ? " — 🔗" : ""}`).join("\n")
+        : "No manuals loaded - check /api/manuals endpoint";
+
       const fallbackResponse = `🔥 **GABE AI is not configured** — Missing GROQ_API_KEY environment variable.
 
-**Current Status:** Key is ${groqApiKey ? 'present but not working' : 'NOT FOUND'}
+**Current Status:** Key is ${groqApiKey ? "present but not working" : "NOT FOUND"}
 
 To fix:
 
 **📚 Manual Library Status:**
-- **Total Manuals:** ${manuals.length}
+- **Total Manuals:** ${allManuals.length}
 - **Brand Distribution:** ${brandSummary}
 
 Here are the manuals I have access to:
 ${manualList}
-${manuals.length > 30 ? `\n...and ${manuals.length - 30} more manuals` : ''}
+${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : ""}
 
 ---
 
@@ -135,7 +161,6 @@ ${manuals.length > 30 ? `\n...and ${manuals.length - 30} more manuals` : ''}
 
 Would you like help with a specific fireplace model or issue?`;
 
-      // Save message to log for audit
       try {
         saveGabeMessage({
           techId,
@@ -145,40 +170,60 @@ Would you like help with a specific fireplace model or issue?`;
           customerName: jobContext?.fireplace,
           fireplace: jobContext?.fireplace,
           messages: [
-            ...messages.filter(m => m.role !== 'system').map(m => ({ 
-              role: m.role as 'user' | 'assistant', 
-              content: m.content, 
-              timestamp: new Date().toISOString() 
+            ...messages.filter((m) => m.role !== "system").map((m) => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              timestamp: new Date().toISOString(),
             })),
-            { role: 'assistant' as const, content: fallbackResponse, timestamp: new Date().toISOString() },
+            { role: "assistant" as const, content: fallbackResponse, timestamp: new Date().toISOString() },
           ],
         });
       } catch (e) {
-        console.error('Failed to save message log:', e);
+        console.error("Failed to save message log:", e);
       }
-      
+
       return NextResponse.json({
         message: fallbackResponse,
         usage: null,
-        manualsCount: manuals.length,
+        manualsCount: allManuals.length,
       });
     }
 
-    // Call Groq API
-    console.log('[GABE] Calling Groq API with', messages.length, 'messages');
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
+    const fireplaceHint = jobContext?.fireplace?.toLowerCase();
+    const matchedManuals = fireplaceHint
+      ? allManuals.filter((m) => {
+          const brandMatch = m.brand?.toLowerCase() && fireplaceHint.includes(m.brand.toLowerCase());
+          const modelMatch = m.model?.toLowerCase() && fireplaceHint.includes(m.model.toLowerCase());
+          return brandMatch || modelMatch;
+        })
+      : [];
+
+    const manualsForPrompt = (matchedManuals.length > 0 ? matchedManuals : allManuals).slice(0, 25);
+    const manualIds = new Set(manualsForPrompt.map((m) => m.id));
+    const allSections = await listManualSections();
+    const sectionsForPrompt = allSections
+      .filter((s) => manualIds.has(s.manualId))
+      .slice(0, 200);
+
+    const systemPrompt = buildGabeSystemPrompt(jobContext, {
+      manuals: manualsForPrompt,
+      sections: sectionsForPrompt,
+    });
+
+    console.log("[GABE] Calling Groq API with", messages.length, "messages");
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${groqApiKey}`,
-        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${groqApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: modelOverride,
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
-        temperature: 0.3, // Lower temp for more consistent technical answers
+        temperature: 0.3,
         max_tokens: 1024,
         stream: false,
       }),
@@ -186,22 +231,21 @@ Would you like help with a specific fireplace model or issue?`;
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Groq API error:', error);
-      
-      // Check for auth errors vs other errors
+      console.error("Groq API error:", error);
+
       const isAuthError = response.status === 401 || response.status === 403;
-      let errorMessage = 'AI service temporarily unavailable';
-      
+      let errorMessage = "AI service temporarily unavailable";
+
       try {
         const errorJson = JSON.parse(error);
         if (errorJson.error?.message) {
           errorMessage = errorJson.error.message;
         }
       } catch {}
-      
+
       return NextResponse.json({
         error: errorMessage,
-        isKeyConfigured: !!groqApiKey, // Help debug whether key was found
+        isKeyConfigured: !!groqApiKey,
         isAuthError,
         details: error,
       }, { status: isAuthError ? 401 : 503 });
@@ -212,12 +256,11 @@ Would you like help with a specific fireplace model or issue?`;
 
     if (!assistantMessage) {
       return NextResponse.json(
-        { error: 'No response from AI' },
+        { error: "No response from AI" },
         { status: 500 }
       );
     }
 
-    // Save message to log for audit
     try {
       saveGabeMessage({
         techId,
@@ -227,27 +270,27 @@ Would you like help with a specific fireplace model or issue?`;
         customerName: jobContext?.fireplace,
         fireplace: jobContext?.fireplace,
         messages: [
-          ...messages.filter(m => m.role !== 'system').map(m => ({ 
-            role: m.role as 'user' | 'assistant', 
-            content: m.content, 
-            timestamp: new Date().toISOString() 
+          ...messages.filter((m) => m.role !== "system").map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            timestamp: new Date().toISOString(),
           })),
-          { role: 'assistant' as const, content: assistantMessage, timestamp: new Date().toISOString() },
+          { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
         ],
       });
     } catch (e) {
-      console.error('Failed to save message log:', e);
+      console.error("Failed to save message log:", e);
     }
 
     return NextResponse.json({
       message: assistantMessage,
       usage: data.usage,
-      manualsCount: manuals.length,
+      manualsCount: allManuals.length,
     });
   } catch (err) {
-    console.error('GABE API error:', err);
+    console.error("GABE API error:", err);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

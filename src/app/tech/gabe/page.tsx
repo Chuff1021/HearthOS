@@ -10,6 +10,14 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  meta?: {
+    sourceType?: "manual" | "web" | "none";
+    manualTitle?: string;
+    pageNumber?: number;
+    sourceUrl?: string;
+    section?: string;
+    confidence?: number;
+  };
 }
 
 // ─── GABE Knowledge Base ───────────────────────────────────────────────────
@@ -202,9 +210,22 @@ function GABEInner() {
       });
 
       let responseText: string;
+      let responseMeta: Message["meta"] | undefined;
       if (res.ok) {
-        const data = await res.json() as { message: string };
-        responseText = data.message;
+        const data = await res.json() as any;
+        if (data?.answer) {
+          responseText = data.answer;
+          responseMeta = {
+            sourceType: data.source_type,
+            manualTitle: data.manual_title,
+            pageNumber: data.page_number,
+            sourceUrl: data.source_url || data.url,
+            section: data.section,
+            confidence: data.confidence,
+          };
+        } else {
+          responseText = data.message ?? "No response from AI";
+        }
       } else {
         // Fallback to local responses if API fails
         responseText = getGabeResponse(text, jobContext);
@@ -215,6 +236,7 @@ function GABEInner() {
         role: "assistant",
         content: responseText,
         timestamp: new Date(),
+        meta: responseMeta,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -314,6 +336,53 @@ function GABEInner() {
               }`}
             >
               <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
+              {message.role === "assistant" && message.meta?.sourceType && (
+                <div className="mt-2 text-xs text-gray-400 space-y-1">
+                  <div>Source: {message.meta.sourceType}</div>
+                  {message.meta.sourceType === "manual" && (
+                    <div>
+                      {message.meta.manualTitle ? `${message.meta.manualTitle}` : "Manual"}{" "}
+                      {message.meta.pageNumber ? `p. ${message.meta.pageNumber}` : ""}
+                      {message.meta.sourceUrl && (
+                        <>
+                          {" "}
+                          —{" "}
+                          <a
+                            className="text-orange-400 underline"
+                            href={message.meta.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Manual Link
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {message.meta.sourceType === "web" && (
+                    <div>
+                      {message.meta.section ? `${message.meta.section}` : "Manufacturer Website"}{" "}
+                      {message.meta.sourceUrl && (
+                        <>
+                          {" "}
+                          —{" "}
+                          <a
+                            className="text-orange-400 underline"
+                            href={message.meta.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Source Link
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {typeof message.meta.confidence === "number" && (
+                    <div>Confidence: {message.meta.confidence}</div>
+                  )}
+                </div>
+              )}
               <p className="text-xs opacity-40 mt-1.5">
                 {message.timestamp.toLocaleTimeString("en-US", {
                   hour: "numeric",
