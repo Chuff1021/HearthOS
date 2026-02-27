@@ -295,8 +295,9 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const q = question.toLowerCase();
   if (!isTechnicalQuestion(q)) return { filtered: results };
 
+  const airKeywords = ["outside air", "combustion air", "air intake", "oak"];
   const keywords = [
-    "outside air", "combustion air", "air intake", "oak",
+    ...airKeywords,
     "vent", "venting", "chimney", "clearance", "install", "installation"
   ];
 
@@ -321,9 +322,13 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   }
 
   // Require at least one keyword hit when asking technical questions.
-  const keywordHits = filtered.filter((r) =>
-    keywords.some((k) => r.chunk_text.toLowerCase().includes(k))
-  );
+  const requiresAir = airKeywords.some((k) => q.includes(k));
+  const keywordHits = filtered.filter((r) => {
+    const text = r.chunk_text.toLowerCase();
+    return requiresAir
+      ? airKeywords.some((k) => text.includes(k))
+      : keywords.some((k) => text.includes(k));
+  });
   if (keywordHits.length > 0) {
     filtered = keywordHits;
   } else {
