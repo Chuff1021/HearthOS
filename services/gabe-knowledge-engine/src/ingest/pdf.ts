@@ -8,12 +8,9 @@ async function loadPdfJs(): Promise<PdfJsModule> {
     return mod as unknown as PdfJsModule;
   } catch {}
   try {
-    // Fallback for CJS legacy builds
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require("pdfjs-dist/legacy/build/pdf.cjs") as PdfJsModule;
   } catch {}
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require("pdfjs-dist/legacy/build/pdf.js") as PdfJsModule;
   } catch {}
   throw new Error("pdfjs-dist legacy build not found. Ensure pdfjs-dist is installed.");
@@ -24,7 +21,8 @@ export type PageText = { page: number; text: string };
 export async function extractPdfPages(filePath: string): Promise<PageText[]> {
   const pdfjsLib = await loadPdfJs();
   const data = await readFile(filePath);
-  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const uint8 = new Uint8Array(data);
+  const pdf = await pdfjsLib.getDocument({ data: uint8 }).promise;
   const pages: PageText[] = [];
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
