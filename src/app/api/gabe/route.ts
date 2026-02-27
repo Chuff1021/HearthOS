@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
       if (!engineRes.ok) {
         const error = await engineRes.text();
         console.error("GABE engine error:", error);
+        return NextResponse.json({
+          answer: "This information is not available in verified manufacturer documentation.",
+          source_type: "none",
+          confidence: 0
+        });
       } else {
         const data = await engineRes.json();
         const assistantMessage = data?.answer ?? data?.message ?? "";

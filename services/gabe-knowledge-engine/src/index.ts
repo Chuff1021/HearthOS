@@ -101,9 +101,18 @@ app.post("/query", async (request, reply) => {
     };
   }
 
-  const answer = await callGroq(selectedChunks, body.question);
-  validateAnswer(answer, selectedChunks);
-  return answer;
+  try {
+    const answer = await callGroq(selectedChunks, body.question);
+    validateAnswer(answer, selectedChunks);
+    return answer;
+  } catch (err) {
+    request.log.error({ err }, "GABE answer validation failed");
+    return {
+      answer: "This information is not available in verified manufacturer documentation.",
+      source_type: "none",
+      confidence: 0
+    };
+  }
 });
 
 function cosineSimilarity(a: number[], b: number[]) {

@@ -13,6 +13,8 @@ Rules:
 - Output JSON only. No extra text.
 - If you use manual chunks, output source_type = "manual" with manual_title, page_number, source_url.
 - If you use web chunks, output source_type = "web" with url and section.
+- Include a short verbatim quote (max 25 words) from the chunk that directly supports the answer as "quote".
+- Use exactly one chunk to answer. Do not combine multiple chunks.
 - Include confidence score 0-100.`;
 }
 

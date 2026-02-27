@@ -20,6 +20,7 @@ export type GabeAnswer =
       manual_title: string;
       page_number: number;
       source_url: string;
+      quote: string;
       confidence: number;
     }
   | {
@@ -27,6 +28,7 @@ export type GabeAnswer =
       source_type: "web";
       url: string;
       section: string;
+      quote: string;
       confidence: number;
     }
   | {
