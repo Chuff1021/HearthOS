@@ -13,6 +13,25 @@ if (!filePath || !manualTitle || !manufacturer || !model || !sourceUrl) {
   process.exit(1);
 }
 
+const BATCH_SIZE = 100;
+const MAX_RETRIES = 5;
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function upsertWithRetry(points: any[], attempt = 1) {
+  try {
+    await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
+  } catch (err) {
+    if (attempt >= MAX_RETRIES) throw err;
+    const delay = 1000 * attempt;
+    console.warn(`Qdrant upsert failed (attempt ${attempt}). Retrying in ${delay}ms...`);
+    await sleep(delay);
+    return upsertWithRetry(points, attempt + 1);
+  }
+}
+
 async function run() {
   const pages = await extractPdfPages(filePath);
   const chunks = chunkPages(pages, 500, 800);
@@ -33,7 +52,12 @@ async function run() {
     }
   }));
 
-  await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
+  for (let i = 0; i < points.length; i += BATCH_SIZE) {
+    const batch = points.slice(i, i + BATCH_SIZE);
+    await upsertWithRetry(batch);
+    console.log(`Inserted ${Math.min(i + BATCH_SIZE, points.length)} / ${points.length} chunks...`);
+  }
+
   console.log(`Inserted ${points.length} chunks.`);
 }
 
