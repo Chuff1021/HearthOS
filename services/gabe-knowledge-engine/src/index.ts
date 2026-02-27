@@ -62,7 +62,8 @@ app.post("/query", async (request, reply) => {
   const manualResults = await searchManualChunks(queryVector, 50);
   const boostedManualResults = applyKeywordBoost(body.question, manualResults);
   const { filtered: hintedManualResults } = applyManualHintFilter(body.question, boostedManualResults);
-  const manualMatches = hintedManualResults.filter((r) => r.score >= similarityThreshold);
+  const { filtered: technicalFiltered } = applyTechnicalFilter(body.question, hintedManualResults);
+  const manualMatches = technicalFiltered.filter((r) => r.score >= similarityThreshold);
 
   let selectedChunks: RetrievedChunk[] = [];
   if (manualMatches.length > 0) {
@@ -71,8 +72,8 @@ app.post("/query", async (request, reply) => {
       .slice(0, 3);
   } else {
     // Fallback: still use top manual chunks even if below threshold
-    if (hintedManualResults.length > 0) {
-      selectedChunks = hintedManualResults
+    if (technicalFiltered.length > 0) {
+      selectedChunks = technicalFiltered
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
     } else {
@@ -261,6 +262,37 @@ function isTechnicalQuestion(q: string) {
     "manual", "page", "spec", "specs", "pipe", "chimney"
   ];
   return technicalTerms.some((t) => q.includes(t));
+}
+
+function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
+  const q = question.toLowerCase();
+  if (!isTechnicalQuestion(q)) return { filtered: results };
+
+  const keywords = [
+    "outside air", "combustion air", "air intake", "oak",
+    "vent", "venting", "chimney", "clearance", "install", "installation"
+  ];
+
+  const prefersInstall = q.includes("install") || q.includes("installation") || q.includes("requirements");
+
+  let filtered = results;
+
+  // Drop cover-page style chunks for technical queries.
+  filtered = filtered.filter((r) => r.page_number > 1 || r.chunk_text.length > 300);
+
+  // Prefer Installation Manual over Owner's Manual for install/requirements.
+  if (prefersInstall) {
+    const installOnly = filtered.filter((r) => /installation manual/i.test(r.manual_title));
+    if (installOnly.length > 0) filtered = installOnly;
+  }
+
+  // Require at least one keyword hit when asking technical questions.
+  const keywordHits = filtered.filter((r) =>
+    keywords.some((k) => r.chunk_text.toLowerCase().includes(k))
+  );
+  if (keywordHits.length > 0) filtered = keywordHits;
+
+  return { filtered };
 }
 
 app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
