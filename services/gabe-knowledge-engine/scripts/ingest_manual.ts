@@ -3,7 +3,7 @@ import { extractPdfPages } from "../src/ingest/pdf";
 import { chunkPages } from "../src/ingest/chunker";
 import { embed } from "../src/embeddings";
 import { ensureCollection, qdrant } from "../src/retrieval/qdrant";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 
 const args = process.argv.slice(2);
 const [filePath, manualTitle, manufacturer, model, sourceUrl] = args;
@@ -78,7 +78,7 @@ function stableUuid(input: string) {
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const b = bytes.map((n) => n.toString(16).padStart(2, "0"));
-  return `${b.slice(0, 8).join("")}-${b.slice(8, 12).join("")}-${b
-    .slice(12, 16)
-    .join("")}-${b.slice(16, 20).join("")}-${b.slice(20, 32).join("")}`;
+  return `${b.slice(0, 4).join("")}-${b.slice(4, 6).join("")}-${b
+    .slice(6, 8)
+    .join("")}-${b.slice(8, 10).join("")}-${b.slice(10, 16).join("")}`;
 }
