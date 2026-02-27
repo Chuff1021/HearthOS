@@ -61,7 +61,8 @@ app.post("/query", async (request, reply) => {
   const [queryVector] = await embed([body.question]);
   const manualResults = await searchManualChunks(queryVector, 8);
   const boostedManualResults = applyKeywordBoost(body.question, manualResults);
-  const manualMatches = boostedManualResults.filter((r) => r.score >= similarityThreshold);
+  const { filtered: hintedManualResults } = applyManualHintFilter(body.question, boostedManualResults);
+  const manualMatches = hintedManualResults.filter((r) => r.score >= similarityThreshold);
 
   let selectedChunks: RetrievedChunk[] = [];
   if (manualMatches.length > 0) {
@@ -70,8 +71,8 @@ app.post("/query", async (request, reply) => {
       .slice(0, 3);
   } else {
     // Fallback: still use top manual chunks even if below threshold
-    if (boostedManualResults.length > 0) {
-      selectedChunks = boostedManualResults
+    if (hintedManualResults.length > 0) {
+      selectedChunks = hintedManualResults
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
     } else {
@@ -188,6 +189,44 @@ function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
     const hit = keywords.some((k) => text.includes(k));
     return hit ? { ...r, score: Math.min(1, r.score + 0.08) } : r;
   });
+}
+
+function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
+  const q = question.toLowerCase();
+  const brandHints = ["fpx", "lopi", "majestic", "monessen"].filter((b) => q.includes(b));
+  const tokens = q
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .filter((t) => t.length >= 2);
+
+  const stop = new Set([
+    "does", "the", "and", "allow", "outside", "combustion", "air", "kit", "kits",
+    "use", "can", "for", "with", "manual", "require", "required", "need", "needs",
+    "installation", "owner", "owners", "install", "page"
+  ]);
+
+  const modelTokens = tokens.filter((t) => !stop.has(t) && !brandHints.includes(t));
+
+  const scored = results.map((r) => {
+    const hay = `${r.manual_title} ${r.manufacturer} ${r.model}`.toLowerCase();
+    const brandHit = brandHints.length === 0 ? 0 : brandHints.filter((b) => hay.includes(b)).length;
+    const modelHit = modelTokens.filter((t) => hay.includes(t)).length;
+    const hitCount = brandHit + modelHit;
+    return { r, hitCount };
+  });
+
+  const preferred = scored.filter((s) => s.hitCount >= 2).map((s) => s.r);
+  if (preferred.length > 0) {
+    return { filtered: preferred };
+  }
+
+  // If brand is present, at least filter by brand match.
+  if (brandHints.length > 0) {
+    const byBrand = scored.filter((s) => s.hitCount >= 1).map((s) => s.r);
+    if (byBrand.length > 0) return { filtered: byBrand };
+  }
+
+  return { filtered: results };
 }
 
 app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
