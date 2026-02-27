@@ -7,6 +7,7 @@ RUN npm install --omit=dev
 
 COPY tsconfig.json ./tsconfig.json
 COPY src ./src
+COPY scripts ./scripts
 
 RUN npm install --save-dev typescript && npx tsc -p tsconfig.json
 
