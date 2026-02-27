@@ -36,7 +36,9 @@ async function run() {
   const pages = await extractPdfPages(filePath);
   const chunks = chunkPages(pages, 500, 800);
   const embeddings = await embed(chunks.map((c) => c.text));
-  await ensureCollection(embeddings[0].length);
+  if (process.env.SKIP_COLLECTION_CHECK !== "1") {
+    await ensureCollection(embeddings[0].length);
+  }
 
   const points = chunks.map((c, idx) => ({
     id: randomUUID(),
