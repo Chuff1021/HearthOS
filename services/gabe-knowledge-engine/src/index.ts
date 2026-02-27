@@ -202,7 +202,17 @@ function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
   return results.map((r) => {
     const text = r.chunk_text.toLowerCase();
     const hit = keywords.some((k) => text.includes(k));
-    return hit ? { ...r, score: Math.min(1, r.score + 0.08) } : r;
+    if (!hit) return r;
+
+    let bonus = 0.08;
+    if (
+      text.includes("air intake installation") ||
+      text.includes("requires an air intake") ||
+      text.includes("combustion air")
+    ) {
+      bonus += 0.18;
+    }
+    return { ...r, score: Math.min(1, r.score + bonus) };
   });
 }
 
