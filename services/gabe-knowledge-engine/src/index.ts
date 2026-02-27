@@ -212,18 +212,21 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
     const brandHit = brandHints.length === 0 ? 0 : brandHints.filter((b) => hay.includes(b)).length;
     const modelHit = modelTokens.filter((t) => hay.includes(t)).length;
     const hitCount = brandHit + modelHit;
-    return { r, hitCount };
+    return { r, hitCount, brandHit, modelHit };
   });
+
+  // If brand is specified and any results match the brand, only keep brand matches.
+  if (brandHints.length > 0) {
+    const brandMatches = scored.filter((s) => s.brandHit > 0);
+    if (brandMatches.length > 0) {
+      const preferred = brandMatches.filter((s) => s.modelHit >= 2).map((s) => s.r);
+      return { filtered: preferred.length > 0 ? preferred : brandMatches.map((s) => s.r) };
+    }
+  }
 
   const preferred = scored.filter((s) => s.hitCount >= 2).map((s) => s.r);
   if (preferred.length > 0) {
     return { filtered: preferred };
-  }
-
-  // If brand is present, at least filter by brand match.
-  if (brandHints.length > 0) {
-    const byBrand = scored.filter((s) => s.hitCount >= 1).map((s) => s.r);
-    if (byBrand.length > 0) return { filtered: byBrand };
   }
 
   return { filtered: results };
