@@ -1,7 +1,21 @@
 import { readFile } from "node:fs/promises";
-// CommonJS require for pdfjs
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+
+function loadPdfJs() {
+  try {
+    // Preferred for legacy CJS builds
+    return require("pdfjs-dist/legacy/build/pdf.cjs");
+  } catch {}
+  try {
+    return require("pdfjs-dist/legacy/build/pdf.js");
+  } catch {}
+  try {
+    return require("pdfjs-dist/legacy/build/pdf");
+  } catch (err) {
+    throw new Error("pdfjs-dist legacy build not found. Ensure pdfjs-dist is installed.");
+  }
+}
+
+const pdfjsLib = loadPdfJs();
 
 export type PageText = { page: number; text: string };
 
