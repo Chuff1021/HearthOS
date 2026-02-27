@@ -162,8 +162,12 @@ function cosineSimilarity(a: number[], b: number[]) {
 function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefined) {
   if (!chunk || chunk.source_type !== "manual") return null;
   const quote = extractQuote(question, chunk.chunk_text);
+  const q = question.toLowerCase();
+  const requiresAir = ["outside air", "combustion air", "air intake", "oak"].some((t) => q.includes(t));
   return {
-    answer: `Manual states: "${quote}"`,
+    answer: requiresAir
+      ? `Yes. The manual identifies an air intake for this fireplace. "${quote}"`
+      : `Manual states: "${quote}"`,
     source_type: "manual",
     manual_title: chunk.manual_title,
     page_number: chunk.page_number,
@@ -217,6 +221,17 @@ function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
     }
     return { ...r, score: Math.min(1, r.score + bonus) };
   });
+}
+
+function rankAirChunk(chunk: RetrievedChunk) {
+  const text = chunk.chunk_text.toLowerCase();
+  let score = 0;
+  if (text.includes("air intake installation")) score += 3;
+  if (text.includes("air intake locations")) score += 2;
+  if (text.includes("air intake collar")) score += 2;
+  if (text.includes("combustion air")) score += 2;
+  if (text.includes("requires")) score += 2;
+  return score;
 }
 
 function fuseHybridResults(vectorResults: RetrievedChunk[], keywordResults: RetrievedChunk[]) {
@@ -375,22 +390,25 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const keywordHits = filtered.filter((r) => {
     const text = r.chunk_text.toLowerCase();
     if (requiresAir) {
-      const airPhrases = [
-        "air intake installation",
-        "requires an air intake",
-        "requires air intake",
-        "supply combustion air",
-        "combustion air"
-      ];
-      return airPhrases.some((p) => text.includes(p));
+      if (!text.includes("air intake")) return false;
+      if (text.includes("air intake parts")) return false;
+      return true;
     }
     return keywords.some((k) => text.includes(k));
   });
   if (keywordHits.length > 0) {
-    const sectionHits = keywordHits.filter((r) =>
-      (r.section_title || "").toLowerCase().includes("air intake")
-    );
-    filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
+    if (requiresAir) {
+      filtered = keywordHits
+        .map((r) => ({ r, score: rankAirChunk(r) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5)
+        .map((x) => x.r);
+    } else {
+      const sectionHits = keywordHits.filter((r) =>
+        (r.section_title || "").toLowerCase().includes("air intake")
+      );
+      filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
+    }
   } else {
     return { filtered: [] };
   }
