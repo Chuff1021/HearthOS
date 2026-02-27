@@ -24,13 +24,22 @@ const noneSchema = z.object({
   confidence: z.literal(0)
 });
 
+type ManualAnswer = z.infer<typeof manualSchema>;
+type WebAnswer = z.infer<typeof webSchema>;
+
+type NoneAnswer = z.infer<typeof noneSchema>;
+
+type Parsed = ManualAnswer | WebAnswer | NoneAnswer;
+
 export function validateAnswer(answer: GabeAnswer, chunks: RetrievedChunk[]) {
-  if (manualSchema.safeParse(answer).success) {
+  const parsed = manualSchema.safeParse(answer);
+  if (parsed.success) {
+    const a = parsed.data;
     const match = chunks.find((c) =>
       c.source_type === "manual" &&
-      c.manual_title === answer.manual_title &&
-      c.page_number === answer.page_number &&
-      c.source_url === answer.source_url
+      c.manual_title === a.manual_title &&
+      c.page_number === a.page_number &&
+      c.source_url === a.source_url
     );
     if (!match) {
       throw new Error("Manual citation does not match retrieved chunks");
@@ -38,10 +47,12 @@ export function validateAnswer(answer: GabeAnswer, chunks: RetrievedChunk[]) {
     return;
   }
 
-  if (webSchema.safeParse(answer).success) {
+  const parsedWeb = webSchema.safeParse(answer);
+  if (parsedWeb.success) {
+    const a = parsedWeb.data;
     const match = chunks.find((c) =>
       c.source_type === "web" &&
-      c.source_url === answer.url
+      c.source_url === a.url
     );
     if (!match) {
       throw new Error("Web citation does not match retrieved chunks");

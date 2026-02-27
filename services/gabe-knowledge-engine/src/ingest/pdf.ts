@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
+// CommonJS require for pdfjs
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
 
 export type PageText = { page: number; text: string };
