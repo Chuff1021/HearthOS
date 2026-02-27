@@ -369,9 +369,17 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const requiresAir = airKeywords.some((k) => q.includes(k));
   const keywordHits = filtered.filter((r) => {
     const text = r.chunk_text.toLowerCase();
-    return requiresAir
-      ? airKeywords.some((k) => text.includes(k))
-      : keywords.some((k) => text.includes(k));
+    if (requiresAir) {
+      const airPhrases = [
+        "air intake installation",
+        "requires an air intake",
+        "requires air intake",
+        "supply combustion air",
+        "combustion air"
+      ];
+      return airPhrases.some((p) => text.includes(p));
+    }
+    return keywords.some((k) => text.includes(k));
   });
   if (keywordHits.length > 0) {
     filtered = keywordHits;
