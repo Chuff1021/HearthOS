@@ -206,6 +206,7 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   ]);
 
   const modelTokens = tokens.filter((t) => !stop.has(t) && !brandHints.includes(t));
+  const technical = isTechnicalQuestion(q);
 
   const scored = results.map((r) => {
     const hay = `${r.manual_title} ${r.manufacturer} ${r.model}`.toLowerCase();
@@ -214,6 +215,13 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
     const hitCount = brandHit + modelHit;
     return { r, hitCount, brandHit, modelHit };
   });
+
+  if (technical) {
+    const noFlyers = scored.filter((s) => !/flyer|single page/.test(s.r.manual_title.toLowerCase()));
+    if (noFlyers.length > 0) {
+      scored.splice(0, scored.length, ...noFlyers);
+    }
+  }
 
   // If brand is specified and any results match the brand, only keep brand matches.
   if (brandHints.length > 0) {
@@ -230,6 +238,15 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   }
 
   return { filtered: results };
+}
+
+function isTechnicalQuestion(q: string) {
+  const technicalTerms = [
+    "outside air", "combustion air", "air intake", "oak", "vent", "venting",
+    "clearance", "install", "installation", "requirements", "required",
+    "manual", "page", "spec", "specs", "pipe", "chimney"
+  ];
+  return technicalTerms.some((t) => q.includes(t));
 }
 
 app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
