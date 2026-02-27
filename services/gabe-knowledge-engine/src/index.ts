@@ -300,7 +300,14 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
     "vent", "venting", "chimney", "clearance", "install", "installation"
   ];
 
-  const prefersInstall = q.includes("install") || q.includes("installation") || q.includes("requirements");
+  const prefersInstall =
+    q.includes("install") ||
+    q.includes("installation") ||
+    q.includes("requirements") ||
+    q.includes("combustion air") ||
+    q.includes("outside air") ||
+    q.includes("air intake") ||
+    q.includes("oak");
 
   let filtered = results;
 
@@ -317,7 +324,11 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const keywordHits = filtered.filter((r) =>
     keywords.some((k) => r.chunk_text.toLowerCase().includes(k))
   );
-  if (keywordHits.length > 0) filtered = keywordHits;
+  if (keywordHits.length > 0) {
+    filtered = keywordHits;
+  } else {
+    return { filtered: [] };
+  }
 
   return { filtered };
 }
