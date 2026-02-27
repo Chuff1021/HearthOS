@@ -3,7 +3,7 @@ import { extractPdfPages } from "../src/ingest/pdf";
 import { chunkPages } from "../src/ingest/chunker";
 import { embed } from "../src/embeddings";
 import { ensureCollection, qdrant } from "../src/retrieval/qdrant";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const args = process.argv.slice(2);
 const [filePath, manualTitle, manufacturer, model, sourceUrl] = args;
@@ -41,9 +41,7 @@ async function run() {
   }
 
   const points = chunks.map((c, idx) => ({
-    id: createHash("sha1")
-      .update(`${sourceUrl}|${c.page}|${c.text}`)
-      .digest("hex"),
+    id: stableUuid(`${sourceUrl}|${c.page}|${c.text}`),
     vector: embeddings[idx],
     payload: {
       manual_title: manualTitle,
@@ -69,3 +67,18 @@ run().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+function stableUuid(input: string) {
+  const hex = createHash("sha1").update(input).digest("hex").slice(0, 32);
+  const bytes: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.slice(i, i + 2), 16));
+  }
+  // Set UUID version 5 (0101) and variant (10xx)
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const b = bytes.map((n) => n.toString(16).padStart(2, "0"));
+  return `${b.slice(0, 8).join("")}-${b.slice(8, 12).join("")}-${b
+    .slice(12, 16)
+    .join("")}-${b.slice(16, 20).join("")}-${b.slice(20, 32).join("")}`;
+}
