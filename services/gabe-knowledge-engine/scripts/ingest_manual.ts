@@ -3,7 +3,7 @@ import { extractPdfPages } from "../src/ingest/pdf";
 import { chunkPages } from "../src/ingest/chunker";
 import { embed } from "../src/embeddings";
 import { ensureCollection, qdrant } from "../src/retrieval/qdrant";
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 
 const args = process.argv.slice(2);
 const [filePath, manualTitle, manufacturer, model, sourceUrl] = args;
@@ -41,7 +41,9 @@ async function run() {
   }
 
   const points = chunks.map((c, idx) => ({
-    id: randomUUID(),
+    id: createHash("sha1")
+      .update(`${sourceUrl}|${c.page}|${c.text}`)
+      .digest("hex"),
     vector: embeddings[idx],
     payload: {
       manual_title: manualTitle,
