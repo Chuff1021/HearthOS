@@ -223,6 +223,13 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
     }
   }
 
+  if (modelTokens.length > 0) {
+    const modelMatches = scored.filter((s) => s.modelHit >= 2);
+    if (modelMatches.length > 0) {
+      return { filtered: modelMatches.map((s) => s.r) };
+    }
+  }
+
   // If brand is specified and any results match the brand, only keep brand matches.
   if (brandHints.length > 0) {
     const brandMatches = scored.filter((s) => s.brandHit > 0);
