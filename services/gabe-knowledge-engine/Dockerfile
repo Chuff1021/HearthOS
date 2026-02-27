@@ -13,4 +13,4 @@ RUN npm install --save-dev typescript && npx tsc -p tsconfig.json
 ENV NODE_ENV=production
 EXPOSE 4100
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]
