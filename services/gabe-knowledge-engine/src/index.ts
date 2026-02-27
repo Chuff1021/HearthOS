@@ -111,12 +111,15 @@ app.post("/query", async (request, reply) => {
     };
   }
 
+  const chosenChunks = selectedChunks.slice(0, 1);
   try {
-    const answer = await callGroq(selectedChunks, body.question);
-    validateAnswer(answer, selectedChunks);
+    const answer = await callGroq(chosenChunks, body.question);
+    validateAnswer(answer, chosenChunks);
     return answer;
   } catch (err) {
     request.log.error({ err }, "GABE answer validation failed");
+    const fallback = buildExtractiveAnswer(body.question, chosenChunks[0]);
+    if (fallback) return fallback;
     return {
       answer: "This information is not available in verified manufacturer documentation.",
       source_type: "none",
@@ -135,6 +138,41 @@ function cosineSimilarity(a: number[], b: number[]) {
     nb += b[i] * b[i];
   }
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefined) {
+  if (!chunk || chunk.source_type !== "manual") return null;
+  const quote = extractQuote(question, chunk.chunk_text);
+  return {
+    answer: `Manual states: "${quote}"`,
+    source_type: "manual",
+    manual_title: chunk.manual_title,
+    page_number: chunk.page_number,
+    source_url: chunk.source_url,
+    quote,
+    confidence: 60
+  };
+}
+
+function extractQuote(question: string, text: string) {
+  const q = question.toLowerCase();
+  const keywords: string[] = [];
+  if (q.includes("outside air") || q.includes("combustion air") || q.includes("air intake") || q.includes("oak")) {
+    keywords.push("outside air", "combustion air", "air intake", "outside combustion", "oak");
+  }
+
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const pick = sentences.find((s) => keywords.some((k) => s.toLowerCase().includes(k)))
+    ?? sentences[0]
+    ?? text;
+
+  const words = pick.split(/\s+/).slice(0, 25);
+  return words.join(" ");
 }
 
 function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
