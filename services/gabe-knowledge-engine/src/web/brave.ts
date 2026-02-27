@@ -29,5 +29,5 @@ export async function braveSearch(query: string, count = 5) {
     description: r.description
   }));
 
-  return results.filter((r) => allowlistDomains.some((d) => r.url.includes(d)));
+  return results.filter((r) => allowlistDomains.some((d: string) => r.url.includes(d)));
 }

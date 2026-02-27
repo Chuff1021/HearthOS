@@ -2,14 +2,14 @@ import { qdrant } from "./qdrant";
 import { env } from "../config";
 import { RetrievedChunk } from "../types";
 
-export async function searchManualChunks(vector: number[], limit = 5) {
+export async function searchManualChunks(vector: number[], limit = 5): Promise<RetrievedChunk[]> {
   const res = await qdrant.search(env.QDRANT_COLLECTION, {
     vector,
     limit,
     with_payload: true
   });
 
-  return res.map((r) => {
+  return res.map((r: any) => {
     const payload = r.payload as any;
     return {
       manual_title: payload.manual_title,

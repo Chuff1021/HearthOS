@@ -1,4 +1,4 @@
-type Chunk = {
+export type Chunk = {
   page: number;
   text: string;
 };
@@ -12,7 +12,7 @@ export function chunkPages(
   pages: Array<{ page: number; text: string }>,
   minTokens = 500,
   maxTokens = 800
-) {
+): Chunk[] {
   const chunks: Chunk[] = [];
 
   for (const page of pages) {

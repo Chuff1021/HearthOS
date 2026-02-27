@@ -71,7 +71,7 @@ app.post("/query", async (request, reply) => {
       const { title, text } = await fetchPageText(result.url);
       const chunks = chunkWebText(text, 800, 100);
       const embeddings = await embed(chunks);
-      const scored = embeddings.map((vec, idx) => ({
+      const scored: RetrievedChunk[] = embeddings.map((vec, idx) => ({
         score: cosineSimilarity(queryVector, vec),
         chunk_text: chunks[idx],
         source_url: result.url,
@@ -80,9 +80,12 @@ app.post("/query", async (request, reply) => {
         model: "",
         page_number: 0,
         section: title || result.title,
-        source_type: "web" as const
+        source_type: "web"
       }));
-      const top = scored.filter((s) => s.score >= similarityThreshold).sort((a, b) => b.score - a.score).slice(0, 3);
+      const top = scored
+        .filter((s) => s.score >= similarityThreshold)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
       selectedChunks.push(...top);
       if (selectedChunks.length >= 3) break;
     }

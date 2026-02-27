@@ -52,7 +52,7 @@ async function embedWithJina(texts: string[]) {
   return data.data.map((d) => d.embedding);
 }
 
-export async function embed(texts: string[]) {
+export async function embed(texts: string[]): Promise<number[][]> {
   switch (env.EMBEDDINGS_PROVIDER) {
     case "openai":
       return embedWithOpenAI(texts);
