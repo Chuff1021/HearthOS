@@ -1,25 +1,28 @@
 import { readFile } from "node:fs/promises";
 
-function loadPdfJs() {
-  try {
-    // Preferred for legacy CJS builds
-    return require("pdfjs-dist/legacy/build/pdf.cjs");
-  } catch {}
-  try {
-    return require("pdfjs-dist/legacy/build/pdf.js");
-  } catch {}
-  try {
-    return require("pdfjs-dist/legacy/build/pdf");
-  } catch (err) {
-    throw new Error("pdfjs-dist legacy build not found. Ensure pdfjs-dist is installed.");
-  }
-}
+type PdfJsModule = { getDocument: (opts: { data: Uint8Array }) => { promise: Promise<any> } };
 
-const pdfjsLib = loadPdfJs();
+async function loadPdfJs(): Promise<PdfJsModule> {
+  try {
+    const mod = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    return mod as unknown as PdfJsModule;
+  } catch {}
+  try {
+    // Fallback for CJS legacy builds
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require("pdfjs-dist/legacy/build/pdf.cjs") as PdfJsModule;
+  } catch {}
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require("pdfjs-dist/legacy/build/pdf.js") as PdfJsModule;
+  } catch {}
+  throw new Error("pdfjs-dist legacy build not found. Ensure pdfjs-dist is installed.");
+}
 
 export type PageText = { page: number; text: string };
 
 export async function extractPdfPages(filePath: string): Promise<PageText[]> {
+  const pdfjsLib = await loadPdfJs();
   const data = await readFile(filePath);
   const pdf = await pdfjsLib.getDocument({ data }).promise;
   const pages: PageText[] = [];
