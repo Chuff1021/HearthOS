@@ -59,7 +59,7 @@ app.post("/query", async (request, reply) => {
   if (!body?.question) return reply.status(400).send({ error: "question required" });
 
   const [queryVector] = await embed([body.question]);
-  const manualResults = await searchManualChunks(queryVector, 8);
+  const manualResults = await searchManualChunks(queryVector, 50);
   const boostedManualResults = applyKeywordBoost(body.question, manualResults);
   const { filtered: hintedManualResults } = applyManualHintFilter(body.question, boostedManualResults);
   const manualMatches = hintedManualResults.filter((r) => r.score >= similarityThreshold);
@@ -206,6 +206,7 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   ]);
 
   const modelTokens = tokens.filter((t) => !stop.has(t) && !brandHints.includes(t));
+  const numericTokens = modelTokens.filter((t) => /^\d+$/.test(t));
   const technical = isTechnicalQuestion(q);
 
   const scored = results.map((r) => {
@@ -224,7 +225,12 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   }
 
   if (modelTokens.length > 0) {
-    const modelMatches = scored.filter((s) => s.modelHit >= 2);
+    const modelMatches = scored.filter((s) => {
+      if (s.modelHit < 2) return false;
+      if (numericTokens.length === 0) return true;
+      const hay = `${s.r.manual_title} ${s.r.manufacturer} ${s.r.model}`.toLowerCase();
+      return numericTokens.some((t) => hay.includes(t));
+    });
     if (modelMatches.length > 0) {
       return { filtered: modelMatches.map((s) => s.r) };
     }
@@ -237,6 +243,7 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
       const preferred = brandMatches.filter((s) => s.modelHit >= 2).map((s) => s.r);
       return { filtered: preferred.length > 0 ? preferred : brandMatches.map((s) => s.r) };
     }
+    return { filtered: [] };
   }
 
   const preferred = scored.filter((s) => s.hitCount >= 2).map((s) => s.r);
