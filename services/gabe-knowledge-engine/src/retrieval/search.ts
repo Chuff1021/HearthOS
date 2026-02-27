@@ -25,18 +25,17 @@ export async function searchManualChunks(vector: number[], limit = 5): Promise<R
   });
 }
 
-export async function keywordSearchManualChunks(text: string, limit = 50): Promise<RetrievedChunk[]> {
+export async function keywordSearchManualChunks(terms: string[], limit = 50): Promise<RetrievedChunk[]> {
+  if (terms.length === 0) return [];
   const res = await qdrant.scroll(env.QDRANT_COLLECTION, {
     limit,
     with_payload: true,
     with_vector: false,
     filter: {
-      must: [
-        {
-          key: "chunk_text",
-          match: { text }
-        }
-      ]
+      should: terms.map((term) => ({
+        key: "chunk_text",
+        match: { text: term }
+      }))
     }
   });
 

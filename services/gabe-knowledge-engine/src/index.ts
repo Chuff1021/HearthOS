@@ -59,9 +59,10 @@ app.post("/query", async (request, reply) => {
   if (!body?.question) return reply.status(400).send({ error: "question required" });
 
   const [queryVector] = await embed([body.question]);
+  const keywordTerms = buildKeywordTerms(body.question);
   const [vectorResults, keywordResults] = await Promise.all([
     searchManualChunks(queryVector, 50),
-    keywordSearchManualChunks(body.question, 50)
+    keywordSearchManualChunks(keywordTerms, 50)
   ]);
   const hybridResults = fuseHybridResults(vectorResults, keywordResults);
   const boostedManualResults = applyKeywordBoost(body.question, hybridResults);
@@ -304,6 +305,24 @@ function isTechnicalQuestion(q: string) {
     "manual", "page", "spec", "specs", "pipe", "chimney"
   ];
   return technicalTerms.some((t) => q.includes(t));
+}
+
+function buildKeywordTerms(question: string) {
+  const q = question.toLowerCase();
+  const terms = new Set<string>();
+  const airTerms = ["outside air", "combustion air", "air intake", "oak"];
+  airTerms.forEach((t) => {
+    if (q.includes(t)) terms.add(t);
+  });
+
+  const { brandHints, tokens } = extractQuestionHints(question);
+  brandHints.forEach((b) => terms.add(b));
+
+  tokens.forEach((t) => {
+    if (t.length >= 3) terms.add(t);
+  });
+
+  return Array.from(terms);
 }
 
 function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
