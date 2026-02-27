@@ -81,31 +81,40 @@ app.post("/query", async (request, reply) => {
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
     } else {
-      const webResults = await braveSearch(body.question, 5);
-    for (const result of webResults) {
-      const { title, text } = await fetchPageText(result.url);
-      const chunks = chunkWebText(text, 800, 100);
-      const embeddings = await embed(chunks);
-      const scored: RetrievedChunk[] = embeddings.map((vec, idx) => ({
-        score: cosineSimilarity(queryVector, vec),
-        chunk_text: chunks[idx],
-        source_url: result.url,
-        manual_title: "",
-        manufacturer: "",
-        model: "",
-        page_number: 0,
-        section: title || result.title,
-        source_type: "web"
-      }));
-      const top = scored
-        .filter((s) => s.score >= similarityThreshold)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
-      selectedChunks.push(...top);
-      if (selectedChunks.length >= 3) break;
-    }
+      const { hasBrandOrModel, q } = extractQuestionHints(body.question);
+      if (hasBrandOrModel || isTechnicalQuestion(q)) {
+        selectedChunks = [];
+      } else {
+        const webResults = await braveSearch(body.question, 5);
+        for (const result of webResults) {
+          try {
+            const { title, text } = await fetchPageText(result.url);
+            const chunks = chunkWebText(text, 800, 100);
+            const embeddings = await embed(chunks);
+            const scored: RetrievedChunk[] = embeddings.map((vec, idx) => ({
+              score: cosineSimilarity(queryVector, vec),
+              chunk_text: chunks[idx],
+              source_url: result.url,
+              manual_title: "",
+              manufacturer: "",
+              model: "",
+              page_number: 0,
+              section: title || result.title,
+              source_type: "web"
+            }));
+            const top = scored
+              .filter((s) => s.score >= similarityThreshold)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3);
+            selectedChunks.push(...top);
+            if (selectedChunks.length >= 3) break;
+          } catch (err) {
+            request.log.warn({ err, url: result.url }, "Web fetch failed, skipping");
+          }
+        }
 
-    selectedChunks = selectedChunks.slice(0, 3);
+        selectedChunks = selectedChunks.slice(0, 3);
+      }
     }
   }
 
@@ -220,12 +229,7 @@ function fuseHybridResults(vectorResults: RetrievedChunk[], keywordResults: Retr
 }
 
 function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
-  const q = question.toLowerCase();
-  const brandHints = ["fpx", "lopi", "majestic", "monessen"].filter((b) => q.includes(b));
-  const tokens = q
-    .split(/[^a-z0-9]+/i)
-    .filter(Boolean)
-    .filter((t) => t.length >= 2);
+  const { q, brandHints, tokens } = extractQuestionHints(question);
 
   const stop = new Set([
     "does", "the", "and", "allow", "outside", "combustion", "air", "kit", "kits",
@@ -280,6 +284,17 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   }
 
   return { filtered: results };
+}
+
+function extractQuestionHints(question: string) {
+  const q = question.toLowerCase();
+  const brandHints = ["fpx", "lopi", "majestic", "monessen"].filter((b) => q.includes(b));
+  const tokens = q
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .filter((t) => t.length >= 2);
+  const hasBrandOrModel = brandHints.length > 0 || tokens.some((t) => /^\d+$/.test(t));
+  return { q, brandHints, tokens, hasBrandOrModel };
 }
 
 function isTechnicalQuestion(q: string) {
