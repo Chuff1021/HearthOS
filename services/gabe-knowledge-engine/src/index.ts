@@ -4,7 +4,7 @@ import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
 import { ensureCollection, qdrant } from "./retrieval/qdrant";
-import { searchManualChunks } from "./retrieval/search";
+import { keywordSearchManualChunks, searchManualChunks } from "./retrieval/search";
 import { braveSearch } from "./web/brave";
 import { fetchPageText, chunkWebText } from "./web/extract";
 import { callGroq } from "./llm/groq";
@@ -59,8 +59,12 @@ app.post("/query", async (request, reply) => {
   if (!body?.question) return reply.status(400).send({ error: "question required" });
 
   const [queryVector] = await embed([body.question]);
-  const manualResults = await searchManualChunks(queryVector, 50);
-  const boostedManualResults = applyKeywordBoost(body.question, manualResults);
+  const [vectorResults, keywordResults] = await Promise.all([
+    searchManualChunks(queryVector, 50),
+    keywordSearchManualChunks(body.question, 50)
+  ]);
+  const hybridResults = fuseHybridResults(vectorResults, keywordResults);
+  const boostedManualResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hintedManualResults } = applyManualHintFilter(body.question, boostedManualResults);
   const { filtered: technicalFiltered } = applyTechnicalFilter(body.question, hintedManualResults);
   const manualMatches = technicalFiltered.filter((r) => r.score >= similarityThreshold);
@@ -190,6 +194,29 @@ function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
     const hit = keywords.some((k) => text.includes(k));
     return hit ? { ...r, score: Math.min(1, r.score + 0.08) } : r;
   });
+}
+
+function fuseHybridResults(vectorResults: RetrievedChunk[], keywordResults: RetrievedChunk[]) {
+  const k = 60;
+  const scoreMap = new Map<string, RetrievedChunk & { _rrf: number }>();
+
+  const add = (r: RetrievedChunk, rank: number) => {
+    const key = `${r.source_url}|${r.page_number}|${r.manual_title}`;
+    const existing = scoreMap.get(key);
+    const addScore = 1 / (k + rank + 1);
+    if (existing) {
+      existing._rrf += addScore;
+    } else {
+      scoreMap.set(key, { ...r, _rrf: addScore });
+    }
+  };
+
+  vectorResults.forEach((r, idx) => add(r, idx));
+  keywordResults.forEach((r, idx) => add(r, idx));
+
+  return Array.from(scoreMap.values())
+    .sort((a, b) => b._rrf - a._rrf)
+    .map(({ _rrf, ...rest }) => rest);
 }
 
 function applyManualHintFilter(question: string, results: RetrievedChunk[]) {

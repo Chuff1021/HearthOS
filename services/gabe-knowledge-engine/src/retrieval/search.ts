@@ -24,3 +24,35 @@ export async function searchManualChunks(vector: number[], limit = 5): Promise<R
     } satisfies RetrievedChunk;
   });
 }
+
+export async function keywordSearchManualChunks(text: string, limit = 50): Promise<RetrievedChunk[]> {
+  const res = await qdrant.scroll(env.QDRANT_COLLECTION, {
+    limit,
+    with_payload: true,
+    with_vector: false,
+    filter: {
+      must: [
+        {
+          key: "chunk_text",
+          match: { text }
+        }
+      ]
+    }
+  });
+
+  const points = res.points ?? [];
+  return points.map((r: any) => {
+    const payload = r.payload as any;
+    return {
+      manual_title: payload.manual_title,
+      manufacturer: payload.manufacturer,
+      model: payload.model,
+      page_number: payload.page_number,
+      source_url: payload.source_url,
+      chunk_text: payload.chunk_text,
+      score: 1,
+      source_type: payload.source_type ?? "manual",
+      section: payload.section
+    } satisfies RetrievedChunk;
+  });
+}

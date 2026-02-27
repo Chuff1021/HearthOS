@@ -27,6 +27,13 @@ export async function ensureCollection(vectorSize: number) {
           vectors: { size: vectorSize, distance: "Cosine" }
         });
       }
+      // Ensure full-text index for keyword search
+      try {
+        await qdrant.createPayloadIndex(collection, {
+          field_name: "chunk_text",
+          field_schema: "text"
+        });
+      } catch {}
       collectionReady = true;
       return;
     } catch (err) {
