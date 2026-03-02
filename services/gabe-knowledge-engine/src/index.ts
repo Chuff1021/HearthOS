@@ -255,24 +255,53 @@ function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefine
   const isFraming = q.includes("framing") && q.includes("dimension");
   if (!isFraming) return null;
 
-  const sentences = chunk.chunk_text
-    .replace(/\s+/g, " ")
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const pick = sentences.find((s) => /framing|dimension|minimum/i.test(s));
-  if (!pick) return null;
+  const text = chunk.chunk_text.replace(/\s+/g, " ");
+  const dims = extractFramingDimensions(text);
 
-  const quote = pick.split(/\s+/).slice(0, 25).join(" ");
+  let answer: string;
+  let quote: string;
+
+  if (dims.length > 0) {
+    const dimText = dims.join(", ");
+    answer = `Minimum framing dimensions listed: ${dimText}.`;
+    quote = dimText;
+  } else {
+    const sentences = text
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const pick = sentences.find((s) => /framing|dimension|minimum/i.test(s));
+    if (!pick) return null;
+    quote = pick.split(/\s+/).slice(0, 25).join(" ");
+    answer = `Manual states: "${quote}"`;
+  }
+
   return {
-    answer: `Manual states: "${quote}"`,
+    answer,
     source_type: "manual" as const,
     manual_title: chunk.manual_title,
     page_number: chunk.page_number,
     source_url: chunk.source_url,
     quote,
-    confidence: 70
+    confidence: 80
   };
+}
+
+function extractFramingDimensions(text: string) {
+  const results: string[] = [];
+  const reLetter = /\(([a-z])\)\s*([0-9]+(?:-[0-9]+\/[0-9]+|\/[0-9]+)?(?:\"|”)?\s*\([0-9]+mm\))/gi;
+  let m: RegExpExecArray | null;
+  while ((m = reLetter.exec(text)) !== null) {
+    results.push(`(${m[1]}) ${m[2]}`);
+  }
+
+  if (results.length === 0) {
+    const reSimple = /([0-9]+(?:-[0-9]+\/[0-9]+|\/[0-9]+)?(?:\"|”)?\s*\([0-9]+mm\))/g;
+    const found = text.match(reSimple) || [];
+    for (const f of found.slice(0, 4)) results.push(f);
+  }
+
+  return Array.from(new Set(results));
 }
 
 function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefined) {
