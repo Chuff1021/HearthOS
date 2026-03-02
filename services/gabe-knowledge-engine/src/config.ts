@@ -25,8 +25,8 @@ const envSchema = z.object({
     ].join(",")
   ),
   SIMILARITY_THRESHOLD: z.string().default("0.78"),
-  MIN_EVIDENCE_CHUNKS: z.string().default("2"),
-  MANUAL_SELECTION_MIN_MARGIN: z.string().default("0.03"),
+  MIN_EVIDENCE_CHUNKS: z.string().default("1"),
+  MANUAL_SELECTION_MIN_MARGIN: z.string().default("0.01"),
   MANUALS_PATH: z.string().default("/var/lib/gabe/manuals"),
   LOG_LEVEL: z.string().default("info")
 });

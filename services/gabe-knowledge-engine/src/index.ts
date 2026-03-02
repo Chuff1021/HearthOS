@@ -8,11 +8,29 @@ import { keywordSearchManualChunks, searchManualChunks } from "./retrieval/searc
 import { callGroq } from "./llm/groq";
 import { validateAnswer } from "./validation/validate";
 import { RetrievedChunk } from "./types";
-import { randomUUID } from "node:crypto";
+import { stableUuid } from "./ingest/ids";
+import { retryAsync } from "./ingest/retry";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
 
+const metrics = {
+  gabe_queries_total: 0,
+  gabe_wrong_manual_total: 0,
+  gabe_missing_citation_total: 0
+};
+
 app.get("/health", async () => ({ ok: true }));
+app.get("/metrics", async () => {
+  const lines = [
+    "# TYPE gabe_queries_total counter",
+    `gabe_queries_total ${metrics.gabe_queries_total}`,
+    "# TYPE gabe_wrong_manual_total counter",
+    `gabe_wrong_manual_total ${metrics.gabe_wrong_manual_total}`,
+    "# TYPE gabe_missing_citation_total counter",
+    `gabe_missing_citation_total ${metrics.gabe_missing_citation_total}`
+  ];
+  return lines.join("\n") + "\n";
+});
 
 app.post("/ingest/manual", async (request, reply) => {
   const body = request.body as {
@@ -28,14 +46,15 @@ app.post("/ingest/manual", async (request, reply) => {
   }
 
   const pages = await extractPdfPages(body.file_path);
-  const chunks = chunkPages(pages, 450, 750);
-  const embeddings = await embed(chunks.map((c) => c.text));
+  const chunks = chunkPages(pages, 450, 750, 2);
+  if (chunks.length === 0) return reply.status(400).send({ error: "no_extractable_text" });
 
+  const embeddings = await embed(chunks.map((c) => c.text));
   await ensureCollection(embeddings[0].length);
   const docType = inferDocType(body.manual_title);
 
   const points = chunks.map((c, idx) => ({
-    id: randomUUID(),
+    id: stableUuid(`${body.source_url}|${c.page}|${c.text}`),
     vector: embeddings[idx],
     payload: {
       manual_title: body.manual_title,
@@ -50,7 +69,21 @@ app.post("/ingest/manual", async (request, reply) => {
     }
   }));
 
-  await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
+  const batchSize = 75;
+  for (let i = 0; i < points.length; i += batchSize) {
+    const batch = points.slice(i, i + batchSize);
+    await retryAsync(
+      () => qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points: batch }),
+      {
+        maxRetries: 6,
+        baseDelayMs: 1000,
+        maxDelayMs: 20000,
+        onRetry: (attempt, delayMs, err) => {
+          request.log.warn({ err, attempt, delayMs }, "manual ingest upsert retry");
+        }
+      }
+    );
+  }
 
   return { ok: true, chunks: points.length };
 });
@@ -58,6 +91,8 @@ app.post("/ingest/manual", async (request, reply) => {
 app.post("/query", async (request, reply) => {
   const body = request.body as { question: string };
   if (!body?.question) return reply.status(400).send({ error: "question required" });
+
+  metrics.gabe_queries_total += 1;
 
   const [queryVector] = await embed([body.question]);
   const keywordTerms = buildKeywordTerms(body.question);
@@ -71,15 +106,24 @@ app.post("/query", async (request, reply) => {
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
-  const candidates = technical.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
 
-  const selectedChunks = selectDeterministicManualChunks(body.question, candidates);
-  if (selectedChunks.length < minEvidenceChunks) {
+  const dynamicThreshold = Math.max(0.66, similarityThreshold - 0.08);
+  const strongCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
+  const fallbackCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
+  const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
+
+  const selectedChunks = selectDeterministicManualChunks(body.question, candidatePool);
+  const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
+  if (selectedChunks.length < requiredEvidence) {
     return unavailable("insufficient_evidence");
   }
 
-  // Use best single chunk for generation, keep top evidence for validation + future debugging.
   const chosenChunk = selectedChunks[0];
+  if (!hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
+    metrics.gabe_wrong_manual_total += 1;
+    return unavailable("semantic_mismatch");
+  }
+
   try {
     const answer = await callGroq([chosenChunk], body.question);
     validateAnswer(answer, [chosenChunk]);
@@ -93,6 +137,7 @@ app.post("/query", async (request, reply) => {
 });
 
 function unavailable(reason: string) {
+  if (reason === "validation_failed") metrics.gabe_missing_citation_total += 1;
   return {
     answer: "This information is not available in verified manufacturer documentation.",
     source_type: "none" as const,
@@ -165,7 +210,9 @@ function selectDeterministicManualChunks(question: string, candidates: Retrieved
   const best = scored[0];
   const second = scored[1];
   if (second && (best.groupScore - second.groupScore) < manualSelectionMinMargin) {
-    return [];
+    const bestTop = best.chunks[0];
+    const secondTop = second.chunks[0];
+    if (bestTop && secondTop && bestTop.score < 0.8 && secondTop.score > 0.72) return [];
   }
 
   return best.chunks.slice(0, 3);
@@ -368,6 +415,25 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   }
 
   return { filtered };
+}
+
+function requiresStrictEvidence(question: string) {
+  const q = question.toLowerCase();
+  return ["outside air", "combustion air", "air intake", "clearance", "pressure", "service"].some((t) => q.includes(t));
+}
+
+function hasQueryTermOverlap(question: string, chunkText: string) {
+  const stop = new Set(["the", "and", "for", "with", "from", "that", "this", "does", "can", "use", "what", "is", "are", "manual", "model"]);
+  const qTerms = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .filter((t) => t.length >= 3 && !stop.has(t));
+  if (qTerms.length === 0) return true;
+
+  const hay = chunkText.toLowerCase();
+  const hits = qTerms.filter((t) => hay.includes(t)).length;
+  return hits >= Math.min(2, qTerms.length);
 }
 
 function inferDocType(title: string) {

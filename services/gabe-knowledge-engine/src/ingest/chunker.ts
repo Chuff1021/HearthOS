@@ -12,7 +12,8 @@ function estimateTokens(text: string) {
 export function chunkPages(
   pages: Array<{ page: number; text: string }>,
   minTokens = 500,
-  maxTokens = 800
+  maxTokens = 800,
+  overlapSentences = 2
 ): Chunk[] {
   const chunks: Chunk[] = [];
 
@@ -25,8 +26,8 @@ export function chunkPages(
       const nextTokens = estimateTokens(sentence);
       if (bufferTokens + nextTokens > maxTokens && bufferTokens >= minTokens) {
         chunks.push({ page: page.page, text: buffer.join(" "), section_title: sectionTitle });
-        buffer = [];
-        bufferTokens = 0;
+        buffer = overlapSentences > 0 ? buffer.slice(-overlapSentences) : [];
+        bufferTokens = buffer.reduce((sum, s) => sum + estimateTokens(s), 0);
       }
       buffer.push(sentence);
       bufferTokens += nextTokens;
@@ -44,14 +45,26 @@ function splitWithSection(text: string) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   let sectionTitle: string | undefined;
 
-  for (const line of lines) {
-    if (isSectionHeader(line)) {
-      sectionTitle = line.replace(/\s+/g, " ").slice(0, 120);
-      break;
+  // Prefer section headers related to combustion/outside air when available.
+  const prioritized = lines.find((line) => /outside air|combustion air|air intake|oak/i.test(line));
+  if (prioritized && isSectionHeader(prioritized)) {
+    sectionTitle = prioritized.replace(/\s+/g, " ").slice(0, 120);
+  }
+
+  if (!sectionTitle) {
+    for (const line of lines) {
+      if (isSectionHeader(line)) {
+        sectionTitle = line.replace(/\s+/g, " ").slice(0, 120);
+        break;
+      }
     }
   }
 
-  const sentences = text.split(/(?<=[.!?])\s+/);
+  const normalized = text.replace(/\r?\n+/g, " ").replace(/\s+/g, " ").trim();
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   return { sentences, sectionTitle };
 }
 

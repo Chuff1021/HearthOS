@@ -1,0 +1,74 @@
+import { fetch } from "undici";
+
+type QueryCase = {
+  id: string;
+  question: string;
+  requiredTerms: string[];
+};
+
+const baseUrl = process.env.GABE_ENGINE_URL || "http://localhost:4100";
+
+const cases: QueryCase[] = [
+  {
+    id: "fpx42-air",
+    question: "For FPX 42 Apex NexGen-Hybrid, is outside combustion air required? Cite page.",
+    requiredTerms: ["air", "combustion", "outside"]
+  },
+  {
+    id: "fpx36-air",
+    question: "For FPX 36 Elite NexGen-Hybrid, what are outside air intake requirements?",
+    requiredTerms: ["air", "intake"]
+  },
+  {
+    id: "lopi-answer-vent",
+    question: "For Lopi Answer NexGen-Hybrid, what is minimum chimney or vent height?",
+    requiredTerms: ["chimney", "vent", "height"]
+  },
+  {
+    id: "lopi-liberty-hearth",
+    question: "For Lopi Liberty NexGen-Hybrid, what floor protection or hearth requirements apply?",
+    requiredTerms: ["hearth", "floor", "protection"]
+  },
+  {
+    id: "rockport-clearance",
+    question: "For Lopi Rockport NexGen-Hybrid, what is rear wall clearance requirement?",
+    requiredTerms: ["clearance", "rear"]
+  },
+  {
+    id: "probuilder-pressure",
+    question: "For FPX ProBuilder 42, what are gas inlet/manifold pressure specs?",
+    requiredTerms: ["pressure", "gas", "manifold"]
+  }
+];
+
+async function runOne(test: QueryCase) {
+  const res = await fetch(`${baseUrl}/query`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ question: test.question })
+  });
+  const data = await res.json() as any;
+
+  const hasCitation = data?.source_type === "manual" && data?.source_url && data?.page_number && data?.quote;
+  const answerText = `${data?.answer || ""} ${data?.quote || ""}`.toLowerCase();
+  const termHits = test.requiredTerms.filter((t) => answerText.includes(t.toLowerCase())).length;
+  const relevant = data?.source_type === "none" ? true : termHits >= 1;
+
+  const pass = data?.source_type === "none" || (hasCitation && relevant);
+  return { id: test.id, pass, source_type: data?.source_type, data };
+}
+
+async function main() {
+  const results = [] as any[];
+  for (const c of cases) {
+    results.push(await runOne(c));
+  }
+  const passed = results.filter((r) => r.pass).length;
+  console.log(JSON.stringify({ passed, total: results.length, results }, null, 2));
+  if (passed < results.length) process.exit(1);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

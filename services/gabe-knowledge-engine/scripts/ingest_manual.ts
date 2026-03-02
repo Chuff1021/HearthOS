@@ -1,9 +1,12 @@
+import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { env } from "../src/config";
 import { extractPdfPages } from "../src/ingest/pdf";
 import { chunkPages } from "../src/ingest/chunker";
 import { embed } from "../src/embeddings";
 import { ensureCollection, qdrant } from "../src/retrieval/qdrant";
-import { createHash } from "node:crypto";
+import { stableUuid } from "../src/ingest/ids";
+import { retryAsync } from "../src/ingest/retry";
 
 const args = process.argv.slice(2);
 const [filePath, manualTitle, manufacturer, model, sourceUrl] = args;
@@ -13,57 +16,129 @@ if (!filePath || !manualTitle || !manufacturer || !model || !sourceUrl) {
   process.exit(1);
 }
 
-const BATCH_SIZE = 100;
-const MAX_RETRIES = 5;
+const BATCH_SIZE = Number(process.env.INGEST_BATCH_SIZE ?? 75);
+const CHECKPOINT_DIR = process.env.INGEST_CHECKPOINT_DIR ?? join(env.MANUALS_PATH, "checkpoints");
+const DLQ_PATH = process.env.INGEST_DLQ_PATH ?? join(env.MANUALS_PATH, "dead-letter", "manual_ingest_dlq.jsonl");
 
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+type Checkpoint = {
+  sourceUrl: string;
+  manualTitle: string;
+  manufacturer: string;
+  model: string;
+  totalChunks: number;
+  lastCompletedBatch: number;
+  updatedAt: string;
+};
+
+function checkpointPath() {
+  const key = stableUuid(`${sourceUrl}|${manualTitle}|${manufacturer}|${model}`);
+  return join(CHECKPOINT_DIR, `${key}.json`);
 }
 
-async function upsertWithRetry(points: any[], attempt = 1) {
+async function readCheckpoint(): Promise<Checkpoint | null> {
   try {
-    await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
-  } catch (err) {
-    if (attempt >= MAX_RETRIES) throw err;
-    const delay = 1000 * attempt;
-    console.warn(`Qdrant upsert failed (attempt ${attempt}). Retrying in ${delay}ms...`);
-    await sleep(delay);
-    return upsertWithRetry(points, attempt + 1);
+    const raw = await readFile(checkpointPath(), "utf8");
+    return JSON.parse(raw) as Checkpoint;
+  } catch {
+    return null;
   }
+}
+
+async function writeCheckpoint(cp: Checkpoint) {
+  await mkdir(dirname(checkpointPath()), { recursive: true });
+  await writeFile(checkpointPath(), JSON.stringify(cp, null, 2));
+}
+
+async function writeDeadLetter(batchStart: number, batchSize: number, err: unknown) {
+  await mkdir(dirname(DLQ_PATH), { recursive: true });
+  const record = {
+    ts: new Date().toISOString(),
+    source_url: sourceUrl,
+    manual_title: manualTitle,
+    manufacturer,
+    model,
+    file_path: filePath,
+    batch_start: batchStart,
+    batch_size: batchSize,
+    error: String(err)
+  };
+  await appendFile(DLQ_PATH, `${JSON.stringify(record)}\n`, "utf8");
+}
+
+async function upsertWithRetry(points: any[]) {
+  return retryAsync(
+    () => qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points }),
+    {
+      maxRetries: 6,
+      baseDelayMs: 1000,
+      maxDelayMs: 20_000,
+      onRetry: (attempt, delay) => {
+        console.warn(`Qdrant upsert failed (attempt ${attempt}). Retrying in ${delay}ms...`);
+      }
+    }
+  );
 }
 
 async function run() {
   const pages = await extractPdfPages(filePath);
-  const chunks = chunkPages(pages, 500, 800);
-  const embeddings = await embed(chunks.map((c) => c.text));
+  const chunks = chunkPages(pages, 500, 800, 2);
+
+  if (chunks.length === 0) {
+    console.log("No text chunks extracted; nothing to ingest.");
+    return;
+  }
+
   if (process.env.SKIP_COLLECTION_CHECK !== "1") {
-    await ensureCollection(embeddings[0].length);
+    const [firstVector] = await embed([chunks[0].text]);
+    await ensureCollection(firstVector.length);
   }
+
   const docType = inferDocType(manualTitle);
+  const cp = await readCheckpoint();
+  const resumeBatch = cp?.lastCompletedBatch ?? -1;
+  const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
 
-  const points = chunks.map((c, idx) => ({
-    id: stableUuid(`${sourceUrl}|${c.page}|${c.text}`),
-    vector: embeddings[idx],
-    payload: {
-      manual_title: manualTitle,
-      manufacturer,
-      model,
-      page_number: c.page,
-      source_url: sourceUrl,
-      chunk_text: c.text,
-      section_title: c.section_title,
-      doc_type: docType,
-      source_type: "manual"
+  for (let batchIndex = resumeBatch + 1; batchIndex < totalBatches; batchIndex += 1) {
+    const start = batchIndex * BATCH_SIZE;
+    const batchChunks = chunks.slice(start, start + BATCH_SIZE);
+    const embeddings = await embed(batchChunks.map((c) => c.text));
+
+    const points = batchChunks.map((c, idx) => ({
+      id: stableUuid(`${sourceUrl}|${c.page}|${c.text}`),
+      vector: embeddings[idx],
+      payload: {
+        manual_title: manualTitle,
+        manufacturer,
+        model,
+        page_number: c.page,
+        source_url: sourceUrl,
+        chunk_text: c.text,
+        section_title: c.section_title,
+        doc_type: docType,
+        source_type: "manual"
+      }
+    }));
+
+    try {
+      await upsertWithRetry(points);
+      await writeCheckpoint({
+        sourceUrl,
+        manualTitle,
+        manufacturer,
+        model,
+        totalChunks: chunks.length,
+        lastCompletedBatch: batchIndex,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      await writeDeadLetter(start, points.length, err);
+      throw err;
     }
-  }));
 
-  for (let i = 0; i < points.length; i += BATCH_SIZE) {
-    const batch = points.slice(i, i + BATCH_SIZE);
-    await upsertWithRetry(batch);
-    console.log(`Inserted ${Math.min(i + BATCH_SIZE, points.length)} / ${points.length} chunks...`);
+    console.log(`Inserted batch ${batchIndex + 1}/${totalBatches} (${Math.min(start + BATCH_SIZE, chunks.length)} / ${chunks.length} chunks)...`);
   }
 
-  console.log(`Inserted ${points.length} chunks.`);
+  console.log(`Inserted ${chunks.length} chunks.`);
 }
 
 run().catch((err) => {
@@ -77,19 +152,4 @@ function inferDocType(title: string) {
   if (t.includes("owner") || t.includes("owner's") || t.includes("owners")) return "owner";
   if (t.includes("flyer") || t.includes("single page")) return "flyer";
   return "other";
-}
-
-function stableUuid(input: string) {
-  const hex = createHash("sha1").update(input).digest("hex").slice(0, 32);
-  const bytes: number[] = [];
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes.push(parseInt(hex.slice(i, i + 2), 16));
-  }
-  // Set UUID version 5 (0101) and variant (10xx)
-  bytes[6] = (bytes[6] & 0x0f) | 0x50;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const b = bytes.map((n) => n.toString(16).padStart(2, "0"));
-  return `${b.slice(0, 4).join("")}-${b.slice(4, 6).join("")}-${b
-    .slice(6, 8)
-    .join("")}-${b.slice(8, 10).join("")}-${b.slice(10, 16).join("")}`;
 }

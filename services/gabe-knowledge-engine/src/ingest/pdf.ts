@@ -28,8 +28,24 @@ export async function extractPdfPages(filePath: string): Promise<PageText[]> {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
-    const strings = content.items.map((item: any) => item.str);
-    const text = strings.join(" ").replace(/\s+/g, " ").trim();
+
+    const lineBuckets = new Map<number, string[]>();
+    for (const item of content.items as any[]) {
+      const str = String(item?.str ?? "").trim();
+      if (!str) continue;
+      const y = Number(item?.transform?.[5] ?? 0);
+      const key = Math.round(y * 2) / 2; // keep nearby y-coordinates on same line
+      const bucket = lineBuckets.get(key) ?? [];
+      bucket.push(str);
+      lineBuckets.set(key, bucket);
+    }
+
+    const lines = Array.from(lineBuckets.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([, parts]) => parts.join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    const text = lines.join("\n").trim();
     if (text) pages.push({ page: pageNum, text });
   }
 
