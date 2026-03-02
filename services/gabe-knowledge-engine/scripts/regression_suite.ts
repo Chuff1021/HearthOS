@@ -52,6 +52,13 @@ const cases: QueryCase[] = [
     requiredTerms: ["pressure", "gas", "manifold"],
     expectedModelHints: ["probuilder 42"],
     expectedSourceUrlHints: ["100-01493"]
+  },
+  {
+    id: "fpx42-framing-dimensions",
+    question: "For FPX 42 Apex NexGen-Hybrid, what are the minimum framing dimensions?",
+    requiredTerms: ["framing", "dimension", "minimum"],
+    expectedModelHints: ["42 apex", "nexgen"],
+    expectedSourceUrlHints: ["100-01577"]
   }
 ];
 

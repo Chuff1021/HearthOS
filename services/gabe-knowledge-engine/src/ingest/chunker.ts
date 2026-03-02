@@ -45,8 +45,8 @@ function splitWithSection(text: string) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   let sectionTitle: string | undefined;
 
-  // Prefer section headers related to combustion/outside air when available.
-  const prioritized = lines.find((line) => /outside air|combustion air|air intake|oak/i.test(line));
+  // Prefer section headers related to combustion air and framing dimensions when available.
+  const prioritized = lines.find((line) => /outside air|combustion air|air intake|oak|framing|dimensions|rough opening/i.test(line));
   if (prioritized && isSectionHeader(prioritized)) {
     sectionTitle = prioritized.replace(/\s+/g, " ").slice(0, 120);
   }

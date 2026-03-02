@@ -94,6 +94,12 @@ app.post("/query", async (request, reply) => {
 
   metrics.gabe_queries_total += 1;
 
+  const directFraming = await directFramingLookupFromStore(body.question);
+  if (directFraming) {
+    const fast = buildFramingFastPath(body.question, directFraming);
+    if (fast) return fast;
+  }
+
   const [queryVector] = await embed([body.question]);
   const keywordTerms = buildKeywordTerms(body.question);
 
@@ -102,27 +108,38 @@ app.post("/query", async (request, reply) => {
     keywordSearchManualChunks(keywordTerms, 80)
   ]);
 
+  const framingDirect = tryDirectFramingLookup(body.question, keywordResults);
+  if (framingDirect) return framingDirect;
+
   const hybridResults = fuseHybridResults(vectorResults, keywordResults);
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
 
-  const dynamicThreshold = Math.max(0.66, similarityThreshold - 0.08);
+  const isFramingQuestion = body.question.toLowerCase().includes("framing") && body.question.toLowerCase().includes("dimension");
+  const dynamicThreshold = isFramingQuestion ? 0.5 : Math.max(0.66, similarityThreshold - 0.08);
   const strongCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
   const fallbackCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
   const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
 
   const rerankedCandidates = rerankCandidates(body.question, candidatePool).slice(0, 40);
-  const selectedChunks = selectDeterministicManualChunks(body.question, rerankedCandidates);
+  const framingPreferred = selectFramingPreferredChunk(body.question, rerankedCandidates);
+  const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
     return unavailable("insufficient_evidence");
   }
 
   const chosenChunk = selectedChunks[0];
-  if (!hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
+  const explicitModelScoped = buildModelPhrases(body.question).length > 0;
+  if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
     return unavailable("semantic_mismatch");
+  }
+
+  const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
+  if (framingFastPath) {
+    return framingFastPath;
   }
 
   try {
@@ -137,6 +154,91 @@ app.post("/query", async (request, reply) => {
   }
 });
 
+async function directFramingLookupFromStore(question: string): Promise<RetrievedChunk | null> {
+  const q = question.toLowerCase();
+  if (!(q.includes("framing") && q.includes("dimension"))) return null;
+
+  const modelPhrases = buildModelPhrases(question);
+  if (modelPhrases.length === 0) return null;
+
+  const shouldTerms = ["minimum framing dimensions", "fireplace framing", "framing dimensions", "framing"];
+  const scroll = await qdrant.scroll(env.QDRANT_COLLECTION, {
+    limit: 200,
+    with_payload: true,
+    with_vector: false,
+    filter: {
+      should: shouldTerms.map((term) => ({ key: "chunk_text", match: { text: term } }))
+    }
+  }) as any;
+
+  const points = (scroll.points || []).map((r: any) => {
+    const p = r.payload || {};
+    return {
+      manual_title: p.manual_title,
+      manufacturer: p.manufacturer,
+      model: p.model,
+      page_number: p.page_number,
+      source_url: p.source_url,
+      chunk_text: p.chunk_text,
+      section_title: p.section_title,
+      doc_type: p.doc_type,
+      score: 1,
+      source_type: p.source_type ?? "manual"
+    } as RetrievedChunk;
+  });
+
+  const matched = points.filter((c: RetrievedChunk) => {
+    const hay = `${c.manufacturer} ${c.model} ${c.manual_title}`.toLowerCase();
+    return modelPhrases.some((p) => hay.includes(p));
+  });
+
+  if (matched.length === 0) return null;
+  const nonIndex = matched.filter((m: RetrievedChunk) => {
+    const t = m.chunk_text.toLowerCase();
+    return !t.includes("table of contents") && !/^\d+\s+index\b/i.test(t.trim()) && !t.includes("........");
+  });
+  const pool = nonIndex.length > 0 ? nonIndex : matched;
+  return pool.find((m: RetrievedChunk) => /fireplace framing|minimum framing dimensions/i.test(m.chunk_text)) || pool[0] || null;
+}
+
+function selectFramingPreferredChunk(question: string, candidates: RetrievedChunk[]) {
+  const q = question.toLowerCase();
+  if (!(q.includes("framing") && q.includes("dimension"))) return null;
+  const modelPhrases = buildModelPhrases(question);
+
+  const matched = candidates.filter((c) => {
+    const hay = `${c.manufacturer} ${c.model} ${c.manual_title}`.toLowerCase();
+    if (modelPhrases.length > 0 && !modelPhrases.some((p) => hay.includes(p))) return false;
+    const t = c.chunk_text.toLowerCase();
+    return t.includes("minimum framing dimensions") || t.includes("fireplace framing") || (t.includes("framing") && t.includes("dimension"));
+  });
+
+  return matched.sort((a, b) => b.score - a.score)[0] || null;
+}
+
+function tryDirectFramingLookup(question: string, keywordResults: RetrievedChunk[]) {
+  const q = question.toLowerCase();
+  if (!(q.includes("framing") && q.includes("dimension"))) return null;
+
+  const modelPhrases = buildModelPhrases(question);
+  if (modelPhrases.length === 0) return null;
+
+  const matchedModel = keywordResults.filter((r) => {
+    const hay = `${r.manufacturer} ${r.model} ${r.manual_title}`.toLowerCase();
+    return modelPhrases.some((p) => hay.includes(p));
+  });
+
+  const framingChunks = matchedModel.filter((r) => {
+    const t = r.chunk_text.toLowerCase();
+    return t.includes("minimum framing dimensions") || t.includes("fireplace framing") || (t.includes("framing") && t.includes("dimension"));
+  });
+
+  const pick = framingChunks[0];
+  if (!pick) return null;
+  const fast = buildFramingFastPath(question, pick);
+  return fast;
+}
+
 function unavailable(reason: string) {
   if (reason === "validation_failed") metrics.gabe_missing_citation_total += 1;
   return {
@@ -144,6 +246,32 @@ function unavailable(reason: string) {
     source_type: "none" as const,
     confidence: 0,
     no_answer_reason: reason
+  };
+}
+
+function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefined) {
+  if (!chunk || chunk.source_type !== "manual") return null;
+  const q = question.toLowerCase();
+  const isFraming = q.includes("framing") && q.includes("dimension");
+  if (!isFraming) return null;
+
+  const sentences = chunk.chunk_text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const pick = sentences.find((s) => /framing|dimension|minimum/i.test(s));
+  if (!pick) return null;
+
+  const quote = pick.split(/\s+/).slice(0, 25).join(" ");
+  return {
+    answer: `Manual states: "${quote}"`,
+    source_type: "manual" as const,
+    manual_title: chunk.manual_title,
+    page_number: chunk.page_number,
+    source_url: chunk.source_url,
+    quote,
+    confidence: 70
   };
 }
 
@@ -208,7 +336,11 @@ function rerankCandidates(question: string, candidates: RetrievedChunk[]) {
       let boost = 0;
       boost += Math.min(0.18, intentHits * 0.06);
       boost += Math.min(0.08, modelHints * 0.01);
-      if (/installation manual/i.test(c.manual_title) && (q.includes("install") || q.includes("require") || q.includes("clearance"))) boost += 0.05;
+      if (/installation manual/i.test(c.manual_title) && (q.includes("install") || q.includes("require") || q.includes("clearance") || q.includes("framing"))) boost += 0.05;
+      if (q.includes("framing") && q.includes("dimension")) {
+        if (text.includes("minimum framing dimensions") || text.includes("fireplace framing")) boost += 0.25;
+        else if (text.includes("framing")) boost += 0.12;
+      }
       if (section.includes("introduction") || text.includes("table of contents") || text.includes("welcome you as a new owner")) boost -= 0.12;
 
       return { ...c, score: Math.max(0, Math.min(1, c.score + boost)) };
@@ -428,7 +560,8 @@ function extractIntentTerms(question: string) {
   const q = question.toLowerCase();
   const terms = [
     "outside air", "combustion air", "air intake", "oak",
-    "vent", "venting", "chimney", "clearance", "pressure", "manifold", "hearth", "floor protection", "gas inlet"
+    "vent", "venting", "chimney", "clearance", "pressure", "manifold", "hearth", "floor protection", "gas inlet",
+    "framing", "framing dimensions", "minimum framing", "fireplace framing", "rough opening", "width", "height", "depth"
   ];
   return terms.filter((t) => q.includes(t));
 }
@@ -438,7 +571,7 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   if (!isTechnicalQuestion(q)) return { filtered: results };
 
   const airKeywords = ["outside air", "combustion air", "air intake", "oak", "outside combustion air"];
-  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service", "pressure", "manifold", "hearth", "floor protection", "gas inlet"];
+  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service", "pressure", "manifold", "hearth", "floor protection", "gas inlet", "framing", "dimensions", "minimum framing", "rough opening", "width", "height", "depth"];
 
   const prefersInstall =
     q.includes("install") ||
@@ -508,6 +641,12 @@ function requiresStrictEvidence(question: string) {
 }
 
 function hasQueryTermOverlap(question: string, chunkText: string) {
+  const hay = chunkText.toLowerCase();
+  const intents = extractIntentTerms(question);
+  if (intents.length > 0) {
+    return intents.some((t) => hay.includes(t));
+  }
+
   const stop = new Set(["the", "and", "for", "with", "from", "that", "this", "does", "can", "use", "what", "is", "are", "manual", "model"]);
   const qTerms = question
     .toLowerCase()
@@ -516,13 +655,8 @@ function hasQueryTermOverlap(question: string, chunkText: string) {
     .filter((t) => t.length >= 3 && !stop.has(t));
   if (qTerms.length === 0) return true;
 
-  const hay = chunkText.toLowerCase();
   const hits = qTerms.filter((t) => hay.includes(t)).length;
-  if (hits < Math.min(2, qTerms.length)) return false;
-
-  const intents = extractIntentTerms(question);
-  if (intents.length === 0) return true;
-  return intents.some((t) => hay.includes(t));
+  return hits >= 1;
 }
 
 function inferDocType(title: string) {
