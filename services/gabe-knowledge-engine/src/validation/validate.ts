@@ -11,15 +11,6 @@ const manualSchema = z.object({
   confidence: z.number().min(0).max(100)
 });
 
-const webSchema = z.object({
-  answer: z.string(),
-  source_type: z.literal("web"),
-  url: z.string().url(),
-  section: z.string(),
-  quote: z.string().min(1),
-  confidence: z.number().min(0).max(100)
-});
-
 const noneSchema = z.object({
   answer: z.literal("This information is not available in verified manufacturer documentation."),
   source_type: z.literal("none"),
@@ -27,11 +18,9 @@ const noneSchema = z.object({
 });
 
 type ManualAnswer = z.infer<typeof manualSchema>;
-type WebAnswer = z.infer<typeof webSchema>;
-
 type NoneAnswer = z.infer<typeof noneSchema>;
 
-type Parsed = ManualAnswer | WebAnswer | NoneAnswer;
+type Parsed = ManualAnswer | NoneAnswer;
 
 export function validateAnswer(answer: GabeAnswer, chunks: RetrievedChunk[]) {
   const parsed = manualSchema.safeParse(answer);
@@ -48,22 +37,6 @@ export function validateAnswer(answer: GabeAnswer, chunks: RetrievedChunk[]) {
     }
     if (!quoteInChunk(a.quote, match.chunk_text)) {
       throw new Error("Manual quote not found in retrieved chunk");
-    }
-    return;
-  }
-
-  const parsedWeb = webSchema.safeParse(answer);
-  if (parsedWeb.success) {
-    const a = parsedWeb.data;
-    const match = chunks.find((c) =>
-      c.source_type === "web" &&
-      c.source_url === a.url
-    );
-    if (!match) {
-      throw new Error("Web citation does not match retrieved chunks");
-    }
-    if (!quoteInChunk(a.quote, match.chunk_text)) {
-      throw new Error("Web quote not found in retrieved chunk");
     }
     return;
   }

@@ -1,12 +1,10 @@
 import Fastify from "fastify";
-import { env, similarityThreshold } from "./config";
+import { env, manualSelectionMinMargin, minEvidenceChunks, similarityThreshold } from "./config";
 import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
 import { ensureCollection, qdrant } from "./retrieval/qdrant";
 import { keywordSearchManualChunks, searchManualChunks } from "./retrieval/search";
-import { braveSearch } from "./web/brave";
-import { fetchPageText, chunkWebText } from "./web/extract";
 import { callGroq } from "./llm/groq";
 import { validateAnswer } from "./validation/validate";
 import { RetrievedChunk } from "./types";
@@ -30,7 +28,7 @@ app.post("/ingest/manual", async (request, reply) => {
   }
 
   const pages = await extractPdfPages(body.file_path);
-  const chunks = chunkPages(pages, 500, 800);
+  const chunks = chunkPages(pages, 450, 750);
   const embeddings = await embed(chunks.map((c) => c.text));
 
   await ensureCollection(embeddings[0].length);
@@ -63,112 +61,53 @@ app.post("/query", async (request, reply) => {
 
   const [queryVector] = await embed([body.question]);
   const keywordTerms = buildKeywordTerms(body.question);
+
   const [vectorResults, keywordResults] = await Promise.all([
-    searchManualChunks(queryVector, 50),
-    keywordSearchManualChunks(keywordTerms, 50)
+    searchManualChunks(queryVector, 80),
+    keywordSearchManualChunks(keywordTerms, 80)
   ]);
+
   const hybridResults = fuseHybridResults(vectorResults, keywordResults);
-  const boostedManualResults = applyKeywordBoost(body.question, hybridResults);
-  const { filtered: hintedManualResults } = applyManualHintFilter(body.question, boostedManualResults);
-  const { filtered: technicalFiltered } = applyTechnicalFilter(body.question, hintedManualResults);
-  const manualMatches = technicalFiltered.filter((r) => r.score >= similarityThreshold);
+  const boostedResults = applyKeywordBoost(body.question, hybridResults);
+  const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
+  const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
+  const candidates = technical.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
 
-  let selectedChunks: RetrievedChunk[] = [];
-  if (manualMatches.length > 0) {
-    selectedChunks = manualMatches
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
-  } else {
-    // Fallback: still use top manual chunks even if below threshold
-    if (technicalFiltered.length > 0) {
-      selectedChunks = technicalFiltered
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
-    } else {
-      const { hasBrandOrModel, q } = extractQuestionHints(body.question);
-      if (hasBrandOrModel || isTechnicalQuestion(q)) {
-        selectedChunks = [];
-      } else {
-        const webResults = await braveSearch(body.question, 5);
-        for (const result of webResults) {
-          try {
-            const { title, text } = await fetchPageText(result.url);
-            const chunks = chunkWebText(text, 800, 100);
-            const embeddings = await embed(chunks);
-            const scored: RetrievedChunk[] = embeddings.map((vec, idx) => ({
-              score: cosineSimilarity(queryVector, vec),
-              chunk_text: chunks[idx],
-              source_url: result.url,
-              manual_title: "",
-              manufacturer: "",
-              model: "",
-              page_number: 0,
-              section: title || result.title,
-              source_type: "web"
-            }));
-            const top = scored
-              .filter((s) => s.score >= similarityThreshold)
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 3);
-            selectedChunks.push(...top);
-            if (selectedChunks.length >= 3) break;
-          } catch (err) {
-            request.log.warn({ err, url: result.url }, "Web fetch failed, skipping");
-          }
-        }
-
-        selectedChunks = selectedChunks.slice(0, 3);
-      }
-    }
+  const selectedChunks = selectDeterministicManualChunks(body.question, candidates);
+  if (selectedChunks.length < minEvidenceChunks) {
+    return unavailable("insufficient_evidence");
   }
 
-  if (selectedChunks.length === 0) {
-    return {
-      answer: "This information is not available in verified manufacturer documentation.",
-      source_type: "none",
-      confidence: 0
-    };
-  }
-
-  const chosenChunks = selectedChunks.slice(0, 1);
+  // Use best single chunk for generation, keep top evidence for validation + future debugging.
+  const chosenChunk = selectedChunks[0];
   try {
-    const answer = await callGroq(chosenChunks, body.question);
-    validateAnswer(answer, chosenChunks);
+    const answer = await callGroq([chosenChunk], body.question);
+    validateAnswer(answer, [chosenChunk]);
     return answer;
   } catch (err) {
-    request.log.error({ err }, "GABE answer validation failed");
-    const fallback = buildExtractiveAnswer(body.question, chosenChunks[0]);
+    request.log.error({ err }, "GABE answer validation failed; falling back to extractive answer");
+    const fallback = buildExtractiveAnswer(body.question, chosenChunk);
     if (fallback) return fallback;
-    return {
-      answer: "This information is not available in verified manufacturer documentation.",
-      source_type: "none",
-      confidence: 0
-    };
+    return unavailable("validation_failed");
   }
 });
 
-function cosineSimilarity(a: number[], b: number[]) {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+function unavailable(reason: string) {
+  return {
+    answer: "This information is not available in verified manufacturer documentation.",
+    source_type: "none" as const,
+    confidence: 0,
+    no_answer_reason: reason
+  };
 }
 
 function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefined) {
   if (!chunk || chunk.source_type !== "manual") return null;
   const quote = extractQuote(question, chunk.chunk_text);
-  const q = question.toLowerCase();
-  const requiresAir = ["outside air", "combustion air", "air intake", "oak"].some((t) => q.includes(t));
+  if (!quote) return null;
   return {
-    answer: requiresAir
-      ? `Yes. The manual identifies an air intake for this fireplace. "${quote}"`
-      : `Manual states: "${quote}"`,
-    source_type: "manual",
+    answer: `Manual states: "${quote}"`,
+    source_type: "manual" as const,
     manual_title: chunk.manual_title,
     page_number: chunk.page_number,
     source_url: chunk.source_url,
@@ -190,7 +129,7 @@ function extractQuote(question: string, text: string) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const pick = sentences.find((s) => keywords.some((k) => s.toLowerCase().includes(k)))
+  const pick = sentences.find((s) => keywords.length > 0 && keywords.some((k) => s.toLowerCase().includes(k)))
     ?? sentences[0]
     ?? text;
 
@@ -198,11 +137,45 @@ function extractQuote(question: string, text: string) {
   return words.join(" ");
 }
 
+function selectDeterministicManualChunks(question: string, candidates: RetrievedChunk[]) {
+  if (candidates.length === 0) return [];
+
+  const { brandHints, tokens } = extractQuestionHints(question);
+  const groups = new Map<string, RetrievedChunk[]>();
+  for (const c of candidates) {
+    const key = `${c.manufacturer}|${c.model}|${c.manual_title}|${c.source_url}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(c);
+    groups.set(key, arr);
+  }
+
+  const scored = Array.from(groups.entries()).map(([key, chunks]) => {
+    const sorted = [...chunks].sort((a, b) => b.score - a.score);
+    const top = sorted[0]?.score ?? 0;
+    const avgTop3 = sorted.slice(0, 3).reduce((s, x) => s + x.score, 0) / Math.min(3, sorted.length);
+    const hay = `${chunks[0].manufacturer} ${chunks[0].model} ${chunks[0].manual_title}`.toLowerCase();
+    const brandBonus = brandHints.some((b) => hay.includes(b)) ? 0.06 : 0;
+    const tokenHits = tokens.filter((t) => t.length > 2 && hay.includes(t)).length;
+    const tokenBonus = Math.min(0.09, tokenHits * 0.01);
+    const installBonus = /installation manual/i.test(chunks[0].manual_title) ? 0.02 : 0;
+    const groupScore = top * 0.7 + avgTop3 * 0.3 + brandBonus + tokenBonus + installBonus;
+    return { key, chunks: sorted, groupScore };
+  }).sort((a, b) => b.groupScore - a.groupScore);
+
+  const best = scored[0];
+  const second = scored[1];
+  if (second && (best.groupScore - second.groupScore) < manualSelectionMinMargin) {
+    return [];
+  }
+
+  return best.chunks.slice(0, 3);
+}
+
 function applyKeywordBoost(question: string, results: RetrievedChunk[]) {
   const q = question.toLowerCase();
   const keywords: string[] = [];
   if (q.includes("outside air") || q.includes("combustion air") || q.includes("air intake") || q.includes("oak")) {
-    keywords.push("outside air", "combustion air", "air intake", "outside combustion", "oak");
+    keywords.push("outside air", "combustion air", "air intake", "outside combustion", "oak", "outside combustion air");
   }
   if (keywords.length === 0) return results;
 
@@ -280,9 +253,7 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
 
   if (technical) {
     const noFlyers = scored.filter((s) => !/flyer|single page/.test(s.r.manual_title.toLowerCase()));
-    if (noFlyers.length > 0) {
-      scored.splice(0, scored.length, ...noFlyers);
-    }
+    if (noFlyers.length > 0) scored.splice(0, scored.length, ...noFlyers);
   }
 
   if (modelTokens.length > 0) {
@@ -292,12 +263,9 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
       const hay = `${s.r.manual_title} ${s.r.manufacturer} ${s.r.model}`.toLowerCase();
       return numericTokens.some((t) => hay.includes(t));
     });
-    if (modelMatches.length > 0) {
-      return { filtered: modelMatches.map((s) => s.r) };
-    }
+    if (modelMatches.length > 0) return { filtered: modelMatches.map((s) => s.r) };
   }
 
-  // If brand is specified and any results match the brand, only keep brand matches.
   if (brandHints.length > 0) {
     const brandMatches = scored.filter((s) => s.brandHit > 0);
     if (brandMatches.length > 0) {
@@ -308,16 +276,14 @@ function applyManualHintFilter(question: string, results: RetrievedChunk[]) {
   }
 
   const preferred = scored.filter((s) => s.hitCount >= 2).map((s) => s.r);
-  if (preferred.length > 0) {
-    return { filtered: preferred };
-  }
+  if (preferred.length > 0) return { filtered: preferred };
 
   return { filtered: results };
 }
 
 function extractQuestionHints(question: string) {
   const q = question.toLowerCase();
-  const brandHints = ["fpx", "lopi", "majestic", "monessen"].filter((b) => q.includes(b));
+  const brandHints = ["fpx", "lopi", "majestic", "monessen", "travis"].filter((b) => q.includes(b));
   const tokens = q
     .split(/[^a-z0-9]+/i)
     .filter(Boolean)
@@ -330,7 +296,7 @@ function isTechnicalQuestion(q: string) {
   const technicalTerms = [
     "outside air", "combustion air", "air intake", "oak", "vent", "venting",
     "clearance", "install", "installation", "requirements", "required",
-    "manual", "page", "spec", "specs", "pipe", "chimney"
+    "manual", "page", "spec", "specs", "pipe", "chimney", "service"
   ];
   return technicalTerms.some((t) => q.includes(t));
 }
@@ -338,14 +304,13 @@ function isTechnicalQuestion(q: string) {
 function buildKeywordTerms(question: string) {
   const q = question.toLowerCase();
   const terms = new Set<string>();
-  const airTerms = ["outside air", "combustion air", "air intake", "oak"];
+  const airTerms = ["outside air", "combustion air", "air intake", "outside combustion air", "oak"];
   airTerms.forEach((t) => {
     if (q.includes(t)) terms.add(t);
   });
 
   const { brandHints, tokens } = extractQuestionHints(question);
   brandHints.forEach((b) => terms.add(b));
-
   tokens.forEach((t) => {
     if (t.length >= 3) terms.add(t);
   });
@@ -357,11 +322,8 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const q = question.toLowerCase();
   if (!isTechnicalQuestion(q)) return { filtered: results };
 
-  const airKeywords = ["outside air", "combustion air", "air intake", "oak"];
-  const keywords = [
-    ...airKeywords,
-    "vent", "venting", "chimney", "clearance", "install", "installation"
-  ];
+  const airKeywords = ["outside air", "combustion air", "air intake", "oak", "outside combustion air"];
+  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service"];
 
   const prefersInstall =
     q.includes("install") ||
@@ -372,12 +334,8 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
     q.includes("air intake") ||
     q.includes("oak");
 
-  let filtered = results;
+  let filtered = results.filter((r) => r.page_number > 1 || r.chunk_text.length > 300);
 
-  // Drop cover-page style chunks for technical queries.
-  filtered = filtered.filter((r) => r.page_number > 1 || r.chunk_text.length > 300);
-
-  // Prefer Installation Manual over Owner's Manual for install/requirements.
   if (prefersInstall) {
     const installOnly = filtered.filter((r) =>
       r.doc_type === "installation" || /installation manual/i.test(r.manual_title)
@@ -385,32 +343,28 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
     if (installOnly.length > 0) filtered = installOnly;
   }
 
-  // Require at least one keyword hit when asking technical questions.
   const requiresAir = airKeywords.some((k) => q.includes(k));
   const keywordHits = filtered.filter((r) => {
     const text = r.chunk_text.toLowerCase();
     if (requiresAir) {
-      if (!text.includes("air intake")) return false;
+      if (!(text.includes("air intake") || text.includes("combustion air") || text.includes("outside combustion"))) return false;
       if (text.includes("air intake parts")) return false;
       return true;
     }
     return keywords.some((k) => text.includes(k));
   });
-  if (keywordHits.length > 0) {
-    if (requiresAir) {
-      filtered = keywordHits
-        .map((r) => ({ r, score: rankAirChunk(r) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5)
-        .map((x) => x.r);
-    } else {
-      const sectionHits = keywordHits.filter((r) =>
-        (r.section_title || "").toLowerCase().includes("air intake")
-      );
-      filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
-    }
+
+  if (keywordHits.length === 0) return { filtered: [] };
+
+  if (requiresAir) {
+    filtered = keywordHits
+      .map((r) => ({ r, score: rankAirChunk(r) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+      .map((x) => x.r);
   } else {
-    return { filtered: [] };
+    const sectionHits = keywordHits.filter((r) => (r.section_title || "").toLowerCase().includes("air intake"));
+    filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
   }
 
   return { filtered };

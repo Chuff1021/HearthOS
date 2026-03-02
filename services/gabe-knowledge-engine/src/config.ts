@@ -25,6 +25,8 @@ const envSchema = z.object({
     ].join(",")
   ),
   SIMILARITY_THRESHOLD: z.string().default("0.78"),
+  MIN_EVIDENCE_CHUNKS: z.string().default("2"),
+  MANUAL_SELECTION_MIN_MARGIN: z.string().default("0.03"),
   MANUALS_PATH: z.string().default("/var/lib/gabe/manuals"),
   LOG_LEVEL: z.string().default("info")
 });
@@ -42,9 +44,13 @@ export const env = envSchema.parse({
   BRAVE_API_KEY: process.env.BRAVE_API_KEY,
   ALLOWLIST_DOMAINS: process.env.ALLOWLIST_DOMAINS,
   SIMILARITY_THRESHOLD: process.env.SIMILARITY_THRESHOLD,
+  MIN_EVIDENCE_CHUNKS: process.env.MIN_EVIDENCE_CHUNKS,
+  MANUAL_SELECTION_MIN_MARGIN: process.env.MANUAL_SELECTION_MIN_MARGIN,
   MANUALS_PATH: process.env.MANUALS_PATH,
   LOG_LEVEL: process.env.LOG_LEVEL
 });
 
 export const allowlistDomains = env.ALLOWLIST_DOMAINS.split(",").map((d) => d.trim()).filter(Boolean);
 export const similarityThreshold = Number(env.SIMILARITY_THRESHOLD);
+export const minEvidenceChunks = Number(env.MIN_EVIDENCE_CHUNKS);
+export const manualSelectionMinMargin = Number(env.MANUAL_SELECTION_MIN_MARGIN);
