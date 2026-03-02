@@ -244,6 +244,9 @@ function selectDeterministicManualChunks(question: string, candidates: Retrieved
   });
 
   const phraseMatched = modelPhrases.length > 0 ? scoredAll.filter((s) => modelPhrases.some((p) => s.hay.includes(p))) : [];
+  if (modelPhrases.length > 0 && phraseMatched.length === 0) {
+    return [];
+  }
   const scored = (phraseMatched.length > 0 ? phraseMatched : scoredAll).sort((a, b) => b.groupScore - a.groupScore);
 
   const best = scored[0];
