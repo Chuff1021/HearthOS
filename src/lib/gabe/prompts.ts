@@ -1,6 +1,8 @@
 // GABE AI System Prompt Builder
 // Used by both the API route and the client page
 
+export const manualKnowledgeBase = "Majestic Lopi FPX Napoleon Kozy Heat Monessen";
+
 type ManualContext = {
   manuals?: Array<{
     id: string;
