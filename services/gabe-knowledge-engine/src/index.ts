@@ -220,6 +220,7 @@ function selectDeterministicManualChunks(question: string, candidates: Retrieved
   if (candidates.length === 0) return [];
 
   const { brandHints, tokens } = extractQuestionHints(question);
+  const modelPhrases = buildModelPhrases(question);
   const groups = new Map<string, RetrievedChunk[]>();
   for (const c of candidates) {
     const key = `${c.manufacturer}|${c.model}|${c.manual_title}|${c.source_url}`;
@@ -228,7 +229,7 @@ function selectDeterministicManualChunks(question: string, candidates: Retrieved
     groups.set(key, arr);
   }
 
-  const scored = Array.from(groups.entries()).map(([key, chunks]) => {
+  const scoredAll = Array.from(groups.entries()).map(([key, chunks]) => {
     const sorted = [...chunks].sort((a, b) => b.score - a.score);
     const top = sorted[0]?.score ?? 0;
     const avgTop3 = sorted.slice(0, 3).reduce((s, x) => s + x.score, 0) / Math.min(3, sorted.length);
@@ -237,9 +238,13 @@ function selectDeterministicManualChunks(question: string, candidates: Retrieved
     const tokenHits = tokens.filter((t) => t.length > 2 && hay.includes(t)).length;
     const tokenBonus = Math.min(0.09, tokenHits * 0.01);
     const installBonus = /installation manual/i.test(chunks[0].manual_title) ? 0.02 : 0;
-    const groupScore = top * 0.7 + avgTop3 * 0.3 + brandBonus + tokenBonus + installBonus;
-    return { key, chunks: sorted, groupScore };
-  }).sort((a, b) => b.groupScore - a.groupScore);
+    const modelPhraseBonus = modelPhrases.some((p) => hay.includes(p)) ? 0.12 : 0;
+    const groupScore = top * 0.7 + avgTop3 * 0.3 + brandBonus + tokenBonus + installBonus + modelPhraseBonus;
+    return { key, chunks: sorted, groupScore, hay };
+  });
+
+  const phraseMatched = modelPhrases.length > 0 ? scoredAll.filter((s) => modelPhrases.some((p) => s.hay.includes(p))) : [];
+  const scored = (phraseMatched.length > 0 ? phraseMatched : scoredAll).sort((a, b) => b.groupScore - a.groupScore);
 
   const best = scored[0];
   const second = scored[1];
@@ -371,6 +376,23 @@ function extractQuestionHints(question: string) {
     .filter((t) => t.length >= 2);
   const hasBrandOrModel = brandHints.length > 0 || tokens.some((t) => /^\d+$/.test(t));
   return { q, brandHints, tokens, hasBrandOrModel };
+}
+
+function buildModelPhrases(question: string) {
+  const q = question.toLowerCase();
+  const phrases: string[] = [];
+  const known = [
+    "42 apex nexgen",
+    "36 elite nexgen",
+    "answer nexgen",
+    "liberty nexgen",
+    "rockport nexgen",
+    "probuilder 42"
+  ];
+  for (const p of known) {
+    if (q.includes(p)) phrases.push(p);
+  }
+  return phrases;
 }
 
 function isTechnicalQuestion(q: string) {

@@ -4,6 +4,8 @@ type QueryCase = {
   id: string;
   question: string;
   requiredTerms: string[];
+  expectedModelHints?: string[];
+  expectedSourceUrlHints?: string[];
 };
 
 const baseUrl = process.env.GABE_ENGINE_URL || "http://localhost:4100";
@@ -12,32 +14,44 @@ const cases: QueryCase[] = [
   {
     id: "fpx42-air",
     question: "For FPX 42 Apex NexGen-Hybrid, is outside combustion air required? Cite page.",
-    requiredTerms: ["air", "combustion", "outside"]
+    requiredTerms: ["air", "combustion", "outside"],
+    expectedModelHints: ["42 apex", "nexgen"],
+    expectedSourceUrlHints: ["100-01577"]
   },
   {
     id: "fpx36-air",
     question: "For FPX 36 Elite NexGen-Hybrid, what are outside air intake requirements?",
-    requiredTerms: ["air", "intake"]
+    requiredTerms: ["air", "intake"],
+    expectedModelHints: ["36 elite", "nexgen"],
+    expectedSourceUrlHints: ["100-01584", "100-01585"]
   },
   {
     id: "lopi-answer-vent",
     question: "For Lopi Answer NexGen-Hybrid, what is minimum chimney or vent height?",
-    requiredTerms: ["chimney", "vent", "height"]
+    requiredTerms: ["chimney", "vent", "height"],
+    expectedModelHints: ["answer nexgen"],
+    expectedSourceUrlHints: ["100-01568"]
   },
   {
     id: "lopi-liberty-hearth",
     question: "For Lopi Liberty NexGen-Hybrid, what floor protection or hearth requirements apply?",
-    requiredTerms: ["hearth", "floor", "protection"]
+    requiredTerms: ["hearth", "floor", "protection"],
+    expectedModelHints: ["liberty nexgen"],
+    expectedSourceUrlHints: ["100-01586"]
   },
   {
     id: "rockport-clearance",
     question: "For Lopi Rockport NexGen-Hybrid, what is rear wall clearance requirement?",
-    requiredTerms: ["clearance", "rear"]
+    requiredTerms: ["clearance", "rear"],
+    expectedModelHints: ["rockport nexgen"],
+    expectedSourceUrlHints: ["100-01593"]
   },
   {
     id: "probuilder-pressure",
     question: "For FPX ProBuilder 42, what are gas inlet/manifold pressure specs?",
-    requiredTerms: ["pressure", "gas", "manifold"]
+    requiredTerms: ["pressure", "gas", "manifold"],
+    expectedModelHints: ["probuilder 42"],
+    expectedSourceUrlHints: ["100-01493"]
   }
 ];
 
@@ -54,8 +68,21 @@ async function runOne(test: QueryCase) {
   const termHits = test.requiredTerms.filter((t) => answerText.includes(t.toLowerCase())).length;
   const relevant = data?.source_type === "none" ? true : termHits >= 1;
 
-  const pass = data?.source_type === "none" || (hasCitation && relevant);
-  return { id: test.id, pass, source_type: data?.source_type, data };
+  let modelMatch = true;
+  let urlMatch = true;
+  if (data?.source_type === "manual") {
+    const modelHay = `${data?.manual_title || ""}`.toLowerCase();
+    if (test.expectedModelHints && test.expectedModelHints.length > 0) {
+      modelMatch = test.expectedModelHints.some((h) => modelHay.includes(h));
+    }
+    const urlHay = `${data?.source_url || ""}`.toLowerCase();
+    if (test.expectedSourceUrlHints && test.expectedSourceUrlHints.length > 0) {
+      urlMatch = test.expectedSourceUrlHints.some((h) => urlHay.includes(h));
+    }
+  }
+
+  const pass = data?.source_type === "none" || (hasCitation && relevant && modelMatch && urlMatch);
+  return { id: test.id, pass, source_type: data?.source_type, modelMatch, urlMatch, data };
 }
 
 async function main() {
