@@ -365,12 +365,21 @@ function buildKeywordTerms(question: string) {
   return Array.from(terms);
 }
 
+function extractIntentTerms(question: string) {
+  const q = question.toLowerCase();
+  const terms = [
+    "outside air", "combustion air", "air intake", "oak",
+    "vent", "venting", "chimney", "clearance", "pressure", "manifold", "hearth", "floor protection", "gas inlet"
+  ];
+  return terms.filter((t) => q.includes(t));
+}
+
 function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   const q = question.toLowerCase();
   if (!isTechnicalQuestion(q)) return { filtered: results };
 
   const airKeywords = ["outside air", "combustion air", "air intake", "oak", "outside combustion air"];
-  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service"];
+  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service", "pressure", "manifold", "hearth", "floor protection", "gas inlet"];
 
   const prefersInstall =
     q.includes("install") ||
@@ -391,12 +400,16 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   }
 
   const requiresAir = airKeywords.some((k) => q.includes(k));
+  const intents = extractIntentTerms(question);
   const keywordHits = filtered.filter((r) => {
     const text = r.chunk_text.toLowerCase();
     if (requiresAir) {
       if (!(text.includes("air intake") || text.includes("combustion air") || text.includes("outside combustion"))) return false;
       if (text.includes("air intake parts")) return false;
       return true;
+    }
+    if (intents.length > 0) {
+      return intents.some((k) => text.includes(k));
     }
     return keywords.some((k) => text.includes(k));
   });
@@ -433,7 +446,11 @@ function hasQueryTermOverlap(question: string, chunkText: string) {
 
   const hay = chunkText.toLowerCase();
   const hits = qTerms.filter((t) => hay.includes(t)).length;
-  return hits >= Math.min(2, qTerms.length);
+  if (hits < Math.min(2, qTerms.length)) return false;
+
+  const intents = extractIntentTerms(question);
+  if (intents.length === 0) return true;
+  return intents.some((t) => hay.includes(t));
 }
 
 function inferDocType(title: string) {
