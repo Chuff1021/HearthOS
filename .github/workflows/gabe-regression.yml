@@ -1,0 +1,21 @@
+name: GABE Regression Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'services/gabe-knowledge-engine/**'
+      - 'docker-compose.gabe.yml'
+      - 'scripts/gabe_release_gate.sh'
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run release gate
+        run: bash scripts/gabe_release_gate.sh

@@ -112,7 +112,8 @@ app.post("/query", async (request, reply) => {
   const fallbackCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
   const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
 
-  const selectedChunks = selectDeterministicManualChunks(body.question, candidatePool);
+  const rerankedCandidates = rerankCandidates(body.question, candidatePool).slice(0, 40);
+  const selectedChunks = selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
     return unavailable("insufficient_evidence");
@@ -191,6 +192,28 @@ function extractQuote(question: string, text: string) {
 
   const words = pick.split(/\s+/).slice(0, 25);
   return words.join(" ");
+}
+
+function rerankCandidates(question: string, candidates: RetrievedChunk[]) {
+  const intents = extractIntentTerms(question);
+  const q = question.toLowerCase();
+
+  return [...candidates]
+    .map((c) => {
+      const text = c.chunk_text.toLowerCase();
+      const section = (c.section_title || "").toLowerCase();
+      const intentHits = intents.filter((t) => text.includes(t) || section.includes(t)).length;
+      const modelHints = extractQuestionHints(question).tokens.filter((t) => t.length >= 3 && `${c.manufacturer} ${c.model} ${c.manual_title}`.toLowerCase().includes(t)).length;
+
+      let boost = 0;
+      boost += Math.min(0.18, intentHits * 0.06);
+      boost += Math.min(0.08, modelHints * 0.01);
+      if (/installation manual/i.test(c.manual_title) && (q.includes("install") || q.includes("require") || q.includes("clearance"))) boost += 0.05;
+      if (section.includes("introduction") || text.includes("table of contents") || text.includes("welcome you as a new owner")) boost -= 0.12;
+
+      return { ...c, score: Math.max(0, Math.min(1, c.score + boost)) };
+    })
+    .sort((a, b) => b.score - a.score);
 }
 
 function selectDeterministicManualChunks(question: string, candidates: RetrievedChunk[]) {
