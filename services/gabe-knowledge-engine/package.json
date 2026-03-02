@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "ingest:manual": "tsx scripts/ingest_manual.ts",
+    "extract:framing": "tsx scripts/extract_framing_dimensions.ts",
     "test:query": "tsx scripts/test_query.ts",
     "test:regression": "tsx scripts/regression_suite.ts"
   },

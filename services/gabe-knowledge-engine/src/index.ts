@@ -10,6 +10,8 @@ import { validateAnswer } from "./validation/validate";
 import { RetrievedChunk } from "./types";
 import { stableUuid } from "./ingest/ids";
 import { retryAsync } from "./ingest/retry";
+import { queryDimensionsByModelTopic, upsertDimensions } from "./ingest/dimensionsStore";
+import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
 
@@ -88,6 +90,38 @@ app.post("/ingest/manual", async (request, reply) => {
   return { ok: true, chunks: points.length };
 });
 
+app.post("/ingest/dimensions", async (request, reply) => {
+  const body = request.body as { dimensions: DimensionRecord[] };
+  if (!Array.isArray(body?.dimensions) || body.dimensions.length === 0) {
+    return reply.status(400).send({ error: "dimensions[] required" });
+  }
+
+  const result = await upsertDimensions(body.dimensions);
+  return result;
+});
+
+app.get("/query/dimensions", async (request, reply) => {
+  const q = request.query as {
+    model?: string;
+    topic?: string;
+    manufacturer?: string;
+    install_angle?: InstallAngle;
+  };
+
+  if (!q.model || !q.topic) {
+    return reply.status(400).send({ error: "model and topic query params are required" });
+  }
+
+  const items = await queryDimensionsByModelTopic({
+    model: q.model,
+    topic: q.topic,
+    manufacturer: q.manufacturer,
+    install_angle: q.install_angle
+  });
+
+  return { ok: true, count: items.length, items };
+});
+
 app.post("/query", async (request, reply) => {
   const body = request.body as { question: string };
   if (!body?.question) return reply.status(400).send({ error: "question required" });
@@ -160,6 +194,26 @@ async function directFramingLookupFromStore(question: string): Promise<Retrieved
 
   const modelPhrases = buildModelPhrases(question);
   if (modelPhrases.length === 0) return null;
+
+  const modelForDimensionQuery = modelPhrases.sort((a, b) => b.length - a.length)[0];
+  const dimensions = await queryDimensionsByModelTopic({ model: modelForDimensionQuery, topic: "framing" });
+  if (dimensions.length > 0) {
+    const dimText = dimensions
+      .map((d) => `${d.dimension_key}: ${d.value_imperial}\" (${d.value_metric} mm)`)
+      .join(", ");
+    return {
+      manual_title: dimensions[0].manual_title,
+      manufacturer: dimensions[0].manufacturer,
+      model: dimensions[0].model,
+      page_number: dimensions[0].page_number,
+      source_url: dimensions[0].source_url,
+      chunk_text: `Minimum framing dimensions listed: ${dimText}`,
+      section_title: "framing dimensions",
+      doc_type: "installation",
+      score: 1,
+      source_type: "manual"
+    };
+  }
 
   const shouldTerms = ["minimum framing dimensions", "fireplace framing", "framing dimensions", "framing"];
   const scroll = await qdrant.scroll(env.QDRANT_COLLECTION, {

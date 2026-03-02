@@ -38,3 +38,19 @@ export type GabeAnswer =
       source_type: "none";
       confidence: 0;
     };
+
+export type InstallAngle = "standard" | "45" | "unknown";
+
+export type DimensionRecord = {
+  install_angle: InstallAngle;
+  dimension_key: string;
+  value_imperial: string;
+  value_metric: string;
+  units: string;
+  page_number: number;
+  source_url: string;
+  manual_title: string;
+  manufacturer: string;
+  model: string;
+  confidence: number;
+};
