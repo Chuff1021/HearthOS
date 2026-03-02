@@ -518,10 +518,15 @@ function buildModelPhrases(question: string) {
   const phrases: string[] = [];
   const known = [
     "42 apex nexgen",
+    "42 apex",
     "36 elite nexgen",
+    "36 elite",
     "answer nexgen",
+    "lopi answer",
     "liberty nexgen",
+    "lopi liberty",
     "rockport nexgen",
+    "lopi rockport",
     "probuilder 42"
   ];
   for (const p of known) {
