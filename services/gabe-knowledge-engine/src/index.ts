@@ -150,6 +150,11 @@ function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefin
   if (!chunk || chunk.source_type !== "manual") return null;
   const quote = extractQuote(question, chunk.chunk_text);
   if (!quote) return null;
+  const intents = extractIntentTerms(question);
+  const quoteLc = quote.toLowerCase();
+  if (intents.length > 0 && !intents.some((t) => quoteLc.includes(t))) {
+    return null;
+  }
   return {
     answer: `Manual states: "${quote}"`,
     source_type: "manual" as const,
@@ -174,7 +179,13 @@ function extractQuote(question: string, text: string) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const pick = sentences.find((s) => keywords.length > 0 && keywords.some((k) => s.toLowerCase().includes(k)))
+  const intents = extractIntentTerms(question);
+  const pick = sentences.find((s) => {
+      const sl = s.toLowerCase();
+      if (keywords.length > 0 && keywords.some((k) => sl.includes(k))) return true;
+      if (intents.length > 0 && intents.some((k) => sl.includes(k))) return true;
+      return false;
+    })
     ?? sentences[0]
     ?? text;
 
@@ -416,15 +427,28 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
 
   if (keywordHits.length === 0) return { filtered: [] };
 
+  const notIntro = keywordHits.filter((r) => {
+    const t = r.chunk_text.toLowerCase();
+    return !(
+      t.includes("introduction") ||
+      t.includes("table of contents") ||
+      t.includes("welcome you as a new owner")
+    );
+  });
+  const cleanedHits = notIntro.length > 0 ? notIntro : keywordHits;
+
   if (requiresAir) {
-    filtered = keywordHits
+    filtered = cleanedHits
       .map((r) => ({ r, score: rankAirChunk(r) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
       .map((x) => x.r);
   } else {
-    const sectionHits = keywordHits.filter((r) => (r.section_title || "").toLowerCase().includes("air intake"));
-    filtered = sectionHits.length > 0 ? sectionHits : keywordHits;
+    const sectionHits = cleanedHits.filter((r) => {
+      const s = (r.section_title || "").toLowerCase();
+      return s.includes("air intake") || s.includes("clearance") || s.includes("vent") || s.includes("chimney") || s.includes("pressure") || s.includes("hearth");
+    });
+    filtered = sectionHits.length > 0 ? sectionHits : cleanedHits;
   }
 
   return { filtered };
