@@ -98,6 +98,7 @@ export default function ProfilePage() {
         setLastGpsPingAt(new Date().toISOString());
 
         const pingRes = await fetch('/api/tech/locations', {
+          cache: 'no-store',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

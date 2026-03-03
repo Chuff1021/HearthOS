@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { getJobs } from "@/app/api/jobs/route";
 import { getTechs } from "@/app/api/techs/route";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
@@ -97,6 +100,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       techs: filteredTechs,
       unassignedJobs,
+      gpsDebug: {
+        latestLocationCount: latestLocations.length,
+        unmappedLiveCount: unmappedLive.length,
+      },
       stats: {
         totalTechs: techPayload.length,
         activeTechs: techPayload.filter((t) => t.status !== "offline").length,

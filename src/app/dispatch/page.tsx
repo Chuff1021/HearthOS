@@ -42,7 +42,7 @@ export default function DispatchPage() {
   async function loadDispatch() {
     setLoading(true);
     try {
-      const res = await fetch('/api/dispatch?activeOnly=true');
+      const res = await fetch('/api/dispatch?activeOnly=true', { cache: 'no-store' });
       const data = await res.json();
       setTechs(data.techs || []);
       setUnassignedJobs(data.unassignedJobs || []);
