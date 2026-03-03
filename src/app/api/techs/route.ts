@@ -21,7 +21,7 @@ const techs: Tech[] = [
     name: "Mike Johnson",
     email: "mike@hearthos.com",
     phone: "(555) 111-2222",
-    color: "#0ea5e9",
+    color: "#2563eb",
     initials: "MJ",
     role: "lead",
     active: true,

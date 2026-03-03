@@ -21,7 +21,24 @@ export default function Header() {
   });
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const saved = localStorage.getItem("theme");
+    const initialTheme = saved === "dark" ? "dark" : "light";
+    setTheme(initialTheme);
+    root.setAttribute("data-theme", initialTheme);
+  }, []);
+
+  function toggleTheme() {
+    const root = document.documentElement;
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    root.setAttribute("data-theme", nextTheme);
+    localStorage.setItem("theme", nextTheme);
+  }
 
   // Debounced search
   useEffect(() => {
@@ -87,8 +104,8 @@ export default function Header() {
               color: "var(--color-text-primary)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(14,165,233,0.5)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(14,165,233,0.1)";
+              e.currentTarget.style.borderColor = "rgba(37,99,235,0.5)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
               if (query.length >= 2) setIsOpen(true);
             }}
             onBlur={(e) => {
@@ -185,7 +202,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(14,165,233,0.2)", color: "#67e8f9" }}
+                          style={{ background: "rgba(37,99,235,0.2)", color: "#67e8f9" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -328,6 +345,30 @@ export default function Header() {
           </svg>
         </button>
 
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 transition-colors text-xs font-medium"
+          style={{
+            color: "var(--color-text-secondary)",
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface-3)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-border-hover)";
+            e.currentTarget.style.color = "var(--color-text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-border)";
+            e.currentTarget.style.color = "var(--color-text-secondary)";
+          }}
+          aria-label="Toggle dark mode"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          <span>{theme === "dark" ? "☀️" : "🌙"}</span>
+          <span>{theme === "dark" ? "Light" : "Dark"}</span>
+        </button>
+
         {/* Divider */}
         <div className="w-px h-5 mx-1" style={{ background: "var(--color-border)" }}></div>
 
@@ -347,7 +388,7 @@ export default function Header() {
             href="/sign-in"
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+              background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
               color: "white",
             }}
           >

@@ -57,8 +57,8 @@ const activities = [
   },
   {
     id: 5,
-    iconBg: "rgba(14,165,233,0.12)",
-    iconColor: "#0ea5e9",
+    iconBg: "rgba(37,99,235,0.12)",
+    iconColor: "#2563eb",
     title: "Estimate approved",
     desc: "$3,200 · Patricia Williams",
     sub: "Customer signed · 45 min ago",
@@ -218,9 +218,9 @@ export default function RecentActivity() {
       >
         <button
           className="text-xs font-medium w-full text-center transition-colors"
-          style={{ color: "#0ea5e9" }}
+          style={{ color: "#2563eb" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#0ea5e9")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563eb")}
         >
           View all activity →
         </button>

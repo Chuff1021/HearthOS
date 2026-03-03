@@ -40,7 +40,7 @@ const techs: Tech[] = [
   {
     id: "tech-001",
     name: "Mike Johnson",
-    color: "#0ea5e9",
+    color: "#2563eb",
     initials: "MJ",
     status: "on_job",
     currentJob: {

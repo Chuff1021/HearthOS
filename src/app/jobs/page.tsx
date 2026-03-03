@@ -19,7 +19,7 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "11:00",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#0ea5e9" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563eb" }],
     totalAmount: "285.00",
   },
   {
@@ -54,7 +54,7 @@ const mockJobs = [
     scheduledDate: "2024-02-24",
     scheduledTimeStart: "14:00",
     scheduledTimeEnd: "15:30",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#0ea5e9" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563eb" }],
     totalAmount: "185.00",
     completedAt: "2024-02-24T15:15:00Z",
   },
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#0ea5e9", "#0d9488", "#b7791f", "#7c3aed"][idx] || "#6b7280",
+            color: ["#2563eb", "#0d9488", "#b7791f", "#7c3aed"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),
@@ -280,9 +280,9 @@ export default function JobsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               color: "white",
-              boxShadow: "0 0 16px rgba(14,165,233,0.25)",
+              boxShadow: "0 0 16px rgba(37,99,235,0.25)",
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -767,7 +767,7 @@ export default function JobsPage() {
                 disabled={creating || !selectedCustomer || !formData.title}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{
-                  background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   color: "white",
                 }}
               >

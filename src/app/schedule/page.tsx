@@ -10,7 +10,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7am - 5pm
 
 const mockTechs = [
-  { id: "tech-001", name: "Mike Johnson", color: "#0ea5e9", initials: "MJ" },
+  { id: "tech-001", name: "Mike Johnson", color: "#2563eb", initials: "MJ" },
   { id: "tech-002", name: "Sarah Williams", color: "#0d9488", initials: "SW" },
   { id: "tech-003", name: "Tom Davis", color: "#b7791f", initials: "TD" },
   { id: "tech-004", name: "Chris Lee", color: "#7c3aed", initials: "CL" },
@@ -218,7 +218,7 @@ export default function SchedulePage() {
             <button
               onClick={() => router.push("/jobs")}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white", boxShadow: "0 0 16px rgba(14,165,233,0.25)" }}
+              style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white", boxShadow: "0 0 16px rgba(37,99,235,0.25)" }}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -271,7 +271,7 @@ export default function SchedulePage() {
                     <div
                       className={`text-lg font-bold mt-0.5 w-9 h-9 rounded-full flex items-center justify-center mx-auto ${isToday ? "text-white" : ""}`}
                       style={{
-                        background: isToday ? "#0ea5e9" : "transparent",
+                        background: isToday ? "#2563eb" : "transparent",
                         color: isToday ? "white" : "var(--color-text-primary)",
                       }}
                     >
@@ -314,7 +314,7 @@ export default function SchedulePage() {
                         className="relative border-l"
                         style={{
                           borderColor: "var(--color-border)",
-                          background: isToday ? "rgba(14,165,233,0.02)" : "transparent",
+                          background: isToday ? "rgba(37,99,235,0.02)" : "transparent",
                         }}
                       >
                         {jobsInSlot.map((job) => {
@@ -326,7 +326,7 @@ export default function SchedulePage() {
                               style={{
                                 top: "2px",
                                 height: `${job.duration * 80 - 4}px`,
-                                background: tech?.color || "#0ea5e9",
+                                background: tech?.color || "#2563eb",
                                 opacity: 0.9,
                                 zIndex: 1,
                               }}

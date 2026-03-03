@@ -186,15 +186,15 @@ export default function TodaysJobs() {
         <button
           className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
           style={{
-            background: "rgba(14,165,233,0.15)",
-            color: "#0ea5e9",
-            border: "1px solid rgba(14,165,233,0.2)",
+            background: "rgba(37,99,235,0.15)",
+            color: "#2563eb",
+            border: "1px solid rgba(37,99,235,0.2)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(14,165,233,0.25)";
+            e.currentTarget.style.background = "rgba(37,99,235,0.25)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(14,165,233,0.15)";
+            e.currentTarget.style.background = "rgba(37,99,235,0.15)";
           }}
         >
           + New Job
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#0f766e" : "#0ea5e9",
+                                  background: job.checklistPct === 100 ? "#0f766e" : "#2563eb",
                                 }}
                               ></div>
                             </div>
@@ -416,9 +416,9 @@ export default function TodaysJobs() {
         </span>
         <button
           className="text-xs font-medium transition-colors"
-          style={{ color: "#0ea5e9" }}
+          style={{ color: "#2563eb" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#0ea5e9")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563eb")}
         >
           View full schedule →
         </button>

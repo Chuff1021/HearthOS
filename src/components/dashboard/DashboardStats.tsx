@@ -35,7 +35,7 @@ export default function DashboardStats() {
       sub: "3 completed · 5 remaining",
       trend: "+2 vs yesterday",
       trendUp: true,
-      accentColor: "#0ea5e9",
+      accentColor: "#2563eb",
       accentBg: "rgba(59,130,246,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">

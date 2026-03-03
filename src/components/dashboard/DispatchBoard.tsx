@@ -5,7 +5,7 @@ const techs = [
     id: 1,
     name: "Dave Torres",
     initials: "DT",
-    color: "#0ea5e9",
+    color: "#2563eb",
     status: "in_progress",
     statusLabel: "In Progress",
     statusColor: "#38bdf8",
@@ -164,15 +164,15 @@ export default function DispatchBoard() {
           <button
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all font-semibold"
             style={{
-              background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               color: "white",
-              boxShadow: "0 0 16px rgba(14,165,233,0.25)",
+              boxShadow: "0 0 16px rgba(37,99,235,0.25)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 24px rgba(14,165,233,0.4)";
+              e.currentTarget.style.boxShadow = "0 0 24px rgba(37,99,235,0.4)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 16px rgba(14,165,233,0.25)";
+              e.currentTarget.style.boxShadow = "0 0 16px rgba(37,99,235,0.25)";
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -345,15 +345,15 @@ export default function DispatchBoard() {
                 <button
                   className="flex-1 text-[10px] py-1.5 rounded-lg transition-all font-semibold"
                   style={{
-                    background: "rgba(14,165,233,0.12)",
-                    color: "#0ea5e9",
-                    border: "1px solid rgba(14,165,233,0.2)",
+                    background: "rgba(37,99,235,0.12)",
+                    color: "#2563eb",
+                    border: "1px solid rgba(37,99,235,0.2)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(14,165,233,0.22)";
+                    e.currentTarget.style.background = "rgba(37,99,235,0.22)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(14,165,233,0.12)";
+                    e.currentTarget.style.background = "rgba(37,99,235,0.12)";
                   }}
                 >
                   + Job
