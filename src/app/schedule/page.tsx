@@ -43,8 +43,8 @@ interface CustomerLookup {
 }
 
 const JOB_TYPE_OPTIONS = [
-  "Generic Service Call",
-  "Gas Service Call",
+  "Service Call",
+  "Gas Service",
   "Wood Fireplace Service",
   "Pellet Stove Service",
   "Chimney Repair",
@@ -54,8 +54,6 @@ const JOB_TYPE_OPTIONS = [
   "Pellet Stove Installation",
   "Inspection & Safety Check",
   "Annual Cleaning",
-  "Pilot Light Repair",
-  "No-Heat Diagnostic",
   "Venting/Flue Repair",
   "Cap/Damper Repair",
   "Estimate / Consultation",
@@ -109,7 +107,7 @@ export default function SchedulePage() {
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
-    jobType: "Generic Service Call",
+    jobType: "Service Call",
     customerId: "",
     customerName: "",
     propertyAddress: "",
@@ -347,7 +345,7 @@ export default function SchedulePage() {
       setCustomerQuery("");
       setCustomerResults([]);
       setForm({
-        jobType: "Generic Service Call",
+        jobType: "Service Call",
         customerId: "",
         customerName: "",
         propertyAddress: "",
