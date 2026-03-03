@@ -264,6 +264,27 @@ export class QuickBooksClient {
     return response.Payment;
   }
 
+  // === VENDORS ===
+
+  async getVendors(maxResults = 1000): Promise<any[]> {
+    return this.query<any>(`SELECT * FROM Vendor MAXRESULTS ${maxResults}`);
+  }
+
+  // === PURCHASE ORDERS ===
+
+  async getPurchaseOrders(maxResults = 200): Promise<any[]> {
+    return this.query<any>(`SELECT * FROM PurchaseOrder ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
+  }
+
+  async createPurchaseOrder(purchaseOrder: any): Promise<any> {
+    const response = await this.request<{ PurchaseOrder: any }>(
+      'POST',
+      '/purchaseorder',
+      purchaseOrder
+    );
+    return response.PurchaseOrder;
+  }
+
   // === UTILITY ===
 
   // Get company info

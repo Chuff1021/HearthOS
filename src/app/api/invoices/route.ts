@@ -8,6 +8,7 @@ import {
   deleteInvoice,
   getDashboardStats,
 } from "@/lib/data-store";
+import { addAuditLog } from "@/lib/audit-log-store";
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,6 +81,15 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     });
 
+    addAuditLog({
+      entityType: "invoice",
+      entityId: invoice.id,
+      action: "create",
+      actor: "system",
+      source: "api",
+      after: invoice,
+    });
+
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (err) {
     console.error("Failed to create invoice:", err);
@@ -95,10 +105,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
+    const before = getInvoiceById(body.id);
     const invoice = updateInvoice(body.id, body);
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    addAuditLog({
+      entityType: "invoice",
+      entityId: invoice.id,
+      action: "update",
+      actor: "system",
+      source: "api",
+      before,
+      after: invoice,
+    });
 
     return NextResponse.json({ invoice });
   } catch (err) {
@@ -116,10 +137,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
+    const before = getInvoiceById(id);
     const deleted = deleteInvoice(id);
     if (!deleted) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
+
+    addAuditLog({
+      entityType: "invoice",
+      entityId: id,
+      action: "delete",
+      actor: "system",
+      source: "api",
+      before,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
