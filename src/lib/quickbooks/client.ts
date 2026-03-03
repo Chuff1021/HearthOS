@@ -223,6 +223,16 @@ export class QuickBooksClient {
     return response.Estimate;
   }
 
+  async sendEstimate(id: string, email?: string): Promise<any> {
+    const body = email ? { BillEmail: { Address: email } } : {};
+    const response = await this.request<{ Estimate: any }>(
+      'POST',
+      `/estimate/${id}/send`,
+      body
+    );
+    return response.Estimate;
+  }
+
   // === INVOICES ===
 
   async getInvoices(maxResults = 100): Promise<QBInvoice[]> {

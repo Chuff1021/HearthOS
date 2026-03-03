@@ -93,6 +93,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    if ((body as any).action === 'send') {
+      if (!(body as any).id) {
+        return NextResponse.json({ error: 'id is required to send invoice' }, { status: 400 });
+      }
+      const client = getClientFromTokens(accessToken, refreshToken, realmId);
+      const sent = await client.sendInvoice((body as any).id, (body as any).email);
+      addAuditLog({
+        entityType: 'invoice',
+        entityId: (body as any).id,
+        action: 'update',
+        actor: 'system',
+        source: 'api',
+        after: sent,
+        note: 'Invoice emailed from dashboard',
+      });
+      return NextResponse.json({ success: true, invoice: sent?.Invoice || sent });
+    }
     
     // Check if this is UI format (has lineItems) or QB format
     const isUIFormat = 'lineItems' in body && Array.isArray((body as any).lineItems);

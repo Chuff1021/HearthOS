@@ -63,6 +63,22 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
     const body = await request.json();
+
+    if (body.action === 'send') {
+      if (!body.id) return NextResponse.json({ error: 'id is required for send' }, { status: 400 });
+      const sentEstimate = (await withRefresh(auth, (client) => client.sendEstimate(body.id, body.email))) as any;
+      addAuditLog({
+        entityType: 'estimate',
+        entityId: body.id,
+        action: 'update',
+        actor: 'system',
+        source: 'api',
+        after: sentEstimate,
+        note: 'Estimate emailed from dashboard',
+      });
+      return NextResponse.json({ success: true, estimate: sentEstimate });
+    }
+
     if (!body.customerId || !Array.isArray(body.lines) || body.lines.length === 0) {
       return NextResponse.json({ error: 'customerId and lines[] are required' }, { status: 400 });
     }

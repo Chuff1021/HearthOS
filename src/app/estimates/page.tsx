@@ -96,6 +96,42 @@ export default function EstimatesPage() {
 
   const draftTotal = useMemo(() => draftLines.reduce((s, l) => s + l.total, 0), [draftLines]);
 
+  function printEstimate(e: Estimate) {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    w.document.write(`<html><head><title>${e.DocNumber || e.Id}</title></head><body><h2>Estimate ${e.DocNumber || e.Id}</h2><p>Customer: ${e.CustomerRef?.name || ""}</p><p>Date: ${e.TxnDate || ""}</p><p>Total: $${Number(e.TotalAmt || 0).toFixed(2)}</p></body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  function downloadEstimate(e: Estimate) {
+    const data = JSON.stringify(e, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${e.DocNumber || e.Id}-estimate.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function emailEstimate(e: Estimate) {
+    const email = window.prompt("Send estimate to email (leave blank to use QuickBooks default):", "") || undefined;
+    try {
+      const res = await fetch("/api/quickbooks/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", id: e.Id, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to email estimate");
+      alert("Estimate emailed successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to email estimate");
+    }
+  }
+
   async function generateFromAI() {
     if (!prompt.trim()) return;
     setError(null);
@@ -305,6 +341,12 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
+                      <div className="mt-2 grid grid-cols-3 gap-1">
+                        <button onClick={() => emailEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
+                        <button onClick={() => printEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
+                        <button onClick={() => downloadEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
+                      </div>
+
                       {convertedMap[e.Id] ? (
                         <div className="mt-2 space-y-1">
                           <div className="w-full py-1.5 rounded-lg text-xs font-semibold text-center" style={{ background: "rgba(152,205,0,0.15)", color: "#98CD00", border: "1px solid rgba(152,205,0,0.35)" }}>

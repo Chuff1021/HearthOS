@@ -287,6 +287,42 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleEmailInvoice = async (invoice: Invoice) => {
+    const email = window.prompt("Send invoice to email (leave blank to use QuickBooks default):", "") || undefined;
+    try {
+      const res = await fetch("/api/quickbooks/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", id: invoice.id, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to email invoice");
+      alert("Invoice emailed successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to email invoice");
+    }
+  };
+
+  const handlePrintInvoice = (invoice: Invoice) => {
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    w.document.write(`<html><head><title>${invoice.invoiceNumber}</title></head><body><h2>Invoice ${invoice.invoiceNumber}</h2><p>Customer: ${invoice.customerName}</p><p>Issue: ${invoice.issueDate}</p><p>Due: ${invoice.dueDate}</p><p>Total: $${invoice.totalAmount.toFixed(2)}</p></body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    const data = JSON.stringify(invoice, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${invoice.invoiceNumber}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const createSubtotal = createForm.lineItems.reduce((sum, li) => sum + li.qty * li.unitPrice, 0);
   const createTax = createSubtotal * (createForm.taxRate / 100);
   const createTotal = createSubtotal + createTax;
@@ -558,6 +594,29 @@ export default function InvoicesPage() {
 
                 {/* Actions */}
                 <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handleEmailInvoice(selectedInvoice)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+                    >
+                      Email
+                    </button>
+                    <button
+                      onClick={() => handlePrintInvoice(selectedInvoice)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+                    >
+                      Print
+                    </button>
+                    <button
+                      onClick={() => handleDownloadInvoice(selectedInvoice)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+                    >
+                      Download
+                    </button>
+                  </div>
                   {selectedInvoice.status === "draft" && (
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
