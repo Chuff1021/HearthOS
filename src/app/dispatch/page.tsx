@@ -162,6 +162,20 @@ export default function DispatchPage() {
             </div>
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
+              <h3 className="font-semibold mb-2">Live GPS Feed</h3>
+              <div className="space-y-2 max-h-36 overflow-auto">
+                {liveTechs.length > 0 ? liveTechs.map((t) => (
+                  <div key={`gps-${t.id}`} className="p-2 rounded-lg" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-xs font-semibold">{t.name}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                      {t.location!.lat.toFixed(5)}, {t.location!.lng.toFixed(5)} · ±{Math.round(t.location!.accuracy || 0)}m
+                    </div>
+                  </div>
+                )) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
+              </div>
+            </div>
+
+            <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
               <h3 className="font-semibold mb-2">Unassigned Jobs</h3>
               <div className="space-y-2 max-h-[460px] overflow-auto pr-1">
                 {unassignedJobs.map((job) => (

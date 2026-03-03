@@ -34,6 +34,7 @@ export default function TeamPage() {
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", role: "tech" as "lead" | "tech" | "helper" | "dispatcher" | "admin" });
 
   async function loadTechs() {
@@ -83,6 +84,7 @@ export default function TeamPage() {
 
   async function addTeamMember() {
     setAddError(null);
+    setAddSuccess(null);
 
     const payload = {
       ...newMember,
@@ -124,6 +126,7 @@ export default function TeamPage() {
       }
 
       setShowAddModal(false);
+      setAddSuccess(`Added ${payload.name} successfully.`);
       setNewMember({ name: '', email: '', phone: '', role: 'tech' });
       await loadTechs();
     } catch (error) {
@@ -184,6 +187,12 @@ export default function TeamPage() {
                 + Add Team Member
               </button>
             </div>
+
+            {addSuccess && (
+              <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(152,205,0,0.12)", border: "1px solid rgba(152,205,0,0.35)", color: "#98CD00" }}>
+                {addSuccess}
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -437,6 +446,11 @@ export default function TeamPage() {
               {addError && (
                 <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
                   {addError}
+                </div>
+              )}
+              {addSuccess && (
+                <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(152,205,0,0.12)", border: "1px solid rgba(152,205,0,0.35)", color: "#98CD00" }}>
+                  {addSuccess}
                 </div>
               )}
               <input
