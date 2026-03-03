@@ -333,12 +333,13 @@ function GABEInner() {
               className={`max-w-[82%] rounded-2xl p-3 ${
                 message.role === "user"
                   ? "bg-blue-600 text-white rounded-br-md"
-                  : "bg-[var(--color-surface-1)] text-white rounded-bl-md"
+                  : "bg-[var(--color-surface-1)] rounded-bl-md"
               }`}
+              style={message.role === "assistant" ? { color: "var(--color-text-primary)", border: "1px solid var(--color-border)" } : undefined}
             >
               <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
               {message.role === "assistant" && message.meta?.sourceType && (
-                <div className="mt-2 text-xs text-gray-400 space-y-1">
+                <div className="mt-2 text-xs space-y-1" style={{ color: "var(--color-text-secondary)" }}>
                   <div>Source: {message.meta.sourceType}</div>
                   {message.meta.sourceType === "manual" && (
                     <div>
