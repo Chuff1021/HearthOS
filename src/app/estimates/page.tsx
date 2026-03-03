@@ -40,6 +40,7 @@ export default function EstimatesPage() {
   const [selectedCustomerName, setSelectedCustomerName] = useState("");
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [convertingEstimateId, setConvertingEstimateId] = useState<string | null>(null);
+  const [convertedMap, setConvertedMap] = useState<Record<string, string>>({});
 
   async function loadAll() {
     setLoading(true);
@@ -220,6 +221,9 @@ export default function EstimatesPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to convert estimate to invoice");
 
+      const invoiceLabel = data?.invoice?.invoiceNumber || data?.invoice?.id || "Created";
+      setConvertedMap((prev) => ({ ...prev, [estimate.Id]: invoiceLabel }));
+
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to convert estimate");
@@ -301,14 +305,29 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
-                      <button
-                        onClick={() => convertEstimateToInvoice(e)}
-                        disabled={convertingEstimateId === e.Id}
-                        className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
-                        style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
-                      >
-                        {convertingEstimateId === e.Id ? "Converting..." : "Convert to Invoice"}
-                      </button>
+                      {convertedMap[e.Id] ? (
+                        <div className="mt-2 space-y-1">
+                          <div className="w-full py-1.5 rounded-lg text-xs font-semibold text-center" style={{ background: "rgba(152,205,0,0.15)", color: "#98CD00", border: "1px solid rgba(152,205,0,0.35)" }}>
+                            Converted ✓ {convertedMap[e.Id]}
+                          </div>
+                          <a
+                            href={`/invoices`}
+                            className="block w-full py-1.5 rounded-lg text-xs font-semibold text-center"
+                            style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+                          >
+                            View Invoices
+                          </a>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => convertEstimateToInvoice(e)}
+                          disabled={convertingEstimateId === e.Id}
+                          className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
+                          style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
+                        >
+                          {convertingEstimateId === e.Id ? "Converting..." : "Convert to Invoice"}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
