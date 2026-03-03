@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
+import TechBottomNav from "@/components/tech/TechBottomNav";
 
 interface Tech {
   id: string;
@@ -223,14 +224,7 @@ export default function TechApp() {
         )}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: "var(--color-surface-1)", borderTop: "1px solid var(--color-border)" }}>
-        <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="text-sm" style={{ color: "#2563EB" }}>Jobs</Link>
-          <Link href="/tech/manuals" className="text-sm" style={{ color: "var(--color-text-muted)" }}>Manuals</Link>
-          <Link href="/tech/gabe" className="text-sm" style={{ color: "var(--color-text-muted)" }}>GABE</Link>
-          <Link href="/tech/profile" className="text-sm" style={{ color: "var(--color-text-muted)" }}>Profile</Link>
-        </div>
-      </nav>
+      <TechBottomNav active="jobs" />
     </div>
   );
 }

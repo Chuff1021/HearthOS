@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import TechBottomNav from "@/components/tech/TechBottomNav";
 
 interface LineItem {
   id: string;
@@ -70,7 +71,7 @@ export default function EstimatePage() {
   return (
     <div className="flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[#1a1a2e] p-4 sticky top-0 z-10">
+      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Link href="/tech" className="text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,9 +87,9 @@ export default function EstimatePage() {
 
       {/* AI Estimate Builder */}
       <div className="p-4">
-        <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/50 rounded-xl p-4 mb-4">
+        <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-blue-600/50 rounded-xl p-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
@@ -102,12 +103,12 @@ export default function EstimatePage() {
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             placeholder="e.g., Annual inspection, pilot light won't stay lit, customer wants glass cleaned..."
-            className="w-full bg-[#0f0f1a] rounded-xl p-3 text-sm min-h-[80px] border border-gray-700 focus:border-orange-500 outline-none resize-none"
+            className="w-full bg-[var(--color-bg)] rounded-xl p-3 text-sm min-h-[80px] border border-gray-700 focus:border-blue-600 outline-none resize-none"
           />
           <button
             onClick={handleAiGenerate}
             disabled={isGenerating || !aiPrompt.trim()}
-            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-3 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl font-medium mt-3 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isGenerating ? (
               <>
@@ -130,12 +131,12 @@ export default function EstimatePage() {
 
         {/* Line Items */}
         {lineItems.length > 0 && (
-          <div className="bg-[#1a1a2e] rounded-xl p-4 mb-4">
+          <div className="bg-[var(--color-surface-1)] rounded-xl p-4 mb-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold">Line Items</h3>
               <button
                 onClick={() => setShowAddItem(true)}
-                className="text-orange-400 text-sm font-medium"
+                className="text-blue-600 text-sm font-medium"
               >
                 + Add Item
               </button>
@@ -175,7 +176,7 @@ export default function EstimatePage() {
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-gray-700">
                 <span>Total</span>
-                <span className="text-orange-400">${total.toFixed(2)}</span>
+                <span className="text-blue-600">${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -184,7 +185,7 @@ export default function EstimatePage() {
         {/* Add Item Modal */}
         {showAddItem && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
-            <div className="bg-[#1a1a2e] w-full max-w-md mx-auto rounded-t-2xl p-4">
+            <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Add Line Item</h3>
                 <button onClick={() => setShowAddItem(false)} className="text-gray-400">
@@ -200,7 +201,7 @@ export default function EstimatePage() {
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   placeholder="Description"
-                  className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                  className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-blue-600 outline-none"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <input
@@ -209,7 +210,7 @@ export default function EstimatePage() {
                     onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
                     placeholder="Qty"
                     min="1"
-                    className="bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-blue-600 outline-none"
                   />
                   <input
                     type="number"
@@ -218,14 +219,14 @@ export default function EstimatePage() {
                     placeholder="Unit Price"
                     min="0"
                     step="0.01"
-                    className="bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-blue-600 outline-none"
                   />
                 </div>
               </div>
 
               <button
                 onClick={handleAddItem}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-4"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl font-medium mt-4"
               >
                 Add Item
               </button>
@@ -242,42 +243,14 @@ export default function EstimatePage() {
               </svg>
               Send to Customer
             </button>
-            <button className="w-full bg-[#252540] py-3 rounded-xl font-medium border border-gray-700">
+            <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
               Save as Draft
             </button>
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-gray-800 z-20">
-        <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-xs mt-1">Jobs</span>
-          </Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span className="text-xs mt-1">Manuals</span>
-          </Link>
-          <Link href="/tech/gabe" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            <span className="text-xs mt-1">GABE</span>
-          </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs mt-1">Profile</span>
-          </Link>
-        </div>
-      </nav>
+      <TechBottomNav active="jobs" />
     </div>
   );
 }

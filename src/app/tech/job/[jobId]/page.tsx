@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import TechBottomNav from "@/components/tech/TechBottomNav";
 
 // Mock job data
 const mockJobData = {
@@ -167,14 +168,14 @@ export default function JobDetailPage() {
   const categoryColors: Record<string, string> = {
     pipe: "bg-blue-500/20 text-blue-400",
     fitting: "bg-purple-500/20 text-purple-400",
-    part: "bg-orange-500/20 text-orange-400",
+    part: "bg-blue-600/20 text-blue-600",
     supply: "bg-green-500/20 text-green-400",
   };
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[#1a1a2e] p-4 sticky top-0 z-10">
+      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Link href="/tech" className="text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,7 +195,7 @@ export default function JobDetailPage() {
       </header>
 
       {/* Tab Navigation */}
-      <div className="bg-[#1a1a2e] border-b border-gray-800 sticky top-[68px] z-10">
+      <div className="bg-[var(--color-surface-1)] border-b border-gray-800 sticky top-[68px] z-10">
         <div className="flex">
           {(["details", "checklist", "photos", "customer"] as const).map((tab) => (
             <button
@@ -202,7 +203,7 @@ export default function JobDetailPage() {
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 text-sm font-medium capitalize transition-colors ${
                 activeTab === tab
-                  ? "text-orange-400 border-b-2 border-orange-400"
+                  ? "text-blue-600 border-b-2 border-orange-400"
                   : "text-gray-400"
               }`}
             >
@@ -217,7 +218,7 @@ export default function JobDetailPage() {
         {activeTab === "details" && (
           <div className="space-y-4">
             {/* Job Info Card */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Job Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -252,9 +253,9 @@ export default function JobDetailPage() {
             {/* Ask GABE about this job */}
             <Link
               href={`/tech/gabe?jobId=${job.id}&fireplace=${encodeURIComponent(job.fireplace)}&jobType=${encodeURIComponent(job.type)}`}
-              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/40 rounded-xl p-4"
+              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-blue-600/40 rounded-xl p-4"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-lg">🔥</span>
               </div>
               <div className="flex-1">
@@ -267,7 +268,7 @@ export default function JobDetailPage() {
             </Link>
 
             {/* Notes Card */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-2">Job Notes</h3>
               <p className="text-sm text-gray-300">{job.notes}</p>
             </div>
@@ -276,13 +277,13 @@ export default function JobDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowEstimateModal(true)}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl text-sm font-medium"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl text-sm font-medium"
               >
                 Create Estimate
               </button>
               <button
                 onClick={() => setShowNoteModal(true)}
-                className="bg-[#252540] py-3 rounded-xl text-sm font-medium border border-gray-700"
+                className="bg-[var(--color-surface-3)] py-3 rounded-xl text-sm font-medium border border-gray-700"
               >
                 Add Note
               </button>
@@ -293,14 +294,14 @@ export default function JobDetailPage() {
         {activeTab === "checklist" && (
           <div className="space-y-4">
             {/* Progress Bar */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-gray-400">Checklist Progress</span>
-                <span className="text-orange-400 font-medium">{completedCount}/{checklist.length} · {progress}%</span>
+                <span className="text-blue-600 font-medium">{completedCount}/{checklist.length} · {progress}%</span>
               </div>
               <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-blue-600 to-blue-700 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -311,7 +312,7 @@ export default function JobDetailPage() {
               {checklist.map((item) => (
                 <div
                   key={item.id}
-                  className={`bg-[#1a1a2e] rounded-xl p-4 border ${
+                  className={`bg-[var(--color-surface-1)] rounded-xl p-4 border ${
                     checklistItems[item.id] ? "border-green-500/50" : "border-gray-800"
                   }`}
                 >
@@ -337,7 +338,7 @@ export default function JobDetailPage() {
                       {item.photo && (
                         <button
                           onClick={handlePhotoCapture}
-                          className="mt-2 flex items-center gap-1 text-xs text-orange-400"
+                          className="mt-2 flex items-center gap-1 text-xs text-blue-600"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -353,7 +354,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* ─── Materials Used Section ─── */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4 border border-gray-800">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-gray-800">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-semibold">Materials Used</h3>
@@ -361,7 +362,7 @@ export default function JobDetailPage() {
                 </div>
                 <button
                   onClick={() => setShowMaterialPicker(true)}
-                  className="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1"
+                  className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -402,7 +403,7 @@ export default function JobDetailPage() {
                         </button>
                       </div>
                       <div className="text-right w-16">
-                        <p className="text-sm font-semibold text-orange-400">${m.total.toFixed(2)}</p>
+                        <p className="text-sm font-semibold text-blue-600">${m.total.toFixed(2)}</p>
                       </div>
                     </div>
                   ))}
@@ -419,7 +420,7 @@ export default function JobDetailPage() {
                     </div>
                     <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-gray-700">
                       <span>Invoice Total</span>
-                      <span className="text-orange-400">${invoiceTotal.toFixed(2)}</span>
+                      <span className="text-blue-600">${invoiceTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -450,7 +451,7 @@ export default function JobDetailPage() {
             {/* Capture Button */}
             <button
               onClick={handlePhotoCapture}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-4 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-4 rounded-xl font-semibold flex items-center justify-center gap-2"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -469,7 +470,7 @@ export default function JobDetailPage() {
             {/* Photo Gallery */}
             <div className="grid grid-cols-3 gap-2">
               {job.photos.map((photo) => (
-                <div key={photo.id} className="aspect-square bg-[#1a1a2e] rounded-lg overflow-hidden relative">
+                <div key={photo.id} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
                   <div className="absolute inset-0 flex items-center justify-center text-gray-600">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -482,7 +483,7 @@ export default function JobDetailPage() {
               ))}
               {/* Empty slots */}
               {[...Array(Math.max(0, 6 - job.photos.length))].map((_, i) => (
-                <div key={`empty-${i}`} className="aspect-square bg-[#1a1a2e] rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center">
+                <div key={`empty-${i}`} className="aspect-square bg-[var(--color-surface-1)] rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center">
                   <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
@@ -495,26 +496,26 @@ export default function JobDetailPage() {
         {activeTab === "customer" && (
           <div className="space-y-4">
             {/* Customer Info */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Customer Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Phone</span>
-                  <a href={`tel:${job.phone}`} className="text-orange-400">{job.phone}</a>
+                  <a href={`tel:${job.phone}`} className="text-blue-600">{job.phone}</a>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Email</span>
-                  <a href={`mailto:${job.email}`} className="text-orange-400">{job.email}</a>
+                  <a href={`mailto:${job.email}`} className="text-blue-600">{job.email}</a>
                 </div>
               </div>
             </div>
 
             {/* History */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Service History</h3>
               <div className="space-y-3">
                 {job.customerNotes.map((note, i) => (
-                  <div key={i} className="border-l-2 border-orange-500 pl-3">
+                  <div key={i} className="border-l-2 border-blue-600 pl-3">
                     <p className="text-xs text-gray-400">{note.date}</p>
                     <p className="text-sm">{note.note}</p>
                   </div>
@@ -523,7 +524,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Estimates */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Estimates</h3>
               {job.estimates.length > 0 ? (
                 <div className="space-y-2">
@@ -546,7 +547,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Invoices */}
-            <div className="bg-[#1a1a2e] rounded-xl p-4">
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Invoices</h3>
               {job.invoices.length > 0 ? (
                 <div className="space-y-2">
@@ -574,7 +575,7 @@ export default function JobDetailPage() {
       {/* ─── Material Picker Modal ─── */}
       {showMaterialPicker && (
         <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
-          <div className="bg-[#1a1a2e] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
+          <div className="bg-[var(--color-surface-1)] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
             {/* Modal Header */}
             <div className="flex justify-between items-center p-4 border-b border-gray-800">
               <h3 className="text-lg font-semibold">Add Material</h3>
@@ -592,7 +593,7 @@ export default function JobDetailPage() {
                 value={materialSearch}
                 onChange={(e) => setMaterialSearch(e.target.value)}
                 placeholder="Search materials..."
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-blue-600 outline-none"
                 autoFocus
               />
             </div>
@@ -605,8 +606,8 @@ export default function JobDetailPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                     selectedCategory === cat
-                      ? "bg-orange-500 text-white"
-                      : "bg-[#252540] text-gray-400 border border-gray-700"
+                      ? "bg-blue-600 text-white"
+                      : "bg-[var(--color-surface-3)] text-gray-400 border border-gray-700"
                   }`}
                 >
                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -620,7 +621,7 @@ export default function JobDetailPage() {
                 <button
                   key={material.id}
                   onClick={() => addMaterial(material)}
-                  className="w-full flex items-center justify-between bg-[#252540] rounded-xl p-3 border border-gray-700 hover:border-orange-500 transition-colors text-left"
+                  className="w-full flex items-center justify-between bg-[var(--color-surface-3)] rounded-xl p-3 border border-gray-700 hover:border-blue-600 transition-colors text-left"
                 >
                   <div>
                     <p className="text-sm font-medium">{material.name}</p>
@@ -632,7 +633,7 @@ export default function JobDetailPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-orange-400">${material.unitPrice.toFixed(2)}</p>
+                    <p className="font-semibold text-blue-600">${material.unitPrice.toFixed(2)}</p>
                     <p className="text-xs text-gray-500">/{material.unit}</p>
                   </div>
                 </button>
@@ -650,7 +651,7 @@ export default function JobDetailPage() {
       {/* ─── Invoice Preview Modal ─── */}
       {showInvoicePreview && (
         <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
-          <div className="bg-[#1a1a2e] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
+          <div className="bg-[var(--color-surface-1)] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
             <div className="flex justify-between items-center p-4 border-b border-gray-800">
               <h3 className="text-lg font-semibold">Invoice Preview</h3>
               <button onClick={() => setShowInvoicePreview(false)} className="text-gray-400">
@@ -661,7 +662,7 @@ export default function JobDetailPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Invoice Header */}
-              <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-xl p-4">
+              <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-blue-600/30 rounded-xl p-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xs text-gray-400">Invoice for</p>
@@ -671,13 +672,13 @@ export default function JobDetailPage() {
                   <div className="text-right">
                     <p className="text-xs text-gray-400">Date</p>
                     <p className="text-sm font-medium">{new Date().toLocaleDateString()}</p>
-                    <p className="text-xs text-orange-400 mt-1">DRAFT</p>
+                    <p className="text-xs text-blue-600 mt-1">DRAFT</p>
                   </div>
                 </div>
               </div>
 
               {/* Line Items */}
-              <div className="bg-[#252540] rounded-xl p-4 space-y-3">
+              <div className="bg-[var(--color-surface-3)] rounded-xl p-4 space-y-3">
                 <div className="flex justify-between text-sm pb-2 border-b border-gray-700">
                   <span className="text-gray-400 font-medium">Description</span>
                   <span className="text-gray-400 font-medium">Amount</span>
@@ -712,7 +713,7 @@ export default function JobDetailPage() {
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-700">
                     <span>Total Due</span>
-                    <span className="text-orange-400">${(invoiceTotal * 1.07).toFixed(2)}</span>
+                    <span className="text-blue-600">${(invoiceTotal * 1.07).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -726,7 +727,7 @@ export default function JobDetailPage() {
                 </svg>
                 Send to Customer
               </button>
-              <button className="w-full bg-[#252540] py-3 rounded-xl font-medium border border-gray-700">
+              <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
                 Save as Draft
               </button>
             </div>
@@ -737,7 +738,7 @@ export default function JobDetailPage() {
       {/* Estimate Modal */}
       {showEstimateModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
-          <div className="bg-[#1a1a2e] w-full max-w-md mx-auto rounded-t-2xl p-4">
+          <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Create Estimate</h3>
               <button onClick={() => setShowEstimateModal(false)} className="text-gray-400">
@@ -748,11 +749,11 @@ export default function JobDetailPage() {
             </div>
             <Link
               href="/tech/estimate"
-              className="block w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl text-center font-medium mb-3"
+              className="block w-full bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl text-center font-medium mb-3"
             >
               Use AI Estimate Builder
             </Link>
-            <button className="w-full bg-[#252540] py-3 rounded-xl font-medium border border-gray-700">
+            <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
               Manual Entry
             </button>
           </div>
@@ -762,7 +763,7 @@ export default function JobDetailPage() {
       {/* Note Modal */}
       {showNoteModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
-          <div className="bg-[#1a1a2e] w-full max-w-md mx-auto rounded-t-2xl p-4">
+          <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Add Note</h3>
               <button onClick={() => setShowNoteModal(false)} className="text-gray-400">
@@ -775,14 +776,14 @@ export default function JobDetailPage() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               placeholder="Enter your note..."
-              className="w-full bg-[#252540] rounded-xl p-3 text-sm min-h-[100px] border border-gray-700 focus:border-orange-500 outline-none"
+              className="w-full bg-[var(--color-surface-3)] rounded-xl p-3 text-sm min-h-[100px] border border-gray-700 focus:border-blue-600 outline-none"
             />
             <button
               onClick={() => {
                 setShowNoteModal(false);
                 setNewNote("");
               }}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-3"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl font-medium mt-3"
             >
               Save Note
             </button>
@@ -790,35 +791,7 @@ export default function JobDetailPage() {
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-gray-800 z-20">
-        <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-xs mt-1">Jobs</span>
-          </Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span className="text-xs mt-1">Manuals</span>
-          </Link>
-          <Link href="/tech/gabe" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            <span className="text-xs mt-1">GABE</span>
-          </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs mt-1">Profile</span>
-          </Link>
-        </div>
-      </nav>
+      <TechBottomNav active="jobs" />
     </div>
   );
 }
