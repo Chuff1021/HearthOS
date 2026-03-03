@@ -96,6 +96,12 @@ export default function TeamPage() {
       return;
     }
 
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email);
+    if (!emailOk) {
+      setAddError("Please enter a valid email address.");
+      return;
+    }
+
     setAdding(true);
     try {
       const res = await fetch('/api/techs', {
@@ -440,7 +446,11 @@ export default function TeamPage() {
                 style={{ color: "var(--color-text-primary)", background: "var(--color-surface-3)", borderColor: "var(--color-border)" }}
               />
               <input
-                type="email"
+                type="text"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Email"
                 value={newMember.email}
                 onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}

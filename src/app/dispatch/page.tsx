@@ -33,11 +33,21 @@ export default function DispatchPage() {
   const [loading, setLoading] = useState(true);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
-  const selectedLocation = selectedTech?.location || techs.find((t) => t.location)?.location || null;
+  const liveTechs = techs.filter((t) => t.location);
+  const selectedLocation = selectedTech?.location || liveTechs[0]?.location || null;
 
-  const mapSrc = selectedLocation
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${selectedLocation.lng - 0.02}%2C${selectedLocation.lat - 0.02}%2C${selectedLocation.lng + 0.02}%2C${selectedLocation.lat + 0.02}&layer=mapnik&marker=${selectedLocation.lat}%2C${selectedLocation.lng}`
-    : null;
+  const lats = liveTechs.map((t) => t.location!.lat);
+  const lngs = liveTechs.map((t) => t.location!.lng);
+  const minLat = lats.length ? Math.min(...lats) : 0;
+  const maxLat = lats.length ? Math.max(...lats) : 1;
+  const minLng = lngs.length ? Math.min(...lngs) : 0;
+  const maxLng = lngs.length ? Math.max(...lngs) : 1;
+
+  function markerPos(lat: number, lng: number) {
+    const x = ((lng - minLng) / Math.max(0.00001, maxLng - minLng)) * 100;
+    const y = (1 - (lat - minLat) / Math.max(0.00001, maxLat - minLat)) * 100;
+    return { left: `${Math.min(98, Math.max(2, x))}%`, top: `${Math.min(98, Math.max(2, y))}%` };
+  }
 
   async function loadDispatch() {
     setLoading(true);
@@ -86,17 +96,31 @@ export default function DispatchPage() {
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
             <h2 className="font-semibold mb-3">Dispatch Map (Live GPS)</h2>
-            <div className="h-[480px] rounded-xl overflow-hidden" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-              {mapSrc ? (
-                <iframe
-                  title="Dispatch GPS Map"
-                  src={mapSrc}
-                  className="w-full h-full"
-                  style={{ border: 0 }}
-                />
+            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: 'linear-gradient(180deg, #0b1220 0%, #111b2f 100%)', border: '1px solid var(--color-border)' }}>
+              {liveTechs.length > 0 ? (
+                <>
+                  <div className="absolute inset-0" style={{
+                    backgroundImage: 'radial-gradient(rgba(148,163,184,0.16) 1px, transparent 1px)',
+                    backgroundSize: '28px 28px',
+                    opacity: 0.35,
+                  }} />
+                  {liveTechs.map((t) => {
+                    const pos = markerPos(t.location!.lat, t.location!.lng);
+                    const active = t.id === selectedTechId;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTechId(t.id)}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        style={{ ...pos, width: active ? 18 : 14, height: active ? 18 : 14, background: active ? '#FF4400' : '#2563EB', boxShadow: '0 0 0 4px rgba(37,99,235,0.22)' }}
+                        title={`${t.name} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`}
+                      />
+                    );
+                  })}
+                </>
               ) : (
                 <div className="h-full flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)' }}>
-                  No live GPS ping yet. Open Tech Profile on phone, allow location, and keep tracking enabled.
+                  No live GPS ping yet. Open Tech Profile on phone, allow location, tap Register Me as Tech, and keep tracking enabled.
                 </div>
               )}
             </div>
