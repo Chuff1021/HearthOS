@@ -122,11 +122,11 @@ export default function GabeAuditPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Today</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>{stats.today}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>{stats.today}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Flagged for Review</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: stats.flagged > 0 ? "#FF204E" : "#B6F500" }}>{stats.flagged}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: stats.flagged > 0 ? "#FF204E" : "#98CD00" }}>{stats.flagged}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
@@ -187,7 +187,7 @@ export default function GabeAuditPage() {
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
                             style={{ 
                               background: msg.techId === "tech-001" ? "#2563EB" : 
-                                          msg.techId === "tech-002" ? "#B6F500" : 
+                                          msg.techId === "tech-002" ? "#98CD00" : 
                                           msg.techId === "tech-003" ? "#FF4400" : "#2563EB" 
                             }}
                           >
@@ -222,7 +222,7 @@ export default function GabeAuditPage() {
                         <div className="space-y-3">
                           {msg.messages.slice(0, 2).map((m, i) => (
                             <div key={i} className={`p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-500/10'}`}>
-                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#2563EB' : '#B6F500' }}>
+                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#2563EB' : '#98CD00' }}>
                                 {m.role === 'user' ? '👤 Tech' : '🤖 GABE'}
                               </p>
                               <p className="text-sm line-clamp-2" style={{ color: "var(--color-text-secondary)" }}>
@@ -267,7 +267,7 @@ export default function GabeAuditPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {selectedMessage.messages.map((msg, i) => (
                 <div key={i} className={`p-4 rounded-xl ${msg.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-700/30'}`}>
-                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#2563EB' : '#B6F500' }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#2563EB' : '#98CD00' }}>
                     {msg.role === 'user' ? `👤 ${selectedMessage.techName}` : '🤖 GABE AI'}
                   </p>
                   <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>

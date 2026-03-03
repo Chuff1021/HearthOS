@@ -73,7 +73,7 @@ const seedJobs: Job[] = [
     scheduledTimeStart: "10:00",
     scheduledTimeEnd: "16:00",
     assignedTechs: [
-      { id: "tech-002", name: "Sarah Williams", color: "#B6F500" },
+      { id: "tech-002", name: "Sarah Williams", color: "#98CD00" },
       { id: "tech-003", name: "Tom Davis", color: "#FF4400" },
     ],
     totalAmount: 4200.00,
@@ -154,7 +154,7 @@ const seedJobs: Job[] = [
     scheduledDate: "2026-02-26",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "10:00",
-    assignedTechs: [{ id: "tech-002", name: "Sarah Williams", color: "#B6F500" }],
+    assignedTechs: [{ id: "tech-002", name: "Sarah Williams", color: "#98CD00" }],
     totalAmount: 0,
     createdAt: "2026-02-23T11:00:00Z",
     updatedAt: "2026-02-23T11:00:00Z",

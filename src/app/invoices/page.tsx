@@ -41,7 +41,7 @@ interface Customer {
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
   sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
-  paid: { bg: "rgba(182,245,0,0.12)", text: "#B6F500", border: "rgba(182,245,0,0.25)" },
+  paid: { bg: "rgba(152,205,0,0.12)", text: "#98CD00", border: "rgba(152,205,0,0.25)" },
   overdue: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   void: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
@@ -355,7 +355,7 @@ export default function InvoicesPage() {
           {[
             { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#2563EB" },
             { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#FF204E" },
-            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#B6F500" },
+            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#98CD00" },
             { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -453,7 +453,7 @@ export default function InvoicesPage() {
                           </div>
                         )}
                         {invoice.balance === 0 && invoice.status === "paid" && (
-                          <div className="text-sm mt-0.5" style={{ color: "#B6F500" }}>Paid in full</div>
+                          <div className="text-sm mt-0.5" style={{ color: "#98CD00" }}>Paid in full</div>
                         )}
                       </div>
                     </div>
@@ -571,7 +571,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "paid")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #B6F500, #B6F500)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #98CD00, #98CD00)", color: "white" }}
                     >
                       Record Payment (Mark Paid)
                     </button>

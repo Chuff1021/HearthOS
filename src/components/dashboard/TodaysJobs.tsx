@@ -99,9 +99,9 @@ const statusConfig: Record<
 > = {
   completed: {
     label: "Completed",
-    color: "#B6F500",
-    bg: "rgba(182,245,0,0.12)",
-    dotColor: "#B6F500",
+    color: "#98CD00",
+    bg: "rgba(152,205,0,0.12)",
+    dotColor: "#98CD00",
     pulse: false,
   },
   in_progress: {
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#B6F500" : "#2563EB",
+                                  background: job.checklistPct === 100 ? "#98CD00" : "#2563EB",
                                 }}
                               ></div>
                             </div>

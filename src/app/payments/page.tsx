@@ -141,7 +141,7 @@ export default function PaymentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Received</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>${totalReceived.toLocaleString()}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>${totalReceived.toLocaleString()}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
@@ -226,7 +226,7 @@ export default function PaymentsPage() {
                             {payment.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-medium" style={{ color: payment.status === "completed" ? "#B6F500" : "var(--color-text-primary)" }}>
+                        <td className="px-4 py-3 font-medium" style={{ color: payment.status === "completed" ? "#98CD00" : "var(--color-text-primary)" }}>
                           ${payment.amount.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>

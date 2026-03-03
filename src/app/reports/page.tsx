@@ -181,7 +181,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>{completedJobs}</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>{completedJobs}</p>
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
@@ -269,7 +269,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>This Month</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>${revenue[1]?.revenue.toLocaleString() || 0}</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>${revenue[1]?.revenue.toLocaleString() || 0}</p>
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg per Job</p>
@@ -349,7 +349,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>
                           {(techs.reduce((sum, t) => sum + t.avgJobRating, 0) / techs.length).toFixed(1)}
                         </p>
                       </div>
@@ -375,7 +375,7 @@ export default function ReportsPage() {
                           <div className="grid grid-cols-2 gap-4 mt-4">
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                              <p className="font-semibold" style={{ color: "#B6F500" }}>{tech.jobsCompleted}</p>
+                              <p className="font-semibold" style={{ color: "#98CD00" }}>{tech.jobsCompleted}</p>
                             </div>
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
@@ -387,7 +387,7 @@ export default function ReportsPage() {
                             </div>
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Rating</p>
-                              <p className="font-semibold" style={{ color: "#B6F500" }}>{tech.avgJobRating.toFixed(1)} ⭐</p>
+                              <p className="font-semibold" style={{ color: "#98CD00" }}>{tech.avgJobRating.toFixed(1)} ⭐</p>
                             </div>
                           </div>
 
@@ -402,7 +402,7 @@ export default function ReportsPage() {
                                 className="h-full rounded-full"
                                 style={{ 
                                   width: `${tech.utilization}%`,
-                                  background: tech.utilization > 80 ? "#B6F500" : tech.utilization > 60 ? "#FF4400" : "#FF204E"
+                                  background: tech.utilization > 80 ? "#98CD00" : tech.utilization > 60 ? "#FF4400" : "#FF204E"
                                 }}
                               ></div>
                             </div>

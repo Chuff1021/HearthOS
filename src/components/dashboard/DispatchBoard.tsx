@@ -43,7 +43,7 @@ const techs = [
     id: 3,
     name: "Jake Rivera",
     initials: "JR",
-    color: "#B6F500",
+    color: "#98CD00",
     status: "scheduled",
     statusLabel: "Next at 1:00 PM",
     statusColor: "#94a3b8",

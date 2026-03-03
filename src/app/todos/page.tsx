@@ -210,7 +210,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                <p className="text-2xl font-bold" style={{ color: "#B6F500" }}>{stats.completed}</p>
+                <p className="text-2xl font-bold" style={{ color: "#98CD00" }}>{stats.completed}</p>
               </button>
               <button
                 onClick={() => setFilter("overdue")}
@@ -218,7 +218,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
-                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#FF204E" : "#B6F500" }}>{stats.overdue}</p>
+                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#FF204E" : "#98CD00" }}>{stats.overdue}</p>
               </button>
               <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>

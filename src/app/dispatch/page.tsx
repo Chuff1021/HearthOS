@@ -22,7 +22,7 @@ const mockTechs = [
   {
     id: "tech-002",
     name: "Sarah Williams",
-    color: "#B6F500",
+    color: "#98CD00",
     initials: "SW",
     status: "driving",
     currentJob: null,
@@ -71,7 +71,7 @@ const unassignedJobs = [
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   on_job: { label: "On Job", color: "#FF4400", bg: "rgba(255,68,0,0.12)" },
   driving: { label: "Driving", color: "#2563EB", bg: "rgba(29,78,216,0.12)" },
-  available: { label: "Available", color: "#B6F500", bg: "rgba(182,245,0,0.12)" },
+  available: { label: "Available", color: "#98CD00", bg: "rgba(152,205,0,0.12)" },
   break: { label: "On Break", color: "#9ca3af", bg: "rgba(156,163,175,0.12)" },
   offline: { label: "Offline", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
 };
@@ -97,7 +97,7 @@ export default function DispatchPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(182,245,0,0.1)", border: "1px solid rgba(182,245,0,0.2)", color: "#B6F500" }}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(152,205,0,0.1)", border: "1px solid rgba(152,205,0,0.2)", color: "#98CD00" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
               Live Tracking
             </div>

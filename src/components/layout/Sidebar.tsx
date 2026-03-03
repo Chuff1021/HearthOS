@@ -335,8 +335,8 @@ export default function Sidebar() {
               collapsed ? "justify-center" : ""
             }`}
             style={{
-              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(182,245,0,0.15)" : "transparent",
-              color: hydrated && pathname === "/integrations/quickbooks" ? "#B6F500" : "var(--color-text-secondary)",
+              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(152,205,0,0.15)" : "transparent",
+              color: hydrated && pathname === "/integrations/quickbooks" ? "#98CD00" : "var(--color-text-secondary)",
             }}
             onMouseEnter={(e) => {
               if (!(hydrated && pathname === "/integrations/quickbooks")) {
@@ -354,7 +354,7 @@ export default function Sidebar() {
           >
             {/* QuickBooks logo mark */}
             <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#B6F500" }}>
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#98CD00" }}>
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
               </svg>
             </span>
@@ -363,7 +363,7 @@ export default function Sidebar() {
                 <span className="flex-1 text-[13px]">QuickBooks</span>
                 <span
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(182,245,0,0.2)", color: "#B6F500" }}
+                  style={{ background: "rgba(152,205,0,0.2)", color: "#98CD00" }}
                 >
                   SYNC
                 </span>

@@ -92,9 +92,9 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
           href="/api/quickbooks/connect"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
           style={{
-            background: "linear-gradient(135deg, #B6F500, #B6F500)",
+            background: "linear-gradient(135deg, #98CD00, #98CD00)",
             color: "white",
-            boxShadow: "0 0 16px rgba(182,245,0,0.25)",
+            boxShadow: "0 0 16px rgba(152,205,0,0.25)",
           }}
         >
           {status?.needsReconnect ? "Reconnect QuickBooks" : "Connect QuickBooks"}
@@ -114,8 +114,8 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
         <span
           className="text-xs px-2 py-1 rounded"
           style={{
-            background: syncResult.success ? "rgba(182,245,0,0.12)" : "rgba(255,32,78,0.12)",
-            color: syncResult.success ? "#B6F500" : "#FF204E",
+            background: syncResult.success ? "rgba(152,205,0,0.12)" : "rgba(255,32,78,0.12)",
+            color: syncResult.success ? "#98CD00" : "#FF204E",
           }}
         >
           {syncResult.message}

@@ -36,7 +36,7 @@ const mockJobs = [
     scheduledTimeStart: "10:00",
     scheduledTimeEnd: "16:00",
     assignedTechs: [
-      { id: "tech-002", name: "Sarah Williams", color: "#B6F500" },
+      { id: "tech-002", name: "Sarah Williams", color: "#98CD00" },
       { id: "tech-003", name: "Tom Davis", color: "#FF4400" },
     ],
     totalAmount: "4200.00",
@@ -95,7 +95,7 @@ const mockJobs = [
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
   in_progress: { bg: "rgba(255,68,0,0.12)", text: "#FF4400", border: "rgba(255,68,0,0.25)" },
-  completed: { bg: "rgba(182,245,0,0.12)", text: "#B6F500", border: "rgba(182,245,0,0.25)" },
+  completed: { bg: "rgba(152,205,0,0.12)", text: "#98CD00", border: "rgba(152,205,0,0.25)" },
   cancelled: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#2563EB", "#B6F500", "#FF4400", "#2563EB"][idx] || "#6b7280",
+            color: ["#2563EB", "#98CD00", "#FF4400", "#2563EB"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),

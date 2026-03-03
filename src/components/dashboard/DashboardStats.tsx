@@ -50,8 +50,8 @@ export default function DashboardStats() {
       sub: s ? `${s.totalInvoices} invoices total` : "Loading...",
       trend: s ? `${s.totalCustomers} customers` : "",
       trendUp: true,
-      accentColor: "#B6F500",
-      accentBg: "rgba(182,245,0,0.12)",
+      accentColor: "#98CD00",
+      accentBg: "rgba(152,205,0,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
@@ -93,8 +93,8 @@ export default function DashboardStats() {
       sub: "Active accounts",
       trend: s ? `$${s.paidThisMonth.toLocaleString()} paid` : "",
       trendUp: true,
-      accentColor: "#B6F500",
-      accentBg: "rgba(182,245,0,0.12)",
+      accentColor: "#98CD00",
+      accentBg: "rgba(152,205,0,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -168,7 +168,7 @@ export default function DashboardStats() {
           {/* Trend */}
           <div
             className="text-[10px] font-semibold mt-1 flex items-center gap-1"
-            style={{ color: stat.trendUp ? "#B6F500" : "#FF204E" }}
+            style={{ color: stat.trendUp ? "#98CD00" : "#FF204E" }}
           >
             {stat.trendUp ? (
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">

@@ -149,7 +149,7 @@ export default function ServicePlansPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Active Plans</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>{activePlans}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#98CD00" }}>{activePlans}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Monthly Revenue</p>
@@ -157,7 +157,7 @@ export default function ServicePlansPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Expiring Soon</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: expiringSoon > 0 ? "#FF204E" : "#B6F500" }}>{expiringSoon}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: expiringSoon > 0 ? "#FF204E" : "#98CD00" }}>{expiringSoon}</p>
               </div>
             </div>
 

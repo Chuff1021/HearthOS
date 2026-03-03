@@ -460,7 +460,7 @@ export default function CustomersPage() {
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Jobs</div>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                    <div className="text-lg font-bold" style={{ color: "#B6F500" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
+                    <div className="text-lg font-bold" style={{ color: "#98CD00" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Revenue</div>
                   </div>
                   {selectedCustomer.balance > 0 && (
