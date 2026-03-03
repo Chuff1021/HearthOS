@@ -104,56 +104,75 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // If QuickBooks is connected, search QB data
+  // If QuickBooks is connected, search QB data (live first, cache fallback)
   if (qbConnected && accessToken && refreshToken && realmId) {
     const client = getClientFromTokens(accessToken, refreshToken, realmId);
+    const safe = query.replace(/'/g, "\\'");
 
-    // Sync QB data to cache (in background, don't await)
+    let qbMatchedCustomers: Array<{ id: string; type: "customer"; title: string; subtitle: string; href: string; source: "quickbooks" }> = [];
+    let qbMatchedInvoices: Array<{ id: string; type: "invoice"; title: string; subtitle: string; href: string; source: "quickbooks" }> = [];
+
     try {
-      await Promise.all([
-        syncCustomers(client),
-        syncInvoices(client),
+      const [liveCustomers, liveInvoices] = await Promise.all([
+        client.query<any>(`SELECT * FROM Customer WHERE DisplayName LIKE '%${safe}%' MAXRESULTS 8`),
+        client.query<any>(`SELECT * FROM Invoice WHERE DocNumber LIKE '%${safe}%' OR CustomerRef LIKE '%${safe}%' MAXRESULTS 8`),
       ]);
-    } catch (err) {
-      console.error("Failed to sync QB data for search:", err);
+
+      qbMatchedCustomers = liveCustomers.map((c) => ({
+        id: c.Id,
+        type: "customer" as const,
+        title: c.DisplayName,
+        subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
+        href: `/customers?id=${c.Id}`,
+        source: "quickbooks" as const,
+      }));
+
+      qbMatchedInvoices = liveInvoices.map((i) => ({
+        id: i.Id,
+        type: "invoice" as const,
+        title: i.DocNumber || `Invoice ${i.Id}`,
+        subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
+        href: `/invoices?id=${i.Id}`,
+        source: "quickbooks" as const,
+      }));
+    } catch (liveErr) {
+      console.error("QB live search failed, falling back to cache:", liveErr);
+      try {
+        await Promise.all([syncCustomers(client), syncInvoices(client)]);
+      } catch (err) {
+        console.error("Failed to sync QB data for cache fallback:", err);
+      }
+
+      const qbCustomers = searchQBCustomers(query);
+      qbMatchedCustomers = qbCustomers.slice(0, 8).map((c) => ({
+        id: c.Id,
+        type: "customer" as const,
+        title: c.DisplayName,
+        subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
+        href: `/customers?id=${c.Id}`,
+        source: "quickbooks" as const,
+      }));
+
+      const qbInvoices = searchQBInvoices(query);
+      qbMatchedInvoices = qbInvoices.slice(0, 8).map((i) => ({
+        id: i.Id,
+        type: "invoice" as const,
+        title: i.DocNumber || `Invoice ${i.Id}`,
+        subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
+        href: `/invoices?id=${i.Id}`,
+        source: "quickbooks" as const,
+      }));
     }
 
-    // Search QB customers
-    const qbCustomers = searchQBCustomers(query);
-    const qbMatchedCustomers = qbCustomers.slice(0, 5).map((c) => ({
-      id: c.Id || c.Id,
-      type: "customer" as const,
-      title: c.DisplayName,
-      subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "No details",
-      href: `/customers?id=${c.Id}`,
-      source: "quickbooks",
-    }));
-
-    // Search QB invoices
-    const qbInvoices = searchQBInvoices(query);
-    const qbMatchedInvoices = qbInvoices.slice(0, 5).map((i) => ({
-      id: i.Id || i.Id,
-      type: "invoice" as const,
-      title: i.DocNumber || `Invoice ${i.Id}`,
-      subtitle: `${i.CustomerRef?.name || "Unknown"} • $${i.TotalAmt?.toFixed(2) || "0.00"}`,
-      href: `/invoices?id=${i.Id}`,
-      source: "quickbooks",
-    }));
-
-    // Merge QB results with local results (avoiding duplicates by title)
     const existingCustomerTitles = new Set(matchedCustomers.map((c) => c.title.toLowerCase()));
     const existingInvoiceNumbers = new Set(matchedInvoices.map((i) => i.title.toLowerCase()));
 
     for (const qbc of qbMatchedCustomers) {
-      if (!existingCustomerTitles.has(qbc.title.toLowerCase())) {
-        matchedCustomers.push(qbc);
-      }
+      if (!existingCustomerTitles.has(qbc.title.toLowerCase())) matchedCustomers.push(qbc);
     }
 
     for (const qbi of qbMatchedInvoices) {
-      if (!existingInvoiceNumbers.has(qbi.title.toLowerCase())) {
-        matchedInvoices.push(qbi);
-      }
+      if (!existingInvoiceNumbers.has(qbi.title.toLowerCase())) matchedInvoices.push(qbi);
     }
   }
 

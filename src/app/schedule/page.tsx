@@ -41,6 +41,26 @@ interface CustomerLookup {
     zip?: string;
   };
 }
+
+const JOB_TYPE_OPTIONS = [
+  "Generic Service Call",
+  "Gas Service Call",
+  "Wood Fireplace Service",
+  "Pellet Stove Service",
+  "Chimney Repair",
+  "Chimney Sweep",
+  "Gas Fireplace Installation",
+  "Wood Stove Installation",
+  "Pellet Stove Installation",
+  "Inspection & Safety Check",
+  "Annual Cleaning",
+  "Pilot Light Repair",
+  "No-Heat Diagnostic",
+  "Venting/Flue Repair",
+  "Cap/Damper Repair",
+  "Estimate / Consultation",
+];
+
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am-6pm
 
@@ -89,7 +109,7 @@ export default function SchedulePage() {
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
-    title: "",
+    jobType: "Generic Service Call",
     customerId: "",
     customerName: "",
     propertyAddress: "",
@@ -229,7 +249,7 @@ export default function SchedulePage() {
 
   function validateForm() {
     const errs: Record<string, string> = {};
-    if (!form.title.trim()) errs.title = "Job title is required";
+    if (!form.jobType.trim()) errs.jobType = "Job type is required";
     if (!form.customerName.trim()) errs.customerName = "Customer is required";
     if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
@@ -311,7 +331,8 @@ export default function SchedulePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: form.title,
+          title: form.jobType,
+          jobType: "service",
           customerId: form.customerId || undefined,
           customerName: form.customerName,
           propertyAddress: form.propertyAddress,
@@ -326,7 +347,7 @@ export default function SchedulePage() {
       setCustomerQuery("");
       setCustomerResults([]);
       setForm({
-        title: "",
+        jobType: "Generic Service Call",
         customerId: "",
         customerName: "",
         propertyAddress: "",
@@ -542,8 +563,13 @@ export default function SchedulePage() {
             </div>
             <div className="space-y-3">
               <div>
-                <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.title ? "#FF204E" : "var(--color-border)"}` }} />
-                {formErrors.title && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.title}</p>}
+                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Job Type</label>
+                <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
+                  {JOB_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
               </div>
 
               <div>
