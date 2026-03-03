@@ -76,6 +76,8 @@ export default function DispatchPage() {
 
   useEffect(() => {
     loadDispatch();
+    const t = setInterval(loadDispatch, 5000);
+    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -91,6 +93,7 @@ export default function DispatchPage() {
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {loading ? 'Loading dispatch...' : `${techs.length} techs active · ${unassignedJobs.length} unassigned jobs`}
             </p>
+            <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>Build: dispatch-fix-2026-03-03-2230</p>
             {gpsDebug && (
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 GPS pings: {gpsDebug.latestLocationCount} · Unmapped live: {gpsDebug.unmappedLiveCount}

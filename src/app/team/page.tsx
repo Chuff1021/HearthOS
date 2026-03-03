@@ -114,17 +114,7 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add team member');
 
-      // Invitation placeholder - non-blocking
-      try {
-        await fetch('/api/team/invitations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: payload.email, name: payload.name, role: payload.role }),
-        });
-      } catch {
-        // ignore invite failures for now; tech creation succeeded
-      }
-
+      // Invite flow intentionally skipped here to avoid blocking team creation on secondary service issues.
       setShowAddModal(false);
       setAddSuccess(`Added ${payload.name} successfully.`);
       setNewMember({ name: '', email: '', phone: '', role: 'tech' });
@@ -178,6 +168,9 @@ export default function TeamPage() {
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Manage technicians and staff
+                </p>
+                <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+                  Build: team-fix-2026-03-03-2230
                 </p>
               </div>
               <button 
