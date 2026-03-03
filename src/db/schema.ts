@@ -7,6 +7,8 @@ export const jobTypeEnum = pgEnum('job_type', ['installation', 'service', 'inspe
 export const priorityEnum = pgEnum('priority', ['low', 'normal', 'high', 'urgent']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'partial', 'paid', 'overdue']);
 export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'sent', 'paid', 'void']);
+export const todoPriorityEnum = pgEnum('todo_priority', ['low', 'medium', 'high', 'urgent']);
+export const todoStatusEnum = pgEnum('todo_status', ['pending', 'in_progress', 'completed', 'cancelled']);
 
 // Organizations
 export const organizations = pgTable('organizations', {
@@ -380,6 +382,34 @@ export const inventoryItems = pgTable('inventory_items', {
   qbIdx: index('idx_inventory_items_qb_id').on(table.qbItemId),
 }));
 
+// Todos
+export const todos = pgTable('todos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  priority: todoPriorityEnum('priority').default('medium').notNull(),
+  status: todoStatusEnum('status').default('pending').notNull(),
+  dueDate: date('due_date'),
+  relatedJobId: varchar('related_job_id', { length: 100 }),
+  relatedJobNumber: varchar('related_job_number', { length: 100 }),
+  relatedCustomerId: varchar('related_customer_id', { length: 100 }),
+  relatedCustomerName: varchar('related_customer_name', { length: 255 }),
+  assignedTo: varchar('assigned_to', { length: 255 }),
+  assignedToName: varchar('assigned_to_name', { length: 255 }),
+  createdBy: varchar('created_by', { length: 255 }).notNull(),
+  createdByName: varchar('created_by_name', { length: 255 }).notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  tags: jsonb('tags').$type<string[]>().default([]).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgIdx: index('idx_todos_org_id').on(table.orgId),
+  statusIdx: index('idx_todos_status').on(table.status),
+  priorityIdx: index('idx_todos_priority').on(table.priority),
+  dueDateIdx: index('idx_todos_due_date').on(table.dueDate),
+}));
+
 // Audit Logs
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -451,6 +481,8 @@ export type ServicePlan = typeof servicePlans.$inferSelect;
 export type NewServicePlan = typeof servicePlans.$inferInsert;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
+export type Todo = typeof todos.$inferSelect;
+export type NewTodo = typeof todos.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type QBSyncStatus = typeof qbSyncStatus.$inferSelect;
