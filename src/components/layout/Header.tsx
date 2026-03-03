@@ -65,12 +65,38 @@ export default function Header() {
     <header
       className="flex items-center gap-4 px-6 py-3 flex-shrink-0"
       style={{
-        background: "var(--color-surface-1)",
+        background: "linear-gradient(180deg, var(--color-surface-1), var(--color-surface-2))",
         borderBottom: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-subtle)",
       }}
     >
+      {/* Top controls */}
+      <div className="hidden lg:flex items-center gap-2">
+        <select
+          className="text-xs px-2.5 py-2 rounded-lg"
+          style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+          defaultValue="ops"
+        >
+          <option value="ops">Operations</option>
+          <option value="finance">Finance</option>
+          <option value="tech">Tech App</option>
+          <option value="admin">Admin</option>
+        </select>
+        <select
+          className="text-xs px-2.5 py-2 rounded-lg"
+          style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+          defaultValue="create"
+        >
+          <option value="create">Quick Create</option>
+          <option>New Job</option>
+          <option>New Estimate</option>
+          <option>New Invoice</option>
+          <option>New Purchase Order</option>
+        </select>
+      </div>
+
       {/* Search */}
-      <div className="flex-1 max-w-sm relative">
+      <div className="flex-1 max-w-md relative">
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -252,12 +278,12 @@ export default function Header() {
           href="/integrations/quickbooks"
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
           style={{
-            background: "rgba(44,160,28,0.1)",
-            border: "1px solid rgba(44,160,28,0.2)",
-            color: "#4ade80",
+            background: "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(124,58,237,0.12))",
+            border: "1px solid rgba(37,99,235,0.28)",
+            color: "var(--color-ember-dark)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(44,160,28,0.18)";
+            e.currentTarget.style.background = "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(124,58,237,0.18))";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "rgba(44,160,28,0.1)";

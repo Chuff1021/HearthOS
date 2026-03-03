@@ -261,23 +261,24 @@ export default function Sidebar() {
         style={{ borderBottom: "1px solid var(--color-border)" }}
       >
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
-            background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
-            boxShadow: "0 8px 20px rgba(10,132,255,0.22)",
+            background: "linear-gradient(145deg, var(--color-ember), var(--color-accent-violet), var(--color-accent-cyan))",
+            boxShadow: "0 10px 24px rgba(37,99,235,0.28)",
           }}
         >
-          <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
-            <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+          <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+            <path d="M12 3L6.5 12.2c-.7 1.3-.3 2.9.9 3.7L12 19l4.6-3.1c1.2-.8 1.6-2.4.9-3.7L12 3Z" fill="white" fillOpacity=".95"/>
+            <path d="M12 9.2 9.4 13.5 12 15.3l2.6-1.8L12 9.2Z" fill="#bfdbfe"/>
           </svg>
         </div>
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm leading-tight" style={{ color: "var(--color-text-primary)" }}>
-              HearthOS
+              HearthOS One
             </div>
             <div className="text-[10px] leading-tight" style={{ color: "var(--color-text-muted)" }}>
-              Field Service
+              Fireplace Intelligence Cloud
             </div>
           </div>
         )}
