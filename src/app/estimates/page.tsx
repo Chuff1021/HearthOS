@@ -6,7 +6,23 @@ import Header from "@/components/layout/Header";
 
 type Customer = { id: string; displayName: string };
 type Item = { Id: string; Name: string; UnitPrice?: number };
-type Estimate = { Id: string; DocNumber?: string; TxnDate?: string; ExpirationDate?: string; CustomerRef?: { value?: string; name?: string }; TotalAmt?: number };
+type Estimate = {
+  Id: string;
+  DocNumber?: string;
+  TxnDate?: string;
+  ExpirationDate?: string;
+  CustomerRef?: { value?: string; name?: string };
+  Line?: Array<{
+    Amount?: number;
+    Description?: string;
+    SalesItemLineDetail?: {
+      ItemRef?: { value?: string; name?: string };
+      Qty?: number;
+      UnitPrice?: number;
+    };
+  }>;
+  TotalAmt?: number;
+};
 type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string };
 
 export default function EstimatesPage() {
@@ -23,6 +39,7 @@ export default function EstimatesPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedCustomerName, setSelectedCustomerName] = useState("");
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
+  const [convertingEstimateId, setConvertingEstimateId] = useState<string | null>(null);
 
   async function loadAll() {
     setLoading(true);
@@ -161,6 +178,56 @@ export default function EstimatesPage() {
     }
   }
 
+  async function convertEstimateToInvoice(estimate: Estimate) {
+    if (!estimate.CustomerRef?.value) {
+      setError("Cannot convert: estimate is missing QuickBooks customer reference.");
+      return;
+    }
+
+    const lines = (estimate.Line || [])
+      .map((l) => ({
+        Amount: Number(l.Amount || 0),
+        DetailType: "SalesItemLineDetail" as const,
+        Description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || "Line Item",
+        SalesItemLineDetail: {
+          ItemRef: l.SalesItemLineDetail?.ItemRef?.value
+            ? { value: l.SalesItemLineDetail.ItemRef.value, name: l.SalesItemLineDetail.ItemRef.name }
+            : undefined,
+          Qty: Number(l.SalesItemLineDetail?.Qty || 1),
+          UnitPrice: Number(l.SalesItemLineDetail?.UnitPrice || l.Amount || 0),
+        },
+      }))
+      .filter((l) => l.Amount > 0);
+
+    if (lines.length === 0) {
+      setError("Cannot convert: estimate has no invoiceable lines.");
+      return;
+    }
+
+    setConvertingEstimateId(estimate.Id);
+    setError(null);
+    try {
+      const res = await fetch("/api/quickbooks/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          CustomerRef: estimate.CustomerRef,
+          TxnDate: new Date().toISOString().split("T")[0],
+          PrivateNote: `Converted from Estimate ${estimate.DocNumber || estimate.Id}`,
+          Line: lines,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to convert estimate to invoice");
+
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to convert estimate");
+    } finally {
+      setConvertingEstimateId(null);
+    }
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
@@ -234,6 +301,14 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
+                      <button
+                        onClick={() => convertEstimateToInvoice(e)}
+                        disabled={convertingEstimateId === e.Id}
+                        className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
+                        style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
+                      >
+                        {convertingEstimateId === e.Id ? "Converting..." : "Convert to Invoice"}
+                      </button>
                     </div>
                   ))}
                 </div>

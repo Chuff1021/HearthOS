@@ -11,6 +11,7 @@ import {
 import { transformInvoices, transformInvoice } from '@/lib/quickbooks/transform';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import type { QBInvoice } from '@/lib/quickbooks/types';
+import { addAuditLog } from '@/lib/audit-log-store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,6 +146,16 @@ export async function POST(request: NextRequest) {
 
     const client = getClientFromTokens(accessToken, refreshToken, realmId);
     const invoice = await createInvoiceInQuickBooks(client, qbInvoice);
+
+    addAuditLog({
+      entityType: 'invoice',
+      entityId: invoice.Id,
+      action: 'create',
+      actor: 'system',
+      source: 'api',
+      after: invoice,
+      note: 'Created in QuickBooks',
+    });
 
     return NextResponse.json({ success: true, invoice: transformInvoice(invoice) });
   } catch (err) {
