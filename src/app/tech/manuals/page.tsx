@@ -99,7 +99,7 @@ export default function ManualsPage() {
   return (
     <div className="flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[#1a1a2e] p-4 sticky top-0 z-10">
+      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-semibold">Manuals Library</h1>
           <button
@@ -112,7 +112,7 @@ export default function ManualsPage() {
         {/* Search */}
         <div className="relative">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -129,13 +129,13 @@ export default function ManualsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by brand, model, or type..."
-            className="w-full bg-[#252540] rounded-xl pl-10 pr-4 py-2.5 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+            className="w-full bg-[var(--color-surface-3)] rounded-xl pl-10 pr-4 py-2.5 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
           />
         </div>
       </header>
 
       {/* Category Tabs */}
-      <div className="bg-[#1a1a2e] border-b border-gray-800 overflow-x-auto">
+      <div className="bg-[var(--color-surface-1)] border-b border-[var(--color-border)] overflow-x-auto">
         <div className="flex gap-2 px-4 py-2">
           {categories.map((category) => (
             <button
@@ -144,7 +144,7 @@ export default function ManualsPage() {
               className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
                 selectedCategory === category
                   ? "bg-orange-500 text-white"
-                  : "bg-[#252540] text-gray-400"
+                  : "bg-[var(--color-surface-3)] text-[var(--color-text-muted)]"
               }`}
             >
               {category}
@@ -156,13 +156,13 @@ export default function ManualsPage() {
       {/* Manuals List */}
       <div className="flex-1 p-4">
         {isLoading ? (
-          <div className="text-center py-12 text-gray-400">Loading manuals...</div>
+          <div className="text-center py-12 text-[var(--color-text-muted)]">Loading manuals...</div>
         ) : filteredManuals.length > 0 ? (
           <div className="space-y-3">
             {filteredManuals.map((manual) => (
               <div
                 key={manual.id}
-                className="bg-[#1a1a2e] rounded-xl p-4 border border-gray-800"
+                className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)]"
               >
                 <div className="flex items-start gap-3">
                   {/* PDF Icon */}
@@ -176,8 +176,8 @@ export default function ManualsPage() {
                     <h3 className="font-semibold">
                       {manual.brand} {manual.model}
                     </h3>
-                    <p className="text-sm text-gray-400">{manual.type}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                    <p className="text-sm text-[var(--color-text-muted)]">{manual.type}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-[var(--color-text-muted)]">
                       {manual.pages ? <span>{manual.pages} pages</span> : <span>Pages: n/a</span>}
                     </div>
                   </div>
@@ -188,7 +188,7 @@ export default function ManualsPage() {
                     href={manual.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 bg-[#252540] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors text-center"
+                    className="flex-1 bg-[var(--color-surface-3)] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors text-center"
                   >
                     View PDF
                   </a>
@@ -206,11 +206,11 @@ export default function ManualsPage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-16 h-16 mx-auto text-[var(--color-text-muted)] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-gray-400">No manuals found</p>
-            <p className="text-sm text-gray-500 mt-1">Try a different search or category</p>
+            <p className="text-[var(--color-text-muted)]">No manuals found</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Try a different search or category</p>
           </div>
         )}
       </div>
@@ -218,10 +218,10 @@ export default function ManualsPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
-          <div className="bg-[#1a1a2e] w-full max-w-md mx-auto rounded-t-2xl p-4">
+          <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Upload Manual</h3>
-              <button onClick={() => setShowUploadModal(false)} className="text-gray-400">
+              <button onClick={() => setShowUploadModal(false)} className="text-[var(--color-text-muted)]">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -229,12 +229,12 @@ export default function ManualsPage() {
             </div>
 
             {/* Upload Area */}
-            <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center mb-4">
-              <svg className="w-12 h-12 mx-auto text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-6 text-center mb-4">
+              <svg className="w-12 h-12 mx-auto text-[var(--color-text-muted)] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <p className="text-gray-400 mb-2">Paste a manual URL (PDF or hosted doc)</p>
-              <p className="text-xs text-gray-500">Files are stored externally; we save links + metadata.</p>
+              <p className="text-[var(--color-text-muted)] mb-2">Paste a manual URL (PDF or hosted doc)</p>
+              <p className="text-xs text-[var(--color-text-muted)]">Files are stored externally; we save links + metadata.</p>
             </div>
 
             {/* Form Fields */}
@@ -244,42 +244,42 @@ export default function ManualsPage() {
                 placeholder="Brand (e.g., Regency)"
                 value={formState.brand}
                 onChange={(e) => setFormState((prev) => ({ ...prev, brand: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Model (e.g., F1100)"
                 value={formState.model}
                 onChange={(e) => setFormState((prev) => ({ ...prev, model: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Type (e.g., Gas Insert)"
                 value={formState.type}
                 onChange={(e) => setFormState((prev) => ({ ...prev, type: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Category (e.g., Gas Inserts)"
                 value={formState.category}
                 onChange={(e) => setFormState((prev) => ({ ...prev, category: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Manual URL (PDF link)"
                 value={formState.url}
                 onChange={(e) => setFormState((prev) => ({ ...prev, url: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
               <input
                 type="number"
                 placeholder="Pages (optional)"
                 value={formState.pages}
                 onChange={(e) => setFormState((prev) => ({ ...prev, pages: e.target.value }))}
-                className="w-full bg-[#252540] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
               />
             </div>
 
@@ -296,9 +296,9 @@ export default function ManualsPage() {
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-gray-800 z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--color-surface-1)] border-t border-[var(--color-border)] z-20">
         <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
@@ -310,13 +310,13 @@ export default function ManualsPage() {
             </svg>
             <span className="text-xs mt-1">Manuals</span>
           </Link>
-          <Link href="/tech/gabe" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech/gabe" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2z" />
             </svg>
             <span className="text-xs mt-1">GABE</span>
           </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech/profile" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>

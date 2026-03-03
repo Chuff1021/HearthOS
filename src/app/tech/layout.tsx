@@ -10,7 +10,7 @@ export default function TechLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${inter.className} min-h-screen bg-[#0f0f1a] text-white`}>
+    <div className={`${inter.className} min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)]`}>
       {/* Mobile-optimized container */}
       <div className="max-w-md mx-auto min-h-screen flex flex-col">
         {children}

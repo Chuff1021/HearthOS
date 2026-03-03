@@ -128,13 +128,56 @@ p {
   scrollbar-width: none;
 }
 
-/* Glass-lite card (restrained) */
+/* Glass-lite card (restrained + clarity-first) */
 .glass-card {
-  background: color-mix(in srgb, var(--color-surface-1) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 94%, transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-subtle);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(2px);
+}
+
+.shell-card {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-subtle);
+}
+
+.shell-input {
+  background: var(--color-surface-3);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
+.shell-btn-secondary {
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
+.shell-table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  background: var(--color-surface-3);
+}
+
+.shell-table td {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.shell-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Accent button */

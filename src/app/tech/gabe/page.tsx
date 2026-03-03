@@ -278,9 +278,9 @@ function GABEInner() {
   return (
     <div className="flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[#1a1a2e] p-4 sticky top-0 z-10 border-b border-gray-800">
+      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3">
-          <Link href={jobId ? `/tech/job/${jobId}` : "/tech"} className="text-gray-400 hover:text-white">
+          <Link href={jobId ? `/tech/job/${jobId}` : "/tech"} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -291,14 +291,14 @@ function GABEInner() {
             </div>
             <div>
               <h1 className="text-lg font-semibold">GABE</h1>
-              <p className="text-xs text-gray-400">Fireplace Expert AI</p>
+              <p className="text-xs text-[var(--color-text-muted)]">Fireplace Expert AI</p>
             </div>
           </div>
           {/* Job context badge */}
           {jobContext?.fireplace && (
             <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg px-2 py-1 max-w-[120px]">
               <p className="text-xs text-orange-400 truncate font-medium">{jobContext.fireplace}</p>
-              <p className="text-xs text-gray-500 truncate">{jobContext.jobType}</p>
+              <p className="text-xs text-[var(--color-text-muted)] truncate">{jobContext.jobType}</p>
             </div>
           )}
         </div>
@@ -332,12 +332,12 @@ function GABEInner() {
               className={`max-w-[82%] rounded-2xl p-3 ${
                 message.role === "user"
                   ? "bg-orange-500 text-white rounded-br-md"
-                  : "bg-[#1a1a2e] text-white rounded-bl-md"
+                  : "bg-[var(--color-surface-1)] text-white rounded-bl-md"
               }`}
             >
               <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
               {message.role === "assistant" && message.meta?.sourceType && (
-                <div className="mt-2 text-xs text-gray-400 space-y-1">
+                <div className="mt-2 text-xs text-[var(--color-text-muted)] space-y-1">
                   <div>Source: {message.meta.sourceType}</div>
                   {message.meta.sourceType === "manual" && (
                     <div>
@@ -398,7 +398,7 @@ function GABEInner() {
             <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mr-2 mt-1">
               <span className="text-xs">🔥</span>
             </div>
-            <div className="bg-[#1a1a2e] rounded-2xl rounded-bl-md p-3">
+            <div className="bg-[var(--color-surface-1)] rounded-2xl rounded-bl-md p-3">
               <div className="flex gap-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
@@ -414,13 +414,13 @@ function GABEInner() {
       {/* Quick Questions */}
       {messages.length <= 2 && (
         <div className="px-4 pb-2">
-          <p className="text-xs text-gray-400 mb-2">Quick questions:</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">Quick questions:</p>
           <div className="flex flex-wrap gap-2">
             {quickQuestions.map((q) => (
               <button
                 key={q}
                 onClick={() => handleSend(q)}
-                className="bg-[#1a1a2e] px-3 py-1.5 rounded-full text-xs text-gray-300 border border-gray-700 hover:border-orange-500 transition-colors"
+                className="bg-[var(--color-surface-1)] px-3 py-1.5 rounded-full text-xs text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:border-orange-500 transition-colors"
               >
                 {q}
               </button>
@@ -430,7 +430,7 @@ function GABEInner() {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-16 bg-[#0f0f1a] p-4 border-t border-gray-800">
+      <div className="sticky bottom-16 bg-[var(--color-bg)] p-4 border-t border-[var(--color-border)]">
         <div className="flex gap-2">
           <input
             type="text"
@@ -438,7 +438,7 @@ function GABEInner() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder={jobContext?.fireplace ? `Ask about the ${jobContext.fireplace}...` : "Ask GABE anything..."}
-            className="flex-1 bg-[#1a1a2e] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
+            className="flex-1 bg-[var(--color-surface-1)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
           />
           <button
             onClick={() => handleSend()}
@@ -451,21 +451,21 @@ function GABEInner() {
           </button>
         </div>
         {/* API integration hint */}
-        <p className="text-xs text-gray-600 mt-2 text-center">
+        <p className="text-xs text-[var(--color-text-muted)] mt-2 text-center">
           Powered by HearthOS AI · Connect Groq/OpenAI for live responses
         </p>
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-gray-800 z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[var(--color-surface-1)] border-t border-[var(--color-border)] z-20">
         <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             <span className="text-xs mt-1">Jobs</span>
           </Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech/manuals" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
@@ -477,7 +477,7 @@ function GABEInner() {
             </svg>
             <span className="text-xs mt-1">GABE</span>
           </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
+          <Link href="/tech/profile" className="flex flex-col items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
@@ -493,12 +493,12 @@ function GABEInner() {
 export default function GABEPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-[#0f0f1a]">
+      <div className="flex items-center justify-center min-h-screen bg-[var(--color-bg)]">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🔥</span>
           </div>
-          <p className="text-gray-400">Loading GABE...</p>
+          <p className="text-[var(--color-text-muted)]">Loading GABE...</p>
         </div>
       </div>
     }>

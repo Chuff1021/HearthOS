@@ -278,13 +278,13 @@ export default function Sidebar() {
                     collapsed ? "justify-center" : ""
                   }`}
                   style={{
-                    background: isActive ? "rgba(249,115,22,0.15)" : "transparent",
-                    color: isActive ? "#f97316" : "var(--color-text-secondary)",
+                    background: isActive ? "rgba(10,132,255,0.12)" : "transparent",
+                    color: isActive ? "var(--color-ember)" : "var(--color-text-secondary)",
                     fontWeight: isActive ? "600" : "400",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                      e.currentTarget.style.background = "var(--color-surface-3)";
                       e.currentTarget.style.color = "var(--color-text-primary)";
                     }
                   }}
@@ -304,8 +304,8 @@ export default function Sidebar() {
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
-                            background: isActive ? "rgba(249,115,22,0.3)" : "rgba(249,115,22,0.2)",
-                            color: "#f97316",
+                            background: isActive ? "rgba(10,132,255,0.2)" : "rgba(10,132,255,0.12)",
+                            color: "var(--color-ember)",
                           }}
                         >
                           {item.badge}
@@ -340,7 +340,7 @@ export default function Sidebar() {
             }}
             onMouseEnter={(e) => {
               if (!(hydrated && pathname === "/integrations/quickbooks")) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                e.currentTarget.style.background = "var(--color-surface-3)";
                 e.currentTarget.style.color = "var(--color-text-primary)";
               }
             }}

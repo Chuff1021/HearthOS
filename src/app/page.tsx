@@ -37,14 +37,15 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-3">
                 {/* Tab Switcher */}
-                <div className="flex bg-[#252540] rounded-xl p-1 gap-1">
+                <div className="flex rounded-xl p-1 gap-1" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
                   <button
                     onClick={() => setActiveTab("overview")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       activeTab === "overview"
-                        ? "bg-orange-500 text-white"
-                        : "text-gray-400 hover:text-white"
+                        ? "text-white"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                     }`}
+                    style={{ background: activeTab === "overview" ? "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" : "transparent" }}
                   >
                     Overview
                   </button>
@@ -52,14 +53,19 @@ export default function DashboardPage() {
                     onClick={() => setActiveTab("pipeline")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                       activeTab === "pipeline"
-                        ? "bg-orange-500 text-white"
-                        : "text-gray-400 hover:text-white"
+                        ? "text-white"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                     }`}
+                    style={{ background: activeTab === "pipeline" ? "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" : "transparent" }}
                   >
                     Sales Pipeline
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      activeTab === "pipeline" ? "bg-white/20" : "bg-orange-500/20 text-orange-400"
-                    }`}>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: activeTab === "pipeline" ? "rgba(255,255,255,0.2)" : "rgba(10,132,255,0.12)",
+                        color: activeTab === "pipeline" ? "#fff" : "var(--color-ember)",
+                      }}
+                    >
                       6
                     </span>
                   </button>
