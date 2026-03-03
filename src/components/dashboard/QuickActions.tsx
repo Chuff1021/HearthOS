@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 const actions = [
   {
     label: "New Job",
-    color: "#4f46e5",
-    bg: "rgba(79,70,229,0.12)",
+    color: "#0ea5e9",
+    bg: "rgba(14,165,233,0.12)",
     href: "/jobs",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -67,16 +67,16 @@ export default function QuickActions() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
         style={{
-          background: "linear-gradient(135deg, #4f46e5, #3730a3)",
+          background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
           color: "white",
-          boxShadow: "0 0 20px rgba(79,70,229,0.3)",
+          boxShadow: "0 0 20px rgba(14,165,233,0.3)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = "0 0 28px rgba(79,70,229,0.45)";
+          e.currentTarget.style.boxShadow = "0 0 28px rgba(14,165,233,0.45)";
           e.currentTarget.style.transform = "translateY(-1px)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = "0 0 20px rgba(79,70,229,0.3)";
+          e.currentTarget.style.boxShadow = "0 0 20px rgba(14,165,233,0.3)";
           e.currentTarget.style.transform = "translateY(0)";
         }}
       >

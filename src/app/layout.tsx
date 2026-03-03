@@ -34,7 +34,7 @@ export default function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#4f46e5",
+          colorPrimary: "#0ea5e9",
           colorBackground: "#0f1629",
           colorInputBackground: "#1a2540",
           colorInputText: "#f0f4ff",
@@ -48,8 +48,8 @@ export default function RootLayout({
             border: "1px solid rgba(255,255,255,0.07)",
           },
           formButtonPrimary: {
-            background: "linear-gradient(135deg, #4f46e5, #3730a3)",
-            boxShadow: "0 0 16px rgba(79,70,229,0.25)",
+            background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+            boxShadow: "0 0 16px rgba(14,165,233,0.25)",
           },
         },
       }}

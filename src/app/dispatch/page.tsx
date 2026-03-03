@@ -103,7 +103,7 @@ export default function DispatchPage() {
             </div>
             <button
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white", boxShadow: "0 0 16px rgba(79,70,229,0.25)" }}
+              style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white", boxShadow: "0 0 16px rgba(14,165,233,0.25)" }}
             >
               Dispatch Job
             </button>
@@ -206,9 +206,9 @@ export default function DispatchPage() {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
                       style={{
-                        background: job.priority === "urgent" ? "rgba(248,113,113,0.9)" : "rgba(79,70,229,0.9)",
+                        background: job.priority === "urgent" ? "rgba(248,113,113,0.9)" : "rgba(14,165,233,0.9)",
                         border: "2px solid rgba(255,255,255,0.4)",
-                        boxShadow: "0 0 12px rgba(79,70,229,0.4)",
+                        boxShadow: "0 0 12px rgba(14,165,233,0.4)",
                       }}
                     >
                       📍
@@ -321,7 +321,7 @@ export default function DispatchPage() {
                       </div>
                       <button
                         className="text-xs px-2 py-1 rounded-lg font-medium"
-                        style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                        style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
                       >
                         Assign
                       </button>
@@ -356,7 +356,7 @@ export default function DispatchPage() {
                   <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
                     💬 Message
                   </button>
-                  <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}>
+                  <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}>
                     + Assign Job
                   </button>
                 </div>

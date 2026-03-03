@@ -253,7 +253,7 @@ export default function CustomersPage() {
           <button
             onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white", boxShadow: "0 0 16px rgba(79,70,229,0.25)" }}
+            style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white", boxShadow: "0 0 16px rgba(14,165,233,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -326,7 +326,7 @@ export default function CustomersPage() {
                       <div className="flex items-start gap-3">
                         <div
                           className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0"
-                          style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                          style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
                         >
                           {customer.displayName.charAt(0).toUpperCase()}
                         </div>
@@ -387,7 +387,7 @@ export default function CustomersPage() {
                     <button
                       onClick={openAddModal}
                       className="inline-block mt-4 px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
                     >
                       Add First Customer
                     </button>
@@ -417,7 +417,7 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
-                    style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                    style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
                   >
                     {selectedCustomer.displayName.charAt(0).toUpperCase()}
                   </div>
@@ -498,7 +498,7 @@ export default function CustomersPage() {
                   <button
                     onClick={() => openEditModal(selectedCustomer)}
                     className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                    style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                    style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
                   >
                     Edit Customer
                   </button>
@@ -684,7 +684,7 @@ export default function CustomersPage() {
                 onClick={() => handleSaveCustomer(showEditModal)}
                 disabled={saving || !form.firstName || !form.lastName}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
+                style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)", color: "white" }}
               >
                 {saving ? "Saving..." : showEditModal ? "Save Changes" : "Add Customer"}
               </button>

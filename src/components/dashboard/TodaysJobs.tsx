@@ -48,7 +48,7 @@ function mapJobToUI(job: {
 }): Job {
   const typeColors: Record<string, { color: string; bg: string }> = {
     cleaning: { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-    inspection: { color: "#22d3ee", bg: "rgba(34,211,238,0.12)" },
+    inspection: { color: "#67e8f9", bg: "rgba(34,211,238,0.12)" },
     repair: { color: "#f87171", bg: "rgba(248,113,113,0.12)" },
     installation: { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
     service: { color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
@@ -186,15 +186,15 @@ export default function TodaysJobs() {
         <button
           className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
           style={{
-            background: "rgba(79,70,229,0.15)",
-            color: "#4f46e5",
-            border: "1px solid rgba(79,70,229,0.2)",
+            background: "rgba(14,165,233,0.15)",
+            color: "#0ea5e9",
+            border: "1px solid rgba(14,165,233,0.2)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(79,70,229,0.25)";
+            e.currentTarget.style.background = "rgba(14,165,233,0.25)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(79,70,229,0.15)";
+            e.currentTarget.style.background = "rgba(14,165,233,0.15)";
           }}
         >
           + New Job
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#22c55e" : "#4f46e5",
+                                  background: job.checklistPct === 100 ? "#22c55e" : "#0ea5e9",
                                 }}
                               ></div>
                             </div>
@@ -416,9 +416,9 @@ export default function TodaysJobs() {
         </span>
         <button
           className="text-xs font-medium transition-colors"
-          style={{ color: "#4f46e5" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#22d3ee")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#4f46e5")}
+          style={{ color: "#0ea5e9" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#0ea5e9")}
         >
           View full schedule →
         </button>
