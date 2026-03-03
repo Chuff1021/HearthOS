@@ -192,6 +192,16 @@ const navItems = [
         ),
       },
       {
+        label: "Time Admin",
+        href: "/admin/time",
+        badge: null,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-8V6a1 1 0 10-2 0v5a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 10z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
         label: "Settings",
         href: "/admin/settings",
         badge: null,

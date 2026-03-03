@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
 
 // Job types
 export type JobStatus = "scheduled" | "in_progress" | "completed" | "cancelled" | "on_hold";
@@ -203,8 +204,17 @@ const seedJobs: Job[] = [
   },
 ];
 
-let jobs: Job[] = [...seedJobs];
-let nextJobNum = 150;
+const JOBS_FILE = "jobs.json";
+let jobs: Job[] = readJsonFile<Job[]>(JOBS_FILE, [...seedJobs]);
+let nextJobNum =
+  jobs
+    .map((j) => Number((j.jobNumber || "").split("-").pop() || 0))
+    .filter((n) => !Number.isNaN(n))
+    .reduce((max, n) => Math.max(max, n), 149) + 1;
+
+function saveJobs() {
+  writeJsonFileWithBackup(JOBS_FILE, jobs);
+}
 
 // Export jobs data for other modules
 export function getJobs(): Job[] {
@@ -295,6 +305,7 @@ export async function POST(request: Request) {
     };
 
     jobs.unshift(newJob);
+    saveJobs();
     return NextResponse.json({ job: newJob }, { status: 201 });
   } catch (err) {
     console.error("Failed to create job:", err);
@@ -318,6 +329,7 @@ export async function PUT(request: Request) {
       ...updates,
       updatedAt: new Date().toISOString(),
     };
+    saveJobs();
 
     return NextResponse.json({ job: jobs[idx] });
   } catch (err) {
@@ -342,6 +354,7 @@ export async function DELETE(request: Request) {
     }
 
     jobs.splice(idx, 1);
+    saveJobs();
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Failed to delete job:", err);

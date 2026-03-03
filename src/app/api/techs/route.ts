@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
 
 export interface Tech {
   id: string;
@@ -15,7 +16,7 @@ export interface Tech {
 }
 
 // Technicians data
-const techs: Tech[] = [
+const seedTechs: Tech[] = [
   {
     id: "tech-001",
     name: "Mike Johnson",
@@ -96,6 +97,13 @@ const techs: Tech[] = [
   },
 ];
 
+const TECHS_FILE = "techs.json";
+let techs: Tech[] = readJsonFile<Tech[]>(TECHS_FILE, [...seedTechs]);
+
+function saveTechs() {
+  writeJsonFileWithBackup(TECHS_FILE, techs);
+}
+
 export function getTechs(): Tech[] {
   return techs;
 }
@@ -144,6 +152,7 @@ export async function POST(request: Request) {
     };
 
     techs.push(newTech);
+    saveTechs();
     return NextResponse.json({ tech: newTech }, { status: 201 });
   } catch (err) {
     console.error("Failed to create tech:", err);
@@ -167,6 +176,7 @@ export async function DELETE(request: Request) {
     }
     
     const deleted = techs.splice(index, 1)[0];
+    saveTechs();
     return NextResponse.json({ tech: deleted });
   } catch (err) {
     console.error("Failed to delete tech:", err);
