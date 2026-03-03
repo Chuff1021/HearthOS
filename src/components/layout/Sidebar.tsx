@@ -135,12 +135,13 @@ const navItems = [
         ),
       },
       {
-        label: "Purchase Orders",
-        href: "/purchase-orders",
+        label: "Vendors",
+        href: "/vendors",
         badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v9a3 3 0 003 3h9a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-2.414-2.414A2 2 0 0011.586 3H4zm7 1.5V7h2.5L11 4.5zM6 10a1 1 0 000 2h6a1 1 0 100-2H6zm0 3a1 1 0 100 2h4a1 1 0 100-2H6z" clipRule="evenodd" />
+            <path d="M3 5a2 2 0 012-2h3a1 1 0 010 2H5v10h10v-3a1 1 0 112 0v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
+            <path d="M12 3a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 11-2 0V5.414l-5.293 5.293a1 1 0 01-1.414-1.414L14.586 4H13a1 1 0 01-1-1z" />
           </svg>
         ),
       },
