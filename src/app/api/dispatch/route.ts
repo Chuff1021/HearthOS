@@ -32,8 +32,12 @@ export async function GET(request: NextRequest) {
 
     // Include active location pings that do not yet map to a team record
     const mappedIds = new Set(baseTechs.map((t) => t.id));
+    const freshWindowMs = 15 * 60 * 1000; // show only recent pings
+    const now = Date.now();
+
     const unmappedLive = latestLocations
       .filter((l) => !mappedIds.has(l.techId))
+      .filter((l) => now - new Date(l.timestamp).getTime() <= freshWindowMs)
       .map((l) => ({
         id: l.techId,
         name: l.techName || l.techId,

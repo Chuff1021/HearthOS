@@ -39,18 +39,39 @@ export default function ProfilePage() {
   useEffect(() => {
     async function resolveTech() {
       try {
+        // 1) Persistent account-linked tech ID (strongest mapping)
+        const linkedTechId = user?.unsafeMetadata?.techId as string | undefined;
+        if (linkedTechId) {
+          setTechId(linkedTechId);
+          return;
+        }
+
         const res = await fetch('/api/techs?activeOnly=true');
         const data = await res.json();
         const list = data.techs || [];
-        const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
-        const match = list.find((t: any) => nameLower && nameLower.includes(String(t.name).split(' ')[0].toLowerCase()));
+
+        // 2) Exact email match
+        const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+        let match = email ? list.find((t: any) => String(t.email || '').toLowerCase() === email) : null;
+
+        // 3) Full name/first-name fallback
+        if (!match) {
+          const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
+          match = list.find((t: any) =>
+            nameLower && (
+              String(t.name || '').toLowerCase() === nameLower ||
+              nameLower.includes(String(t.name || '').split(' ')[0].toLowerCase())
+            )
+          );
+        }
+
         if (match) setTechId(match.id);
       } catch {
         // no-op
       }
     }
     resolveTech();
-  }, [user?.firstName, user?.fullName]);
+  }, [user?.firstName, user?.fullName, user?.id, user?.unsafeMetadata, user?.primaryEmailAddress?.emailAddress]);
 
   useEffect(() => {
     if (!gpsEnabled || !isTracking) {
@@ -252,6 +273,9 @@ export default function ProfilePage() {
             </button>
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               GPS State: {gpsState} {lastGpsPingAt ? `· Last Ping: ${new Date(lastGpsPingAt).toLocaleTimeString()}` : ''}
+            </div>
+            <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              Tracking As: {techId || user?.id || 'unresolved'}
             </div>
 
             <div className="flex items-center justify-between">
