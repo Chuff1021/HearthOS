@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
-    const estimates = await withRefresh(auth, (client) => client.getEstimates(300));
+    const estimates = (await withRefresh(auth, (client) => client.getEstimates(300))) as any[];
     return NextResponse.json({ estimates, total: estimates.length });
   } catch (err) {
     console.error('Failed to fetch QB estimates:', err);
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    const estimate = await withRefresh(auth, (client) => client.createEstimate(payload));
+    const estimate = (await withRefresh(auth, (client) => client.createEstimate(payload))) as any;
 
     addAuditLog({
       entityType: 'estimate',

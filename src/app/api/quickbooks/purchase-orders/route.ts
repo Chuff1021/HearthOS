@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
-    const purchaseOrders = await withRefresh(auth, (client) => client.getPurchaseOrders(300));
+    const purchaseOrders = (await withRefresh(auth, (client) => client.getPurchaseOrders(300))) as any[];
     return NextResponse.json({ purchaseOrders, total: purchaseOrders.length });
   } catch (err) {
     console.error('Failed to get QuickBooks purchase orders:', err);

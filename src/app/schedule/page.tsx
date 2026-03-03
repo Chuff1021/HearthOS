@@ -400,7 +400,7 @@ export default function SchedulePage() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: job.id,
+        id: jobId,
         scheduledDate: isoDate(targetDate),
         scheduledTimeStart: toHHMM(newStart),
         scheduledTimeEnd: toHHMM(newEnd),
