@@ -97,7 +97,7 @@ export default function ProfilePage() {
         setGpsState('active');
         setLastGpsPingAt(new Date().toISOString());
 
-        await fetch('/api/tech/locations', {
+        const pingRes = await fetch('/api/tech/locations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -111,6 +111,11 @@ export default function ProfilePage() {
             timestamp: new Date(pos.timestamp).toISOString(),
           }),
         });
+
+        if (!pingRes.ok) {
+          const data = await pingRes.json().catch(() => ({}));
+          setGpsError(data.error || 'Failed to send GPS ping to dispatch.');
+        }
       },
       (err) => {
         setGpsState('error');

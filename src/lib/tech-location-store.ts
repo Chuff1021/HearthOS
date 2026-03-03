@@ -12,13 +12,33 @@ export interface TechLocationPoint {
 }
 
 const FILE = 'tech-locations.json';
+const MEM_KEY = '__hearth_live_locations__';
+
+function getMemStore(): TechLocationPoint[] {
+  const g = globalThis as any;
+  if (!g[MEM_KEY]) g[MEM_KEY] = [];
+  return g[MEM_KEY] as TechLocationPoint[];
+}
 
 function getAll() {
-  return readJsonFile<TechLocationPoint[]>(FILE, []);
+  try {
+    return readJsonFile<TechLocationPoint[]>(FILE, getMemStore());
+  } catch {
+    return getMemStore();
+  }
 }
 
 function saveAll(points: TechLocationPoint[]) {
-  writeJsonFileWithBackup(FILE, points);
+  // always keep memory copy (works even if filesystem is unavailable)
+  const mem = getMemStore();
+  mem.length = 0;
+  mem.push(...points);
+
+  try {
+    writeJsonFileWithBackup(FILE, points);
+  } catch {
+    // non-fatal in serverless/read-only environments
+  }
 }
 
 export function addLocationPoint(point: TechLocationPoint) {
