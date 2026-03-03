@@ -34,29 +34,30 @@ export default function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#f97316",
-          colorBackground: "#0f1629",
-          colorInputBackground: "#1a2540",
-          colorInputText: "#f0f4ff",
-          colorText: "#f0f4ff",
-          colorTextSecondary: "#8b9cc8",
+          colorPrimary: "#0a84ff",
+          colorBackground: "#ffffff",
+          colorInputBackground: "#f3f6fc",
+          colorInputText: "#0f172a",
+          colorText: "#0f172a",
+          colorTextSecondary: "#64748b",
           borderRadius: "0.75rem",
         },
         elements: {
           card: {
-            backgroundColor: "#0f1629",
-            border: "1px solid rgba(255,255,255,0.07)",
+            backgroundColor: "#ffffff",
+            border: "1px solid rgba(15,23,42,0.12)",
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.08)",
           },
           formButtonPrimary: {
-            background: "linear-gradient(135deg, #f97316, #ea6c0a)",
-            boxShadow: "0 0 16px rgba(249,115,22,0.25)",
+            background: "linear-gradient(135deg, #0a84ff, #006ee6)",
+            boxShadow: "0 2px 10px rgba(10,132,255,0.2)",
           },
         },
       }}
     >
       <html lang="en">
         <body className={inter.className}>
-          <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-neutral-900 bg-black text-white">
+          <header className="flex items-center justify-end gap-3 px-6 py-3 border-b" style={{ borderColor: "var(--color-border)", background: "var(--color-surface-1)", color: "var(--color-text-primary)" }}>
             <SignedOut>
               <SignInButton />
               <SignUpButton />
