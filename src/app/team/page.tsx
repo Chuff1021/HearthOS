@@ -399,12 +399,13 @@ export default function TeamPage() {
       {/* Add Team Member Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] w-full max-w-md rounded-2xl p-6">
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Add Team Member</h2>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-white"
+                className="hover:text-white"
+                style={{ color: "var(--color-text-muted)" }}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -418,30 +419,30 @@ export default function TeamPage() {
                 placeholder="Full Name"
                 value={newMember.name}
                 onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                style={{ color: "var(--color-text-primary)" }}
+                className="w-full px-4 py-2 rounded-xl border focus:border-blue-600 outline-none"
+                style={{ color: "var(--color-text-primary)", background: "var(--color-surface-3)", borderColor: "var(--color-border)" }}
               />
               <input
                 type="email"
                 placeholder="Email"
                 value={newMember.email}
                 onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                style={{ color: "var(--color-text-primary)" }}
+                className="w-full px-4 py-2 rounded-xl border focus:border-blue-600 outline-none"
+                style={{ color: "var(--color-text-primary)", background: "var(--color-surface-3)", borderColor: "var(--color-border)" }}
               />
               <input
                 type="tel"
                 placeholder="Phone"
                 value={newMember.phone}
                 onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                style={{ color: "var(--color-text-primary)" }}
+                className="w-full px-4 py-2 rounded-xl border focus:border-blue-600 outline-none"
+                style={{ color: "var(--color-text-primary)", background: "var(--color-surface-3)", borderColor: "var(--color-border)" }}
               />
               <select
                 value={newMember.role}
                 onChange={(e) => setNewMember({ ...newMember, role: e.target.value as any })}
-                className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                style={{ color: "var(--color-text-primary)" }}
+                className="w-full px-4 py-2 rounded-xl border focus:border-blue-600 outline-none"
+                style={{ color: "var(--color-text-primary)", background: "var(--color-surface-3)", borderColor: "var(--color-border)" }}
               >
                 <option value="tech">Technician</option>
                 <option value="lead">Lead Technician</option>
