@@ -100,6 +100,7 @@ export default function SchedulePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<CustomerLookup[]>([]);
   const [customerLoading, setCustomerLoading] = useState(false);
@@ -381,7 +382,10 @@ export default function SchedulePage() {
 
   async function moveJobToSlot(jobId: string, targetDate: Date, targetHour: number) {
     const job = jobs.find((j) => j.id === jobId);
-    if (!job) return;
+    if (!job) {
+      setSaveError("Could not move job: job not found.");
+      return;
+    }
 
     const start = toHourFloat(job.scheduledTimeStart);
     const end = toHourFloat(job.scheduledTimeEnd);
@@ -390,7 +394,7 @@ export default function SchedulePage() {
     const newStart = targetHour;
     const newEnd = Math.min(23.5, newStart + duration);
 
-    await fetch("/api/jobs", {
+    const res = await fetch("/api/jobs", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -400,6 +404,12 @@ export default function SchedulePage() {
         scheduledTimeEnd: toHHMM(newEnd),
       }),
     });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSaveError(data.error || "Failed to move job. Please try again.");
+      return;
+    }
 
     await loadData();
   }
@@ -479,6 +489,12 @@ export default function SchedulePage() {
           )}
         </div>
 
+        {saveError && (
+          <div className="mx-6 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+            {saveError}
+          </div>
+        )}
+
         <div className="flex-1 overflow-auto">
           {loading ? (
             <div className="p-8">Loading schedule...</div>
@@ -509,11 +525,19 @@ export default function SchedulePage() {
                       <div
                         key={dayIndex}
                         className="relative border-l"
-                        style={{ borderColor: "var(--color-border)" }}
-                        onDragOver={(e) => e.preventDefault()}
+                        style={{
+                          borderColor: "var(--color-border)",
+                          background: dragOverSlot === `${d.toDateString()}-${hour}` ? "rgba(37,99,235,0.08)" : undefined,
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverSlot(`${d.toDateString()}-${hour}`);
+                        }}
+                        onDragLeave={() => setDragOverSlot(null)}
                         onDrop={async (e) => {
                           e.preventDefault();
                           const droppedId = e.dataTransfer.getData("text/plain") || draggedJobId;
+                          setDragOverSlot(null);
                           if (!droppedId) return;
                           await moveJobToSlot(droppedId, d, hour);
                           setDraggedJobId(null);
@@ -528,17 +552,22 @@ export default function SchedulePage() {
                               key={job.id}
                               draggable
                               onDragStart={(e) => {
+                                setSaveError(null);
                                 setDraggedJobId(job.id);
                                 e.dataTransfer.setData("text/plain", job.id);
                                 e.dataTransfer.effectAllowed = "move";
                               }}
-                              onDragEnd={() => setDraggedJobId(null)}
+                              onDragEnd={() => {
+                                setDraggedJobId(null);
+                                setDragOverSlot(null);
+                              }}
                               className="absolute left-1 right-1 rounded-md p-1.5 text-white cursor-move"
                               style={{
                                 top: 2,
                                 height: duration * 82 - 4,
                                 background: job.assignedTechs[0]?.color || "#2563EB",
                                 overflow: "hidden",
+                                opacity: draggedJobId === job.id ? 0.75 : 1,
                               }}
                               title="Drag to reschedule"
                             >
@@ -547,8 +576,10 @@ export default function SchedulePage() {
                               <div className="text-[9px] opacity-80 truncate">{job.propertyAddress}</div>
                               <button
                                 onClick={() => removeJob(job.id)}
+                                disabled={draggedJobId !== null}
                                 className="absolute top-1 right-1 text-[9px] px-1 rounded bg-black/30"
-                                title="Remove"
+                                style={{ opacity: draggedJobId ? 0.45 : 1, pointerEvents: draggedJobId ? "none" : "auto" }}
+                                title={draggedJobId ? "Release drag first" : "Remove"}
                               >
                                 ✕
                               </button>
