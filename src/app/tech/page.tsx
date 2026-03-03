@@ -1,232 +1,203 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 
-// Mock data for demo
-const mockJobs = [
-  {
-    id: "1",
-    customer: "Johnson Residence",
-    address: "123 Oak Street, Springfield",
-    type: "Annual Inspection",
-    scheduled: "9:00 AM",
-    status: "pending",
-    phone: "(555) 123-4567",
-    fireplace: "Regency F1100",
-  },
-  {
-    id: "2",
-    customer: "Smith Home",
-    address: "456 Maple Ave, Springfield",
-    type: "Installation",
-    scheduled: "11:30 AM",
-    status: "pending",
-    phone: "(555) 234-5678",
-    fireplace: "Napoleon AS35",
-  },
-  {
-    id: "3",
-    customer: "Williams Property",
-    address: "789 Pine Rd, Springfield",
-    type: "Service Call",
-    scheduled: "2:00 PM",
-    status: "pending",
-    phone: "(555) 345-6789",
-    fireplace: "Heat & Glo SLR",
-  },
-];
+interface Tech {
+  id: string;
+  name: string;
+  color: string;
+  initials: string;
+  active: boolean;
+}
+
+interface Job {
+  id: string;
+  customerName: string;
+  propertyAddress: string;
+  title: string;
+  scheduledDate: string;
+  scheduledTimeStart: string;
+  scheduledTimeEnd: string;
+  status: "scheduled" | "in_progress" | "completed" | "cancelled" | "on_hold";
+  assignedTechs: Array<{ id: string; name: string; color: string }>;
+}
 
 export default function TechApp() {
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [shiftStartTime, setShiftStartTime] = useState<Date | null>(null);
-  const [activeJob, setActiveJob] = useState<string | null>(null);
-  const [jobStartTime, setJobStartTime] = useState<Date | null>(null);
   const { user } = useUser();
   const displayName = user?.firstName || user?.fullName || "Tech";
 
-  const handleClockIn = () => {
-    if (!isClockedIn) {
-      setIsClockedIn(true);
-      setShiftStartTime(new Date());
-    } else {
-      setIsClockedIn(false);
-      setShiftStartTime(null);
-      setActiveJob(null);
-      setJobStartTime(null);
-    }
-  };
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [activeJob, setActiveJob] = useState<string | null>(null);
 
-  const handleJobClock = (jobId: string) => {
-    if (activeJob === jobId) {
-      setActiveJob(null);
-      setJobStartTime(null);
-    } else {
-      setActiveJob(jobId);
-      setJobStartTime(new Date());
-    }
-  };
+  const [techs, setTechs] = useState<Tech[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedTechId, setSelectedTechId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [techRes, jobsRes] = await Promise.all([
+        fetch("/api/techs?activeOnly=true"),
+        fetch("/api/jobs?limit=500"),
+      ]);
+      const techData = await techRes.json();
+      const jobsData = await jobsRes.json();
+      const fetchedTechs: Tech[] = techData.techs || [];
+      const fetchedJobs: Job[] = jobsData.jobs || [];
+      setTechs(fetchedTechs);
+      setJobs(fetchedJobs);
+
+      if (fetchedTechs.length) {
+        const userMatch = fetchedTechs.find((t) => displayName.toLowerCase().includes(t.name.split(" ")[0].toLowerCase()));
+        setSelectedTechId((prev) => prev || userMatch?.id || fetchedTechs[0].id);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const todaysJobs = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return jobs
+      .filter((j) => j.scheduledDate === today)
+      .filter((j) => (selectedTechId ? j.assignedTechs.some((t) => t.id === selectedTechId) : true))
+      .sort((a, b) => a.scheduledTimeStart.localeCompare(b.scheduledTimeStart));
+  }, [jobs, selectedTechId]);
+
+  const selectedTech = techs.find((t) => t.id === selectedTechId);
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
-      {/* Header */}
-      <header className="bg-[#1a1a2e] p-4 sticky top-0 z-10">
+    <div className="flex flex-col min-h-screen pb-20" style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
+      <header className="p-4 sticky top-0 z-10" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold">HearthOS</h1>
-            <p className="text-xs text-gray-400">Tech Dashboard · {displayName}</p>
+            <h1 className="text-lg font-semibold">HearthOS Tech</h1>
+            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Welcome {displayName}</p>
           </div>
-          <div className="flex items-center gap-3">
-            {/* GABE AI Button */}
-            <Link
-              href="/tech/gabe"
-              className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-full"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
+          <div className="flex items-center gap-2">
+            <Link href="/schedule" className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+              Master Schedule
             </Link>
-            {/* GPS Status */}
-            <div className="flex items-center gap-1 text-xs text-green-400">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              GPS
-            </div>
+            <div className="text-xs px-2 py-1 rounded" style={{ color: "#98CD00", border: "1px solid var(--color-border)" }}>GPS</div>
           </div>
         </div>
       </header>
 
-      {/* Clock In/Out Section */}
-      <div className="p-4 bg-[#1a1a2e] mx-4 mt-4 rounded-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400">Shift Status</p>
-            {isClockedIn && shiftStartTime && (
-              <p className="text-xs text-gray-500">
-                Started: {formatTime(shiftStartTime)}
-              </p>
-            )}
+      <div className="p-4 rounded-xl mx-4 mt-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1">
+            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>View schedule for tech</p>
+            <select
+              value={selectedTechId}
+              onChange={(e) => setSelectedTechId(e.target.value)}
+              className="mt-1 w-full px-3 py-2 rounded-lg text-sm"
+              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+            >
+              {techs.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
           </div>
           <button
-            onClick={handleClockIn}
-            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
-              isClockedIn
-                ? "bg-red-500/20 text-red-400 border border-red-500/50"
-                : "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-            }`}
+            onClick={() => setIsClockedIn((v) => !v)}
+            className="px-5 py-3 rounded-xl text-sm font-semibold"
+            style={{
+              background: isClockedIn ? "rgba(255,32,78,0.15)" : "linear-gradient(135deg, #98CD00, #98CD00)",
+              color: isClockedIn ? "#FF204E" : "#111",
+              border: isClockedIn ? "1px solid rgba(255,32,78,0.5)" : "none",
+            }}
           >
             {isClockedIn ? "Clock Out" : "Clock In"}
           </button>
         </div>
       </div>
 
-      {/* Active Job Banner */}
-      {activeJob && jobStartTime && (
-        <div className="mx-4 mt-3 p-3 bg-orange-500/20 border border-orange-500/50 rounded-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-orange-400">Active Job</p>
-              <p className="font-semibold">
-                {mockJobs.find((j) => j.id === activeJob)?.customer}
-              </p>
-              <p className="text-xs text-gray-400">
-                Started: {formatTime(jobStartTime)}
-              </p>
-            </div>
-            <Link
-              href={`/tech/job/${activeJob}`}
-              className="bg-orange-500 px-4 py-2 rounded-lg text-sm font-medium"
-            >
-              View Job
-            </Link>
-          </div>
+      {activeJob && (
+        <div className="mx-4 mt-3 p-3 rounded-xl" style={{ background: "rgba(255,68,0,0.14)", border: "1px solid rgba(255,68,0,0.45)" }}>
+          <p className="text-xs" style={{ color: "#FF4400" }}>Active Job</p>
+          <p className="font-semibold">{todaysJobs.find((j) => j.id === activeJob)?.customerName}</p>
         </div>
       )}
 
-      {/* Today's Jobs */}
       <div className="p-4">
-        <h2 className="text-lg font-semibold mb-3">Today&apos;s Jobs</h2>
-        <div className="space-y-3">
-          {mockJobs.map((job) => (
-            <div
-              key={job.id}
-              className={`bg-[#1a1a2e] rounded-xl p-4 border ${
-                activeJob === job.id
-                  ? "border-orange-500"
-                  : "border-gray-800"
-              }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-semibold">{job.customer}</h3>
-                  <p className="text-sm text-gray-400">{job.type}</p>
-                </div>
-                <span className="text-sm text-orange-400 font-medium">
-                  {job.scheduled}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">{job.address}</p>
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/tech/job/${job.id}`}
-                  className="flex-1 bg-[#252540] text-center py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors"
-                >
-                  View Details
-                </Link>
-                <button
-                  onClick={() => handleJobClock(job.id)}
-                  disabled={!isClockedIn}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeJob === job.id
-                      ? "bg-red-500/20 text-red-400 border border-red-500/50"
-                      : isClockedIn
-                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
-                      : "bg-gray-700 text-gray-500 cursor-not-allowed"
-                  }`}
-                >
-                  {activeJob === job.id ? "End Job" : "Start Job"}
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Today&apos;s Jobs {selectedTech ? `· ${selectedTech.name}` : ""}</h2>
+          <button onClick={loadData} className="text-xs px-2 py-1 rounded" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
         </div>
+
+        {loading ? (
+          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</div>
+        ) : todaysJobs.length === 0 ? (
+          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <p style={{ color: "var(--color-text-muted)" }}>No jobs scheduled for today.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {todaysJobs.map((job) => (
+              <div
+                key={job.id}
+                className="rounded-xl p-4"
+                style={{
+                  background: "var(--color-surface-1)",
+                  border: `1px solid ${activeJob === job.id ? "#FF4400" : "var(--color-border)"}`,
+                }}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h3 className="font-semibold">{job.customerName}</h3>
+                    <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{job.title}</p>
+                  </div>
+                  <span className="text-sm font-semibold" style={{ color: "#2563EB" }}>
+                    {job.scheduledTimeStart} - {job.scheduledTimeEnd}
+                  </span>
+                </div>
+
+                <p className="text-xs mb-2" style={{ color: "var(--color-text-muted)" }}>
+                  {job.propertyAddress}
+                </p>
+
+                <div className="flex gap-2">
+                  <Link
+                    href={`/tech/job/${job.id}`}
+                    className="flex-1 text-center py-2 rounded-lg text-sm font-medium"
+                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                  >
+                    View Customer & Job
+                  </Link>
+                  <button
+                    onClick={() => setActiveJob((prev) => (prev === job.id ? null : job.id))}
+                    disabled={!isClockedIn}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium"
+                    style={{
+                      background: activeJob === job.id ? "rgba(255,32,78,0.15)" : "linear-gradient(135deg, #FF4400, #FF4400)",
+                      color: activeJob === job.id ? "#FF204E" : "#fff",
+                      border: activeJob === job.id ? "1px solid rgba(255,32,78,0.5)" : "none",
+                      opacity: isClockedIn ? 1 : 0.55,
+                    }}
+                  >
+                    {activeJob === job.id ? "End Job" : "Start Job"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-gray-800 z-20">
+      <nav className="fixed bottom-0 left-0 right-0 z-20" style={{ background: "var(--color-surface-1)", borderTop: "1px solid var(--color-border)" }}>
         <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-orange-400">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-xs mt-1">Jobs</span>
-          </Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span className="text-xs mt-1">Manuals</span>
-          </Link>
-          <Link href="/tech/gabe" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            <span className="text-xs mt-1">GABE</span>
-          </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs mt-1">Profile</span>
-          </Link>
+          <Link href="/tech" className="text-sm" style={{ color: "#2563EB" }}>Jobs</Link>
+          <Link href="/tech/manuals" className="text-sm" style={{ color: "var(--color-text-muted)" }}>Manuals</Link>
+          <Link href="/tech/gabe" className="text-sm" style={{ color: "var(--color-text-muted)" }}>GABE</Link>
+          <Link href="/tech/profile" className="text-sm" style={{ color: "var(--color-text-muted)" }}>Profile</Link>
         </div>
       </nav>
     </div>
