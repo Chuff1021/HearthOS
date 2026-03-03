@@ -142,7 +142,7 @@ export default function TeamPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Available</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#10b981" }}>{availableCount}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#0d9488" }}>{availableCount}</p>
               </button>
               <button
                 onClick={() => setFilter("on_job")}
@@ -150,7 +150,7 @@ export default function TeamPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>On Job</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#3b82f6" }}>{onJobCount}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#0ea5e9" }}>{onJobCount}</p>
               </button>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Off Duty</p>

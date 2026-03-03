@@ -194,7 +194,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
-                <p className="text-2xl font-bold" style={{ color: "#f59e0b" }}>{stats.pending}</p>
+                <p className="text-2xl font-bold" style={{ color: "#b7791f" }}>{stats.pending}</p>
               </button>
               <button
                 onClick={() => setFilter("in_progress")}
@@ -202,7 +202,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
-                <p className="text-2xl font-bold" style={{ color: "#3b82f6" }}>{stats.inProgress}</p>
+                <p className="text-2xl font-bold" style={{ color: "#0ea5e9" }}>{stats.inProgress}</p>
               </button>
               <button
                 onClick={() => setFilter("completed")}
@@ -210,7 +210,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                <p className="text-2xl font-bold" style={{ color: "#10b981" }}>{stats.completed}</p>
+                <p className="text-2xl font-bold" style={{ color: "#0d9488" }}>{stats.completed}</p>
               </button>
               <button
                 onClick={() => setFilter("overdue")}
@@ -218,11 +218,11 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
-                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#ef4444" : "#10b981" }}>{stats.overdue}</p>
+                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#be123c" : "#0d9488" }}>{stats.overdue}</p>
               </button>
               <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
-                <p className="text-2xl font-bold" style={{ color: "#f59e0b" }}>{stats.dueToday}</p>
+                <p className="text-2xl font-bold" style={{ color: "#b7791f" }}>{stats.dueToday}</p>
               </div>
             </div>
 

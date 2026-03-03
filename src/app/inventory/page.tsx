@@ -82,7 +82,7 @@ export default function InventoryPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Low Stock</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: lowStockCount > 0 ? "#ef4444" : "#10b981" }}>{lowStockCount}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: lowStockCount > 0 ? "#be123c" : "#0d9488" }}>{lowStockCount}</p>
               </button>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Value</p>

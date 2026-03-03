@@ -40,9 +40,9 @@ interface Customer {
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
-  sent: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa", border: "rgba(96,165,250,0.25)" },
-  paid: { bg: "rgba(74,222,128,0.12)", text: "#4ade80", border: "rgba(74,222,128,0.25)" },
-  overdue: { bg: "rgba(248,113,113,0.12)", text: "#f87171", border: "rgba(248,113,113,0.25)" },
+  sent: { bg: "rgba(56,189,248,0.12)", text: "#38bdf8", border: "rgba(56,189,248,0.25)" },
+  paid: { bg: "rgba(20,184,166,0.12)", text: "#14b8a6", border: "rgba(20,184,166,0.25)" },
+  overdue: { bg: "rgba(225,29,72,0.12)", text: "#e11d48", border: "rgba(225,29,72,0.25)" },
   void: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
 
@@ -353,9 +353,9 @@ export default function InvoicesPage() {
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           {[
-            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#60a5fa" },
-            { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#f87171" },
-            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#4ade80" },
+            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#38bdf8" },
+            { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#e11d48" },
+            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#14b8a6" },
             { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -402,7 +402,7 @@ export default function InvoicesPage() {
           {/* Invoice List */}
           <div className="flex-1 overflow-y-auto p-6">
             {error && (
-              <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171" }}>
+              <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(225,29,72,0.12)", border: "1px solid rgba(225,29,72,0.2)", color: "#e11d48" }}>
                 {error}
               </div>
             )}
@@ -448,12 +448,12 @@ export default function InvoicesPage() {
                           ${invoice.totalAmount.toLocaleString()}
                         </div>
                         {invoice.balance > 0 && (
-                          <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#f87171" : "var(--color-text-muted)" }}>
+                          <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#e11d48" : "var(--color-text-muted)" }}>
                             ${invoice.balance.toLocaleString()} due
                           </div>
                         )}
                         {invoice.balance === 0 && invoice.status === "paid" && (
-                          <div className="text-sm mt-0.5" style={{ color: "#4ade80" }}>Paid in full</div>
+                          <div className="text-sm mt-0.5" style={{ color: "#14b8a6" }}>Paid in full</div>
                         )}
                       </div>
                     </div>
@@ -540,7 +540,7 @@ export default function InvoicesPage() {
                       <span>${selectedInvoice.totalAmount.toFixed(2)}</span>
                     </div>
                     {selectedInvoice.balance > 0 && (
-                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#f87171" : "#60a5fa" }}>
+                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#e11d48" : "#38bdf8" }}>
                         <span>Balance Due</span>
                         <span>${selectedInvoice.balance.toFixed(2)}</span>
                       </div>
@@ -562,7 +562,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #60a5fa, #3b82f6)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)", color: "white" }}
                     >
                       Mark as Sent
                     </button>
@@ -571,7 +571,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "paid")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #4ade80, #22c55e)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #14b8a6, #0f766e)", color: "white" }}
                     >
                       Record Payment (Mark Paid)
                     </button>
@@ -588,7 +588,7 @@ export default function InvoicesPage() {
                   <button
                     onClick={() => handleDeleteInvoice(selectedInvoice.id)}
                     className="w-full px-4 py-2 rounded-lg text-sm font-medium"
-                    style={{ background: "rgba(248,113,113,0.12)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+                    style={{ background: "rgba(225,29,72,0.12)", color: "#e11d48", border: "1px solid rgba(225,29,72,0.2)" }}
                   >
                     Delete Invoice
                   </button>
@@ -723,7 +723,7 @@ export default function InvoicesPage() {
                           ${(li.qty * li.unitPrice).toFixed(2)}
                         </span>
                         {createForm.lineItems.length > 1 && (
-                          <button onClick={() => removeLineItem(idx)} className="text-xs" style={{ color: "#f87171" }}>✕</button>
+                          <button onClick={() => removeLineItem(idx)} className="text-xs" style={{ color: "#e11d48" }}>✕</button>
                         )}
                       </div>
                     </div>

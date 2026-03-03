@@ -3,8 +3,8 @@ import Header from "@/components/layout/Header";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
-  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#4ade80", bg: "rgba(74,222,128,0.12)" },
-  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
+  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
   { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
   { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
 ];
@@ -65,9 +65,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(248,113,113,0.12)",
-                  border: "1px solid rgba(248,113,113,0.2)",
-                  color: "#f87171",
+                  background: "rgba(225,29,72,0.12)",
+                  border: "1px solid rgba(225,29,72,0.2)",
+                  color: "#e11d48",
                 }}
               >
                 {errorMessage}
@@ -78,9 +78,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(74,222,128,0.12)",
-                  border: "1px solid rgba(74,222,128,0.2)",
-                  color: "#4ade80",
+                  background: "rgba(20,184,166,0.12)",
+                  border: "1px solid rgba(20,184,166,0.2)",
+                  color: "#14b8a6",
                 }}
               >
                 ✓ Successfully connected to QuickBooks! Click &quot;Sync Now&quot; to pull your data.

@@ -8,7 +8,7 @@ const mockTechs = [
   {
     id: "tech-001",
     name: "Mike Johnson",
-    color: "#3b82f6",
+    color: "#0ea5e9",
     initials: "MJ",
     status: "on_job",
     currentJob: { id: "job-001", title: "Annual Cleaning", customer: "Linda Martinez", address: "123 Oak Street" },
@@ -22,7 +22,7 @@ const mockTechs = [
   {
     id: "tech-002",
     name: "Sarah Williams",
-    color: "#10b981",
+    color: "#0d9488",
     initials: "SW",
     status: "driving",
     currentJob: null,
@@ -36,7 +36,7 @@ const mockTechs = [
   {
     id: "tech-003",
     name: "Tom Davis",
-    color: "#f59e0b",
+    color: "#b7791f",
     initials: "TD",
     status: "available",
     currentJob: null,
@@ -50,7 +50,7 @@ const mockTechs = [
   {
     id: "tech-004",
     name: "Chris Lee",
-    color: "#8b5cf6",
+    color: "#7c3aed",
     initials: "CL",
     status: "break",
     currentJob: null,
@@ -70,8 +70,8 @@ const unassignedJobs = [
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   on_job: { label: "On Job", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-  driving: { label: "Driving", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  available: { label: "Available", color: "#4ade80", bg: "rgba(74,222,128,0.12)" },
+  driving: { label: "Driving", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+  available: { label: "Available", color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
   break: { label: "On Break", color: "#9ca3af", bg: "rgba(156,163,175,0.12)" },
   offline: { label: "Offline", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
 };
@@ -97,7 +97,7 @@ export default function DispatchPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80" }}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.2)", color: "#14b8a6" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
               Live Tracking
             </div>
@@ -124,10 +124,10 @@ export default function DispatchPage() {
               {/* Grid lines to simulate map */}
               <div className="absolute inset-0 opacity-10">
                 {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={`h${i}`} className="absolute w-full border-t" style={{ top: `${i * 5}%`, borderColor: "#60a5fa" }} />
+                  <div key={`h${i}`} className="absolute w-full border-t" style={{ top: `${i * 5}%`, borderColor: "#38bdf8" }} />
                 ))}
                 {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={`v${i}`} className="absolute h-full border-l" style={{ left: `${i * 5}%`, borderColor: "#60a5fa" }} />
+                  <div key={`v${i}`} className="absolute h-full border-l" style={{ left: `${i * 5}%`, borderColor: "#38bdf8" }} />
                 ))}
               </div>
 
@@ -206,7 +206,7 @@ export default function DispatchPage() {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
                       style={{
-                        background: job.priority === "urgent" ? "rgba(248,113,113,0.9)" : "rgba(14,165,233,0.9)",
+                        background: job.priority === "urgent" ? "rgba(225,29,72,0.9)" : "rgba(14,165,233,0.9)",
                         border: "2px solid rgba(255,255,255,0.4)",
                         boxShadow: "0 0 12px rgba(14,165,233,0.4)",
                       }}
@@ -288,7 +288,7 @@ export default function DispatchPage() {
               <div className="px-4 py-3" style={{ borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)" }}>
                 <h3 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
                   Unassigned Jobs
-                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(248,113,113,0.12)", color: "#f87171" }}>
+                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(225,29,72,0.12)", color: "#e11d48" }}>
                     {unassignedJobs.length}
                   </span>
                 </h3>
@@ -302,14 +302,14 @@ export default function DispatchPage() {
                     className="rounded-xl p-3 cursor-grab active:cursor-grabbing"
                     style={{
                       background: "var(--color-surface-2)",
-                      border: `1px solid ${job.priority === "urgent" ? "rgba(248,113,113,0.4)" : "var(--color-border)"}`,
+                      border: `1px solid ${job.priority === "urgent" ? "rgba(225,29,72,0.4)" : "var(--color-border)"}`,
                     }}
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
                           {job.priority === "urgent" && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(248,113,113,0.12)", color: "#f87171" }}>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(225,29,72,0.12)", color: "#e11d48" }}>
                               URGENT
                             </span>
                           )}

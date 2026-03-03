@@ -18,8 +18,8 @@ const actions = [
   },
   {
     label: "New Customer",
-    color: "#60a5fa",
-    bg: "rgba(96,165,250,0.12)",
+    color: "#38bdf8",
+    bg: "rgba(56,189,248,0.12)",
     href: "/customers",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -29,8 +29,8 @@ const actions = [
   },
   {
     label: "New Invoice",
-    color: "#4ade80",
-    bg: "rgba(74,222,128,0.12)",
+    color: "#14b8a6",
+    bg: "rgba(20,184,166,0.12)",
     href: "/invoices",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

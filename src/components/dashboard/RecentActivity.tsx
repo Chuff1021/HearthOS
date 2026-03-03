@@ -3,8 +3,8 @@
 const activities = [
   {
     id: 1,
-    iconBg: "rgba(74,222,128,0.12)",
-    iconColor: "#4ade80",
+    iconBg: "rgba(20,184,166,0.12)",
+    iconColor: "#14b8a6",
     title: "Job completed",
     desc: "JOB-2026-00142 · Mike Johnson",
     sub: "Dave Torres · 3 min ago",
@@ -16,8 +16,8 @@ const activities = [
   },
   {
     id: 2,
-    iconBg: "rgba(96,165,250,0.12)",
-    iconColor: "#60a5fa",
+    iconBg: "rgba(56,189,248,0.12)",
+    iconColor: "#38bdf8",
     title: "Payment received",
     desc: "$1,840 · Invoice #INV-00891",
     sub: "Linda Martinez · 18 min ago",
@@ -71,8 +71,8 @@ const activities = [
   },
   {
     id: 6,
-    iconBg: "rgba(248,113,113,0.12)",
-    iconColor: "#f87171",
+    iconBg: "rgba(225,29,72,0.12)",
+    iconColor: "#e11d48",
     title: "Checklist flagged",
     desc: "JOB-2026-00143 · Missing gas photo",
     sub: "Needs review · 1h ago",
@@ -84,8 +84,8 @@ const activities = [
   },
   {
     id: 7,
-    iconBg: "rgba(248,113,113,0.12)",
-    iconColor: "#f87171",
+    iconBg: "rgba(225,29,72,0.12)",
+    iconColor: "#e11d48",
     title: "Callback scheduled",
     desc: "Tom Bradley · Igniter issue",
     sub: "JOB-2026-00146 · 2:30 PM today",
@@ -161,9 +161,9 @@ export default function RecentActivity() {
         <span
           className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
           style={{
-            background: "rgba(74,222,128,0.1)",
-            color: "#4ade80",
-            border: "1px solid rgba(74,222,128,0.2)",
+            background: "rgba(20,184,166,0.1)",
+            color: "#14b8a6",
+            border: "1px solid rgba(20,184,166,0.2)",
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>

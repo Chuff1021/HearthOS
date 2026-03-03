@@ -19,7 +19,7 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "11:00",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#3b82f6" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#0ea5e9" }],
     totalAmount: "285.00",
   },
   {
@@ -36,8 +36,8 @@ const mockJobs = [
     scheduledTimeStart: "10:00",
     scheduledTimeEnd: "16:00",
     assignedTechs: [
-      { id: "tech-002", name: "Sarah Williams", color: "#10b981" },
-      { id: "tech-003", name: "Tom Davis", color: "#f59e0b" },
+      { id: "tech-002", name: "Sarah Williams", color: "#0d9488" },
+      { id: "tech-003", name: "Tom Davis", color: "#b7791f" },
     ],
     totalAmount: "4200.00",
   },
@@ -54,7 +54,7 @@ const mockJobs = [
     scheduledDate: "2024-02-24",
     scheduledTimeStart: "14:00",
     scheduledTimeEnd: "15:30",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#3b82f6" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#0ea5e9" }],
     totalAmount: "185.00",
     completedAt: "2024-02-24T15:15:00Z",
   },
@@ -87,24 +87,24 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "13:00",
     scheduledTimeEnd: "15:00",
-    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#8b5cf6" }],
+    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#7c3aed" }],
     totalAmount: "0.00",
   },
 ];
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  scheduled: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa", border: "rgba(96,165,250,0.25)" },
+  scheduled: { bg: "rgba(56,189,248,0.12)", text: "#38bdf8", border: "rgba(56,189,248,0.25)" },
   in_progress: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24", border: "rgba(251,191,36,0.25)" },
-  completed: { bg: "rgba(74,222,128,0.12)", text: "#4ade80", border: "rgba(74,222,128,0.25)" },
-  cancelled: { bg: "rgba(248,113,113,0.12)", text: "#f87171", border: "rgba(248,113,113,0.25)" },
+  completed: { bg: "rgba(20,184,166,0.12)", text: "#14b8a6", border: "rgba(20,184,166,0.25)" },
+  cancelled: { bg: "rgba(225,29,72,0.12)", text: "#e11d48", border: "rgba(225,29,72,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
   low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
-  normal: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa" },
+  normal: { bg: "rgba(56,189,248,0.12)", text: "#38bdf8" },
   high: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24" },
-  urgent: { bg: "rgba(248,113,113,0.12)", text: "#f87171" },
+  urgent: { bg: "rgba(225,29,72,0.12)", text: "#e11d48" },
 };
 
 const jobTypeIcons: Record<string, string> = {
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"][idx] || "#6b7280",
+            color: ["#0ea5e9", "#0d9488", "#b7791f", "#7c3aed"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),

@@ -151,11 +151,11 @@ export default function EstimatesPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Approved</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#10b981" }}>${approvedValue.toLocaleString()}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#0d9488" }}>${approvedValue.toLocaleString()}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#f59e0b" }}>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#b7791f" }}>
                   {estimates.filter(e => e.status === "sent").length}
                 </p>
               </div>

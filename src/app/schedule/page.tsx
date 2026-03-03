@@ -10,10 +10,10 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7am - 5pm
 
 const mockTechs = [
-  { id: "tech-001", name: "Mike Johnson", color: "#3b82f6", initials: "MJ" },
-  { id: "tech-002", name: "Sarah Williams", color: "#10b981", initials: "SW" },
-  { id: "tech-003", name: "Tom Davis", color: "#f59e0b", initials: "TD" },
-  { id: "tech-004", name: "Chris Lee", color: "#8b5cf6", initials: "CL" },
+  { id: "tech-001", name: "Mike Johnson", color: "#0ea5e9", initials: "MJ" },
+  { id: "tech-002", name: "Sarah Williams", color: "#0d9488", initials: "SW" },
+  { id: "tech-003", name: "Tom Davis", color: "#b7791f", initials: "TD" },
+  { id: "tech-004", name: "Chris Lee", color: "#7c3aed", initials: "CL" },
 ];
 
 const mockJobs = [
@@ -97,10 +97,10 @@ const mockJobs = [
 ];
 
 const statusColors: Record<string, string> = {
-  scheduled: "rgba(96,165,250,0.85)",
+  scheduled: "rgba(56,189,248,0.85)",
   in_progress: "rgba(251,191,36,0.85)",
-  completed: "rgba(74,222,128,0.85)",
-  cancelled: "rgba(248,113,113,0.85)",
+  completed: "rgba(20,184,166,0.85)",
+  cancelled: "rgba(225,29,72,0.85)",
 };
 
 const jobTypeEmoji: Record<string, string> = {

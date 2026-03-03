@@ -35,7 +35,7 @@ export default function DashboardStats() {
       sub: "3 completed · 5 remaining",
       trend: "+2 vs yesterday",
       trendUp: true,
-      accentColor: "#3b82f6",
+      accentColor: "#0ea5e9",
       accentBg: "rgba(59,130,246,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -50,8 +50,8 @@ export default function DashboardStats() {
       sub: s ? `${s.totalInvoices} invoices total` : "Loading...",
       trend: s ? `${s.totalCustomers} customers` : "",
       trendUp: true,
-      accentColor: "#22c55e",
-      accentBg: "rgba(34,197,94,0.12)",
+      accentColor: "#0f766e",
+      accentBg: "rgba(15,118,110,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
@@ -65,7 +65,7 @@ export default function DashboardStats() {
       sub: s ? `${s.sentCount + s.overdueCount} invoices pending` : "Loading...",
       trend: s ? `${s.overdueCount} overdue` : "",
       trendUp: false,
-      accentColor: "#f59e0b",
+      accentColor: "#b7791f",
       accentBg: "rgba(245,158,11,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -93,7 +93,7 @@ export default function DashboardStats() {
       sub: "Active accounts",
       trend: s ? `$${s.paidThisMonth.toLocaleString()} paid` : "",
       trendUp: true,
-      accentColor: "#10b981",
+      accentColor: "#0d9488",
       accentBg: "rgba(16,185,129,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -107,8 +107,8 @@ export default function DashboardStats() {
       sub: s ? `${s.overdueCount} invoices` : "Loading...",
       trend: "Needs attention",
       trendUp: false,
-      accentColor: "#ef4444",
-      accentBg: "rgba(239,68,68,0.12)",
+      accentColor: "#be123c",
+      accentBg: "rgba(190,18,60,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -168,7 +168,7 @@ export default function DashboardStats() {
           {/* Trend */}
           <div
             className="text-[10px] font-semibold mt-1 flex items-center gap-1"
-            style={{ color: stat.trendUp ? "#22c55e" : "#ef4444" }}
+            style={{ color: stat.trendUp ? "#0f766e" : "#be123c" }}
           >
             {stat.trendUp ? (
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
