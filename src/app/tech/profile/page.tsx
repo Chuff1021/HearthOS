@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -9,6 +9,12 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const [gpsEnabled, setGpsEnabled] = useState(true);
+  const [techId, setTechId] = useState<string>("");
+  const [requestType, setRequestType] = useState<"paid_vacation" | "unpaid_vacation" | "unpaid_appointment_time">("paid_vacation");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [requestReason, setRequestReason] = useState("");
+  const [requestStatus, setRequestStatus] = useState<string>("");
 
   const handleSignOut = async () => {
     // Sign out and redirect to sign-in page
@@ -23,6 +29,50 @@ export default function ProfilePage() {
 
   // Derived state — no useEffect needed
   const currentLocation = gpsEnabled && isTracking ? "Springfield, IL" : null;
+
+  useEffect(() => {
+    async function resolveTech() {
+      try {
+        const res = await fetch('/api/techs?activeOnly=true');
+        const data = await res.json();
+        const list = data.techs || [];
+        const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
+        const match = list.find((t: any) => nameLower && nameLower.includes(String(t.name).split(' ')[0].toLowerCase()));
+        if (match) setTechId(match.id);
+      } catch {
+        // no-op
+      }
+    }
+    resolveTech();
+  }, [user?.firstName, user?.fullName]);
+
+  async function submitTimeOffRequest() {
+    if (!techId || !startDate || !endDate) {
+      setRequestStatus('Please select dates first.');
+      return;
+    }
+
+    const res = await fetch('/api/time-off-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        techId,
+        techName: userName,
+        type: requestType,
+        startDate,
+        endDate,
+        reason: requestReason || undefined,
+      }),
+    });
+
+    if (res.ok) {
+      setRequestStatus('Request submitted.');
+      setRequestReason('');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setRequestStatus(data.error || 'Failed to submit request.');
+    }
+  }
 
   // User info from Clerk or defaults
   const todayStats = {
@@ -143,6 +193,37 @@ export default function ProfilePage() {
               <span className="text-sm text-gray-400">Phone</span>
               <span className="text-sm">{user?.phoneNumbers?.[0]?.phoneNumber || "(555) 123-4567"}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Time Off Request */}
+        <div className="bg-[#1a1a2e] rounded-xl p-4">
+          <h3 className="font-semibold mb-3">Request Time Off</h3>
+          <div className="space-y-2">
+            <select
+              value={requestType}
+              onChange={(e) => setRequestType(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-lg bg-[#252540] border border-gray-700"
+            >
+              <option value="paid_vacation">Paid Vacation</option>
+              <option value="unpaid_vacation">Unpaid Vacation</option>
+              <option value="unpaid_appointment_time">Unpaid Appointment Time</option>
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-3 py-2 rounded-lg bg-[#252540] border border-gray-700" />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-2 rounded-lg bg-[#252540] border border-gray-700" />
+            </div>
+            <textarea
+              value={requestReason}
+              onChange={(e) => setRequestReason(e.target.value)}
+              placeholder="Reason (optional)"
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg bg-[#252540] border border-gray-700"
+            />
+            <button onClick={submitTimeOffRequest} className="w-full py-2 rounded-lg font-medium" style={{ background: "#2563EB", color: "white" }}>
+              Submit Request
+            </button>
+            {requestStatus && <p className="text-xs text-gray-300">{requestStatus}</p>}
           </div>
         </div>
 

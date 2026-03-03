@@ -96,6 +96,10 @@ const techs: Tech[] = [
   },
 ];
 
+export function getTechs(): Tech[] {
+  return techs;
+}
+
 // GET - List technicians
 export async function GET(request: Request) {
   try {

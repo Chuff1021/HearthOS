@@ -30,6 +30,7 @@ export default function TechApp() {
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [activeJob, setActiveJob] = useState<string | null>(null);
+  const [clocking, setClocking] = useState(false);
 
   const [techs, setTechs] = useState<Tech[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -63,6 +64,35 @@ export default function TechApp() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    async function loadClockState() {
+      if (!selectedTechId) return;
+      const res = await fetch(`/api/time/entries?techId=${selectedTechId}&openOnly=true`);
+      const data = await res.json();
+      setIsClockedIn((data.entries || []).length > 0);
+    }
+    loadClockState();
+  }, [selectedTechId]);
+
+  async function handleClockToggle() {
+    if (!selectedTechId) return;
+    setClocking(true);
+    try {
+      await fetch('/api/time/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: isClockedIn ? 'clock_out' : 'clock_in',
+          techId: selectedTechId,
+          techName: selectedTech?.name,
+        }),
+      });
+      setIsClockedIn((v) => !v);
+    } finally {
+      setClocking(false);
+    }
+  }
 
   const todaysJobs = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -107,7 +137,8 @@ export default function TechApp() {
             </select>
           </div>
           <button
-            onClick={() => setIsClockedIn((v) => !v)}
+            onClick={handleClockToggle}
+            disabled={clocking}
             className="px-5 py-3 rounded-xl text-sm font-semibold"
             style={{
               background: isClockedIn ? "rgba(255,32,78,0.15)" : "linear-gradient(135deg, #98CD00, #98CD00)",
@@ -115,7 +146,7 @@ export default function TechApp() {
               border: isClockedIn ? "1px solid rgba(255,32,78,0.5)" : "none",
             }}
           >
-            {isClockedIn ? "Clock Out" : "Clock In"}
+            {clocking ? "Saving..." : isClockedIn ? "Clock Out" : "Clock In"}
           </button>
         </div>
       </div>

@@ -32,6 +32,8 @@ export default function TeamPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", role: "tech" as "lead" | "tech" | "helper" | "dispatcher" | "admin" });
 
   async function loadTechs() {
     setLoading(true);
@@ -76,6 +78,39 @@ export default function TeamPage() {
       alert("Failed to delete technician");
     }
     setDeleting(false);
+  }
+
+  async function addTeamMember() {
+    if (!newMember.name || !newMember.email) {
+      alert("Name and email are required");
+      return;
+    }
+
+    setAdding(true);
+    try {
+      const res = await fetch('/api/techs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMember),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add team member');
+
+      // Invitation placeholder - stores request for account onboarding workflow
+      await fetch('/api/team/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newMember.email, name: newMember.name, role: newMember.role }),
+      });
+
+      setShowAddModal(false);
+      setNewMember({ name: '', email: '', phone: '', role: 'tech' });
+      await loadTechs();
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      alert('Failed to add team member');
+    }
+    setAdding(false);
   }
 
   useEffect(() => {
@@ -381,22 +416,30 @@ export default function TeamPage() {
               <input
                 type="text"
                 placeholder="Full Name"
+                value={newMember.name}
+                onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
                 className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
                 style={{ color: "var(--color-text-primary)" }}
               />
               <input
                 type="email"
                 placeholder="Email"
+                value={newMember.email}
+                onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                 className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
                 style={{ color: "var(--color-text-primary)" }}
               />
               <input
                 type="tel"
                 placeholder="Phone"
+                value={newMember.phone}
+                onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
                 className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
                 style={{ color: "var(--color-text-primary)" }}
               />
               <select
+                value={newMember.role}
+                onChange={(e) => setNewMember({ ...newMember, role: e.target.value as any })}
                 className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
                 style={{ color: "var(--color-text-primary)" }}
               >
@@ -408,8 +451,12 @@ export default function TeamPage() {
               </select>
             </div>
             
-            <button className="w-full mt-6 py-3 rounded-xl font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
-              Add Team Member
+            <button
+              onClick={addTeamMember}
+              disabled={adding}
+              className="w-full mt-6 py-3 rounded-xl font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-60"
+            >
+              {adding ? 'Adding...' : 'Add Team Member'}
             </button>
           </div>
         </div>
