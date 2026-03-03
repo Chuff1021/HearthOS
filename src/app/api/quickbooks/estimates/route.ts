@@ -79,6 +79,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, estimate: sentEstimate });
     }
 
+    if (body.action === 'update') {
+      if (!body.id) return NextResponse.json({ error: 'id is required for update' }, { status: 400 });
+      const updatedEstimate = (await withRefresh(auth, (client) => client.updateEstimate(body.id, body.updates || {}))) as any;
+      addAuditLog({
+        entityType: 'estimate',
+        entityId: body.id,
+        action: 'update',
+        actor: 'system',
+        source: 'api',
+        after: updatedEstimate,
+        note: 'Estimate updated from dashboard',
+      });
+      return NextResponse.json({ success: true, estimate: updatedEstimate });
+    }
+
     if (!body.customerId || !Array.isArray(body.lines) || body.lines.length === 0) {
       return NextResponse.json({ error: 'customerId and lines[] are required' }, { status: 400 });
     }

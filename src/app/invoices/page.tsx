@@ -54,6 +54,7 @@ export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -323,9 +324,60 @@ export default function InvoicesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleSaveInvoiceEdits = async () => {
+    if (!selectedInvoice) return;
+    try {
+      const payload = {
+        id: selectedInvoice.id,
+        updates: {
+          DueDate: selectedInvoice.dueDate,
+          PrivateNote: selectedInvoice.notes || undefined,
+          Line: selectedInvoice.lineItems.map((li, idx) => ({
+            LineNum: idx + 1,
+            Amount: li.qty * li.unitPrice,
+            DetailType: "SalesItemLineDetail",
+            Description: li.description,
+            SalesItemLineDetail: {
+              Qty: li.qty,
+              UnitPrice: li.unitPrice,
+            },
+          })),
+        },
+      };
+
+      const qbRes = await fetch("/api/quickbooks/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", ...payload }),
+      });
+
+      if (!qbRes.ok) {
+        await fetch("/api/invoices", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: selectedInvoice.id,
+            dueDate: selectedInvoice.dueDate,
+            notes: selectedInvoice.notes,
+            lineItems: selectedInvoice.lineItems,
+          }),
+        });
+      }
+
+      setEditMode(false);
+      fetchInvoices();
+    } catch {
+      setError("Failed to save invoice edits");
+    }
+  };
+
   const createSubtotal = createForm.lineItems.reduce((sum, li) => sum + li.qty * li.unitPrice, 0);
   const createTax = createSubtotal * (createForm.taxRate / 100);
   const createTotal = createSubtotal + createTax;
+
+  const selectedSubtotal = selectedInvoice ? selectedInvoice.lineItems.reduce((s, li) => s + li.qty * li.unitPrice, 0) : 0;
+  const selectedTax = selectedInvoice ? selectedSubtotal * ((selectedInvoice.taxRate || 0) / 100) : 0;
+  const selectedTotal = selectedInvoice ? selectedSubtotal + selectedTax : 0;
 
   const handleSyncWithQuickBooks = async () => {
     setSyncing(true);
@@ -515,11 +567,22 @@ export default function InvoicesPage() {
             >
               <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <h2 className="font-bold" style={{ color: "var(--color-text-primary)" }}>Invoice Details</h2>
-                <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded-lg" style={{ color: "var(--color-text-muted)" }}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  {!editMode ? (
+                    <button onClick={() => setEditMode(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                      Edit
+                    </button>
+                  ) : (
+                    <button onClick={handleSaveInvoiceEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB" }}>
+                      Save
+                    </button>
+                  )}
+                  <button onClick={() => { setEditMode(false); setSelectedInvoice(null); }} className="p-1 rounded-lg" style={{ color: "var(--color-text-muted)" }}>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 space-y-5">
@@ -538,7 +601,20 @@ export default function InvoicesPage() {
                   <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{selectedInvoice.jobTitle}</p>
                   <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
                     <span>Issued: {selectedInvoice.issueDate}</span>
-                    <span>Due: {selectedInvoice.dueDate}</span>
+                    <span>
+                      Due:{" "}
+                      {editMode ? (
+                        <input
+                          type="date"
+                          value={selectedInvoice.dueDate}
+                          onChange={(e) => setSelectedInvoice({ ...selectedInvoice, dueDate: e.target.value })}
+                          className="ml-1 px-1 py-0.5 rounded"
+                          style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                        />
+                      ) : (
+                        selectedInvoice.dueDate
+                      )}
+                    </span>
                   </div>
                 </div>
 
@@ -549,10 +625,57 @@ export default function InvoicesPage() {
                     {selectedInvoice.lineItems.map((item, idx) => (
                       <div key={idx} className="flex items-start justify-between py-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
                         <div className="flex-1">
-                          <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{item.description}</div>
-                          <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                            {item.qty} × ${item.unitPrice.toFixed(2)}
-                          </div>
+                          {editMode ? (
+                            <div className="space-y-1">
+                              <input
+                                value={item.description}
+                                onChange={(e) => {
+                                  const lineItems = [...selectedInvoice.lineItems];
+                                  lineItems[idx] = { ...lineItems[idx], description: e.target.value };
+                                  setSelectedInvoice({ ...selectedInvoice, lineItems });
+                                }}
+                                className="w-full px-2 py-1 rounded text-sm"
+                                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                              />
+                              <div className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={item.qty}
+                                  onChange={(e) => {
+                                    const qty = Number(e.target.value || 1);
+                                    const lineItems = [...selectedInvoice.lineItems];
+                                    lineItems[idx] = { ...lineItems[idx], qty, total: qty * lineItems[idx].unitPrice };
+                                    setSelectedInvoice({ ...selectedInvoice, lineItems });
+                                  }}
+                                  className="w-16 px-1 py-0.5 rounded"
+                                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                                />
+                                ×
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  value={item.unitPrice}
+                                  onChange={(e) => {
+                                    const unitPrice = Number(e.target.value || 0);
+                                    const lineItems = [...selectedInvoice.lineItems];
+                                    lineItems[idx] = { ...lineItems[idx], unitPrice, total: unitPrice * lineItems[idx].qty };
+                                    setSelectedInvoice({ ...selectedInvoice, lineItems });
+                                  }}
+                                  className="w-24 px-1 py-0.5 rounded"
+                                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{item.description}</div>
+                              <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                                {item.qty} × ${item.unitPrice.toFixed(2)}
+                              </div>
+                            </>
+                          )}
                         </div>
                         <div className="font-semibold text-sm ml-4" style={{ color: "var(--color-text-primary)" }}>
                           ${item.total.toFixed(2)}
@@ -565,15 +688,15 @@ export default function InvoicesPage() {
                   <div className="mt-3 space-y-1.5">
                     <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
                       <span>Subtotal</span>
-                      <span>${selectedInvoice.subtotal.toFixed(2)}</span>
+                      <span>${selectedSubtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
                       <span>Tax ({selectedInvoice.taxRate}%)</span>
-                      <span>${selectedInvoice.taxAmount.toFixed(2)}</span>
+                      <span>${selectedTax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-2" style={{ color: "var(--color-text-primary)", borderTop: "1px solid var(--color-border)" }}>
                       <span>Total</span>
-                      <span>${selectedInvoice.totalAmount.toFixed(2)}</span>
+                      <span>${selectedTotal.toFixed(2)}</span>
                     </div>
                     {selectedInvoice.balance > 0 && (
                       <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#FF204E" : "#2563EB" }}>
@@ -585,10 +708,20 @@ export default function InvoicesPage() {
                 </div>
 
                 {/* Notes */}
-                {selectedInvoice.notes && (
+                {(selectedInvoice.notes || editMode) && (
                   <div>
                     <h4 className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>NOTES</h4>
-                    <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedInvoice.notes}</p>
+                    {editMode ? (
+                      <textarea
+                        value={selectedInvoice.notes || ""}
+                        onChange={(e) => setSelectedInvoice({ ...selectedInvoice, notes: e.target.value })}
+                        rows={3}
+                        className="w-full px-2 py-1 rounded text-sm"
+                        style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                      />
+                    ) : (
+                      <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedInvoice.notes}</p>
+                    )}
                   </div>
                 )}
 

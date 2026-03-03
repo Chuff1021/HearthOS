@@ -111,6 +111,24 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({ success: true, invoice: sent?.Invoice || sent });
     }
+
+    if ((body as any).action === 'update') {
+      if (!(body as any).id) {
+        return NextResponse.json({ error: 'id is required to update invoice' }, { status: 400 });
+      }
+      const client = getClientFromTokens(accessToken, refreshToken, realmId);
+      const updated = await client.updateInvoice((body as any).id, (body as any).updates || {});
+      addAuditLog({
+        entityType: 'invoice',
+        entityId: (body as any).id,
+        action: 'update',
+        actor: 'system',
+        source: 'api',
+        after: updated,
+        note: 'Invoice updated from dashboard',
+      });
+      return NextResponse.json({ success: true, invoice: transformInvoice(updated) });
+    }
     
     // Check if this is UI format (has lineItems) or QB format
     const isUIFormat = 'lineItems' in body && Array.isArray((body as any).lineItems);

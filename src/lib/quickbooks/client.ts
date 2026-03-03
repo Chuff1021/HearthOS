@@ -233,6 +233,22 @@ export class QuickBooksClient {
     return response.Estimate;
   }
 
+  async getEstimate(id: string): Promise<any> {
+    const response = await this.request<{ Estimate: any }>('GET', `/estimate/${id}`);
+    return response.Estimate;
+  }
+
+  async updateEstimate(id: string, estimate: any): Promise<any> {
+    const existing = await this.getEstimate(id);
+    const response = await this.request<{ Estimate: any }>('POST', '/estimate', {
+      ...existing,
+      ...estimate,
+      Id: id,
+      sparse: true,
+    });
+    return response.Estimate;
+  }
+
   // === INVOICES ===
 
   async getInvoices(maxResults = 100): Promise<QBInvoice[]> {
@@ -252,6 +268,16 @@ export class QuickBooksClient {
       'POST',
       '/invoice',
       invoice
+    );
+    return response.Invoice;
+  }
+
+  async updateInvoice(id: string, invoice: Partial<QBInvoice>): Promise<QBInvoice> {
+    const existing = await this.getInvoice(id);
+    const response = await this.request<{ Invoice: QBInvoice }>(
+      'POST',
+      '/invoice',
+      { ...existing, ...invoice, Id: id, sparse: true }
     );
     return response.Invoice;
   }

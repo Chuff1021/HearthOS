@@ -132,6 +132,30 @@ export default function EstimatesPage() {
     }
   }
 
+  async function editEstimateQuick(e: Estimate) {
+    const nextExpiration = window.prompt("Expiration date (YYYY-MM-DD)", e.ExpirationDate || "") || e.ExpirationDate;
+    const nextNote = window.prompt("Estimate note", "") || undefined;
+    try {
+      const res = await fetch("/api/quickbooks/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          id: e.Id,
+          updates: {
+            ExpirationDate: nextExpiration || undefined,
+            PrivateNote: nextNote,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update estimate");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update estimate");
+    }
+  }
+
   async function generateFromAI() {
     if (!prompt.trim()) return;
     setError(null);
@@ -341,10 +365,11 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
-                      <div className="mt-2 grid grid-cols-3 gap-1">
+                      <div className="mt-2 grid grid-cols-4 gap-1">
                         <button onClick={() => emailEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
                         <button onClick={() => printEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
                         <button onClick={() => downloadEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
+                        <button onClick={() => editEstimateQuick(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
                       </div>
 
                       {convertedMap[e.Id] ? (
