@@ -106,6 +106,7 @@ export default function SchedulePage() {
   const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({
     jobType: "Service Call",
     customerId: "",
@@ -323,9 +324,10 @@ export default function SchedulePage() {
   async function createJob() {
     if (!validateForm()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const tech = techs.find((t) => t.id === form.techId);
-      await fetch("/api/jobs", {
+      const res = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -341,6 +343,16 @@ export default function SchedulePage() {
           assignedTechs: tech ? [{ id: tech.id, name: tech.name, color: tech.color }] : [],
         }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.error || "Failed to add job. Please try again.");
+        return;
+      }
+
+      // Move calendar to the newly scheduled date's week so user sees the new card immediately
+      setCurrentDate(new Date(form.scheduledDate + "T00:00:00"));
+
       setShowCreate(false);
       setCustomerQuery("");
       setCustomerResults([]);
@@ -395,6 +407,7 @@ export default function SchedulePage() {
   useEffect(() => {
     if (showCreate) {
       setFormErrors({});
+      setSaveError(null);
     }
     if (showCreate && !form.scheduledDate) {
       setForm((f) => ({
@@ -560,6 +573,11 @@ export default function SchedulePage() {
               <button onClick={() => setShowCreate(false)}>✕</button>
             </div>
             <div className="space-y-3">
+              {saveError && (
+                <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+                  {saveError}
+                </div>
+              )}
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Job Type</label>
                 <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
