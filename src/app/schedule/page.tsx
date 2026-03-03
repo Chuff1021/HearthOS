@@ -49,6 +49,12 @@ function toHourFloat(hhmm: string) {
   return h + (m || 0) / 60;
 }
 
+function toHHMM(hourFloat: number) {
+  const h = Math.floor(hourFloat);
+  const m = Math.round((hourFloat - h) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export default function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("master");
@@ -61,6 +67,7 @@ export default function SchedulePage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     customerName: "",
@@ -180,6 +187,31 @@ export default function SchedulePage() {
     await loadData();
   }
 
+  async function moveJobToSlot(jobId: string, targetDate: Date, targetHour: number) {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+
+    const start = toHourFloat(job.scheduledTimeStart);
+    const end = toHourFloat(job.scheduledTimeEnd);
+    const duration = Math.max(0.5, end - start);
+
+    const newStart = targetHour;
+    const newEnd = Math.min(23.5, newStart + duration);
+
+    await fetch("/api/jobs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: job.id,
+        scheduledDate: isoDate(targetDate),
+        scheduledTimeStart: toHHMM(newStart),
+        scheduledTimeEnd: toHHMM(newEnd),
+      }),
+    });
+
+    await loadData();
+  }
+
   useEffect(() => {
     if (showCreate && !form.scheduledDate) {
       setForm((f) => ({
@@ -278,7 +310,19 @@ export default function SchedulePage() {
                     });
 
                     return (
-                      <div key={dayIndex} className="relative border-l" style={{ borderColor: "var(--color-border)" }}>
+                      <div
+                        key={dayIndex}
+                        className="relative border-l"
+                        style={{ borderColor: "var(--color-border)" }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          const droppedId = e.dataTransfer.getData("text/plain") || draggedJobId;
+                          if (!droppedId) return;
+                          await moveJobToSlot(droppedId, d, hour);
+                          setDraggedJobId(null);
+                        }}
+                      >
                         {dayJobs.map((job) => {
                           const start = toHourFloat(job.scheduledTimeStart);
                           const end = toHourFloat(job.scheduledTimeEnd);
@@ -286,13 +330,21 @@ export default function SchedulePage() {
                           return (
                             <div
                               key={job.id}
-                              className="absolute left-1 right-1 rounded-md p-1.5 text-white"
+                              draggable
+                              onDragStart={(e) => {
+                                setDraggedJobId(job.id);
+                                e.dataTransfer.setData("text/plain", job.id);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onDragEnd={() => setDraggedJobId(null)}
+                              className="absolute left-1 right-1 rounded-md p-1.5 text-white cursor-move"
                               style={{
                                 top: 2,
                                 height: duration * 82 - 4,
                                 background: job.assignedTechs[0]?.color || "#2563EB",
                                 overflow: "hidden",
                               }}
+                              title="Drag to reschedule"
                             >
                               <div className="text-[10px] font-bold truncate">{job.title}</div>
                               <div className="text-[9px] opacity-90 truncate">{job.customerName}</div>
