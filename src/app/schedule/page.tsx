@@ -86,6 +86,8 @@ export default function SchedulePage() {
   const [customerResults, setCustomerResults] = useState<CustomerLookup[]>([]);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     title: "",
     customerId: "",
@@ -222,10 +224,86 @@ export default function SchedulePage() {
     }));
     setCustomerQuery(c.displayName || "");
     setCustomerResults([]);
+    setFormErrors((prev) => ({ ...prev, customerName: "", propertyAddress: "" }));
+  }
+
+  function validateForm() {
+    const errs: Record<string, string> = {};
+    if (!form.title.trim()) errs.title = "Job title is required";
+    if (!form.customerName.trim()) errs.customerName = "Customer is required";
+    if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
+    if (!form.scheduledDate) errs.scheduledDate = "Date is required";
+    if (!form.scheduledTimeStart) errs.scheduledTimeStart = "Start time is required";
+    if (!form.scheduledTimeEnd) errs.scheduledTimeEnd = "End time is required";
+    if (!form.techId) errs.techId = "Assign a technician";
+    if (form.scheduledTimeStart && form.scheduledTimeEnd && form.scheduledTimeEnd <= form.scheduledTimeStart) {
+      errs.scheduledTimeEnd = "End time must be after start time";
+    }
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function createCustomerInline() {
+    const name = customerQuery.trim() || form.customerName.trim();
+    if (!name) {
+      setCustomerLookupError("Enter a customer name first.");
+      return;
+    }
+
+    setCreatingCustomer(true);
+    setCustomerLookupError(null);
+    try {
+      const [firstName, ...rest] = name.split(" ");
+      const lastName = rest.join(" ") || "Customer";
+      const payload = {
+        displayName: name,
+        firstName: firstName || "New",
+        lastName,
+        address: form.propertyAddress
+          ? {
+              line1: form.propertyAddress,
+              city: "",
+              state: "",
+              zip: "",
+            }
+          : undefined,
+        active: true,
+      };
+
+      let created: CustomerLookup | null = null;
+      const qbRes = await fetch("/api/quickbooks/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const qbData = await qbRes.json();
+      if (qbRes.ok && qbData?.customer) created = qbData.customer;
+
+      if (!created) {
+        const localRes = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const localData = await localRes.json();
+        if (localRes.ok && localData?.customer) created = localData.customer;
+      }
+
+      if (created) {
+        applyCustomer(created);
+        setCustomerLookupError(null);
+      } else {
+        setCustomerLookupError("Could not create customer.");
+      }
+    } catch {
+      setCustomerLookupError("Could not create customer.");
+    } finally {
+      setCreatingCustomer(false);
+    }
   }
 
   async function createJob() {
-    if (!form.title || !form.customerName || !form.propertyAddress || !form.scheduledDate || !form.techId) return;
+    if (!validateForm()) return;
     setSaving(true);
     try {
       const tech = techs.find((t) => t.id === form.techId);
@@ -296,6 +374,9 @@ export default function SchedulePage() {
   }
 
   useEffect(() => {
+    if (showCreate) {
+      setFormErrors({});
+    }
     if (showCreate && !form.scheduledDate) {
       setForm((f) => ({
         ...f,
@@ -460,7 +541,10 @@ export default function SchedulePage() {
               <button onClick={() => setShowCreate(false)}>✕</button>
             </div>
             <div className="space-y-3">
-              <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+              <div>
+                <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.title ? "#FF204E" : "var(--color-border)"}` }} />
+                {formErrors.title && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.title}</p>}
+              </div>
 
               <div>
                 <input
@@ -488,22 +572,54 @@ export default function SchedulePage() {
                     ))}
                   </div>
                 )}
+                {!customerLoading && customerQuery.trim().length >= 2 && customerResults.length === 0 && (
+                  <div className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                    <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No matching customer found.</p>
+                    <button
+                      type="button"
+                      onClick={createCustomerInline}
+                      disabled={creatingCustomer}
+                      className="px-2 py-1 rounded text-xs font-semibold"
+                      style={{ background: "#2563EB", color: "white" }}
+                    >
+                      {creatingCustomer ? "Creating..." : "Create Customer"}
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <input placeholder="Customer name" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-              <input placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+              <div>
+                <input placeholder="Customer name" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.customerName ? "#FF204E" : "var(--color-border)"}` }} />
+                {formErrors.customerName && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.customerName}</p>}
+              </div>
+              <div>
+                <input placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.propertyAddress ? "#FF204E" : "var(--color-border)"}` }} />
+                {formErrors.propertyAddress && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.propertyAddress}</p>}
+              </div>
               <textarea placeholder="Notes for tech (access, parts, scope, etc.)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
 
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                <select value={form.techId} onChange={(e) => setForm({ ...form, techId: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                  <option value="">Assign tech</option>
-                  {techs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <div>
+                  <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledDate ? "#FF204E" : "var(--color-border)"}` }} />
+                  {formErrors.scheduledDate && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledDate}</p>}
+                </div>
+                <div>
+                  <select value={form.techId} onChange={(e) => setForm({ ...form, techId: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.techId ? "#FF204E" : "var(--color-border)"}` }}>
+                    <option value="">Assign tech</option>
+                    {techs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  {formErrors.techId && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.techId}</p>}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input type="time" value={form.scheduledTimeStart} onChange={(e) => setForm({ ...form, scheduledTimeStart: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                <input type="time" value={form.scheduledTimeEnd} onChange={(e) => setForm({ ...form, scheduledTimeEnd: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                <div>
+                  <input type="time" value={form.scheduledTimeStart} onChange={(e) => setForm({ ...form, scheduledTimeStart: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeStart ? "#FF204E" : "var(--color-border)"}` }} />
+                  {formErrors.scheduledTimeStart && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeStart}</p>}
+                </div>
+                <div>
+                  <input type="time" value={form.scheduledTimeEnd} onChange={(e) => setForm({ ...form, scheduledTimeEnd: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeEnd ? "#FF204E" : "var(--color-border)"}` }} />
+                  {formErrors.scheduledTimeEnd && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeEnd}</p>}
+                </div>
               </div>
             </div>
             <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" }}>
