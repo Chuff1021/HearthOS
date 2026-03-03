@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 
@@ -43,18 +43,67 @@ export default function TechApp() {
   const [shiftStartTime, setShiftStartTime] = useState<Date | null>(null);
   const [activeJob, setActiveJob] = useState<string | null>(null);
   const [jobStartTime, setJobStartTime] = useState<Date | null>(null);
+  const [clockLoading, setClockLoading] = useState(true);
+  const [clockSubmitting, setClockSubmitting] = useState(false);
+  const [clockError, setClockError] = useState<string | null>(null);
   const { user } = useUser();
   const displayName = user?.firstName || user?.fullName || "Tech";
 
-  const handleClockIn = () => {
-    if (!isClockedIn) {
-      setIsClockedIn(true);
-      setShiftStartTime(new Date());
-    } else {
-      setIsClockedIn(false);
-      setShiftStartTime(null);
-      setActiveJob(null);
-      setJobStartTime(null);
+  useEffect(() => {
+    const loadClockStatus = async () => {
+      try {
+        setClockLoading(true);
+        const res = await fetch("/api/tech/timeclock", { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error("Failed to load clock status");
+        }
+
+        const data = await res.json();
+        setIsClockedIn(Boolean(data.isClockedIn));
+        setShiftStartTime(data.shiftStartTime ? new Date(data.shiftStartTime) : null);
+        setClockError(null);
+      } catch (error) {
+        console.error("Failed to load clock state", error);
+        setClockError("Could not load shift status.");
+      } finally {
+        setClockLoading(false);
+      }
+    };
+
+    void loadClockStatus();
+  }, []);
+
+  const handleClockIn = async () => {
+    try {
+      setClockSubmitting(true);
+      setClockError(null);
+
+      const action = isClockedIn ? "clock_out" : "clock_in";
+      const res = await fetch("/api/tech/timeclock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Could not update shift status");
+      }
+
+      setIsClockedIn(Boolean(data.isClockedIn));
+      setShiftStartTime(data.shiftStartTime ? new Date(data.shiftStartTime) : null);
+
+      if (!data.isClockedIn) {
+        setActiveJob(null);
+        setJobStartTime(null);
+      }
+    } catch (error) {
+      console.error("Failed to toggle clock status", error);
+      setClockError(error instanceof Error ? error.message : "Could not update shift status.");
+    } finally {
+      setClockSubmitting(false);
     }
   };
 
@@ -109,21 +158,25 @@ export default function TechApp() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-400">Shift Status</p>
-            {isClockedIn && shiftStartTime && (
-              <p className="text-xs text-gray-500">
-                Started: {formatTime(shiftStartTime)}
-              </p>
+            {clockLoading ? (
+              <p className="text-xs text-gray-500">Loading shift status...</p>
+            ) : isClockedIn && shiftStartTime ? (
+              <p className="text-xs text-gray-500">Started: {formatTime(shiftStartTime)}</p>
+            ) : (
+              <p className="text-xs text-gray-500">Not clocked in</p>
             )}
+            {clockError && <p className="text-xs text-red-400 mt-1">{clockError}</p>}
           </div>
           <button
             onClick={handleClockIn}
-            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all ${
+            disabled={clockLoading || clockSubmitting}
+            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
               isClockedIn
                 ? "bg-red-500/20 text-red-400 border border-red-500/50"
                 : "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
             }`}
           >
-            {isClockedIn ? "Clock Out" : "Clock In"}
+            {clockSubmitting ? "Saving..." : isClockedIn ? "Clock Out" : "Clock In"}
           </button>
         </div>
       </div>

@@ -410,6 +410,23 @@ export const todos = pgTable('todos', {
   dueDateIdx: index('idx_todos_due_date').on(table.dueDate),
 }));
 
+// Timesheet Entries (tech clock in/out)
+export const timesheetEntries = pgTable('timesheet_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  techUserId: varchar('tech_user_id', { length: 255 }).notNull(), // Clerk user id (or internal fallback)
+  clockInAt: timestamp('clock_in_at', { withTimezone: true }).notNull(),
+  clockOutAt: timestamp('clock_out_at', { withTimezone: true }),
+  source: varchar('source', { length: 50 }).default('tech_app'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgIdx: index('idx_timesheet_entries_org_id').on(table.orgId),
+  techIdx: index('idx_timesheet_entries_tech_user_id').on(table.techUserId),
+  openShiftIdx: index('idx_timesheet_entries_open_shift').on(table.orgId, table.techUserId, table.clockOutAt),
+}));
+
 // Audit Logs
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -483,6 +500,8 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
 export type Todo = typeof todos.$inferSelect;
 export type NewTodo = typeof todos.$inferInsert;
+export type TimesheetEntry = typeof timesheetEntries.$inferSelect;
+export type NewTimesheetEntry = typeof timesheetEntries.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type QBSyncStatus = typeof qbSyncStatus.$inferSelect;
