@@ -18,6 +18,8 @@ export default function ProfilePage() {
   const [requestStatus, setRequestStatus] = useState<string>("");
   const [locationLabel, setLocationLabel] = useState<string>("Waiting for GPS...");
   const [gpsError, setGpsError] = useState<string>("");
+  const [gpsState, setGpsState] = useState<string>("unknown");
+  const [lastGpsPingAt, setLastGpsPingAt] = useState<string>("");
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
@@ -51,7 +53,7 @@ export default function ProfilePage() {
   }, [user?.firstName, user?.fullName]);
 
   useEffect(() => {
-    if (!gpsEnabled || !isTracking || !techId) {
+    if (!gpsEnabled || !isTracking) {
       if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchRef.current);
         watchRef.current = null;
@@ -64,17 +66,21 @@ export default function ProfilePage() {
       return;
     }
 
+    const effectiveTechId = techId || user?.id || `user-${(userName || 'unknown').toLowerCase().replace(/\s+/g, '-')}`;
+
     setGpsError('');
     watchRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy, speed, heading } = pos.coords;
         setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`);
+        setGpsState('active');
+        setLastGpsPingAt(new Date().toISOString());
 
         await fetch('/api/tech/locations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            techId,
+            techId: effectiveTechId,
             techName: userName,
             lat: latitude,
             lng: longitude,
@@ -86,12 +92,13 @@ export default function ProfilePage() {
         });
       },
       (err) => {
+        setGpsState('error');
         setGpsError(err.message || 'GPS permission denied/unavailable.');
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 15000,
+        maximumAge: 10000,
+        timeout: 20000,
       }
     );
 
@@ -101,7 +108,28 @@ export default function ProfilePage() {
         watchRef.current = null;
       }
     };
-  }, [gpsEnabled, isTracking, techId, userName]);
+  }, [gpsEnabled, isTracking, techId, user?.id, userName]);
+
+  async function requestLocationPermission() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsError('Geolocation not supported.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setGpsState('permission_granted');
+        setGpsError('');
+        setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`);
+      },
+      (err) => {
+        setGpsState('permission_denied');
+        setGpsError(err.message || 'Location permission denied.');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }
 
   async function submitTimeOffRequest() {
     if (!techId || !startDate || !endDate) {
@@ -215,6 +243,17 @@ export default function ProfilePage() {
           )}
 
           <div className="space-y-3">
+            <button
+              onClick={requestLocationPermission}
+              className="w-full py-2 rounded-lg text-sm font-medium"
+              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+            >
+              Request Location Permission
+            </button>
+            <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              GPS State: {gpsState} {lastGpsPingAt ? `· Last Ping: ${new Date(lastGpsPingAt).toLocaleTimeString()}` : ''}
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Enable GPS</p>
