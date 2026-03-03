@@ -22,7 +22,7 @@ const mockTechs = [
   {
     id: "tech-002",
     name: "Sarah Williams",
-    color: "#15803d",
+    color: "#B6F500",
     initials: "SW",
     status: "driving",
     currentJob: null,
@@ -36,7 +36,7 @@ const mockTechs = [
   {
     id: "tech-003",
     name: "Tom Davis",
-    color: "#c2410c",
+    color: "#FF4400",
     initials: "TD",
     status: "available",
     currentJob: null,
@@ -71,7 +71,7 @@ const unassignedJobs = [
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   on_job: { label: "On Job", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
   driving: { label: "Driving", color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
-  available: { label: "Available", color: "#15803d", bg: "rgba(21,128,61,0.12)" },
+  available: { label: "Available", color: "#B6F500", bg: "rgba(182,245,0,0.12)" },
   break: { label: "On Break", color: "#9ca3af", bg: "rgba(156,163,175,0.12)" },
   offline: { label: "Offline", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
 };
@@ -97,7 +97,7 @@ export default function DispatchPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(21,128,61,0.1)", border: "1px solid rgba(21,128,61,0.2)", color: "#15803d" }}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "rgba(182,245,0,0.1)", border: "1px solid rgba(182,245,0,0.2)", color: "#B6F500" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
               Live Tracking
             </div>
@@ -206,7 +206,7 @@ export default function DispatchPage() {
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
                       style={{
-                        background: job.priority === "urgent" ? "rgba(185,28,28,0.9)" : "rgba(29,78,216,0.9)",
+                        background: job.priority === "urgent" ? "rgba(255,32,78,0.9)" : "rgba(29,78,216,0.9)",
                         border: "2px solid rgba(255,255,255,0.4)",
                         boxShadow: "0 0 12px rgba(29,78,216,0.4)",
                       }}
@@ -288,7 +288,7 @@ export default function DispatchPage() {
               <div className="px-4 py-3" style={{ borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)" }}>
                 <h3 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
                   Unassigned Jobs
-                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(185,28,28,0.12)", color: "#b91c1c" }}>
+                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
                     {unassignedJobs.length}
                   </span>
                 </h3>
@@ -302,14 +302,14 @@ export default function DispatchPage() {
                     className="rounded-xl p-3 cursor-grab active:cursor-grabbing"
                     style={{
                       background: "var(--color-surface-2)",
-                      border: `1px solid ${job.priority === "urgent" ? "rgba(185,28,28,0.4)" : "var(--color-border)"}`,
+                      border: `1px solid ${job.priority === "urgent" ? "rgba(255,32,78,0.4)" : "var(--color-border)"}`,
                     }}
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
                           {job.priority === "urgent" && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(185,28,28,0.12)", color: "#b91c1c" }}>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
                               URGENT
                             </span>
                           )}

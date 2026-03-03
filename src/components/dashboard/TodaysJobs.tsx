@@ -49,7 +49,7 @@ function mapJobToUI(job: {
   const typeColors: Record<string, { color: string; bg: string }> = {
     cleaning: { color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
     inspection: { color: "#67e8f9", bg: "rgba(34,211,238,0.12)" },
-    repair: { color: "#b91c1c", bg: "rgba(185,28,28,0.12)" },
+    repair: { color: "#FF204E", bg: "rgba(255,32,78,0.12)" },
     installation: { color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
     service: { color: "#3b82f6", bg: "rgba(192,132,252,0.12)" },
     estimate: { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
@@ -99,9 +99,9 @@ const statusConfig: Record<
 > = {
   completed: {
     label: "Completed",
-    color: "#15803d",
-    bg: "rgba(21,128,61,0.12)",
-    dotColor: "#15803d",
+    color: "#B6F500",
+    bg: "rgba(182,245,0,0.12)",
+    dotColor: "#B6F500",
     pulse: false,
   },
   in_progress: {
@@ -127,9 +127,9 @@ const statusConfig: Record<
   },
   callback: {
     label: "Callback",
-    color: "#b91c1c",
-    bg: "rgba(185,28,28,0.12)",
-    dotColor: "#b91c1c",
+    color: "#FF204E",
+    bg: "rgba(255,32,78,0.12)",
+    dotColor: "#FF204E",
     pulse: false,
   },
 };
@@ -258,9 +258,9 @@ export default function TodaysJobs() {
                 style={{
                   borderBottom: idx < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
                   borderLeft: job.priority === "emergency"
-                    ? "3px solid #b91c1c"
+                    ? "3px solid #FF204E"
                     : job.priority === "high"
-                      ? "3px solid #c2410c"
+                      ? "3px solid #FF4400"
                       : "3px solid transparent",
                 }}
                 onMouseEnter={(e) => {
@@ -306,7 +306,7 @@ export default function TodaysJobs() {
                       {job.priority === "emergency" && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                          style={{ background: "rgba(185,28,28,0.2)", color: "#b91c1c" }}
+                          style={{ background: "rgba(255,32,78,0.2)", color: "#FF204E" }}
                         >
                           ⚡ EMERGENCY
                         </span>
@@ -314,7 +314,7 @@ export default function TodaysJobs() {
                       {job.priority === "high" && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                          style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}
+                          style={{ background: "rgba(255,68,0,0.2)", color: "#fbbf24" }}
                         >
                           ↑ HIGH
                         </span>
@@ -338,9 +338,9 @@ export default function TodaysJobs() {
                       <div
                         className="mt-1.5 text-xs px-2.5 py-1.5 rounded-lg"
                         style={{
-                          background: "rgba(245,158,11,0.1)",
+                          background: "rgba(255,68,0,0.1)",
                           color: "#fbbf24",
-                          border: "1px solid rgba(245,158,11,0.15)",
+                          border: "1px solid rgba(255,68,0,0.15)",
                         }}
                       >
                         {job.notes}
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#15803d" : "#1e40af",
+                                  background: job.checklistPct === 100 ? "#B6F500" : "#1e40af",
                                 }}
                               ></div>
                             </div>

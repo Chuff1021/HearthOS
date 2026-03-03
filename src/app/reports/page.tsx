@@ -181,11 +181,11 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#15803d" }}>{completedJobs}</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>{completedJobs}</p>
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#c2410c" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>
                           {jobs.filter(j => j.status === "in_progress").length}
                         </p>
                       </div>
@@ -269,11 +269,11 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>This Month</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#15803d" }}>${revenue[1]?.revenue.toLocaleString() || 0}</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>${revenue[1]?.revenue.toLocaleString() || 0}</p>
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg per Job</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#c2410c" }}>${avgRevenuePerJob.toFixed(0)}</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>${avgRevenuePerJob.toFixed(0)}</p>
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>YoY Growth</p>
@@ -337,7 +337,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Active Jobs</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#c2410c" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>
                           {techs.reduce((sum, t) => sum + t.jobsInProgress, 0)}
                         </p>
                       </div>
@@ -349,7 +349,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#15803d" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>
                           {(techs.reduce((sum, t) => sum + t.avgJobRating, 0) / techs.length).toFixed(1)}
                         </p>
                       </div>
@@ -375,11 +375,11 @@ export default function ReportsPage() {
                           <div className="grid grid-cols-2 gap-4 mt-4">
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                              <p className="font-semibold" style={{ color: "#15803d" }}>{tech.jobsCompleted}</p>
+                              <p className="font-semibold" style={{ color: "#B6F500" }}>{tech.jobsCompleted}</p>
                             </div>
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
-                              <p className="font-semibold" style={{ color: "#c2410c" }}>{tech.jobsInProgress}</p>
+                              <p className="font-semibold" style={{ color: "#FF4400" }}>{tech.jobsInProgress}</p>
                             </div>
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Revenue</p>
@@ -387,7 +387,7 @@ export default function ReportsPage() {
                             </div>
                             <div>
                               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Rating</p>
-                              <p className="font-semibold" style={{ color: "#15803d" }}>{tech.avgJobRating.toFixed(1)} ⭐</p>
+                              <p className="font-semibold" style={{ color: "#B6F500" }}>{tech.avgJobRating.toFixed(1)} ⭐</p>
                             </div>
                           </div>
 
@@ -402,7 +402,7 @@ export default function ReportsPage() {
                                 className="h-full rounded-full"
                                 style={{ 
                                   width: `${tech.utilization}%`,
-                                  background: tech.utilization > 80 ? "#15803d" : tech.utilization > 60 ? "#c2410c" : "#b91c1c"
+                                  background: tech.utilization > 80 ? "#B6F500" : tech.utilization > 60 ? "#FF4400" : "#FF204E"
                                 }}
                               ></div>
                             </div>

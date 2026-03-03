@@ -122,15 +122,15 @@ export default function GabeAuditPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Today</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#15803d" }}>{stats.today}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#B6F500" }}>{stats.today}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Flagged for Review</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: stats.flagged > 0 ? "#b91c1c" : "#15803d" }}>{stats.flagged}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: stats.flagged > 0 ? "#FF204E" : "#B6F500" }}>{stats.flagged}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#c2410c" }}>4.5 ⭐</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>4.5 ⭐</p>
               </div>
             </div>
 
@@ -187,8 +187,8 @@ export default function GabeAuditPage() {
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
                             style={{ 
                               background: msg.techId === "tech-001" ? "#1e40af" : 
-                                          msg.techId === "tech-002" ? "#15803d" : 
-                                          msg.techId === "tech-003" ? "#c2410c" : "#1e40af" 
+                                          msg.techId === "tech-002" ? "#B6F500" : 
+                                          msg.techId === "tech-003" ? "#FF4400" : "#1e40af" 
                             }}
                           >
                             {msg.techName?.split(" ").map(n => n[0]).join("") || "?"}
@@ -222,7 +222,7 @@ export default function GabeAuditPage() {
                         <div className="space-y-3">
                           {msg.messages.slice(0, 2).map((m, i) => (
                             <div key={i} className={`p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-500/10'}`}>
-                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#1e40af' : '#15803d' }}>
+                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#1e40af' : '#B6F500' }}>
                                 {m.role === 'user' ? '👤 Tech' : '🤖 GABE'}
                               </p>
                               <p className="text-sm line-clamp-2" style={{ color: "var(--color-text-secondary)" }}>
@@ -267,7 +267,7 @@ export default function GabeAuditPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {selectedMessage.messages.map((msg, i) => (
                 <div key={i} className={`p-4 rounded-xl ${msg.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-700/30'}`}>
-                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#1e40af' : '#15803d' }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#1e40af' : '#B6F500' }}>
                     {msg.role === 'user' ? `👤 ${selectedMessage.techName}` : '🤖 GABE AI'}
                   </p>
                   <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>
@@ -286,7 +286,7 @@ export default function GabeAuditPage() {
                     key={star}
                     onClick={() => handleRating(selectedMessage.id, star)}
                     className="text-xl hover:scale-110 transition-transform"
-                    style={{ color: star <= (selectedMessage.rating || 0) ? "#c2410c" : "#4b5563" }}
+                    style={{ color: star <= (selectedMessage.rating || 0) ? "#FF4400" : "#4b5563" }}
                   >
                     ⭐
                   </button>

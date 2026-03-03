@@ -239,7 +239,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(21,128,61,0.2)", color: "#15803d" }}
+                          style={{ background: "rgba(182,245,0,0.2)", color: "#B6F500" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
@@ -271,7 +271,7 @@ export default function Header() {
           style={{
             background: "rgba(44,160,28,0.1)",
             border: "1px solid rgba(44,160,28,0.2)",
-            color: "#15803d",
+            color: "#B6F500",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(44,160,28,0.18)";

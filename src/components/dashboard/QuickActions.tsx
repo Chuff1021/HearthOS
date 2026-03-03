@@ -29,8 +29,8 @@ const actions = [
   },
   {
     label: "New Invoice",
-    color: "#15803d",
-    bg: "rgba(21,128,61,0.12)",
+    color: "#B6F500",
+    bg: "rgba(182,245,0,0.12)",
     href: "/invoices",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

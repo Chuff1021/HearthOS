@@ -3,7 +3,7 @@ import Header from "@/components/layout/Header";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
-  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#15803d", bg: "rgba(21,128,61,0.12)" },
+  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#B6F500", bg: "rgba(182,245,0,0.12)" },
   { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
   { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#3b82f6", bg: "rgba(192,132,252,0.12)" },
   { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
@@ -65,9 +65,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(185,28,28,0.12)",
-                  border: "1px solid rgba(185,28,28,0.2)",
-                  color: "#b91c1c",
+                  background: "rgba(255,32,78,0.12)",
+                  border: "1px solid rgba(255,32,78,0.2)",
+                  color: "#FF204E",
                 }}
               >
                 {errorMessage}
@@ -78,9 +78,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(21,128,61,0.12)",
-                  border: "1px solid rgba(21,128,61,0.2)",
-                  color: "#15803d",
+                  background: "rgba(182,245,0,0.12)",
+                  border: "1px solid rgba(182,245,0,0.2)",
+                  color: "#B6F500",
                 }}
               >
                 ✓ Successfully connected to QuickBooks! Click &quot;Sync Now&quot; to pull your data.

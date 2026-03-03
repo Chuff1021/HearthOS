@@ -3,8 +3,8 @@
 const activities = [
   {
     id: 1,
-    iconBg: "rgba(21,128,61,0.12)",
-    iconColor: "#15803d",
+    iconBg: "rgba(182,245,0,0.12)",
+    iconColor: "#B6F500",
     title: "Job completed",
     desc: "JOB-2026-00142 · Mike Johnson",
     sub: "Dave Torres · 3 min ago",
@@ -71,8 +71,8 @@ const activities = [
   },
   {
     id: 6,
-    iconBg: "rgba(185,28,28,0.12)",
-    iconColor: "#b91c1c",
+    iconBg: "rgba(255,32,78,0.12)",
+    iconColor: "#FF204E",
     title: "Checklist flagged",
     desc: "JOB-2026-00143 · Missing gas photo",
     sub: "Needs review · 1h ago",
@@ -84,8 +84,8 @@ const activities = [
   },
   {
     id: 7,
-    iconBg: "rgba(185,28,28,0.12)",
-    iconColor: "#b91c1c",
+    iconBg: "rgba(255,32,78,0.12)",
+    iconColor: "#FF204E",
     title: "Callback scheduled",
     desc: "Tom Bradley · Igniter issue",
     sub: "JOB-2026-00146 · 2:30 PM today",
@@ -161,9 +161,9 @@ export default function RecentActivity() {
         <span
           className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
           style={{
-            background: "rgba(21,128,61,0.1)",
-            color: "#15803d",
-            border: "1px solid rgba(21,128,61,0.2)",
+            background: "rgba(182,245,0,0.1)",
+            color: "#B6F500",
+            border: "1px solid rgba(182,245,0,0.2)",
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>

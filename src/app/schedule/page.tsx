@@ -11,8 +11,8 @@ const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7am - 5pm
 
 const mockTechs = [
   { id: "tech-001", name: "Mike Johnson", color: "#1e40af", initials: "MJ" },
-  { id: "tech-002", name: "Sarah Williams", color: "#15803d", initials: "SW" },
-  { id: "tech-003", name: "Tom Davis", color: "#c2410c", initials: "TD" },
+  { id: "tech-002", name: "Sarah Williams", color: "#B6F500", initials: "SW" },
+  { id: "tech-003", name: "Tom Davis", color: "#FF4400", initials: "TD" },
   { id: "tech-004", name: "Chris Lee", color: "#1e40af", initials: "CL" },
 ];
 
@@ -99,8 +99,8 @@ const mockJobs = [
 const statusColors: Record<string, string> = {
   scheduled: "rgba(29,78,216,0.85)",
   in_progress: "rgba(251,191,36,0.85)",
-  completed: "rgba(21,128,61,0.85)",
-  cancelled: "rgba(185,28,28,0.85)",
+  completed: "rgba(182,245,0,0.85)",
+  cancelled: "rgba(255,32,78,0.85)",
 };
 
 const jobTypeEmoji: Record<string, string> = {

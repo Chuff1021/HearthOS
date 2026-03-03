@@ -36,8 +36,8 @@ const mockJobs = [
     scheduledTimeStart: "10:00",
     scheduledTimeEnd: "16:00",
     assignedTechs: [
-      { id: "tech-002", name: "Sarah Williams", color: "#15803d" },
-      { id: "tech-003", name: "Tom Davis", color: "#c2410c" },
+      { id: "tech-002", name: "Sarah Williams", color: "#B6F500" },
+      { id: "tech-003", name: "Tom Davis", color: "#FF4400" },
     ],
     totalAmount: "4200.00",
   },
@@ -95,8 +95,8 @@ const mockJobs = [
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   scheduled: { bg: "rgba(29,78,216,0.12)", text: "#1e40af", border: "rgba(29,78,216,0.25)" },
   in_progress: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24", border: "rgba(251,191,36,0.25)" },
-  completed: { bg: "rgba(21,128,61,0.12)", text: "#15803d", border: "rgba(21,128,61,0.25)" },
-  cancelled: { bg: "rgba(185,28,28,0.12)", text: "#b91c1c", border: "rgba(185,28,28,0.25)" },
+  completed: { bg: "rgba(182,245,0,0.12)", text: "#B6F500", border: "rgba(182,245,0,0.25)" },
+  cancelled: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
 
@@ -104,7 +104,7 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
   low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
   normal: { bg: "rgba(29,78,216,0.12)", text: "#1e40af" },
   high: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24" },
-  urgent: { bg: "rgba(185,28,28,0.12)", text: "#b91c1c" },
+  urgent: { bg: "rgba(255,32,78,0.12)", text: "#FF204E" },
 };
 
 const jobTypeIcons: Record<string, string> = {
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#1e40af", "#15803d", "#c2410c", "#1e40af"][idx] || "#6b7280",
+            color: ["#1e40af", "#B6F500", "#FF4400", "#1e40af"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),
