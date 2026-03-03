@@ -20,6 +20,7 @@ interface Job {
   title: string;
   customerName: string;
   propertyAddress: string;
+  notes?: string;
   scheduledDate: string;
   scheduledTimeStart: string;
   scheduledTimeEnd: string;
@@ -27,6 +28,19 @@ interface Job {
   assignedTechs: Array<{ id: string; name: string; color: string }>;
 }
 
+interface CustomerLookup {
+  id: string;
+  displayName: string;
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
+  address?: {
+    line1?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+}
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am-6pm
 
@@ -68,10 +82,16 @@ export default function SchedulePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState<CustomerLookup[]>([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
+    customerId: "",
     customerName: "",
     propertyAddress: "",
+    notes: "",
     scheduledDate: "",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "10:00",
@@ -112,6 +132,46 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const q = customerQuery.trim();
+    if (q.length < 2) {
+      setCustomerResults([]);
+      setCustomerLookupError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCustomerLoading(true);
+      setCustomerLookupError(null);
+      try {
+        const qbRes = await fetch(`/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`);
+        const qbData = await qbRes.json();
+
+        if (!cancelled && !qbData.error) {
+          setCustomerResults((qbData.customers || []) as CustomerLookup[]);
+          return;
+        }
+
+        const localRes = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+        const localData = await localRes.json();
+        if (!cancelled) {
+          setCustomerResults((localData.customers || []) as CustomerLookup[]);
+          if (qbData?.error) setCustomerLookupError("QuickBooks lookup unavailable, using local customers.");
+        }
+      } catch {
+        if (!cancelled) setCustomerLookupError("Customer lookup failed.");
+      } finally {
+        if (!cancelled) setCustomerLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customerQuery]);
+
   const weekJobs = useMemo(() => {
     return jobs.filter((j) => {
       const d = new Date(j.scheduledDate + "T00:00:00");
@@ -147,6 +207,23 @@ export default function SchedulePage() {
     setCurrentDate(d);
   }
 
+  function customerAddressLine(c: CustomerLookup) {
+    const a = c.address;
+    if (!a) return "";
+    return [a.line1, [a.city, a.state].filter(Boolean).join(", "), a.zip].filter(Boolean).join(" ").trim();
+  }
+
+  function applyCustomer(c: CustomerLookup) {
+    setForm((f) => ({
+      ...f,
+      customerId: c.id,
+      customerName: c.displayName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
+      propertyAddress: customerAddressLine(c) || f.propertyAddress,
+    }));
+    setCustomerQuery(c.displayName || "");
+    setCustomerResults([]);
+  }
+
   async function createJob() {
     if (!form.title || !form.customerName || !form.propertyAddress || !form.scheduledDate || !form.techId) return;
     setSaving(true);
@@ -157,8 +234,10 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
+          customerId: form.customerId || undefined,
           customerName: form.customerName,
           propertyAddress: form.propertyAddress,
+          notes: form.notes || undefined,
           scheduledDate: form.scheduledDate,
           scheduledTimeStart: form.scheduledTimeStart,
           scheduledTimeEnd: form.scheduledTimeEnd,
@@ -166,10 +245,14 @@ export default function SchedulePage() {
         }),
       });
       setShowCreate(false);
+      setCustomerQuery("");
+      setCustomerResults([]);
       setForm({
         title: "",
+        customerId: "",
         customerName: "",
         propertyAddress: "",
+        notes: "",
         scheduledDate: isoDate(new Date()),
         scheduledTimeStart: "09:00",
         scheduledTimeEnd: "10:00",
@@ -378,8 +461,39 @@ export default function SchedulePage() {
             </div>
             <div className="space-y-3">
               <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+
+              <div>
+                <input
+                  placeholder="Lookup customer (QuickBooks)"
+                  value={customerQuery}
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg"
+                  style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                />
+                {customerLoading && <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Looking up customers...</p>}
+                {customerLookupError && <p className="text-xs mt-1" style={{ color: "#FF4400" }}>{customerLookupError}</p>}
+                {customerResults.length > 0 && (
+                  <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                    {customerResults.slice(0, 6).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => applyCustomer(c)}
+                        className="w-full text-left px-3 py-2 text-sm"
+                        style={{ borderBottom: "1px solid var(--color-border)" }}
+                      >
+                        <div className="font-medium">{c.displayName}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{customerAddressLine(c)}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <input placeholder="Customer name" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
               <input placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+              <textarea placeholder="Notes for tech (access, parts, scope, etc.)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                 <select value={form.techId} onChange={(e) => setForm({ ...form, techId: e.target.value })} className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
