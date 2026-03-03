@@ -33,6 +33,7 @@ export default function TeamPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", role: "tech" as "lead" | "tech" | "helper" | "dispatcher" | "admin" });
 
   async function loadTechs() {
@@ -81,8 +82,10 @@ export default function TeamPage() {
   }
 
   async function addTeamMember() {
+    setAddError(null);
+
     if (!newMember.name || !newMember.email) {
-      alert("Name and email are required");
+      setAddError("Name and email are required.");
       return;
     }
 
@@ -97,18 +100,20 @@ export default function TeamPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to add team member');
 
       // Invitation placeholder - stores request for account onboarding workflow
-      await fetch('/api/team/invitations', {
+      const inviteRes = await fetch('/api/team/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newMember.email, name: newMember.name, role: newMember.role }),
       });
+      const inviteData = await inviteRes.json().catch(() => ({}));
+      if (!inviteRes.ok) throw new Error(inviteData.error || 'Team member added, but invite creation failed');
 
       setShowAddModal(false);
       setNewMember({ name: '', email: '', phone: '', role: 'tech' });
       await loadTechs();
     } catch (error) {
       console.error('Failed to add member:', error);
-      alert('Failed to add team member');
+      setAddError(error instanceof Error ? error.message : 'Failed to add team member');
     }
     setAdding(false);
   }
@@ -414,6 +419,11 @@ export default function TeamPage() {
             </div>
             
             <div className="space-y-4">
+              {addError && (
+                <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+                  {addError}
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Full Name"

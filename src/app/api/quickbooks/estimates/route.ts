@@ -10,20 +10,24 @@ async function getQBAuth(request: NextRequest) {
   let refreshToken = request.cookies.get('qb_refresh_token')?.value;
   let realmId = request.cookies.get('qb_realm_id')?.value;
 
-  const org = await getOrCreateDefaultOrg();
-  if (!accessToken || !refreshToken || !realmId) {
-    if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-      accessToken = org.qbAccessToken;
-      refreshToken = org.qbRefreshToken;
-      realmId = org.qbRealmId;
+  try {
+    const org = await getOrCreateDefaultOrg();
+    if (!accessToken || !refreshToken || !realmId) {
+      if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+        accessToken = org.qbAccessToken;
+        refreshToken = org.qbRefreshToken;
+        realmId = org.qbRealmId;
+      }
     }
-  }
 
-  if (!accessToken || !refreshToken || !realmId) {
-    return { ok: false as const, error: 'Not connected to QuickBooks' };
-  }
+    if (!accessToken || !refreshToken || !realmId) {
+      return { ok: false as const, error: 'Not connected to QuickBooks' };
+    }
 
-  return { ok: true as const, accessToken, refreshToken, realmId, orgId: org.id };
+    return { ok: true as const, accessToken, refreshToken, realmId, orgId: org.id };
+  } catch {
+    return { ok: false as const, error: 'QuickBooks status unavailable' };
+  }
 }
 
 async function withRefresh<T>(auth: { accessToken: string; refreshToken: string; realmId: string; orgId: string }, fn: (client: any) => Promise<T>) {

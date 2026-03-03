@@ -13,15 +13,22 @@ export async function GET() {
 
     // If not in cookies, check database
     if (!accessToken || !refreshToken || !realmId) {
-      const org = await getOrCreateDefaultOrg();
-      if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-        accessToken = org.qbAccessToken;
-        refreshToken = org.qbRefreshToken;
-        realmId = org.qbRealmId;
-      } else {
+      try {
+        const org = await getOrCreateDefaultOrg();
+        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+          accessToken = org.qbAccessToken;
+          refreshToken = org.qbRefreshToken;
+          realmId = org.qbRealmId;
+        } else {
+          return NextResponse.json({
+            connected: false,
+            error: 'Not connected to QuickBooks',
+          });
+        }
+      } catch {
         return NextResponse.json({
           connected: false,
-          error: 'Not connected to QuickBooks',
+          error: 'QuickBooks status unavailable',
         });
       }
     }
