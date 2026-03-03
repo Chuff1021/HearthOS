@@ -135,6 +135,16 @@ const navItems = [
         ),
       },
       {
+        label: "Purchase Orders",
+        href: "/purchase-orders",
+        badge: null,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v9a3 3 0 003 3h9a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-2.414-2.414A2 2 0 0011.586 3H4zm7 1.5V7h2.5L11 4.5zM6 10a1 1 0 000 2h6a1 1 0 100-2H6zm0 3a1 1 0 100 2h4a1 1 0 100-2H6z" clipRule="evenodd" />
+          </svg>
+        ),
+      },
+      {
         label: "Service Plans",
         href: "/service-plans",
         badge: null,
