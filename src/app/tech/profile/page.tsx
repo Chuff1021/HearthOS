@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [gpsError, setGpsError] = useState<string>("");
   const [gpsState, setGpsState] = useState<string>("unknown");
   const [lastGpsPingAt, setLastGpsPingAt] = useState<string>("");
+  const [techLinkStatus, setTechLinkStatus] = useState<string>("");
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
@@ -36,60 +37,71 @@ export default function ProfilePage() {
   // Derived state
   const currentLocation = gpsEnabled && isTracking ? locationLabel : null;
 
-  useEffect(() => {
-    async function resolveTech() {
-      try {
-        // 1) Persistent account-linked tech ID (strongest mapping)
-        const linkedTechId = user?.unsafeMetadata?.techId as string | undefined;
-        if (linkedTechId) {
-          setTechId(linkedTechId);
-          return;
-        }
+  async function ensureTechProfile(forceCreate = false) {
+    try {
+      if (!isLoaded) return;
+      setTechLinkStatus('Linking tech account...');
 
-        const res = await fetch('/api/techs?activeOnly=true');
-        const data = await res.json();
-        const list = data.techs || [];
-
-        // 2) Exact email match
-        const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-        let match = email ? list.find((t: any) => String(t.email || '').toLowerCase() === email) : null;
-
-        // 3) Full name/first-name fallback
-        if (!match) {
-          const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
-          match = list.find((t: any) =>
-            nameLower && (
-              String(t.name || '').toLowerCase() === nameLower ||
-              nameLower.includes(String(t.name || '').split(' ')[0].toLowerCase())
-            )
-          );
-        }
-
-        if (match) {
-          setTechId(match.id);
-          return;
-        }
-
-        // 4) Auto-create a tech profile for logged-in user if no match exists
-        const autoName = (user?.fullName || user?.firstName || '').trim();
-        const autoEmail = (user?.primaryEmailAddress?.emailAddress || '').trim().toLowerCase();
-        if (autoName && autoEmail) {
-          const createRes = await fetch('/api/techs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: autoName, email: autoEmail, phone: '', role: 'tech' }),
-          });
-          const createData = await createRes.json().catch(() => ({}));
-          if (createRes.ok && createData?.tech?.id) {
-            setTechId(createData.tech.id);
-          }
-        }
-      } catch {
-        // no-op
+      // 1) Persistent account-linked tech ID (strongest mapping)
+      const linkedTechId = user?.unsafeMetadata?.techId as string | undefined;
+      if (linkedTechId && !forceCreate) {
+        setTechId(linkedTechId);
+        setTechLinkStatus('Tech linked via account metadata.');
+        return;
       }
+
+      const res = await fetch('/api/techs?activeOnly=true');
+      const data = await res.json();
+      const list = data.techs || [];
+
+      // 2) Exact email match
+      const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+      let match = email ? list.find((t: any) => String(t.email || '').toLowerCase() === email) : null;
+
+      // 3) Full name/first-name fallback
+      if (!match) {
+        const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
+        match = list.find((t: any) =>
+          nameLower && (
+            String(t.name || '').toLowerCase() === nameLower ||
+            nameLower.includes(String(t.name || '').split(' ')[0].toLowerCase())
+          )
+        );
+      }
+
+      if (match && !forceCreate) {
+        setTechId(match.id);
+        setTechLinkStatus(`Tech linked: ${match.name}`);
+        return;
+      }
+
+      // 4) Auto-create a tech profile for logged-in user if no match exists
+      const autoName = (user?.fullName || user?.firstName || '').trim();
+      const autoEmail = (user?.primaryEmailAddress?.emailAddress || '').trim().toLowerCase();
+      if (autoName && autoEmail) {
+        const createRes = await fetch('/api/techs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: autoName, email: autoEmail, phone: '', role: 'tech' }),
+        });
+        const createData = await createRes.json().catch(() => ({}));
+        if (createRes.ok && createData?.tech?.id) {
+          setTechId(createData.tech.id);
+          setTechLinkStatus(`Tech profile ready: ${createData.tech.name}`);
+          return;
+        }
+      }
+
+      setTechLinkStatus('Unable to auto-link tech profile. Use Register button below.');
+    } catch {
+      setTechLinkStatus('Tech linking failed. Tap Register as Tech.');
     }
-    resolveTech();
-  }, [user?.firstName, user?.fullName, user?.id, user?.unsafeMetadata, user?.primaryEmailAddress?.emailAddress]);
+  }
+
+  useEffect(() => {
+    ensureTechProfile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user?.firstName, user?.fullName, user?.id, user?.unsafeMetadata, user?.primaryEmailAddress?.emailAddress]);
 
   useEffect(() => {
     if (!gpsEnabled || !isTracking) {
@@ -301,6 +313,16 @@ export default function ProfilePage() {
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               Tracking As: {techId || user?.id || 'unresolved'}
             </div>
+            <div className="text-xs" style={{ color: techId ? '#98CD00' : 'var(--color-text-muted)' }}>
+              {techLinkStatus || (techId ? 'Tech profile linked.' : 'Tech profile not linked yet.')}
+            </div>
+            <button
+              onClick={() => ensureTechProfile(true)}
+              className="w-full py-2 rounded-lg text-sm font-medium"
+              style={{ background: '#2563EB', color: 'white' }}
+            >
+              Register Me as Tech
+            </button>
 
             <div className="flex items-center justify-between">
               <div>
