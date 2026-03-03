@@ -100,6 +100,7 @@ export default function SchedulePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
+  const [draggedDuration, setDraggedDuration] = useState<number | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<CustomerLookup[]>([]);
@@ -380,16 +381,17 @@ export default function SchedulePage() {
     await loadData();
   }
 
-  async function moveJobToSlot(jobId: string, targetDate: Date, targetHour: number) {
-    const job = jobs.find((j) => j.id === jobId);
-    if (!job) {
-      setSaveError("Could not move job: job not found.");
+  async function moveJobToSlot(jobIdRaw: string, targetDate: Date, targetHour: number) {
+    const jobId = (jobIdRaw || "").trim();
+    if (!jobId) {
+      setSaveError("Could not move job: invalid job id.");
       return;
     }
 
-    const start = toHourFloat(job.scheduledTimeStart);
-    const end = toHourFloat(job.scheduledTimeEnd);
-    const duration = Math.max(0.5, end - start);
+    const job = jobs.find((j) => j.id === jobId);
+    const duration = job
+      ? Math.max(0.5, toHourFloat(job.scheduledTimeEnd) - toHourFloat(job.scheduledTimeStart))
+      : Math.max(0.5, draggedDuration || 1);
 
     const newStart = targetHour;
     const newEnd = Math.min(23.5, newStart + duration);
@@ -536,11 +538,12 @@ export default function SchedulePage() {
                         onDragLeave={() => setDragOverSlot(null)}
                         onDrop={async (e) => {
                           e.preventDefault();
-                          const droppedId = e.dataTransfer.getData("text/plain") || draggedJobId;
+                          const droppedId = (e.dataTransfer.getData("text/plain") || draggedJobId || "").trim();
                           setDragOverSlot(null);
                           if (!droppedId) return;
                           await moveJobToSlot(droppedId, d, hour);
                           setDraggedJobId(null);
+                          setDraggedDuration(null);
                         }}
                       >
                         {dayJobs.map((job) => {
@@ -554,11 +557,13 @@ export default function SchedulePage() {
                               onDragStart={(e) => {
                                 setSaveError(null);
                                 setDraggedJobId(job.id);
+                                setDraggedDuration(duration);
                                 e.dataTransfer.setData("text/plain", job.id);
                                 e.dataTransfer.effectAllowed = "move";
                               }}
                               onDragEnd={() => {
                                 setDraggedJobId(null);
+                                setDraggedDuration(null);
                                 setDragOverSlot(null);
                               }}
                               className="absolute left-1 right-1 rounded-md p-1.5 text-white cursor-move"
