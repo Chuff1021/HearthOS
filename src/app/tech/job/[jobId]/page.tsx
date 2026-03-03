@@ -99,6 +99,7 @@ export default function JobDetailPage() {
   const [materialSearch, setMaterialSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [actionMsg, setActionMsg] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
 
@@ -165,6 +166,23 @@ export default function JobDetailPage() {
   const laborRate = 89; // base labor
   const invoiceTotal = materialsTotal + laborRate;
 
+  const handleSaveInvoiceDraft = () => {
+    const draft = { jobId, customer: job.customer, date: new Date().toISOString(), materialsUsed, laborRate, total: invoiceTotal };
+    localStorage.setItem(`tech-invoice-draft-${jobId}`, JSON.stringify(draft));
+    setActionMsg("Invoice draft saved.");
+  };
+
+  const handleSendInvoice = () => {
+    const queue = { jobId, customer: job.customer, amount: invoiceTotal * 1.07, sentAt: new Date().toISOString() };
+    localStorage.setItem(`tech-invoice-send-${jobId}`, JSON.stringify(queue));
+    setActionMsg("Invoice queued to send to customer.");
+    setShowInvoicePreview(false);
+  };
+
+  const handleCompleteInspection = () => {
+    setActionMsg("Inspection completed and shared with office.");
+  };
+
   const categoryColors: Record<string, string> = {
     pipe: "bg-blue-500/20 text-blue-400",
     fitting: "bg-purple-500/20 text-purple-400",
@@ -193,6 +211,12 @@ export default function JobDetailPage() {
           </a>
         </div>
       </header>
+
+      {actionMsg && (
+        <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(152,205,0,0.12)", border: "1px solid rgba(152,205,0,0.35)", color: "#98CD00" }}>
+          {actionMsg}
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="bg-[var(--color-surface-1)] border-b border-gray-800 sticky top-[68px] z-10">
@@ -439,7 +463,7 @@ export default function JobDetailPage() {
 
             {/* Complete & Share Button */}
             {progress === 100 && (
-              <button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
+              <button onClick={handleCompleteInspection} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
                 Complete &amp; Share Inspection
               </button>
             )}
@@ -721,13 +745,13 @@ export default function JobDetailPage() {
 
             {/* Actions */}
             <div className="p-4 space-y-3 border-t border-gray-800">
-              <button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+              <button onClick={handleSendInvoice} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 Send to Customer
               </button>
-              <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
+              <button onClick={handleSaveInvoiceDraft} className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
                 Save as Draft
               </button>
             </div>
@@ -753,7 +777,7 @@ export default function JobDetailPage() {
             >
               Use AI Estimate Builder
             </Link>
-            <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
+            <button onClick={() => { setShowEstimateModal(false); setActionMsg('Manual estimate entry opened in office workflow.'); }} className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
               Manual Entry
             </button>
           </div>

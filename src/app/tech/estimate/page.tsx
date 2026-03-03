@@ -18,6 +18,7 @@ export default function EstimatePage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ description: "", quantity: 1, unitPrice: 0 });
+  const [actionMsg, setActionMsg] = useState("");
 
   const customer = {
     name: "Johnson Residence",
@@ -67,6 +68,18 @@ export default function EstimatePage() {
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   const tax = subtotal * 0.07; // 7% tax
   const total = subtotal + tax;
+
+  const saveDraft = () => {
+    const draft = { customer, lineItems, subtotal, tax, total, savedAt: new Date().toISOString() };
+    localStorage.setItem("tech-estimate-draft", JSON.stringify(draft));
+    setActionMsg("Draft saved.");
+  };
+
+  const sendToCustomer = () => {
+    const payload = { customer, lineItems, subtotal, tax, total };
+    localStorage.setItem("tech-estimate-send-queue", JSON.stringify(payload));
+    setActionMsg("Estimate queued to send to customer.");
+  };
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
@@ -237,13 +250,14 @@ export default function EstimatePage() {
         {/* Action Buttons */}
         {lineItems.length > 0 && (
           <div className="space-y-3">
-            <button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold flex items-center justify-center gap-2">
+            {actionMsg && <p className="text-xs" style={{ color: "#98CD00" }}>{actionMsg}</p>}
+            <button onClick={sendToCustomer} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold flex items-center justify-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               Send to Customer
             </button>
-            <button className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
+            <button onClick={saveDraft} className="w-full bg-[var(--color-surface-3)] py-3 rounded-xl font-medium border border-gray-700">
               Save as Draft
             </button>
           </div>
