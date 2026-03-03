@@ -76,25 +76,37 @@ export default function ProfilePage() {
       }
 
       // 4) Auto-create a tech profile for logged-in user if no match exists
-      const autoName = (user?.fullName || user?.firstName || '').trim();
+      const autoName = (user?.fullName || user?.firstName || 'Field Tech').trim();
       const autoEmail = (user?.primaryEmailAddress?.emailAddress || '').trim().toLowerCase();
-      if (autoName && autoEmail) {
-        const createRes = await fetch('/api/techs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: autoName, email: autoEmail, phone: '', role: 'tech' }),
-        });
-        const createData = await createRes.json().catch(() => ({}));
-        if (createRes.ok && createData?.tech?.id) {
-          setTechId(createData.tech.id);
-          setTechLinkStatus(`Tech profile ready: ${createData.tech.name}`);
-          return;
-        }
+      const fallbackEmail = autoEmail || `${String(user?.id || 'tech').replace(/[^a-zA-Z0-9_-]/g, '')}@local.hearthos`;
+
+      const createRes = await fetch('/api/techs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: autoName, email: fallbackEmail, phone: '', role: 'tech' }),
+      });
+      const createData = await createRes.json().catch(() => ({}));
+      if (createRes.ok && createData?.tech?.id) {
+        setTechId(createData.tech.id);
+        setTechLinkStatus(`Tech profile ready: ${createData.tech.name}`);
+        return;
       }
 
-      setTechLinkStatus('Unable to auto-link tech profile. Use Register button below.');
-    } catch {
-      setTechLinkStatus('Tech linking failed. Tap Register as Tech.');
+      // Emergency fallback: still track GPS under account id so dispatch can see live pings
+      if (user?.id) {
+        setTechId(user.id);
+        setTechLinkStatus(`Tech record creation failed (${createData?.error || createRes.status}), using account tracking id.`);
+        return;
+      }
+
+      setTechLinkStatus(`Unable to auto-link tech profile (${createData?.error || createRes.status}). Use Register button below.`);
+    } catch (e) {
+      if (user?.id) {
+        setTechId(user.id);
+        setTechLinkStatus('Tech linking failed, using account tracking id for GPS.');
+      } else {
+        setTechLinkStatus(`Tech linking failed. ${e instanceof Error ? e.message : ''}`.trim());
+      }
     }
   }
 
