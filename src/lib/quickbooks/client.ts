@@ -208,6 +208,21 @@ export class QuickBooksClient {
     return response.Item;
   }
 
+  // === ESTIMATES ===
+
+  async getEstimates(maxResults = 200): Promise<any[]> {
+    return this.query<any>(`SELECT * FROM Estimate ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
+  }
+
+  async createEstimate(estimate: any): Promise<any> {
+    const response = await this.request<{ Estimate: any }>(
+      'POST',
+      '/estimate',
+      estimate
+    );
+    return response.Estimate;
+  }
+
   // === INVOICES ===
 
   async getInvoices(maxResults = 100): Promise<QBInvoice[]> {
