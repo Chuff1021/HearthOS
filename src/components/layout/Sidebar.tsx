@@ -275,7 +275,7 @@ export default function Sidebar() {
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm leading-tight" style={{ color: "var(--color-text-primary)" }}>
-              HearthOS One
+              HearthOS
             </div>
             <div className="text-[10px] leading-tight" style={{ color: "var(--color-text-muted)" }}>
               Fireplace Intelligence Cloud
