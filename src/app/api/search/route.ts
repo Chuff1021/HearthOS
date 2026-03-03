@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCustomers, getInvoices } from "@/lib/data-store";
 import { getJobs as getJobsFromApi } from "../jobs/route";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { db, organizations } from "@/db";
+import { eq } from "drizzle-orm";
 import {
   searchCustomers as searchQBCustomers,
   searchInvoices as searchQBInvoices,
@@ -85,11 +87,13 @@ export async function GET(request: NextRequest) {
   let realmId = request.cookies.get("qb_realm_id")?.value;
 
   let qbConnected = !!(accessToken && refreshToken && realmId);
+  let orgIdForQB: string | null = null;
 
   // If no cookies, check org tokens
   if (!qbConnected) {
     try {
       const org = await getOrCreateDefaultOrg();
+      orgIdForQB = org.id;
       if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
         accessToken = org.qbAccessToken;
         refreshToken = org.qbRefreshToken;
@@ -98,6 +102,13 @@ export async function GET(request: NextRequest) {
       }
     } catch {
       qbConnected = false;
+    }
+  } else {
+    try {
+      const org = await getOrCreateDefaultOrg();
+      orgIdForQB = org.id;
+    } catch {
+      orgIdForQB = null;
     }
   }
 
@@ -148,32 +159,89 @@ export async function GET(request: NextRequest) {
           source: "quickbooks" as const,
         }));
     } catch (liveErr) {
-      console.error("QB direct search failed, falling back to cache:", liveErr);
+      console.error("QB direct search failed, attempting refresh:", liveErr);
+
+      let refreshedClient = client;
       try {
-        await Promise.all([syncCustomers(client), syncInvoices(client)]);
-      } catch (err) {
-        console.error("Failed to sync QB data for cache fallback:", err);
+        const newTokens = await client.refreshAccessToken();
+        if (orgIdForQB) {
+          await db
+            .update(organizations)
+            .set({
+              qbAccessToken: newTokens.access_token,
+              qbRefreshToken: newTokens.refresh_token,
+              qbTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
+              updatedAt: new Date(),
+            })
+            .where(eq(organizations.id, orgIdForQB));
+        }
+        refreshedClient = getClientFromTokens(newTokens.access_token, newTokens.refresh_token, realmId);
+
+        const [liveCustomersRetry, liveInvoicesRetry] = await Promise.all([
+          refreshedClient.getCustomers(200),
+          refreshedClient.getInvoices(200),
+        ]);
+
+        qbMatchedCustomers = liveCustomersRetry
+          .filter((c) =>
+            c.DisplayName?.toLowerCase().includes(query) ||
+            c.CompanyName?.toLowerCase().includes(query) ||
+            c.PrimaryEmailAddr?.Address?.toLowerCase().includes(query) ||
+            c.PrimaryPhone?.FreeFormNumber?.includes(query)
+          )
+          .slice(0, 8)
+          .map((c) => ({
+            id: c.Id,
+            type: "customer" as const,
+            title: c.DisplayName,
+            subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
+            href: `/customers?id=${c.Id}`,
+            source: "quickbooks" as const,
+          }));
+
+        qbMatchedInvoices = liveInvoicesRetry
+          .filter((i) =>
+            i.DocNumber?.toLowerCase().includes(query) ||
+            i.CustomerRef?.name?.toLowerCase().includes(query) ||
+            String(i.TotalAmt || "").includes(query)
+          )
+          .slice(0, 8)
+          .map((i) => ({
+            id: i.Id,
+            type: "invoice" as const,
+            title: i.DocNumber || `Invoice ${i.Id}`,
+            subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
+            href: `/invoices?id=${i.Id}`,
+            source: "quickbooks" as const,
+          }));
+      } catch (refreshErr) {
+        console.error("QB refresh failed, falling back to cache:", refreshErr);
+        try {
+          await Promise.all([syncCustomers(refreshedClient), syncInvoices(refreshedClient)]);
+        } catch (err) {
+          console.error("Failed to sync QB data for cache fallback:", err);
+        }
+
+        const qbCustomers = searchQBCustomers(query);
+        qbMatchedCustomers = qbCustomers.slice(0, 8).map((c) => ({
+          id: c.Id,
+          type: "customer" as const,
+          title: c.DisplayName,
+          subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
+          href: `/customers?id=${c.Id}`,
+          source: "quickbooks" as const,
+        }));
+
+        const qbInvoices = searchQBInvoices(query);
+        qbMatchedInvoices = qbInvoices.slice(0, 8).map((i) => ({
+          id: i.Id,
+          type: "invoice" as const,
+          title: i.DocNumber || `Invoice ${i.Id}`,
+          subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
+          href: `/invoices?id=${i.Id}`,
+          source: "quickbooks" as const,
+        }));
       }
-
-      const qbCustomers = searchQBCustomers(query);
-      qbMatchedCustomers = qbCustomers.slice(0, 8).map((c) => ({
-        id: c.Id,
-        type: "customer" as const,
-        title: c.DisplayName,
-        subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
-        href: `/customers?id=${c.Id}`,
-        source: "quickbooks" as const,
-      }));
-
-      const qbInvoices = searchQBInvoices(query);
-      qbMatchedInvoices = qbInvoices.slice(0, 8).map((i) => ({
-        id: i.Id,
-        type: "invoice" as const,
-        title: i.DocNumber || `Invoice ${i.Id}`,
-        subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
-        href: `/invoices?id=${i.Id}`,
-        source: "quickbooks" as const,
-      }));
     }
 
     const existingCustomerTitles = new Set(matchedCustomers.map((c) => c.title.toLowerCase()));

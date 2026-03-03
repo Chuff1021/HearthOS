@@ -1,15 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getCachedCustomers, 
-  searchCustomers, 
+import {
+  getCachedCustomers,
+  searchCustomers,
   getCustomerById,
   syncCustomers,
   createCustomerInQuickBooks,
-  getClientFromTokens 
+  getClientFromTokens,
 } from '@/lib/quickbooks/sync';
 import { transformCustomers, transformCustomer } from '@/lib/quickbooks/transform';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import type { QBCustomer } from '@/lib/quickbooks/types';
+import { db, organizations } from '@/db';
+import { eq } from 'drizzle-orm';
+
+async function getQBAuthFromRequest(request: NextRequest) {
+  let accessToken = request.cookies.get('qb_access_token')?.value;
+  let refreshToken = request.cookies.get('qb_refresh_token')?.value;
+  let realmId = request.cookies.get('qb_realm_id')?.value;
+
+  const org = await getOrCreateDefaultOrg();
+
+  if (!accessToken || !refreshToken || !realmId) {
+    if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+      accessToken = org.qbAccessToken;
+      refreshToken = org.qbRefreshToken;
+      realmId = org.qbRealmId;
+    }
+  }
+
+  if (!accessToken || !refreshToken || !realmId) {
+    return { ok: false as const, org, error: 'Not connected to QuickBooks' };
+  }
+
+  return {
+    ok: true as const,
+    org,
+    accessToken,
+    refreshToken,
+    realmId,
+  };
+}
+
+async function refreshTokensAndPersist(client: ReturnType<typeof getClientFromTokens>, orgId: string) {
+  const newTokens = await client.refreshAccessToken();
+  await db
+    .update(organizations)
+    .set({
+      qbAccessToken: newTokens.access_token,
+      qbRefreshToken: newTokens.refresh_token,
+      qbTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, orgId));
+
+  return newTokens;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,36 +66,36 @@ export async function GET(request: NextRequest) {
 
     // If sync/live requested, pull fresh data from QuickBooks
     if (sync === 'true' || live === 'true' || query) {
-      let accessToken = request.cookies.get('qb_access_token')?.value;
-      let refreshToken = request.cookies.get('qb_refresh_token')?.value;
-      let realmId = request.cookies.get('qb_realm_id')?.value;
+      const auth = await getQBAuthFromRequest(request);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: 401 });
+      }
 
-      if (!accessToken || !refreshToken || !realmId) {
-        const org = await getOrCreateDefaultOrg();
-        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-          accessToken = org.qbAccessToken;
-          refreshToken = org.qbRefreshToken;
-          realmId = org.qbRealmId;
-        } else {
+      const client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+
+      try {
+        await syncCustomers(client);
+      } catch (err) {
+        console.warn('Initial QB customer sync failed, trying token refresh...', err);
+        try {
+          const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+          const retriedClient = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
+          await syncCustomers(retriedClient);
+        } catch (refreshErr) {
+          console.error('QB customer sync failed after refresh:', refreshErr);
           return NextResponse.json(
-            { error: 'Not connected to QuickBooks' },
+            { error: 'QuickBooks connection expired. Please reconnect QuickBooks.' },
             { status: 401 }
           );
         }
       }
-
-      const client = getClientFromTokens(accessToken, refreshToken, realmId);
-      await syncCustomers(client);
     }
 
     // Get specific customer by ID
     if (id) {
       const customer = getCustomerById(id);
       if (!customer) {
-        return NextResponse.json(
-          { error: 'Customer not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
       }
       return NextResponse.json({ customer: transformCustomer(customer) });
     }
@@ -68,35 +113,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ customers: transformed, total: transformed.length });
   } catch (err) {
     console.error('Failed to get customers:', err);
-    return NextResponse.json(
-      { error: 'Failed to get customers' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to get customers' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    let accessToken = request.cookies.get('qb_access_token')?.value;
-    let refreshToken = request.cookies.get('qb_refresh_token')?.value;
-    let realmId = request.cookies.get('qb_realm_id')?.value;
-
-    if (!accessToken || !refreshToken || !realmId) {
-      const org = await getOrCreateDefaultOrg();
-      if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-        accessToken = org.qbAccessToken;
-        refreshToken = org.qbRefreshToken;
-        realmId = org.qbRealmId;
-      } else {
-        return NextResponse.json(
-          { error: 'Not connected to QuickBooks' },
-          { status: 401 }
-        );
-      }
+    const auth = await getQBAuthFromRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
     const body = await request.json();
-    
+
     // Transform UI customer to QB format
     const qbCustomer: Partial<QBCustomer> = {
       DisplayName: body.displayName || `${body.firstName} ${body.lastName}`.trim(),
@@ -105,19 +134,29 @@ export async function POST(request: NextRequest) {
       CompanyName: body.companyName,
       PrimaryEmailAddr: body.email ? { Address: body.email } : undefined,
       PrimaryPhone: body.phone ? { FreeFormNumber: body.phone } : undefined,
-      BillAddr: body.address ? {
-        Line1: body.address.line1,
-        City: body.address.city,
-        CountrySubDivisionCode: body.address.state,
-        PostalCode: body.address.zip,
-      } : undefined,
+      BillAddr: body.address
+        ? {
+            Line1: body.address.line1,
+            City: body.address.city,
+            CountrySubDivisionCode: body.address.state,
+            PostalCode: body.address.zip,
+          }
+        : undefined,
       Active: body.active !== false,
     };
 
-    const client = getClientFromTokens(accessToken, refreshToken, realmId);
-    const customer = await createCustomerInQuickBooks(client, qbCustomer);
+    let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
 
-    return NextResponse.json({ success: true, customer: transformCustomer(customer) });
+    try {
+      const customer = await createCustomerInQuickBooks(client, qbCustomer);
+      return NextResponse.json({ success: true, customer: transformCustomer(customer) });
+    } catch (err) {
+      console.warn('Initial QB create customer failed, trying refresh...', err);
+      const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+      client = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
+      const customer = await createCustomerInQuickBooks(client, qbCustomer);
+      return NextResponse.json({ success: true, customer: transformCustomer(customer), refreshed: true });
+    }
   } catch (err) {
     console.error('Failed to create customer:', err);
     return NextResponse.json(
