@@ -68,9 +68,9 @@ export default function EstimatePage() {
   const total = subtotal + tax;
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header className="ui-mobile-header p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Link href="/tech" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,9 +86,9 @@ export default function EstimatePage() {
 
       {/* AI Estimate Builder */}
       <div className="p-4">
-        <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/50 rounded-xl p-4 mb-4">
+        <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-[rgba(10,132,255,0.35)] rounded-xl p-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-[var(--color-ember)] to-[var(--color-ember-dark)] rounded-full flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
@@ -102,12 +102,12 @@ export default function EstimatePage() {
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             placeholder="e.g., Annual inspection, pilot light won't stay lit, customer wants glass cleaned..."
-            className="w-full bg-[var(--color-bg)] rounded-xl p-3 text-sm min-h-[80px] border border-[var(--color-border)] focus:border-orange-500 outline-none resize-none"
+            className="w-full bg-[var(--color-bg)] rounded-xl p-3 text-sm min-h-[80px] border border-[var(--color-border)]  outline-none resize-none"
           />
           <button
             onClick={handleAiGenerate}
             disabled={isGenerating || !aiPrompt.trim()}
-            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-3 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="ui-btn-primary w-full py-3 mt-3 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isGenerating ? (
               <>
@@ -130,12 +130,12 @@ export default function EstimatePage() {
 
         {/* Line Items */}
         {lineItems.length > 0 && (
-          <div className="bg-[var(--color-surface-1)] rounded-xl p-4 mb-4">
+          <div className="ui-card p-4 mb-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold">Line Items</h3>
               <button
                 onClick={() => setShowAddItem(true)}
-                className="text-orange-400 text-sm font-medium"
+                className="text-[var(--color-ember)] text-sm font-medium"
               >
                 + Add Item
               </button>
@@ -175,7 +175,7 @@ export default function EstimatePage() {
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-[var(--color-border)]">
                 <span>Total</span>
-                <span className="text-orange-400">${total.toFixed(2)}</span>
+                <span className="text-[var(--color-ember)]">${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function EstimatePage() {
 
         {/* Add Item Modal */}
         {showAddItem && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+          <div className="fixed inset-0 bg-slate-900/45 z-50 flex items-end">
             <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Add Line Item</h3>
@@ -200,7 +200,7 @@ export default function EstimatePage() {
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   placeholder="Description"
-                  className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                  className="ui-input w-full px-4 py-3 text-sm"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <input
@@ -209,7 +209,7 @@ export default function EstimatePage() {
                     onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
                     placeholder="Qty"
                     min="1"
-                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)]  outline-none"
                   />
                   <input
                     type="number"
@@ -218,14 +218,14 @@ export default function EstimatePage() {
                     placeholder="Unit Price"
                     min="0"
                     step="0.01"
-                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                    className="bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)]  outline-none"
                   />
                 </div>
               </div>
 
               <button
                 onClick={handleAddItem}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-4"
+                className="ui-btn-primary w-full py-3 mt-4"
               >
                 Add Item
               </button>

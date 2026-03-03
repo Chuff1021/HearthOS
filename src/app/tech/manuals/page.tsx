@@ -97,14 +97,14 @@ export default function ManualsPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header className="ui-mobile-header p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-semibold">Manuals Library</h1>
           <button
             onClick={() => setShowUploadModal(true)}
-            className="bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-1.5 rounded-lg text-sm font-medium"
+            className="ui-btn-primary px-3 py-1.5 text-sm"
           >
             + Upload
           </button>
@@ -129,7 +129,7 @@ export default function ManualsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by brand, model, or type..."
-            className="w-full bg-[var(--color-surface-3)] rounded-xl pl-10 pr-4 py-2.5 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+            className="ui-input w-full pl-10 pr-4 py-2.5 text-sm"
           />
         </div>
       </header>
@@ -143,7 +143,7 @@ export default function ManualsPage() {
               onClick={() => setSelectedCategory(category)}
               className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
                 selectedCategory === category
-                  ? "bg-orange-500 text-white"
+                  ? "bg-[var(--color-ember)] text-white"
                   : "bg-[var(--color-surface-3)] text-[var(--color-text-muted)]"
               }`}
             >
@@ -162,7 +162,7 @@ export default function ManualsPage() {
             {filteredManuals.map((manual) => (
               <div
                 key={manual.id}
-                className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)]"
+                className="ui-card p-4 border border-[var(--color-border)]"
               >
                 <div className="flex items-start gap-3">
                   {/* PDF Icon */}
@@ -188,7 +188,7 @@ export default function ManualsPage() {
                     href={manual.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 bg-[var(--color-surface-3)] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors text-center"
+                    className="flex-1 bg-[var(--color-surface-3)] py-2 rounded-lg text-sm font-medium hover:bg-[var(--color-surface-4)] transition-colors text-center"
                   >
                     View PDF
                   </a>
@@ -196,7 +196,7 @@ export default function ManualsPage() {
                     href={manual.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 bg-orange-500/20 text-orange-400 py-2 rounded-lg text-sm font-medium hover:bg-orange-500/30 transition-colors text-center"
+                    className="flex-1 bg-[rgba(10,132,255,0.12)] text-[var(--color-ember)] py-2 rounded-lg text-sm font-medium hover:bg-[var(--color-ember)]/30 transition-colors text-center"
                   >
                     Open Link
                   </a>
@@ -217,7 +217,7 @@ export default function ManualsPage() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+        <div className="fixed inset-0 bg-slate-900/45 z-50 flex items-end">
           <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Upload Manual</h3>
@@ -244,42 +244,42 @@ export default function ManualsPage() {
                 placeholder="Brand (e.g., Regency)"
                 value={formState.brand}
                 onChange={(e) => setFormState((prev) => ({ ...prev, brand: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
               <input
                 type="text"
                 placeholder="Model (e.g., F1100)"
                 value={formState.model}
                 onChange={(e) => setFormState((prev) => ({ ...prev, model: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
               <input
                 type="text"
                 placeholder="Type (e.g., Gas Insert)"
                 value={formState.type}
                 onChange={(e) => setFormState((prev) => ({ ...prev, type: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
               <input
                 type="text"
                 placeholder="Category (e.g., Gas Inserts)"
                 value={formState.category}
                 onChange={(e) => setFormState((prev) => ({ ...prev, category: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
               <input
                 type="text"
                 placeholder="Manual URL (PDF link)"
                 value={formState.url}
                 onChange={(e) => setFormState((prev) => ({ ...prev, url: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
               <input
                 type="number"
                 placeholder="Pages (optional)"
                 value={formState.pages}
                 onChange={(e) => setFormState((prev) => ({ ...prev, pages: e.target.value }))}
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
               />
             </div>
 
@@ -287,7 +287,7 @@ export default function ManualsPage() {
 
             <button
               onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-4"
+              className="ui-btn-primary w-full py-3 mt-4"
             >
               Upload Manual
             </button>
@@ -304,7 +304,7 @@ export default function ManualsPage() {
             </svg>
             <span className="text-xs mt-1">Jobs</span>
           </Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-orange-400">
+          <Link href="/tech/manuals" className="flex flex-col items-center text-[var(--color-ember)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>

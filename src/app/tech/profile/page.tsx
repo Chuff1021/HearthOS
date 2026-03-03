@@ -33,17 +33,17 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header className="ui-mobile-header p-4 sticky top-0 z-10">
         <h1 className="text-lg font-semibold">Profile</h1>
       </header>
 
       <div className="p-4 space-y-4">
         {/* User Info */}
-        <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+        <div className="ui-card p-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center text-2xl font-bold">
+            <div className="w-16 h-16 bg-gradient-to-br from-[var(--color-ember)] to-[var(--color-ember-dark)] rounded-full flex items-center justify-center text-2xl font-bold">
               {userInitials}
             </div>
             <div>
@@ -55,30 +55,30 @@ export default function ProfilePage() {
         </div>
 
         {/* Today's Stats */}
-        <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+        <div className="ui-card p-4">
           <h3 className="font-semibold mb-3">Today&apos;s Activity</h3>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[var(--color-surface-3)] rounded-lg p-3">
-              <p className="text-2xl font-bold text-orange-400">{todayStats.jobsCompleted}</p>
+            <div className="ui-card-muted p-3">
+              <p className="text-2xl font-bold text-[var(--color-ember)]">{todayStats.jobsCompleted}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Jobs Done</p>
             </div>
-            <div className="bg-[var(--color-surface-3)] rounded-lg p-3">
-              <p className="text-2xl font-bold text-orange-400">{todayStats.hoursWorked}</p>
+            <div className="ui-card-muted p-3">
+              <p className="text-2xl font-bold text-[var(--color-ember)]">{todayStats.hoursWorked}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Hours Worked</p>
             </div>
-            <div className="bg-[var(--color-surface-3)] rounded-lg p-3">
-              <p className="text-2xl font-bold text-orange-400">{todayStats.milesDriven}</p>
+            <div className="ui-card-muted p-3">
+              <p className="text-2xl font-bold text-[var(--color-ember)]">{todayStats.milesDriven}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Miles Driven</p>
             </div>
-            <div className="bg-[var(--color-surface-3)] rounded-lg p-3">
-              <p className="text-2xl font-bold text-orange-400">{todayStats.clockIn}</p>
+            <div className="ui-card-muted p-3">
+              <p className="text-2xl font-bold text-[var(--color-ember)]">{todayStats.clockIn}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Clocked In</p>
             </div>
           </div>
         </div>
 
         {/* GPS Tracking */}
-        <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+        <div className="ui-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">GPS Tracking</h3>
             <div className={`flex items-center gap-1 text-xs ${isTracking ? "text-green-400" : "text-[var(--color-text-muted)]"}`}>
@@ -88,7 +88,7 @@ export default function ProfilePage() {
           </div>
           
           {currentLocation && (
-            <div className="bg-[var(--color-surface-3)] rounded-lg p-3 mb-3">
+            <div className="ui-card-muted p-3 mb-3">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -132,7 +132,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Contact Info */}
-        <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+        <div className="ui-card p-4">
           <h3 className="font-semibold mb-3">Contact Information</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -148,19 +148,19 @@ export default function ProfilePage() {
 
         {/* Quick Links */}
         <div className="space-y-2">
-          <button className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button className="w-full ui-card p-4 text-left flex items-center justify-between">
             <span>Time History</span>
             <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <button className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button className="w-full ui-card p-4 text-left flex items-center justify-between">
             <span>Job History</span>
             <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <button className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button className="w-full ui-card p-4 text-left flex items-center justify-between">
             <span>Settings</span>
             <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -198,7 +198,7 @@ export default function ProfilePage() {
             </svg>
             <span className="text-xs mt-1">GABE</span>
           </Link>
-          <Link href="/tech/profile" className="flex flex-col items-center text-orange-400">
+          <Link href="/tech/profile" className="flex flex-col items-center text-[var(--color-ember)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>

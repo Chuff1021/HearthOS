@@ -87,8 +87,8 @@ export default function Header() {
               color: "var(--color-text-primary)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(249,115,22,0.5)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.1)";
+              e.currentTarget.style.borderColor = "rgba(10,132,255,0.5)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(10,132,255,0.12)";
               if (query.length >= 2) setIsOpen(true);
             }}
             onBlur={(e) => {
@@ -347,7 +347,7 @@ export default function Header() {
             href="/sign-in"
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+              background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
               color: "white",
             }}
           >

@@ -126,9 +126,9 @@ export default function TechApp() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header className="ui-mobile-header p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">HearthOS</h1>
@@ -138,7 +138,7 @@ export default function TechApp() {
             {/* GABE AI Button */}
             <Link
               href="/tech/gabe"
-              className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-full"
+              className="ui-btn-primary p-2 rounded-full"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -183,10 +183,10 @@ export default function TechApp() {
 
       {/* Active Job Banner */}
       {activeJob && jobStartTime && (
-        <div className="mx-4 mt-3 p-3 bg-orange-500/20 border border-orange-500/50 rounded-xl">
+        <div className="mx-4 mt-3 p-3 bg-[rgba(10,132,255,0.12)] border border-[rgba(10,132,255,0.35)] rounded-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-orange-400">Active Job</p>
+              <p className="text-xs text-[var(--color-ember)]">Active Job</p>
               <p className="font-semibold">
                 {mockJobs.find((j) => j.id === activeJob)?.customer}
               </p>
@@ -196,7 +196,7 @@ export default function TechApp() {
             </div>
             <Link
               href={`/tech/job/${activeJob}`}
-              className="bg-orange-500 px-4 py-2 rounded-lg text-sm font-medium"
+              className="bg-[var(--color-ember)] px-4 py-2 rounded-lg text-sm font-medium"
             >
               View Job
             </Link>
@@ -211,9 +211,9 @@ export default function TechApp() {
           {mockJobs.map((job) => (
             <div
               key={job.id}
-              className={`bg-[var(--color-surface-1)] rounded-xl p-4 border ${
+              className={`ui-card p-4 border ${
                 activeJob === job.id
-                  ? "border-orange-500"
+                  ? "border-[var(--color-ember)]"
                   : "border-[var(--color-border)]"
               }`}
             >
@@ -222,7 +222,7 @@ export default function TechApp() {
                   <h3 className="font-semibold">{job.customer}</h3>
                   <p className="text-sm text-[var(--color-text-muted)]">{job.type}</p>
                 </div>
-                <span className="text-sm text-orange-400 font-medium">
+                <span className="text-sm text-[var(--color-ember)] font-medium">
                   {job.scheduled}
                 </span>
               </div>
@@ -230,7 +230,7 @@ export default function TechApp() {
               <div className="flex items-center gap-2">
                 <Link
                   href={`/tech/job/${job.id}`}
-                  className="flex-1 bg-[var(--color-surface-3)] text-center py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors"
+                  className="flex-1 bg-[var(--color-surface-3)] text-center py-2 rounded-lg text-sm font-medium hover:bg-[var(--color-surface-4)] transition-colors"
                 >
                   View Details
                 </Link>
@@ -241,7 +241,7 @@ export default function TechApp() {
                     activeJob === job.id
                       ? "bg-red-500/20 text-red-400 border border-red-500/50"
                       : isClockedIn
-                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                      ? "bg-gradient-to-r from-[var(--color-ember)] to-[var(--color-ember-dark)] text-white"
                       : "bg-[var(--color-surface-4)] text-[var(--color-text-muted)] cursor-not-allowed"
                   }`}
                 >
@@ -256,7 +256,7 @@ export default function TechApp() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-[var(--color-surface-1)] border-t border-[var(--color-border)] z-20">
         <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center text-orange-400">
+          <Link href="/tech" className="flex flex-col items-center text-[var(--color-ember)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>

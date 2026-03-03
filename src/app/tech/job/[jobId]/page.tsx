@@ -167,14 +167,14 @@ export default function JobDetailPage() {
   const categoryColors: Record<string, string> = {
     pipe: "bg-blue-500/20 text-blue-400",
     fitting: "bg-purple-500/20 text-purple-400",
-    part: "bg-orange-500/20 text-orange-400",
+    part: "bg-[rgba(10,132,255,0.12)] text-[var(--color-ember)]",
     supply: "bg-green-500/20 text-green-400",
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header className="ui-mobile-header p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <Link href="/tech" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -202,7 +202,7 @@ export default function JobDetailPage() {
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 text-sm font-medium capitalize transition-colors ${
                 activeTab === tab
-                  ? "text-orange-400 border-b-2 border-orange-400"
+                  ? "text-[var(--color-ember)] border-b-2 border-orange-400"
                   : "text-[var(--color-text-muted)]"
               }`}
             >
@@ -217,7 +217,7 @@ export default function JobDetailPage() {
         {activeTab === "details" && (
           <div className="space-y-4">
             {/* Job Info Card */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-3">Job Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -252,9 +252,9 @@ export default function JobDetailPage() {
             {/* Ask GABE about this job */}
             <Link
               href={`/tech/gabe?jobId=${job.id}&fireplace=${encodeURIComponent(job.fireplace)}&jobType=${encodeURIComponent(job.type)}`}
-              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/40 rounded-xl p-4"
+              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-[var(--color-ember)]/40 rounded-xl p-4"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-[var(--color-ember)] to-[var(--color-ember-dark)] rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-lg">🔥</span>
               </div>
               <div className="flex-1">
@@ -267,7 +267,7 @@ export default function JobDetailPage() {
             </Link>
 
             {/* Notes Card */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-2">Job Notes</h3>
               <p className="text-sm text-[var(--color-text-secondary)]">{job.notes}</p>
             </div>
@@ -276,7 +276,7 @@ export default function JobDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowEstimateModal(true)}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl text-sm font-medium"
+                className="ui-btn-primary py-3 text-sm"
               >
                 Create Estimate
               </button>
@@ -293,14 +293,14 @@ export default function JobDetailPage() {
         {activeTab === "checklist" && (
           <div className="space-y-4">
             {/* Progress Bar */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-[var(--color-text-muted)]">Checklist Progress</span>
-                <span className="text-orange-400 font-medium">{completedCount}/{checklist.length} · {progress}%</span>
+                <span className="text-[var(--color-ember)] font-medium">{completedCount}/{checklist.length} · {progress}%</span>
               </div>
               <div className="h-2 bg-[var(--color-surface-4)] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-[var(--color-ember)] to-[var(--color-ember-dark)] transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -311,7 +311,7 @@ export default function JobDetailPage() {
               {checklist.map((item) => (
                 <div
                   key={item.id}
-                  className={`bg-[var(--color-surface-1)] rounded-xl p-4 border ${
+                  className={`ui-card p-4 border ${
                     checklistItems[item.id] ? "border-green-500/50" : "border-[var(--color-border)]"
                   }`}
                 >
@@ -337,7 +337,7 @@ export default function JobDetailPage() {
                       {item.photo && (
                         <button
                           onClick={handlePhotoCapture}
-                          className="mt-2 flex items-center gap-1 text-xs text-orange-400"
+                          className="mt-2 flex items-center gap-1 text-xs text-[var(--color-ember)]"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -353,7 +353,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* ─── Materials Used Section ─── */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-[var(--color-border)]">
+            <div className="ui-card p-4 border border-[var(--color-border)]">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-semibold">Materials Used</h3>
@@ -361,7 +361,7 @@ export default function JobDetailPage() {
                 </div>
                 <button
                   onClick={() => setShowMaterialPicker(true)}
-                  className="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1"
+                  className="bg-[var(--color-ember)] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -402,7 +402,7 @@ export default function JobDetailPage() {
                         </button>
                       </div>
                       <div className="text-right w-16">
-                        <p className="text-sm font-semibold text-orange-400">${m.total.toFixed(2)}</p>
+                        <p className="text-sm font-semibold text-[var(--color-ember)]">${m.total.toFixed(2)}</p>
                       </div>
                     </div>
                   ))}
@@ -419,7 +419,7 @@ export default function JobDetailPage() {
                     </div>
                     <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-[var(--color-border)]">
                       <span>Invoice Total</span>
-                      <span className="text-orange-400">${invoiceTotal.toFixed(2)}</span>
+                      <span className="text-[var(--color-ember)]">${invoiceTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -450,7 +450,7 @@ export default function JobDetailPage() {
             {/* Capture Button */}
             <button
               onClick={handlePhotoCapture}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-4 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="ui-btn-primary w-full py-4 font-semibold flex items-center justify-center gap-2"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -495,26 +495,26 @@ export default function JobDetailPage() {
         {activeTab === "customer" && (
           <div className="space-y-4">
             {/* Customer Info */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-3">Customer Information</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-[var(--color-text-muted)]">Phone</span>
-                  <a href={`tel:${job.phone}`} className="text-orange-400">{job.phone}</a>
+                  <a href={`tel:${job.phone}`} className="text-[var(--color-ember)]">{job.phone}</a>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[var(--color-text-muted)]">Email</span>
-                  <a href={`mailto:${job.email}`} className="text-orange-400">{job.email}</a>
+                  <a href={`mailto:${job.email}`} className="text-[var(--color-ember)]">{job.email}</a>
                 </div>
               </div>
             </div>
 
             {/* History */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-3">Service History</h3>
               <div className="space-y-3">
                 {job.customerNotes.map((note, i) => (
-                  <div key={i} className="border-l-2 border-orange-500 pl-3">
+                  <div key={i} className="border-l-2 border-[var(--color-ember)] pl-3">
                     <p className="text-xs text-[var(--color-text-muted)]">{note.date}</p>
                     <p className="text-sm">{note.note}</p>
                   </div>
@@ -523,7 +523,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Estimates */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-3">Estimates</h3>
               {job.estimates.length > 0 ? (
                 <div className="space-y-2">
@@ -546,7 +546,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Invoices */}
-            <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
+            <div className="ui-card p-4">
               <h3 className="font-semibold mb-3">Invoices</h3>
               {job.invoices.length > 0 ? (
                 <div className="space-y-2">
@@ -573,7 +573,7 @@ export default function JobDetailPage() {
 
       {/* ─── Material Picker Modal ─── */}
       {showMaterialPicker && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/45 z-50 flex flex-col">
           <div className="bg-[var(--color-surface-1)] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
             {/* Modal Header */}
             <div className="flex justify-between items-center p-4 border-b border-[var(--color-border)]">
@@ -592,7 +592,7 @@ export default function JobDetailPage() {
                 value={materialSearch}
                 onChange={(e) => setMaterialSearch(e.target.value)}
                 placeholder="Search materials..."
-                className="w-full bg-[var(--color-surface-3)] rounded-xl px-4 py-3 text-sm border border-[var(--color-border)] focus:border-orange-500 outline-none"
+                className="ui-input w-full px-4 py-3 text-sm"
                 autoFocus
               />
             </div>
@@ -605,7 +605,7 @@ export default function JobDetailPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                     selectedCategory === cat
-                      ? "bg-orange-500 text-white"
+                      ? "bg-[var(--color-ember)] text-white"
                       : "bg-[var(--color-surface-3)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                   }`}
                 >
@@ -620,7 +620,7 @@ export default function JobDetailPage() {
                 <button
                   key={material.id}
                   onClick={() => addMaterial(material)}
-                  className="w-full flex items-center justify-between bg-[var(--color-surface-3)] rounded-xl p-3 border border-[var(--color-border)] hover:border-orange-500 transition-colors text-left"
+                  className="w-full flex items-center justify-between bg-[var(--color-surface-3)] rounded-xl p-3 border border-[var(--color-border)] hover:border-[var(--color-ember)] transition-colors text-left"
                 >
                   <div>
                     <p className="text-sm font-medium">{material.name}</p>
@@ -632,7 +632,7 @@ export default function JobDetailPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-orange-400">${material.unitPrice.toFixed(2)}</p>
+                    <p className="font-semibold text-[var(--color-ember)]">${material.unitPrice.toFixed(2)}</p>
                     <p className="text-xs text-[var(--color-text-muted)]">/{material.unit}</p>
                   </div>
                 </button>
@@ -649,7 +649,7 @@ export default function JobDetailPage() {
 
       {/* ─── Invoice Preview Modal ─── */}
       {showInvoicePreview && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/45 z-50 flex flex-col">
           <div className="bg-[var(--color-surface-1)] flex-1 flex flex-col max-h-[90vh] mt-auto rounded-t-2xl">
             <div className="flex justify-between items-center p-4 border-b border-[var(--color-border)]">
               <h3 className="text-lg font-semibold">Invoice Preview</h3>
@@ -661,7 +661,7 @@ export default function JobDetailPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Invoice Header */}
-              <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-xl p-4">
+              <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-[var(--color-ember)]/30 rounded-xl p-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xs text-[var(--color-text-muted)]">Invoice for</p>
@@ -671,7 +671,7 @@ export default function JobDetailPage() {
                   <div className="text-right">
                     <p className="text-xs text-[var(--color-text-muted)]">Date</p>
                     <p className="text-sm font-medium">{new Date().toLocaleDateString()}</p>
-                    <p className="text-xs text-orange-400 mt-1">DRAFT</p>
+                    <p className="text-xs text-[var(--color-ember)] mt-1">DRAFT</p>
                   </div>
                 </div>
               </div>
@@ -712,7 +712,7 @@ export default function JobDetailPage() {
                   </div>
                   <div className="flex justify-between font-bold text-lg pt-2 border-t border-[var(--color-border)]">
                     <span>Total Due</span>
-                    <span className="text-orange-400">${(invoiceTotal * 1.07).toFixed(2)}</span>
+                    <span className="text-[var(--color-ember)]">${(invoiceTotal * 1.07).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -736,7 +736,7 @@ export default function JobDetailPage() {
 
       {/* Estimate Modal */}
       {showEstimateModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+        <div className="fixed inset-0 bg-slate-900/45 z-50 flex items-end">
           <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Create Estimate</h3>
@@ -748,7 +748,7 @@ export default function JobDetailPage() {
             </div>
             <Link
               href="/tech/estimate"
-              className="block w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl text-center font-medium mb-3"
+              className="ui-btn-primary block w-full py-3 text-center mb-3"
             >
               Use AI Estimate Builder
             </Link>
@@ -761,7 +761,7 @@ export default function JobDetailPage() {
 
       {/* Note Modal */}
       {showNoteModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+        <div className="fixed inset-0 bg-slate-900/45 z-50 flex items-end">
           <div className="bg-[var(--color-surface-1)] w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Add Note</h3>
@@ -775,14 +775,14 @@ export default function JobDetailPage() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               placeholder="Enter your note..."
-              className="w-full bg-[var(--color-surface-3)] rounded-xl p-3 text-sm min-h-[100px] border border-[var(--color-border)] focus:border-orange-500 outline-none"
+              className="w-full bg-[var(--color-surface-3)] rounded-xl p-3 text-sm min-h-[100px] border border-[var(--color-border)]  outline-none"
             />
             <button
               onClick={() => {
                 setShowNoteModal(false);
                 setNewNote("");
               }}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl font-medium mt-3"
+              className="ui-btn-primary w-full py-3 mt-3"
             >
               Save Note
             </button>

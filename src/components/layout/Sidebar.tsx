@@ -218,8 +218,8 @@ export default function Sidebar() {
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{
-            background: "linear-gradient(135deg, #f97316, #ea6c0a)",
-            boxShadow: "0 0 16px rgba(249,115,22,0.35)",
+            background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
+            boxShadow: "0 8px 20px rgba(10,132,255,0.22)",
           }}
         >
           <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
@@ -391,7 +391,7 @@ export default function Sidebar() {
             ) : (
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 text-white"
-                style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)" }}
+                style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" }}
               >
                 {user?.firstName?.[0] || "U"}
               </div>
@@ -412,7 +412,7 @@ export default function Sidebar() {
           <Link
             href="/sign-in"
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${collapsed ? "justify-center" : ""}`}
-            style={{ color: "#f97316" }}
+            style={{ color: "var(--color-ember)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
               <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
