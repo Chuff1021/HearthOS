@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     const latestLocations = getLatestLocationsByTech();
 
-    const techs = getTechs().map((t) => {
+    const baseTechs = getTechs().map((t) => {
       const loc = latestLocations.find((l) => l.techId === t.id);
       return {
         id: t.id,
@@ -29,6 +29,27 @@ export async function GET(request: NextRequest) {
           : null,
       };
     });
+
+    // Include active location pings that do not yet map to a team record
+    const mappedIds = new Set(baseTechs.map((t) => t.id));
+    const unmappedLive = latestLocations
+      .filter((l) => !mappedIds.has(l.techId))
+      .map((l) => ({
+        id: l.techId,
+        name: l.techName || l.techId,
+        color: '#2563EB',
+        initials: (l.techName || l.techId).split(' ').map((p) => p[0]).slice(0,2).join('').toUpperCase(),
+        status: 'available',
+        lastUpdate: l.timestamp,
+        location: {
+          lat: l.lat,
+          lng: l.lng,
+          accuracy: l.accuracy,
+          timestamp: l.timestamp,
+        },
+      }));
+
+    const techs = [...baseTechs, ...unmappedLive];
 
     const jobs = getJobs();
     const today = new Date().toISOString().split("T")[0];
