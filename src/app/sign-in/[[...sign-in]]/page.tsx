@@ -13,8 +13,8 @@ export default function SignInPage() {
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
-              boxShadow: "0 0 16px rgba(249,115,22,0.35)",
+              background: "linear-gradient(135deg, #4f46e5, #3730a3)",
+              boxShadow: "0 0 16px rgba(79,70,229,0.35)",
             }}
           >
             <svg viewBox="0 0 20 20" fill="white" className="w-5 h-5">
@@ -53,7 +53,7 @@ export default function SignInPage() {
           <Link
             href="/sign-up"
             className="font-semibold hover:underline"
-            style={{ color: "#f97316" }}
+            style={{ color: "#4f46e5" }}
           >
             Sign up here
           </Link>

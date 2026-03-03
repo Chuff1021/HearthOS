@@ -327,7 +327,7 @@ export default function InvoicesPage() {
           <button
             onClick={() => { resetCreateForm(); setShowCreateModal(true); }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white", boxShadow: "0 0 16px rgba(249,115,22,0.25)" }}
+            style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white", boxShadow: "0 0 16px rgba(79,70,229,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -689,7 +689,7 @@ export default function InvoicesPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Line Items *</label>
-                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#f97316" }}>+ Add Line Item</button>
+                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#4f46e5" }}>+ Add Line Item</button>
                 </div>
                 <div className="space-y-2">
                   {createForm.lineItems.map((li, idx) => (
@@ -771,7 +771,7 @@ export default function InvoicesPage() {
                 onClick={handleCreateInvoice}
                 disabled={saving || !createForm.customerName || !createForm.jobTitle || createForm.lineItems.every((li) => !li.description)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white" }}
+                style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white" }}
               >
                 {saving ? "Creating..." : "Create Invoice"}
               </button>

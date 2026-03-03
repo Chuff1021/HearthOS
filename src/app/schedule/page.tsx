@@ -218,7 +218,7 @@ export default function SchedulePage() {
             <button
               onClick={() => router.push("/jobs")}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #f97316, #ea6c0a)", color: "white", boxShadow: "0 0 16px rgba(249,115,22,0.25)" }}
+              style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)", color: "white", boxShadow: "0 0 16px rgba(79,70,229,0.25)" }}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -271,7 +271,7 @@ export default function SchedulePage() {
                     <div
                       className={`text-lg font-bold mt-0.5 w-9 h-9 rounded-full flex items-center justify-center mx-auto ${isToday ? "text-white" : ""}`}
                       style={{
-                        background: isToday ? "#f97316" : "transparent",
+                        background: isToday ? "#4f46e5" : "transparent",
                         color: isToday ? "white" : "var(--color-text-primary)",
                       }}
                     >
@@ -314,7 +314,7 @@ export default function SchedulePage() {
                         className="relative border-l"
                         style={{
                           borderColor: "var(--color-border)",
-                          background: isToday ? "rgba(249,115,22,0.02)" : "transparent",
+                          background: isToday ? "rgba(79,70,229,0.02)" : "transparent",
                         }}
                       >
                         {jobsInSlot.map((job) => {
@@ -326,7 +326,7 @@ export default function SchedulePage() {
                               style={{
                                 top: "2px",
                                 height: `${job.duration * 80 - 4}px`,
-                                background: tech?.color || "#f97316",
+                                background: tech?.color || "#4f46e5",
                                 opacity: 0.9,
                                 zIndex: 1,
                               }}

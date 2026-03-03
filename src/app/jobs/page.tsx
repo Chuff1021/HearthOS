@@ -280,9 +280,9 @@ export default function JobsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+              background: "linear-gradient(135deg, #4f46e5, #3730a3)",
               color: "white",
-              boxShadow: "0 0 16px rgba(249,115,22,0.25)",
+              boxShadow: "0 0 16px rgba(79,70,229,0.25)",
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -767,7 +767,7 @@ export default function JobsPage() {
                 disabled={creating || !selectedCustomer || !formData.title}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{
-                  background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+                  background: "linear-gradient(135deg, #4f46e5, #3730a3)",
                   color: "white",
                 }}
               >

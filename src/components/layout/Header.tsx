@@ -87,8 +87,8 @@ export default function Header() {
               color: "var(--color-text-primary)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(249,115,22,0.5)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.1)";
+              e.currentTarget.style.borderColor = "rgba(79,70,229,0.5)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(79,70,229,0.1)";
               if (query.length >= 2) setIsOpen(true);
             }}
             onBlur={(e) => {
@@ -185,7 +185,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(249,115,22,0.2)", color: "#fb923c" }}
+                          style={{ background: "rgba(79,70,229,0.2)", color: "#22d3ee" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -347,7 +347,7 @@ export default function Header() {
             href="/sign-in"
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+              background: "linear-gradient(135deg, #4f46e5, #3730a3)",
               color: "white",
             }}
           >
