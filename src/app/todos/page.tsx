@@ -164,7 +164,7 @@ export default function TodosPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  Todo List
+                  To-Do List
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Track follow-up items and tasks
@@ -349,7 +349,7 @@ export default function TodosPage() {
       {/* Create Todo Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] w-full max-w-md rounded-2xl p-6">
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">New Todo</h2>
               <button 
@@ -370,8 +370,12 @@ export default function TodosPage() {
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="What needs to be done?"
-                  className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
                 />
               </div>
               
@@ -382,8 +386,12 @@ export default function TodosPage() {
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Additional details..."
                   rows={3}
-                  className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none resize-none"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none resize-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
                 />
               </div>
               
@@ -393,8 +401,12 @@ export default function TodosPage() {
                   <select
                     value={formPriority}
                     onChange={(e) => setFormPriority(e.target.value as TodoPriority)}
-                    className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                    style={{ color: "var(--color-text-primary)" }}
+                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    style={{
+                      color: "var(--color-text-primary)",
+                      background: "var(--color-surface-3)",
+                      borderColor: "var(--color-border-hover)",
+                    }}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -409,8 +421,12 @@ export default function TodosPage() {
                     type="date"
                     value={formDueDate}
                     onChange={(e) => setFormDueDate(e.target.value)}
-                    className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                    style={{ color: "var(--color-text-primary)" }}
+                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    style={{
+                      color: "var(--color-text-primary)",
+                      background: "var(--color-surface-3)",
+                      borderColor: "var(--color-border-hover)",
+                    }}
                   />
                 </div>
               </div>
@@ -420,8 +436,12 @@ export default function TodosPage() {
                 <select
                   value={formAssignedTo}
                   onChange={(e) => setFormAssignedTo(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
                 >
                   <option value="">Unassigned</option>
                   <option value="tech-001">Mike Johnson</option>
@@ -438,8 +458,12 @@ export default function TodosPage() {
                   value={formTags}
                   onChange={(e) => setFormTags(e.target.value)}
                   placeholder="billing, follow-up, urgent"
-                  className="w-full px-4 py-2 rounded-xl bg-[#252540] border border-gray-700 focus:border-orange-500 outline-none"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
                 />
               </div>
             </div>
