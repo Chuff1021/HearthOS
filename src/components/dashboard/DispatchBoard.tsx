@@ -8,8 +8,8 @@ const techs = [
     color: "#2563eb",
     status: "in_progress",
     statusLabel: "In Progress",
-    statusColor: "#38bdf8",
-    statusBg: "rgba(56,189,248,0.12)",
+    statusColor: "#2563eb",
+    statusBg: "rgba(37,99,235,0.12)",
     currentJob: "JOB-2026-00143",
     currentCustomer: "Linda Martinez",
     currentType: "Service",
@@ -231,11 +231,11 @@ export default function DispatchBoard() {
               <div
                 className="rounded-lg p-2.5 mb-3"
                 style={{
-                  background: "rgba(56,189,248,0.08)",
-                  border: "1px solid rgba(56,189,248,0.15)",
+                  background: "rgba(37,99,235,0.08)",
+                  border: "1px solid rgba(37,99,235,0.15)",
                 }}
               >
-                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#38bdf8" }}>
+                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#2563eb" }}>
                   CURRENT JOB
                 </div>
                 <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>

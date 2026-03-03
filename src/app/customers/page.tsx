@@ -300,7 +300,7 @@ export default function CustomersPage() {
             {error && (
               <div
                 className="rounded-lg px-4 py-3 text-sm mb-4"
-                style={{ background: "rgba(225,29,72,0.12)", border: "1px solid rgba(225,29,72,0.2)", color: "#e11d48" }}
+                style={{ background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.2)", color: "#dc2626" }}
               >
                 {error}
               </div>
@@ -360,7 +360,7 @@ export default function CustomersPage() {
                       </div>
                       <div className="text-right">
                         {customer.balance > 0 && (
-                          <div className="text-sm font-semibold" style={{ color: "#e11d48" }}>
+                          <div className="text-sm font-semibold" style={{ color: "#dc2626" }}>
                             ${customer.balance.toLocaleString()} balance
                           </div>
                         )}
@@ -460,13 +460,13 @@ export default function CustomersPage() {
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Jobs</div>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                    <div className="text-lg font-bold" style={{ color: "#0f766e" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
+                    <div className="text-lg font-bold" style={{ color: "#16a34a" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Revenue</div>
                   </div>
                   {selectedCustomer.balance > 0 && (
-                    <div className="col-span-2 rounded-lg p-3" style={{ background: "rgba(225,29,72,0.08)", border: "1px solid rgba(225,29,72,0.2)" }}>
-                      <div className="text-lg font-bold" style={{ color: "#e11d48" }}>${selectedCustomer.balance.toLocaleString()}</div>
-                      <div className="text-xs" style={{ color: "#e11d48" }}>Outstanding Balance</div>
+                    <div className="col-span-2 rounded-lg p-3" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
+                      <div className="text-lg font-bold" style={{ color: "#dc2626" }}>${selectedCustomer.balance.toLocaleString()}</div>
+                      <div className="text-xs" style={{ color: "#dc2626" }}>Outstanding Balance</div>
                     </div>
                   )}
                 </div>
@@ -513,7 +513,7 @@ export default function CustomersPage() {
                     <button
                       onClick={() => handleDeleteCustomer(selectedCustomer.id)}
                       className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "rgba(225,29,72,0.12)", color: "#e11d48", border: "1px solid rgba(225,29,72,0.2)" }}
+                      style={{ background: "rgba(220,38,38,0.12)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
                     >
                       Delete
                     </button>

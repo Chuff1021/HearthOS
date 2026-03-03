@@ -47,11 +47,11 @@ function mapJobToUI(job: {
   notes?: string;
 }): Job {
   const typeColors: Record<string, { color: string; bg: string }> = {
-    cleaning: { color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+    cleaning: { color: "#2563eb", bg: "rgba(37,99,235,0.12)" },
     inspection: { color: "#67e8f9", bg: "rgba(34,211,238,0.12)" },
-    repair: { color: "#e11d48", bg: "rgba(225,29,72,0.12)" },
-    installation: { color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
-    service: { color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
+    repair: { color: "#dc2626", bg: "rgba(220,38,38,0.12)" },
+    installation: { color: "#2563eb", bg: "rgba(37,99,235,0.12)" },
+    service: { color: "#60a5fa", bg: "rgba(192,132,252,0.12)" },
     estimate: { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
   };
   
@@ -99,16 +99,16 @@ const statusConfig: Record<
 > = {
   completed: {
     label: "Completed",
-    color: "#14b8a6",
-    bg: "rgba(20,184,166,0.12)",
-    dotColor: "#14b8a6",
+    color: "#16a34a",
+    bg: "rgba(22,163,74,0.12)",
+    dotColor: "#16a34a",
     pulse: false,
   },
   in_progress: {
     label: "In Progress",
-    color: "#38bdf8",
-    bg: "rgba(56,189,248,0.12)",
-    dotColor: "#38bdf8",
+    color: "#2563eb",
+    bg: "rgba(37,99,235,0.12)",
+    dotColor: "#2563eb",
     pulse: true,
   },
   en_route: {
@@ -127,9 +127,9 @@ const statusConfig: Record<
   },
   callback: {
     label: "Callback",
-    color: "#e11d48",
-    bg: "rgba(225,29,72,0.12)",
-    dotColor: "#e11d48",
+    color: "#dc2626",
+    bg: "rgba(220,38,38,0.12)",
+    dotColor: "#dc2626",
     pulse: false,
   },
 };
@@ -258,9 +258,9 @@ export default function TodaysJobs() {
                 style={{
                   borderBottom: idx < filtered.length - 1 ? "1px solid var(--color-border)" : "none",
                   borderLeft: job.priority === "emergency"
-                    ? "3px solid #be123c"
+                    ? "3px solid #dc2626"
                     : job.priority === "high"
-                      ? "3px solid #b7791f"
+                      ? "3px solid #ea580c"
                       : "3px solid transparent",
                 }}
                 onMouseEnter={(e) => {
@@ -306,7 +306,7 @@ export default function TodaysJobs() {
                       {job.priority === "emergency" && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                          style={{ background: "rgba(190,18,60,0.2)", color: "#e11d48" }}
+                          style={{ background: "rgba(220,38,38,0.2)", color: "#dc2626" }}
                         >
                           ⚡ EMERGENCY
                         </span>
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#0f766e" : "#2563eb",
+                                  background: job.checklistPct === 100 ? "#16a34a" : "#2563eb",
                                 }}
                               ></div>
                             </div>

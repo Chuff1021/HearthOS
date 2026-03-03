@@ -10,10 +10,10 @@
 
   /* Alternate accents (quick switch if wanted)
      Premium Ember: #c2410c / #9a3412
-     Electric Teal: #0ea5a4 / #0f766e
+     Electric Teal: #0ea5a4 / #16a34a
   */
-  --color-accent-violet: #7c3aed;
-  --color-accent-cyan: #0891b2;
+  --color-accent-violet: #2563eb;
+  --color-accent-cyan: #2563eb;
 
   /* Premium light neutral palette */
   --color-bg: #f6f5f3;
@@ -31,10 +31,10 @@
   --color-text-muted: #6b7280;
 
   /* Status */
-  --color-success: #0f766e;
-  --color-warning: #92400e;
-  --color-danger: #be123c;
-  --color-info: #0284c7;
+  --color-success: #16a34a;
+  --color-warning: #c2410c;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
 
   /* QuickBooks */
   --color-qb: #2ca01c;

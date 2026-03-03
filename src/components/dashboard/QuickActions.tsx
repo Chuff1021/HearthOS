@@ -18,8 +18,8 @@ const actions = [
   },
   {
     label: "New Customer",
-    color: "#38bdf8",
-    bg: "rgba(56,189,248,0.12)",
+    color: "#2563eb",
+    bg: "rgba(37,99,235,0.12)",
     href: "/customers",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -29,8 +29,8 @@ const actions = [
   },
   {
     label: "New Invoice",
-    color: "#14b8a6",
-    bg: "rgba(20,184,166,0.12)",
+    color: "#16a34a",
+    bg: "rgba(22,163,74,0.12)",
     href: "/invoices",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -40,7 +40,7 @@ const actions = [
   },
   {
     label: "New Estimate",
-    color: "#c084fc",
+    color: "#60a5fa",
     bg: "rgba(192,132,252,0.12)",
     href: "/tech/estimate",
     icon: (

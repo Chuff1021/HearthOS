@@ -142,7 +142,7 @@ export default function TeamPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Available</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#0d9488" }}>{availableCount}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#16a34a" }}>{availableCount}</p>
               </button>
               <button
                 onClick={() => setFilter("on_job")}

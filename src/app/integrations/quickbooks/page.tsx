@@ -3,9 +3,9 @@ import Header from "@/components/layout/Header";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
-  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
-  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
-  { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
+  { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#16a34a", bg: "rgba(22,163,74,0.12)" },
+  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#2563eb", bg: "rgba(37,99,235,0.12)" },
+  { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#60a5fa", bg: "rgba(192,132,252,0.12)" },
   { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
 ];
 
@@ -65,9 +65,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(225,29,72,0.12)",
-                  border: "1px solid rgba(225,29,72,0.2)",
-                  color: "#e11d48",
+                  background: "rgba(220,38,38,0.12)",
+                  border: "1px solid rgba(220,38,38,0.2)",
+                  color: "#dc2626",
                 }}
               >
                 {errorMessage}
@@ -78,9 +78,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{
-                  background: "rgba(20,184,166,0.12)",
-                  border: "1px solid rgba(20,184,166,0.2)",
-                  color: "#14b8a6",
+                  background: "rgba(22,163,74,0.12)",
+                  border: "1px solid rgba(22,163,74,0.2)",
+                  color: "#16a34a",
                 }}
               >
                 ✓ Successfully connected to QuickBooks! Click &quot;Sync Now&quot; to pull your data.
