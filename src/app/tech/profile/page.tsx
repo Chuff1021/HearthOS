@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -16,6 +16,9 @@ export default function ProfilePage() {
   const [endDate, setEndDate] = useState("");
   const [requestReason, setRequestReason] = useState("");
   const [requestStatus, setRequestStatus] = useState<string>("");
+  const [locationLabel, setLocationLabel] = useState<string>("Waiting for GPS...");
+  const [gpsError, setGpsError] = useState<string>("");
+  const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
     // Sign out and redirect to sign-in page
@@ -28,8 +31,8 @@ export default function ProfilePage() {
   const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const [isTracking, setIsTracking] = useState(true);
 
-  // Derived state — no useEffect needed
-  const currentLocation = gpsEnabled && isTracking ? "Springfield, IL" : null;
+  // Derived state
+  const currentLocation = gpsEnabled && isTracking ? locationLabel : null;
 
   useEffect(() => {
     async function resolveTech() {
@@ -46,6 +49,59 @@ export default function ProfilePage() {
     }
     resolveTech();
   }, [user?.firstName, user?.fullName]);
+
+  useEffect(() => {
+    if (!gpsEnabled || !isTracking || !techId) {
+      if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsError('Geolocation not supported on this device/browser.');
+      return;
+    }
+
+    setGpsError('');
+    watchRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+        setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`);
+
+        await fetch('/api/tech/locations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            techId,
+            techName: userName,
+            lat: latitude,
+            lng: longitude,
+            accuracy,
+            speed,
+            heading,
+            timestamp: new Date(pos.timestamp).toISOString(),
+          }),
+        });
+      },
+      (err) => {
+        setGpsError(err.message || 'GPS permission denied/unavailable.');
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 15000,
+      }
+    );
+
+    return () => {
+      if (watchRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
+    };
+  }, [gpsEnabled, isTracking, techId, userName]);
 
   async function submitTimeOffRequest() {
     if (!techId || !startDate || !endDate) {
@@ -150,6 +206,11 @@ export default function ProfilePage() {
                   <p className="text-xs text-gray-400">{currentLocation}</p>
                 </div>
               </div>
+            </div>
+          )}
+          {gpsError && (
+            <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-2 mb-3 text-xs text-red-300">
+              {gpsError}
             </div>
           )}
 

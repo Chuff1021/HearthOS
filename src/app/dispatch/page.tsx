@@ -14,6 +14,7 @@ type Tech = {
   nextJob: { id: string; title: string; customer: string; scheduledTime: string } | null;
   jobsToday: number;
   jobsDone: number;
+  location?: { lat: number; lng: number; accuracy?: number; timestamp: string } | null;
 };
 
 type UnassignedJob = {
@@ -96,6 +97,14 @@ export default function DispatchPage() {
                   <option key={t.id} value={t.id}>{t.name} ({t.jobsDone}/{t.jobsToday})</option>
                 ))}
               </select>
+              <div className="mt-3 space-y-1 max-h-40 overflow-auto">
+                {techs.map((t) => (
+                  <div key={t.id} className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{t.name}:</span>{' '}
+                    {t.location ? `${t.location.lat.toFixed(4)}, ${t.location.lng.toFixed(4)} (±${Math.round(t.location.accuracy || 0)}m)` : 'No GPS ping yet'}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>

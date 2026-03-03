@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJobs } from "@/app/api/jobs/route";
 import { getTechs } from "@/app/api/techs/route";
+import { getLatestLocationsByTech } from "@/lib/tech-location-store";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
 
-    const techs = getTechs().map((t) => ({
-      id: t.id,
-      name: t.name,
-      color: t.color,
-      initials: t.initials,
-      status: t.active ? "available" : "offline",
-      lastUpdate: "Just now",
-    }));
+    const latestLocations = getLatestLocationsByTech();
+
+    const techs = getTechs().map((t) => {
+      const loc = latestLocations.find((l) => l.techId === t.id);
+      return {
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        initials: t.initials,
+        status: t.active ? "available" : "offline",
+        lastUpdate: loc?.timestamp || "No location yet",
+        location: loc
+          ? {
+              lat: loc.lat,
+              lng: loc.lng,
+              accuracy: loc.accuracy,
+              timestamp: loc.timestamp,
+            }
+          : null,
+      };
+    });
 
     const jobs = getJobs();
     const today = new Date().toISOString().split("T")[0];
