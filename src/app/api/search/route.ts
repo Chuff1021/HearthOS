@@ -5,13 +5,10 @@ import { getOrCreateDefaultOrg } from "@/lib/org";
 import {
   searchCustomers as searchQBCustomers,
   searchInvoices as searchQBInvoices,
-  getCachedCustomers,
-  getCachedInvoices,
   getClientFromTokens,
   syncCustomers,
   syncInvoices,
 } from "@/lib/quickbooks";
-import { transformCustomer } from "@/lib/quickbooks/transform";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -104,39 +101,54 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // If QuickBooks is connected, search QB data (live first, cache fallback)
+  // If QuickBooks is connected, search QB data (API fetch + filter)
   if (qbConnected && accessToken && refreshToken && realmId) {
     const client = getClientFromTokens(accessToken, refreshToken, realmId);
-    const safe = query.replace(/'/g, "\\'");
 
     let qbMatchedCustomers: Array<{ id: string; type: "customer"; title: string; subtitle: string; href: string; source: "quickbooks" }> = [];
     let qbMatchedInvoices: Array<{ id: string; type: "invoice"; title: string; subtitle: string; href: string; source: "quickbooks" }> = [];
 
     try {
+      // Pull fresh QB data directly and filter in-memory (more reliable than LIKE query edge cases)
       const [liveCustomers, liveInvoices] = await Promise.all([
-        client.query<any>(`SELECT * FROM Customer WHERE DisplayName LIKE '%${safe}%' MAXRESULTS 8`),
-        client.query<any>(`SELECT * FROM Invoice WHERE DocNumber LIKE '%${safe}%' OR CustomerRef LIKE '%${safe}%' MAXRESULTS 8`),
+        client.getCustomers(200),
+        client.getInvoices(200),
       ]);
 
-      qbMatchedCustomers = liveCustomers.map((c) => ({
-        id: c.Id,
-        type: "customer" as const,
-        title: c.DisplayName,
-        subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
-        href: `/customers?id=${c.Id}`,
-        source: "quickbooks" as const,
-      }));
+      qbMatchedCustomers = liveCustomers
+        .filter((c) =>
+          c.DisplayName?.toLowerCase().includes(query) ||
+          c.CompanyName?.toLowerCase().includes(query) ||
+          c.PrimaryEmailAddr?.Address?.toLowerCase().includes(query) ||
+          c.PrimaryPhone?.FreeFormNumber?.includes(query)
+        )
+        .slice(0, 8)
+        .map((c) => ({
+          id: c.Id,
+          type: "customer" as const,
+          title: c.DisplayName,
+          subtitle: c.CompanyName || c.PrimaryEmailAddr?.Address || c.PrimaryPhone?.FreeFormNumber || "QuickBooks customer",
+          href: `/customers?id=${c.Id}`,
+          source: "quickbooks" as const,
+        }));
 
-      qbMatchedInvoices = liveInvoices.map((i) => ({
-        id: i.Id,
-        type: "invoice" as const,
-        title: i.DocNumber || `Invoice ${i.Id}`,
-        subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
-        href: `/invoices?id=${i.Id}`,
-        source: "quickbooks" as const,
-      }));
+      qbMatchedInvoices = liveInvoices
+        .filter((i) =>
+          i.DocNumber?.toLowerCase().includes(query) ||
+          i.CustomerRef?.name?.toLowerCase().includes(query) ||
+          String(i.TotalAmt || "").includes(query)
+        )
+        .slice(0, 8)
+        .map((i) => ({
+          id: i.Id,
+          type: "invoice" as const,
+          title: i.DocNumber || `Invoice ${i.Id}`,
+          subtitle: `${i.CustomerRef?.name || "Unknown"} • $${Number(i.TotalAmt || 0).toFixed(2)}`,
+          href: `/invoices?id=${i.Id}`,
+          source: "quickbooks" as const,
+        }));
     } catch (liveErr) {
-      console.error("QB live search failed, falling back to cache:", liveErr);
+      console.error("QB direct search failed, falling back to cache:", liveErr);
       try {
         await Promise.all([syncCustomers(client), syncInvoices(client)]);
       } catch (err) {
