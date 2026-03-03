@@ -416,13 +416,17 @@ function GABEInner() {
       {/* Quick Questions */}
       {messages.length <= 2 && (
         <div className="px-4 pb-2">
-          <p className="text-xs text-gray-400 mb-2">Quick questions:</p>
+          <p className="text-xs mb-2" style={{ color: "var(--color-text-secondary)" }}>Quick questions:</p>
           <div className="flex flex-wrap gap-2">
             {quickQuestions.map((q) => (
               <button
                 key={q}
                 onClick={() => handleSend(q)}
-                className="bg-[var(--color-surface-1)] px-3 py-1.5 rounded-full text-xs text-gray-300 border border-gray-700 hover:border-blue-600 transition-colors"
+                className="bg-[var(--color-surface-1)] px-3 py-1.5 rounded-full text-xs border transition-colors"
+                style={{
+                  color: "var(--color-text-primary)",
+                  borderColor: "var(--color-border)",
+                }}
               >
                 {q}
               </button>
