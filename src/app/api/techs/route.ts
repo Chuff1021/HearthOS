@@ -8,7 +8,7 @@ export interface Tech {
   phone: string;
   color: string;
   initials: string;
-  role: "lead" | "tech" | "helper";
+  role: "lead" | "tech" | "helper" | "dispatcher" | "admin";
   active: boolean;
   skills: string[];
   certifications: string[];
@@ -130,33 +130,54 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    const initials = body.name
-      .split(" ")
+
+    const name = String(body.name || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const phone = String(body.phone || '').trim();
+    const role = (body.role || 'tech') as Tech['role'];
+
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
+    }
+
+    const existing = techs.find((t) => t.email.toLowerCase() === email);
+    if (existing) {
+      return NextResponse.json({ tech: existing, exists: true }, { status: 200 });
+    }
+
+    const initials = name
+      .split(' ')
+      .filter(Boolean)
       .map((n: string) => n[0])
-      .join("")
+      .join('')
+      .slice(0, 3)
       .toUpperCase();
 
+    const nextNum = techs
+      .map((t) => Number(String(t.id).split('-').pop() || 0))
+      .filter((n) => !Number.isNaN(n))
+      .reduce((m, n) => Math.max(m, n), 0) + 1;
+
     const newTech: Tech = {
-      id: `tech-${String(techs.length + 1).padStart(3, "0")}`,
-      name: body.name,
-      email: body.email || "",
-      phone: body.phone || "",
-      color: body.color || "#6b7280",
+      id: `tech-${String(nextNum).padStart(3, '0')}`,
+      name,
+      email,
+      phone,
+      color: body.color || '#2563EB',
       initials,
-      role: body.role || "tech",
+      role,
       active: true,
       skills: body.skills || [],
       certifications: body.certifications || [],
-      hireDate: new Date().toISOString().split("T")[0],
+      hireDate: new Date().toISOString().split('T')[0],
     };
 
     techs.push(newTech);
     saveTechs();
     return NextResponse.json({ tech: newTech }, { status: 201 });
   } catch (err) {
-    console.error("Failed to create tech:", err);
-    return NextResponse.json({ error: "Failed to create technician" }, { status: 500 });
+    console.error('Failed to create tech:', err);
+    return NextResponse.json({ error: 'Failed to create technician' }, { status: 500 });
   }
 }
 

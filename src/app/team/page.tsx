@@ -84,7 +84,14 @@ export default function TeamPage() {
   async function addTeamMember() {
     setAddError(null);
 
-    if (!newMember.name || !newMember.email) {
+    const payload = {
+      ...newMember,
+      name: newMember.name.trim(),
+      email: newMember.email.trim().toLowerCase(),
+      phone: newMember.phone.trim(),
+    };
+
+    if (!payload.name || !payload.email) {
       setAddError("Name and email are required.");
       return;
     }
@@ -94,7 +101,7 @@ export default function TeamPage() {
       const res = await fetch('/api/techs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMember),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add team member');

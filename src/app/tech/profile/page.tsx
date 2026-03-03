@@ -65,7 +65,25 @@ export default function ProfilePage() {
           );
         }
 
-        if (match) setTechId(match.id);
+        if (match) {
+          setTechId(match.id);
+          return;
+        }
+
+        // 4) Auto-create a tech profile for logged-in user if no match exists
+        const autoName = (user?.fullName || user?.firstName || '').trim();
+        const autoEmail = (user?.primaryEmailAddress?.emailAddress || '').trim().toLowerCase();
+        if (autoName && autoEmail) {
+          const createRes = await fetch('/api/techs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: autoName, email: autoEmail, phone: '', role: 'tech' }),
+          });
+          const createData = await createRes.json().catch(() => ({}));
+          if (createRes.ok && createData?.tech?.id) {
+            setTechId(createData.tech.id);
+          }
+        }
       } catch {
         // no-op
       }
