@@ -45,8 +45,15 @@ export default function DispatchPage() {
   const maxLng = lngs.length ? Math.max(...lngs) : 1;
 
   function markerPos(lat: number, lng: number) {
-    const x = ((lng - minLng) / Math.max(0.00001, maxLng - minLng)) * 100;
-    const y = (1 - (lat - minLat) / Math.max(0.00001, maxLat - minLat)) * 100;
+    const lngSpan = maxLng - minLng;
+    const latSpan = maxLat - minLat;
+
+    if (Math.abs(lngSpan) < 0.000001 && Math.abs(latSpan) < 0.000001) {
+      return { left: '50%', top: '50%' };
+    }
+
+    const x = ((lng - minLng) / Math.max(0.00001, lngSpan)) * 100;
+    const y = (1 - (lat - minLat) / Math.max(0.00001, latSpan)) * 100;
     return { left: `${Math.min(98, Math.max(2, x))}%`, top: `${Math.min(98, Math.max(2, y))}%` };
   }
 
@@ -173,6 +180,15 @@ export default function DispatchPage() {
                     <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                       {t.location!.lat.toFixed(5)}, {t.location!.lng.toFixed(5)} · ±{Math.round(t.location!.accuracy || 0)}m
                     </div>
+                    <a
+                      href={`https://maps.apple.com/?ll=${t.location!.lat},${t.location!.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px]"
+                      style={{ color: '#2563EB' }}
+                    >
+                      Open in Maps
+                    </a>
                   </div>
                 )) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
               </div>
