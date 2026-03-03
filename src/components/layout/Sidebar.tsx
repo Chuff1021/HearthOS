@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -16,7 +16,25 @@ function useHydrated() {
   );
 }
 
-const navItems = [
+interface NavChildItem {
+  label: string;
+  href: string;
+}
+
+interface NavItem {
+  label: string;
+  href: string;
+  badge: string | null;
+  icon: ReactNode;
+  children?: NavChildItem[];
+}
+
+interface NavGroup {
+  group: string;
+  items: NavItem[];
+}
+
+const navItems: NavGroup[] = [
   {
     group: "Main",
     items: [
@@ -80,6 +98,33 @@ const navItems = [
             <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
           </svg>
         ),
+      },
+    ],
+  },
+  {
+    group: "Finance",
+    items: [
+      {
+        label: "Finance",
+        href: "/finance",
+        badge: null,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414A2 2 0 0016.414 6L14 3.586A2 2 0 0012.586 3H4zm8 1.414L14.586 7H12V4.414z" />
+            <path d="M6 10a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 3a1 1 0 011-1h4a1 1 0 110 2H7a1 1 0 01-1-1z" />
+          </svg>
+        ),
+        children: [
+          { label: "Banking", href: "/finance/banking" },
+          { label: "Expenses", href: "/finance/expenses" },
+          { label: "Vendors", href: "/finance/vendors" },
+          { label: "Purchase Orders", href: "/finance/purchase-orders" },
+          { label: "Bills", href: "/finance/bills" },
+          { label: "Reconciliation", href: "/finance/reconciliation" },
+          { label: "Payroll", href: "/finance/payroll" },
+          { label: "Taxes", href: "/finance/taxes" },
+          { label: "Reports", href: "/finance/reports" },
+        ],
       },
     ],
   },
@@ -269,51 +314,83 @@ export default function Sidebar() {
               </div>
             )}
             {group.items.map((item) => {
-              const isActive = hydrated && pathname === item.href;
+              const hasChildren = Boolean(item.children?.length);
+              const isFinanceActive = hydrated && pathname.startsWith("/finance");
+              const isActive = hydrated && (item.href === "/finance" ? isFinanceActive : pathname === item.href);
+              const showChildren = !collapsed && hasChildren && isFinanceActive;
+
               return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex items-center gap-2.5 mx-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                    collapsed ? "justify-center" : ""
-                  }`}
-                  style={{
-                    background: isActive ? "rgba(10,132,255,0.12)" : "transparent",
-                    color: isActive ? "var(--color-ember)" : "var(--color-text-secondary)",
-                    fontWeight: isActive ? "600" : "400",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = "var(--color-surface-3)";
-                      e.currentTarget.style.color = "var(--color-text-primary)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "var(--color-text-secondary)";
-                    }
-                  }}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 text-[13px]">{item.label}</span>
-                      {item.badge && (
-                        <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                          style={{
-                            background: isActive ? "rgba(10,132,255,0.2)" : "rgba(10,132,255,0.12)",
-                            color: "var(--color-ember)",
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </>
+                <div key={item.label}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-2.5 mx-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                      collapsed ? "justify-center" : ""
+                    }`}
+                    style={{
+                      background: isActive ? "rgba(10,132,255,0.12)" : "transparent",
+                      color: isActive ? "var(--color-ember)" : "var(--color-text-secondary)",
+                      fontWeight: isActive ? "600" : "400",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = "var(--color-surface-3)";
+                        e.currentTarget.style.color = "var(--color-text-primary)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "var(--color-text-secondary)";
+                      }
+                    }}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-[13px]">{item.label}</span>
+                        {item.badge && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{
+                              background: isActive ? "rgba(10,132,255,0.2)" : "rgba(10,132,255,0.12)",
+                              color: "var(--color-ember)",
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                        {hasChildren && (
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" style={{ opacity: 0.7 }}>
+                            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </>
+                    )}
+                  </Link>
+
+                  {showChildren && (
+                    <div className="mt-1 mb-2 pl-6 pr-2 space-y-1">
+                      {item.children?.map((child) => {
+                        const isChildActive = hydrated && pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="flex items-center px-3 py-1.5 rounded-md text-xs transition-colors"
+                            style={{
+                              background: isChildActive ? "rgba(10,132,255,0.12)" : "transparent",
+                              color: isChildActive ? "var(--color-ember)" : "var(--color-text-secondary)",
+                              fontWeight: isChildActive ? "600" : "500",
+                            }}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                </Link>
+                </div>
               );
             })}
           </div>
