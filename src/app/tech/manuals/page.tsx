@@ -193,14 +193,14 @@ export default function ManualsPage() {
                   >
                     View PDF
                   </a>
-                  <a
-                    href={manual.url}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => {
+                      navigator.clipboard?.writeText(manual.url);
+                    }}
                     className="flex-1 bg-blue-600/20 text-blue-600 py-2 rounded-lg text-sm font-medium hover:bg-blue-600/30 transition-colors text-center"
                   >
-                    Open Link
-                  </a>
+                    Copy Link
+                  </button>
                 </div>
               </div>
             ))}

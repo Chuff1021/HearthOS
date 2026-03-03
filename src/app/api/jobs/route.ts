@@ -225,6 +225,7 @@ export function getJobs(): Job[] {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
     const status = searchParams.get("status");
     const date = searchParams.get("date");
     const techId = searchParams.get("techId");
@@ -232,6 +233,10 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "100");
 
     let filtered = [...jobs];
+
+    if (id) {
+      filtered = filtered.filter((j) => j.id === id);
+    }
 
     // Filter by status
     if (status && status !== "all") {

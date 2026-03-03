@@ -69,16 +69,48 @@ export default function EstimatePage() {
   const tax = subtotal * 0.07; // 7% tax
   const total = subtotal + tax;
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const draft = { customer, lineItems, subtotal, tax, total, savedAt: new Date().toISOString() };
     localStorage.setItem("tech-estimate-draft", JSON.stringify(draft));
-    setActionMsg("Draft saved.");
+    try {
+      await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customer.name,
+          customerId: '',
+          issueDate: new Date().toISOString().split('T')[0],
+          dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+          lineItems: lineItems.map((l) => ({ description: l.description, qty: l.quantity, unitPrice: l.unitPrice })),
+          notes: 'Tech estimate draft',
+        }),
+      });
+      setActionMsg("Draft saved to office queue.");
+    } catch {
+      setActionMsg("Draft saved locally.");
+    }
   };
 
-  const sendToCustomer = () => {
+  const sendToCustomer = async () => {
     const payload = { customer, lineItems, subtotal, tax, total };
     localStorage.setItem("tech-estimate-send-queue", JSON.stringify(payload));
-    setActionMsg("Estimate queued to send to customer.");
+    try {
+      await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customer.name,
+          customerId: '',
+          issueDate: new Date().toISOString().split('T')[0],
+          dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+          lineItems: lineItems.map((l) => ({ description: l.description, qty: l.quantity, unitPrice: l.unitPrice })),
+          notes: 'Tech estimate sent from field',
+        }),
+      });
+      setActionMsg("Estimate sent to office/customer workflow.");
+    } catch {
+      setActionMsg("Estimate queued to send to customer.");
+    }
   };
 
   return (
@@ -86,7 +118,7 @@ export default function EstimatePage() {
       {/* Header */}
       <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <Link href="/tech" className="text-gray-400 hover:text-white">
+          <Link href="/tech" aria-label="Back to Jobs" className="text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>

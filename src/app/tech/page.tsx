@@ -37,6 +37,7 @@ export default function TechApp() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -79,8 +80,9 @@ export default function TechApp() {
   async function handleClockToggle() {
     if (!selectedTechId) return;
     setClocking(true);
+    setError(null);
     try {
-      await fetch('/api/time/entries', {
+      const res = await fetch('/api/time/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,9 +91,35 @@ export default function TechApp() {
           techName: selectedTech?.name,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update clock status');
+      }
       setIsClockedIn((v) => !v);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update clock status');
     } finally {
       setClocking(false);
+    }
+  }
+
+  async function handleToggleJob(jobId: string) {
+    if (!isClockedIn) return;
+    const nextActive = activeJob === jobId ? null : jobId;
+    setActiveJob(nextActive);
+    setError(null);
+    try {
+      await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobId,
+          status: nextActive ? 'in_progress' : 'completed',
+        }),
+      });
+      await loadData();
+    } catch {
+      setError('Failed to update job status');
     }
   }
 
@@ -139,7 +167,7 @@ export default function TechApp() {
           </div>
           <button
             onClick={handleClockToggle}
-            disabled={clocking}
+            disabled={clocking || !selectedTechId}
             className="px-5 py-3 rounded-xl text-sm font-semibold"
             style={{
               background: isClockedIn ? "rgba(255,32,78,0.15)" : "linear-gradient(135deg, #98CD00, #98CD00)",
@@ -151,6 +179,12 @@ export default function TechApp() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="mx-4 mt-3 p-3 rounded-xl" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+          {error}
+        </div>
+      )}
 
       {activeJob && (
         <div className="mx-4 mt-3 p-3 rounded-xl" style={{ background: "rgba(255,68,0,0.14)", border: "1px solid rgba(255,68,0,0.45)" }}>
@@ -205,7 +239,7 @@ export default function TechApp() {
                     View Customer & Job
                   </Link>
                   <button
-                    onClick={() => setActiveJob((prev) => (prev === job.id ? null : job.id))}
+                    onClick={() => handleToggleJob(job.id)}
                     disabled={!isClockedIn}
                     className="flex-1 py-2 rounded-lg text-sm font-medium"
                     style={{

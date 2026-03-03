@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
@@ -100,11 +100,38 @@ export default function JobDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
+  const [loadingJob, setLoadingJob] = useState(true);
+  const [job, setJob] = useState<any>(mockJobData);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
 
-  const job = mockJobData;
   const checklist = job.type === "Annual Inspection" ? inspectionChecklist : installationChecklist;
+
+  useEffect(() => {
+    async function loadJob() {
+      setLoadingJob(true);
+      try {
+        const res = await fetch(`/api/jobs?id=${jobId}`);
+        const data = await res.json();
+        const found = data.jobs?.[0];
+        if (found) {
+          setJob((prev: any) => ({
+            ...prev,
+            id: found.id,
+            customer: found.customerName || prev.customer,
+            address: found.propertyAddress || prev.address,
+            type: found.title || prev.type,
+            scheduled: `${found.scheduledDate} ${found.scheduledTimeStart}`,
+            notes: found.notes || prev.notes,
+            photos: prev.photos || [],
+          }));
+        }
+      } finally {
+        setLoadingJob(false);
+      }
+    }
+    if (jobId) loadJob();
+  }, [jobId]);
 
   const handleCheckItem = (id: number) => {
     setChecklistItems((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -115,6 +142,30 @@ export default function JobDetailPage() {
 
   const handlePhotoCapture = () => {
     fileInputRef.current?.click();
+  };
+
+  const handlePhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const photo = {
+        id: `photo-${Date.now()}`,
+        type: "progress",
+        label: file.name,
+        timestamp: new Date().toISOString(),
+        uri: String(reader.result),
+      };
+      const nextPhotos = [...(job.photos || []), photo];
+      setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
+      setActionMsg("Photo saved to job record.");
+      await fetch('/api/jobs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: jobId, photos: nextPhotos }),
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const filteredMaterials = materialCatalog.filter((m) => {
@@ -172,14 +223,41 @@ export default function JobDetailPage() {
     setActionMsg("Invoice draft saved.");
   };
 
-  const handleSendInvoice = () => {
-    const queue = { jobId, customer: job.customer, amount: invoiceTotal * 1.07, sentAt: new Date().toISOString() };
-    localStorage.setItem(`tech-invoice-send-${jobId}`, JSON.stringify(queue));
-    setActionMsg("Invoice queued to send to customer.");
-    setShowInvoicePreview(false);
+  const handleSendInvoice = async () => {
+    try {
+      const payload = {
+        customerName: job.customer,
+        customerId: "",
+        issueDate: new Date().toISOString().split('T')[0],
+        dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+        lineItems: [
+          { description: 'Labor', qty: 1, unitPrice: laborRate },
+          ...materialsUsed.map((m) => ({ description: m.name, qty: m.quantity, unitPrice: m.unitPrice })),
+        ],
+        notes: `Generated from tech job ${jobId}`,
+      };
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error();
+      setActionMsg("Invoice created and sent to office.");
+      setShowInvoicePreview(false);
+    } catch {
+      const queue = { jobId, customer: job.customer, amount: invoiceTotal * 1.07, sentAt: new Date().toISOString() };
+      localStorage.setItem(`tech-invoice-send-${jobId}`, JSON.stringify(queue));
+      setActionMsg("Invoice queued (offline fallback).");
+      setShowInvoicePreview(false);
+    }
   };
 
-  const handleCompleteInspection = () => {
+  const handleCompleteInspection = async () => {
+    await fetch('/api/jobs', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: jobId, status: 'completed' }),
+    });
     setActionMsg("Inspection completed and shared with office.");
   };
 
@@ -195,7 +273,7 @@ export default function JobDetailPage() {
       {/* Header */}
       <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <Link href="/tech" className="text-gray-400 hover:text-white">
+          <Link href="/tech" aria-label="Back to Jobs" className="text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -211,6 +289,12 @@ export default function JobDetailPage() {
           </a>
         </div>
       </header>
+
+      {loadingJob && (
+        <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+          Loading job details...
+        </div>
+      )}
 
       {actionMsg && (
         <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(152,205,0,0.12)", border: "1px solid rgba(152,205,0,0.35)", color: "#98CD00" }}>
@@ -488,12 +572,13 @@ export default function JobDetailPage() {
               type="file"
               accept="image/*"
               capture="environment"
+              onChange={handlePhotoSelected}
               className="hidden"
             />
 
             {/* Photo Gallery */}
             <div className="grid grid-cols-3 gap-2">
-              {job.photos.map((photo) => (
+              {(job.photos || []).map((photo: any) => (
                 <div key={photo.id} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
                   <div className="absolute inset-0 flex items-center justify-center text-gray-600">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -538,7 +623,7 @@ export default function JobDetailPage() {
             <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Service History</h3>
               <div className="space-y-3">
-                {job.customerNotes.map((note, i) => (
+                {(job.customerNotes || []).map((note: any, i: number) => (
                   <div key={i} className="border-l-2 border-blue-600 pl-3">
                     <p className="text-xs text-gray-400">{note.date}</p>
                     <p className="text-sm">{note.note}</p>
@@ -552,7 +637,7 @@ export default function JobDetailPage() {
               <h3 className="font-semibold mb-3">Estimates</h3>
               {job.estimates.length > 0 ? (
                 <div className="space-y-2">
-                  {job.estimates.map((est) => (
+                  {(job.estimates || []).map((est: any) => (
                     <div key={est.id} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
                       <div>
                         <p className="text-sm">{est.id}</p>
@@ -575,7 +660,7 @@ export default function JobDetailPage() {
               <h3 className="font-semibold mb-3">Invoices</h3>
               {job.invoices.length > 0 ? (
                 <div className="space-y-2">
-                  {job.invoices.map((inv) => (
+                  {(job.invoices || []).map((inv: any) => (
                     <div key={inv.id} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-0">
                       <div>
                         <p className="text-sm">{inv.id}</p>
@@ -803,7 +888,15 @@ export default function JobDetailPage() {
               className="w-full bg-[var(--color-surface-3)] rounded-xl p-3 text-sm min-h-[100px] border border-gray-700 focus:border-blue-600 outline-none"
             />
             <button
-              onClick={() => {
+              onClick={async () => {
+                const mergedNote = [job.notes, newNote].filter(Boolean).join("\n");
+                setJob((prev: any) => ({ ...prev, notes: mergedNote }));
+                await fetch('/api/jobs', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: jobId, notes: mergedNote }),
+                });
+                setActionMsg('Note saved to job.');
                 setShowNoteModal(false);
                 setNewNote("");
               }}
