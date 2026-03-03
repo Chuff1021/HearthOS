@@ -32,6 +32,13 @@ export default function DispatchPage() {
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
+  const selectedTech = techs.find((t) => t.id === selectedTechId);
+  const selectedLocation = selectedTech?.location || techs.find((t) => t.location)?.location || null;
+
+  const mapSrc = selectedLocation
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${selectedLocation.lng - 0.02}%2C${selectedLocation.lat - 0.02}%2C${selectedLocation.lng + 0.02}%2C${selectedLocation.lat + 0.02}&layer=mapnik&marker=${selectedLocation.lat}%2C${selectedLocation.lng}`
+    : null;
+
   async function loadDispatch() {
     setLoading(true);
     try {
@@ -78,10 +85,26 @@ export default function DispatchPage() {
 
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
-            <h2 className="font-semibold mb-3">Dispatch Map (Live Assignment)</h2>
-            <div className="h-[480px] rounded-xl flex items-center justify-center" style={{ background: 'var(--color-surface-2)', border: '1px dashed var(--color-border)' }}>
-              <p style={{ color: 'var(--color-text-muted)' }}>Map panel active. Assignments below update jobs in real-time.</p>
+            <h2 className="font-semibold mb-3">Dispatch Map (Live GPS)</h2>
+            <div className="h-[480px] rounded-xl overflow-hidden" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+              {mapSrc ? (
+                <iframe
+                  title="Dispatch GPS Map"
+                  src={mapSrc}
+                  className="w-full h-full"
+                  style={{ border: 0 }}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)' }}>
+                  No live GPS ping yet. Open Tech Profile on phone, allow location, and keep tracking enabled.
+                </div>
+              )}
             </div>
+            {selectedLocation && (
+              <div className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Tracking: {selectedTech?.name || 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
