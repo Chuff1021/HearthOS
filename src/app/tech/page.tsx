@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 
@@ -46,7 +46,13 @@ export default function TechApp() {
   const [clockLoading, setClockLoading] = useState(true);
   const [clockSubmitting, setClockSubmitting] = useState(false);
   const [clockError, setClockError] = useState<string | null>(null);
-  const { user } = useUser();
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [lastGpsAt, setLastGpsAt] = useState<Date | null>(null);
+  const [isRecognizedTeamMember, setIsRecognizedTeamMember] = useState<boolean | null>(null);
+
+  const { user, isLoaded } = useUser();
   const displayName = user?.firstName || user?.fullName || "Tech";
 
   useEffect(() => {
@@ -72,6 +78,76 @@ export default function TechApp() {
 
     void loadClockStatus();
   }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const checkTeamMembership = async () => {
+      try {
+        const res = await fetch("/api/techs?activeOnly=true", { cache: "no-store" });
+        if (!res.ok) throw new Error("Could not load team roster");
+        const data = await res.json();
+        const techs: Array<{ email?: string; name?: string }> = data.techs || [];
+
+        const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+        const name = (user?.fullName || "").toLowerCase();
+
+        const found = techs.some((t) => {
+          const tEmail = (t.email || "").toLowerCase();
+          const tName = (t.name || "").toLowerCase();
+          return (email && tEmail === email) || (name && tName === name);
+        });
+
+        setIsRecognizedTeamMember(found);
+      } catch {
+        setIsRecognizedTeamMember(null);
+      }
+    };
+
+    void checkTeamMembership();
+  }, [isLoaded, user]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGpsError("Geolocation is not supported on this device/browser.");
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setGpsEnabled(true);
+        setGpsError(null);
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        setLastGpsAt(new Date());
+      },
+      (error) => {
+        setGpsEnabled(false);
+        setGpsError(error.message || "Location permission denied or unavailable.");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 10000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  const mapEmbedUrl = useMemo(() => {
+    if (!coords) return null;
+    const { lat, lng } = coords;
+    const d = 0.01;
+    const left = lng - d;
+    const right = lng + d;
+    const top = lat + d;
+    const bottom = lat - d;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${lat}%2C${lng}`;
+  }, [coords]);
 
   const handleClockIn = async () => {
     try {
@@ -145,13 +221,80 @@ export default function TechApp() {
               </svg>
             </Link>
             {/* GPS Status */}
-            <div className="flex items-center gap-1 text-xs text-green-400">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              GPS
+            <div className={`flex items-center gap-1 text-xs ${gpsEnabled ? "text-green-600" : "text-amber-600"}`}>
+              <div className={`w-2 h-2 rounded-full ${gpsEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></div>
+              {gpsEnabled ? "GPS Live" : "GPS Off"}
             </div>
           </div>
         </div>
       </header>
+
+      {/* Team Recognition + GPS Map */}
+      <div className="mx-4 mt-4 space-y-3">
+        <div className="ui-card p-3 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Team Membership</p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {isRecognizedTeamMember === true
+                  ? "You are recognized as an active team member."
+                  : isRecognizedTeamMember === false
+                  ? "Logged in, but not matched to team roster yet."
+                  : "Checking team roster..."}
+              </p>
+            </div>
+            <span
+              className="text-xs px-2 py-1 rounded-full font-semibold"
+              style={{
+                background:
+                  isRecognizedTeamMember === true
+                    ? "rgba(16,185,129,0.12)"
+                    : isRecognizedTeamMember === false
+                    ? "rgba(245,158,11,0.12)"
+                    : "rgba(148,163,184,0.12)",
+                color:
+                  isRecognizedTeamMember === true
+                    ? "#059669"
+                    : isRecognizedTeamMember === false
+                    ? "#b45309"
+                    : "#64748b",
+              }}
+            >
+              {isRecognizedTeamMember === true ? "Recognized" : isRecognizedTeamMember === false ? "Not Matched" : "Checking"}
+            </span>
+          </div>
+        </div>
+
+        <div className="ui-card rounded-xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-[var(--color-border)] flex items-center justify-between">
+            <p className="text-sm font-semibold">Live GPS Map</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">
+              {lastGpsAt ? `Updated ${formatTime(lastGpsAt)}` : "Waiting for location"}
+            </p>
+          </div>
+          {mapEmbedUrl ? (
+            <div className="h-52">
+              <iframe
+                title="Live technician location"
+                src={mapEmbedUrl}
+                className="w-full h-full border-0"
+                loading="lazy"
+              />
+            </div>
+          ) : (
+            <div className="h-52 flex items-center justify-center text-sm text-[var(--color-text-muted)] px-4 text-center">
+              {gpsError || "Enable location access on your phone to show live map."}
+            </div>
+          )}
+          {coords && (
+            <div className="px-3 py-2 border-t border-[var(--color-border)] text-xs text-[var(--color-text-muted)] flex flex-wrap gap-3">
+              <span>Lat: {coords.lat.toFixed(6)}</span>
+              <span>Lng: {coords.lng.toFixed(6)}</span>
+              {coords.accuracy ? <span>±{Math.round(coords.accuracy)}m</span> : null}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Clock In/Out Section */}
       <div className="p-4 bg-[var(--color-surface-1)] mx-4 mt-4 rounded-xl">
