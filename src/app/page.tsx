@@ -16,7 +16,8 @@ type DashboardTab = "overview" | "pipeline";
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const { user } = useUser();
-  const displayName = user?.firstName || user?.fullName || "there";
+  const rawDisplayName = user?.firstName || user?.fullName || "there";
+  const displayName = rawDisplayName.charAt(0).toUpperCase() + rawDisplayName.slice(1);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
