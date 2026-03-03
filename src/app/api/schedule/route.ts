@@ -23,10 +23,10 @@ export interface Tech {
 
 // Technicians data
 const technicians: Tech[] = [
-  { id: "tech-001", name: "Mike Johnson", color: "#2563eb", initials: "MJ", active: true },
-  { id: "tech-002", name: "Sarah Williams", color: "#16a34a", initials: "SW", active: true },
-  { id: "tech-003", name: "Tom Davis", color: "#ea580c", initials: "TD", active: true },
-  { id: "tech-004", name: "Chris Lee", color: "#2563eb", initials: "CL", active: true },
+  { id: "tech-001", name: "Mike Johnson", color: "#1e40af", initials: "MJ", active: true },
+  { id: "tech-002", name: "Sarah Williams", color: "#15803d", initials: "SW", active: true },
+  { id: "tech-003", name: "Tom Davis", color: "#c2410c", initials: "TD", active: true },
+  { id: "tech-004", name: "Chris Lee", color: "#1e40af", initials: "CL", active: true },
   { id: "tech-005", name: "Amy Walsh", color: "#ec4899", initials: "AW", active: true },
   { id: "tech-006", name: "Jake Rivera", color: "#2dd4bf", initials: "JR", active: true },
 ];

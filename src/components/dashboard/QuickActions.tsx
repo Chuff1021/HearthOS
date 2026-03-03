@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 const actions = [
   {
     label: "New Job",
-    color: "#2563eb",
-    bg: "rgba(37,99,235,0.12)",
+    color: "#1e40af",
+    bg: "rgba(29,78,216,0.12)",
     href: "/jobs",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -18,8 +18,8 @@ const actions = [
   },
   {
     label: "New Customer",
-    color: "#2563eb",
-    bg: "rgba(37,99,235,0.12)",
+    color: "#1e40af",
+    bg: "rgba(29,78,216,0.12)",
     href: "/customers",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -29,8 +29,8 @@ const actions = [
   },
   {
     label: "New Invoice",
-    color: "#16a34a",
-    bg: "rgba(22,163,74,0.12)",
+    color: "#15803d",
+    bg: "rgba(21,128,61,0.12)",
     href: "/invoices",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -40,7 +40,7 @@ const actions = [
   },
   {
     label: "New Estimate",
-    color: "#60a5fa",
+    color: "#3b82f6",
     bg: "rgba(192,132,252,0.12)",
     href: "/tech/estimate",
     icon: (
@@ -67,16 +67,16 @@ export default function QuickActions() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
         style={{
-          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+          background: "linear-gradient(135deg, #1e40af, #1e40af)",
           color: "white",
-          boxShadow: "0 0 20px rgba(37,99,235,0.3)",
+          boxShadow: "0 0 20px rgba(29,78,216,0.3)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = "0 0 28px rgba(37,99,235,0.45)";
+          e.currentTarget.style.boxShadow = "0 0 28px rgba(29,78,216,0.45)";
           e.currentTarget.style.transform = "translateY(-1px)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = "0 0 20px rgba(37,99,235,0.3)";
+          e.currentTarget.style.boxShadow = "0 0 20px rgba(29,78,216,0.3)";
           e.currentTarget.style.transform = "translateY(0)";
         }}
       >

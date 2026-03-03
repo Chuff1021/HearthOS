@@ -19,7 +19,7 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "11:00",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563eb" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#1e40af" }],
     totalAmount: "285.00",
   },
   {
@@ -36,8 +36,8 @@ const mockJobs = [
     scheduledTimeStart: "10:00",
     scheduledTimeEnd: "16:00",
     assignedTechs: [
-      { id: "tech-002", name: "Sarah Williams", color: "#16a34a" },
-      { id: "tech-003", name: "Tom Davis", color: "#ea580c" },
+      { id: "tech-002", name: "Sarah Williams", color: "#15803d" },
+      { id: "tech-003", name: "Tom Davis", color: "#c2410c" },
     ],
     totalAmount: "4200.00",
   },
@@ -54,7 +54,7 @@ const mockJobs = [
     scheduledDate: "2024-02-24",
     scheduledTimeStart: "14:00",
     scheduledTimeEnd: "15:30",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563eb" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#1e40af" }],
     totalAmount: "185.00",
     completedAt: "2024-02-24T15:15:00Z",
   },
@@ -87,24 +87,24 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "13:00",
     scheduledTimeEnd: "15:00",
-    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#2563eb" }],
+    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#1e40af" }],
     totalAmount: "0.00",
   },
 ];
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  scheduled: { bg: "rgba(37,99,235,0.12)", text: "#2563eb", border: "rgba(37,99,235,0.25)" },
+  scheduled: { bg: "rgba(29,78,216,0.12)", text: "#1e40af", border: "rgba(29,78,216,0.25)" },
   in_progress: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24", border: "rgba(251,191,36,0.25)" },
-  completed: { bg: "rgba(22,163,74,0.12)", text: "#16a34a", border: "rgba(22,163,74,0.25)" },
-  cancelled: { bg: "rgba(220,38,38,0.12)", text: "#dc2626", border: "rgba(220,38,38,0.25)" },
+  completed: { bg: "rgba(21,128,61,0.12)", text: "#15803d", border: "rgba(21,128,61,0.25)" },
+  cancelled: { bg: "rgba(185,28,28,0.12)", text: "#b91c1c", border: "rgba(185,28,28,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
   low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
-  normal: { bg: "rgba(37,99,235,0.12)", text: "#2563eb" },
+  normal: { bg: "rgba(29,78,216,0.12)", text: "#1e40af" },
   high: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24" },
-  urgent: { bg: "rgba(220,38,38,0.12)", text: "#dc2626" },
+  urgent: { bg: "rgba(185,28,28,0.12)", text: "#b91c1c" },
 };
 
 const jobTypeIcons: Record<string, string> = {
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#2563eb", "#16a34a", "#ea580c", "#2563eb"][idx] || "#6b7280",
+            color: ["#1e40af", "#15803d", "#c2410c", "#1e40af"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),
@@ -280,9 +280,9 @@ export default function JobsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              background: "linear-gradient(135deg, #1e40af, #1e40af)",
               color: "white",
-              boxShadow: "0 0 16px rgba(37,99,235,0.25)",
+              boxShadow: "0 0 16px rgba(29,78,216,0.25)",
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -767,7 +767,7 @@ export default function JobsPage() {
                 disabled={creating || !selectedCustomer || !formData.title}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  background: "linear-gradient(135deg, #1e40af, #1e40af)",
                   color: "white",
                 }}
               >

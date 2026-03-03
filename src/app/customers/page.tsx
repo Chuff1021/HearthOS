@@ -253,7 +253,7 @@ export default function CustomersPage() {
           <button
             onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white", boxShadow: "0 0 16px rgba(37,99,235,0.25)" }}
+            style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -300,7 +300,7 @@ export default function CustomersPage() {
             {error && (
               <div
                 className="rounded-lg px-4 py-3 text-sm mb-4"
-                style={{ background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.2)", color: "#dc2626" }}
+                style={{ background: "rgba(185,28,28,0.12)", border: "1px solid rgba(185,28,28,0.2)", color: "#b91c1c" }}
               >
                 {error}
               </div>
@@ -326,7 +326,7 @@ export default function CustomersPage() {
                       <div className="flex items-start gap-3">
                         <div
                           className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0"
-                          style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                          style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
                         >
                           {customer.displayName.charAt(0).toUpperCase()}
                         </div>
@@ -360,7 +360,7 @@ export default function CustomersPage() {
                       </div>
                       <div className="text-right">
                         {customer.balance > 0 && (
-                          <div className="text-sm font-semibold" style={{ color: "#dc2626" }}>
+                          <div className="text-sm font-semibold" style={{ color: "#b91c1c" }}>
                             ${customer.balance.toLocaleString()} balance
                           </div>
                         )}
@@ -387,7 +387,7 @@ export default function CustomersPage() {
                     <button
                       onClick={openAddModal}
                       className="inline-block mt-4 px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
                     >
                       Add First Customer
                     </button>
@@ -417,7 +417,7 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
-                    style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                    style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
                   >
                     {selectedCustomer.displayName.charAt(0).toUpperCase()}
                   </div>
@@ -460,13 +460,13 @@ export default function CustomersPage() {
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Jobs</div>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                    <div className="text-lg font-bold" style={{ color: "#16a34a" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
+                    <div className="text-lg font-bold" style={{ color: "#15803d" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Revenue</div>
                   </div>
                   {selectedCustomer.balance > 0 && (
-                    <div className="col-span-2 rounded-lg p-3" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)" }}>
-                      <div className="text-lg font-bold" style={{ color: "#dc2626" }}>${selectedCustomer.balance.toLocaleString()}</div>
-                      <div className="text-xs" style={{ color: "#dc2626" }}>Outstanding Balance</div>
+                    <div className="col-span-2 rounded-lg p-3" style={{ background: "rgba(185,28,28,0.08)", border: "1px solid rgba(185,28,28,0.2)" }}>
+                      <div className="text-lg font-bold" style={{ color: "#b91c1c" }}>${selectedCustomer.balance.toLocaleString()}</div>
+                      <div className="text-xs" style={{ color: "#b91c1c" }}>Outstanding Balance</div>
                     </div>
                   )}
                 </div>
@@ -498,7 +498,7 @@ export default function CustomersPage() {
                   <button
                     onClick={() => openEditModal(selectedCustomer)}
                     className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                    style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                    style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
                   >
                     Edit Customer
                   </button>
@@ -513,7 +513,7 @@ export default function CustomersPage() {
                     <button
                       onClick={() => handleDeleteCustomer(selectedCustomer.id)}
                       className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "rgba(220,38,38,0.12)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
+                      style={{ background: "rgba(185,28,28,0.12)", color: "#b91c1c", border: "1px solid rgba(185,28,28,0.2)" }}
                     >
                       Delete
                     </button>
@@ -684,7 +684,7 @@ export default function CustomersPage() {
                 onClick={() => handleSaveCustomer(showEditModal)}
                 disabled={saving || !form.firstName || !form.lastName}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
               >
                 {saving ? "Saving..." : showEditModal ? "Save Changes" : "Add Customer"}
               </button>

@@ -3,8 +3,8 @@
 const activities = [
   {
     id: 1,
-    iconBg: "rgba(22,163,74,0.12)",
-    iconColor: "#16a34a",
+    iconBg: "rgba(21,128,61,0.12)",
+    iconColor: "#15803d",
     title: "Job completed",
     desc: "JOB-2026-00142 · Mike Johnson",
     sub: "Dave Torres · 3 min ago",
@@ -16,8 +16,8 @@ const activities = [
   },
   {
     id: 2,
-    iconBg: "rgba(37,99,235,0.12)",
-    iconColor: "#2563eb",
+    iconBg: "rgba(29,78,216,0.12)",
+    iconColor: "#1e40af",
     title: "Payment received",
     desc: "$1,840 · Invoice #INV-00891",
     sub: "Linda Martinez · 18 min ago",
@@ -31,7 +31,7 @@ const activities = [
   {
     id: 3,
     iconBg: "rgba(192,132,252,0.12)",
-    iconColor: "#60a5fa",
+    iconColor: "#3b82f6",
     title: "12 photos uploaded",
     desc: "JOB-2026-00142 · Install complete",
     sub: "Dave Torres · 22 min ago",
@@ -57,8 +57,8 @@ const activities = [
   },
   {
     id: 5,
-    iconBg: "rgba(37,99,235,0.12)",
-    iconColor: "#2563eb",
+    iconBg: "rgba(29,78,216,0.12)",
+    iconColor: "#1e40af",
     title: "Estimate approved",
     desc: "$3,200 · Patricia Williams",
     sub: "Customer signed · 45 min ago",
@@ -71,8 +71,8 @@ const activities = [
   },
   {
     id: 6,
-    iconBg: "rgba(220,38,38,0.12)",
-    iconColor: "#dc2626",
+    iconBg: "rgba(185,28,28,0.12)",
+    iconColor: "#b91c1c",
     title: "Checklist flagged",
     desc: "JOB-2026-00143 · Missing gas photo",
     sub: "Needs review · 1h ago",
@@ -84,8 +84,8 @@ const activities = [
   },
   {
     id: 7,
-    iconBg: "rgba(220,38,38,0.12)",
-    iconColor: "#dc2626",
+    iconBg: "rgba(185,28,28,0.12)",
+    iconColor: "#b91c1c",
     title: "Callback scheduled",
     desc: "Tom Bradley · Igniter issue",
     sub: "JOB-2026-00146 · 2:30 PM today",
@@ -161,9 +161,9 @@ export default function RecentActivity() {
         <span
           className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
           style={{
-            background: "rgba(22,163,74,0.1)",
-            color: "#16a34a",
-            border: "1px solid rgba(22,163,74,0.2)",
+            background: "rgba(21,128,61,0.1)",
+            color: "#15803d",
+            border: "1px solid rgba(21,128,61,0.2)",
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
@@ -218,9 +218,9 @@ export default function RecentActivity() {
       >
         <button
           className="text-xs font-medium w-full text-center transition-colors"
-          style={{ color: "#2563eb" }}
+          style={{ color: "#1e40af" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563eb")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#1e40af")}
         >
           View all activity →
         </button>

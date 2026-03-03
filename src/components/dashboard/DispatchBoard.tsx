@@ -5,11 +5,11 @@ const techs = [
     id: 1,
     name: "Dave Torres",
     initials: "DT",
-    color: "#2563eb",
+    color: "#1e40af",
     status: "in_progress",
     statusLabel: "In Progress",
-    statusColor: "#2563eb",
-    statusBg: "rgba(37,99,235,0.12)",
+    statusColor: "#1e40af",
+    statusBg: "rgba(29,78,216,0.12)",
     currentJob: "JOB-2026-00143",
     currentCustomer: "Linda Martinez",
     currentType: "Service",
@@ -164,15 +164,15 @@ export default function DispatchBoard() {
           <button
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all font-semibold"
             style={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              background: "linear-gradient(135deg, #1e40af, #1e40af)",
               color: "white",
-              boxShadow: "0 0 16px rgba(37,99,235,0.25)",
+              boxShadow: "0 0 16px rgba(29,78,216,0.25)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 24px rgba(37,99,235,0.4)";
+              e.currentTarget.style.boxShadow = "0 0 24px rgba(29,78,216,0.4)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = "0 0 16px rgba(37,99,235,0.25)";
+              e.currentTarget.style.boxShadow = "0 0 16px rgba(29,78,216,0.25)";
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -231,11 +231,11 @@ export default function DispatchBoard() {
               <div
                 className="rounded-lg p-2.5 mb-3"
                 style={{
-                  background: "rgba(37,99,235,0.08)",
-                  border: "1px solid rgba(37,99,235,0.15)",
+                  background: "rgba(29,78,216,0.08)",
+                  border: "1px solid rgba(29,78,216,0.15)",
                 }}
               >
-                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#2563eb" }}>
+                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#1e40af" }}>
                   CURRENT JOB
                 </div>
                 <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
@@ -345,15 +345,15 @@ export default function DispatchBoard() {
                 <button
                   className="flex-1 text-[10px] py-1.5 rounded-lg transition-all font-semibold"
                   style={{
-                    background: "rgba(37,99,235,0.12)",
-                    color: "#2563eb",
-                    border: "1px solid rgba(37,99,235,0.2)",
+                    background: "rgba(29,78,216,0.12)",
+                    color: "#1e40af",
+                    border: "1px solid rgba(29,78,216,0.2)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(37,99,235,0.22)";
+                    e.currentTarget.style.background = "rgba(29,78,216,0.22)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(37,99,235,0.12)";
+                    e.currentTarget.style.background = "rgba(29,78,216,0.12)";
                   }}
                 >
                   + Job

@@ -104,8 +104,8 @@ export default function Header() {
               color: "var(--color-text-primary)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(37,99,235,0.5)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)";
+              e.currentTarget.style.borderColor = "rgba(29,78,216,0.5)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(29,78,216,0.1)";
               if (query.length >= 2) setIsOpen(true);
             }}
             onBlur={(e) => {
@@ -166,7 +166,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(59,130,246,0.2)", color: "#2563eb" }}
+                          style={{ background: "rgba(59,130,246,0.2)", color: "#1e40af" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
@@ -202,7 +202,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(37,99,235,0.2)", color: "#67e8f9" }}
+                          style={{ background: "rgba(29,78,216,0.2)", color: "#67e8f9" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -239,7 +239,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(22,163,74,0.2)", color: "#16a34a" }}
+                          style={{ background: "rgba(21,128,61,0.2)", color: "#15803d" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
@@ -271,7 +271,7 @@ export default function Header() {
           style={{
             background: "rgba(44,160,28,0.1)",
             border: "1px solid rgba(44,160,28,0.2)",
-            color: "#16a34a",
+            color: "#15803d",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(44,160,28,0.18)";

@@ -40,9 +40,9 @@ interface Customer {
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
-  sent: { bg: "rgba(37,99,235,0.12)", text: "#2563eb", border: "rgba(37,99,235,0.25)" },
-  paid: { bg: "rgba(22,163,74,0.12)", text: "#16a34a", border: "rgba(22,163,74,0.25)" },
-  overdue: { bg: "rgba(220,38,38,0.12)", text: "#dc2626", border: "rgba(220,38,38,0.25)" },
+  sent: { bg: "rgba(29,78,216,0.12)", text: "#1e40af", border: "rgba(29,78,216,0.25)" },
+  paid: { bg: "rgba(21,128,61,0.12)", text: "#15803d", border: "rgba(21,128,61,0.25)" },
+  overdue: { bg: "rgba(185,28,28,0.12)", text: "#b91c1c", border: "rgba(185,28,28,0.25)" },
   void: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
 };
 
@@ -327,7 +327,7 @@ export default function InvoicesPage() {
           <button
             onClick={() => { resetCreateForm(); setShowCreateModal(true); }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white", boxShadow: "0 0 16px rgba(37,99,235,0.25)" }}
+            style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -353,9 +353,9 @@ export default function InvoicesPage() {
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           {[
-            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#2563eb" },
-            { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#dc2626" },
-            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#16a34a" },
+            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#1e40af" },
+            { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#b91c1c" },
+            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#15803d" },
             { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -402,7 +402,7 @@ export default function InvoicesPage() {
           {/* Invoice List */}
           <div className="flex-1 overflow-y-auto p-6">
             {error && (
-              <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.2)", color: "#dc2626" }}>
+              <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(185,28,28,0.12)", border: "1px solid rgba(185,28,28,0.2)", color: "#b91c1c" }}>
                 {error}
               </div>
             )}
@@ -448,12 +448,12 @@ export default function InvoicesPage() {
                           ${invoice.totalAmount.toLocaleString()}
                         </div>
                         {invoice.balance > 0 && (
-                          <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#dc2626" : "var(--color-text-muted)" }}>
+                          <div className="text-sm mt-0.5" style={{ color: invoice.status === "overdue" ? "#b91c1c" : "var(--color-text-muted)" }}>
                             ${invoice.balance.toLocaleString()} due
                           </div>
                         )}
                         {invoice.balance === 0 && invoice.status === "paid" && (
-                          <div className="text-sm mt-0.5" style={{ color: "#16a34a" }}>Paid in full</div>
+                          <div className="text-sm mt-0.5" style={{ color: "#15803d" }}>Paid in full</div>
                         )}
                       </div>
                     </div>
@@ -540,7 +540,7 @@ export default function InvoicesPage() {
                       <span>${selectedInvoice.totalAmount.toFixed(2)}</span>
                     </div>
                     {selectedInvoice.balance > 0 && (
-                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#dc2626" : "#2563eb" }}>
+                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#b91c1c" : "#1e40af" }}>
                         <span>Balance Due</span>
                         <span>${selectedInvoice.balance.toFixed(2)}</span>
                       </div>
@@ -562,7 +562,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #2563eb, #2563eb)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
                     >
                       Mark as Sent
                     </button>
@@ -571,7 +571,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "paid")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #16a34a, #16a34a)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #15803d, #15803d)", color: "white" }}
                     >
                       Record Payment (Mark Paid)
                     </button>
@@ -588,7 +588,7 @@ export default function InvoicesPage() {
                   <button
                     onClick={() => handleDeleteInvoice(selectedInvoice.id)}
                     className="w-full px-4 py-2 rounded-lg text-sm font-medium"
-                    style={{ background: "rgba(220,38,38,0.12)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" }}
+                    style={{ background: "rgba(185,28,28,0.12)", color: "#b91c1c", border: "1px solid rgba(185,28,28,0.2)" }}
                   >
                     Delete Invoice
                   </button>
@@ -689,7 +689,7 @@ export default function InvoicesPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Line Items *</label>
-                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#2563eb" }}>+ Add Line Item</button>
+                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#1e40af" }}>+ Add Line Item</button>
                 </div>
                 <div className="space-y-2">
                   {createForm.lineItems.map((li, idx) => (
@@ -723,7 +723,7 @@ export default function InvoicesPage() {
                           ${(li.qty * li.unitPrice).toFixed(2)}
                         </span>
                         {createForm.lineItems.length > 1 && (
-                          <button onClick={() => removeLineItem(idx)} className="text-xs" style={{ color: "#dc2626" }}>✕</button>
+                          <button onClick={() => removeLineItem(idx)} className="text-xs" style={{ color: "#b91c1c" }}>✕</button>
                         )}
                       </div>
                     </div>
@@ -771,7 +771,7 @@ export default function InvoicesPage() {
                 onClick={handleCreateInvoice}
                 disabled={saving || !createForm.customerName || !createForm.jobTitle || createForm.lineItems.every((li) => !li.description)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", color: "white" }}
+                style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
               >
                 {saving ? "Creating..." : "Create Invoice"}
               </button>

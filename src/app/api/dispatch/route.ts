@@ -40,7 +40,7 @@ const techs: Tech[] = [
   {
     id: "tech-001",
     name: "Mike Johnson",
-    color: "#2563eb",
+    color: "#1e40af",
     initials: "MJ",
     status: "on_job",
     currentJob: {
@@ -64,7 +64,7 @@ const techs: Tech[] = [
   {
     id: "tech-002",
     name: "Sarah Williams",
-    color: "#16a34a",
+    color: "#15803d",
     initials: "SW",
     status: "driving",
     currentJob: null,
@@ -83,7 +83,7 @@ const techs: Tech[] = [
   {
     id: "tech-003",
     name: "Tom Davis",
-    color: "#ea580c",
+    color: "#c2410c",
     initials: "TD",
     status: "available",
     currentJob: null,
@@ -97,7 +97,7 @@ const techs: Tech[] = [
   {
     id: "tech-004",
     name: "Chris Lee",
-    color: "#2563eb",
+    color: "#1e40af",
     initials: "CL",
     status: "break",
     currentJob: null,

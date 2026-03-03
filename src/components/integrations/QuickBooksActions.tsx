@@ -84,7 +84,7 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
     return (
       <div className="flex items-center gap-3">
         {status?.needsReconnect && (
-          <span className="text-xs" style={{ color: "#dc2626" }}>
+          <span className="text-xs" style={{ color: "#b91c1c" }}>
             Connection expired
           </span>
         )}
@@ -114,8 +114,8 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
         <span
           className="text-xs px-2 py-1 rounded"
           style={{
-            background: syncResult.success ? "rgba(22,163,74,0.12)" : "rgba(220,38,38,0.12)",
-            color: syncResult.success ? "#16a34a" : "#dc2626",
+            background: syncResult.success ? "rgba(21,128,61,0.12)" : "rgba(185,28,28,0.12)",
+            color: syncResult.success ? "#15803d" : "#b91c1c",
           }}
         >
           {syncResult.message}
