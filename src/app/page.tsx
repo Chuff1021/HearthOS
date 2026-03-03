@@ -10,6 +10,7 @@ import DispatchBoard from "@/components/dashboard/DispatchBoard";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import QuickActions from "@/components/dashboard/QuickActions";
 import SalesFunnel from "@/components/dashboard/SalesFunnel";
+import BusinessBankCard from "@/components/dashboard/BusinessBankCard";
 
 type DashboardTab = "overview" | "pipeline";
 
@@ -80,6 +81,8 @@ export default function DashboardPage() {
             {/* Tab Content */}
             {activeTab === "overview" && (
               <>
+                <BusinessBankCard />
+
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
                   {/* Today's Jobs — takes 2 cols */}
