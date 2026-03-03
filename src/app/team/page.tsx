@@ -112,14 +112,16 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add team member');
 
-      // Invitation placeholder - stores request for account onboarding workflow
-      const inviteRes = await fetch('/api/team/invitations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newMember.email, name: newMember.name, role: newMember.role }),
-      });
-      const inviteData = await inviteRes.json().catch(() => ({}));
-      if (!inviteRes.ok) throw new Error(inviteData.error || 'Team member added, but invite creation failed');
+      // Invitation placeholder - non-blocking
+      try {
+        await fetch('/api/team/invitations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: payload.email, name: payload.name, role: payload.role }),
+        });
+      } catch {
+        // ignore invite failures for now; tech creation succeeded
+      }
 
       setShowAddModal(false);
       setNewMember({ name: '', email: '', phone: '', role: 'tech' });

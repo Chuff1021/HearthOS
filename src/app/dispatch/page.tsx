@@ -31,6 +31,7 @@ export default function DispatchPage() {
   const [unassignedJobs, setUnassignedJobs] = useState<UnassignedJob[]>([]);
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [gpsDebug, setGpsDebug] = useState<{ latestLocationCount: number; unmappedLiveCount: number } | null>(null);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
@@ -56,6 +57,7 @@ export default function DispatchPage() {
       const data = await res.json();
       setTechs(data.techs || []);
       setUnassignedJobs(data.unassignedJobs || []);
+      setGpsDebug(data.gpsDebug || null);
       if (!selectedTechId && data.techs?.length) setSelectedTechId(data.techs[0].id);
     } finally {
       setLoading(false);
@@ -89,6 +91,11 @@ export default function DispatchPage() {
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {loading ? 'Loading dispatch...' : `${techs.length} techs active · ${unassignedJobs.length} unassigned jobs`}
             </p>
+            {gpsDebug && (
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                GPS pings: {gpsDebug.latestLocationCount} · Unmapped live: {gpsDebug.unmappedLiveCount}
+              </p>
+            )}
           </div>
           <button onClick={loadDispatch} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: '1px solid var(--color-border)' }}>Refresh</button>
         </div>
