@@ -164,7 +164,7 @@ export default function TodosPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  Todo List
+                  To-Do List
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Track follow-up items and tasks

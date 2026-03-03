@@ -31,7 +31,7 @@ const navItems = [
         ),
       },
       {
-        label: "Todo List",
+        label: "To-Do List",
         href: "/todos",
         badge: null,
         icon: (

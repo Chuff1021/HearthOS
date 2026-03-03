@@ -47,6 +47,26 @@ body {
   color: var(--color-text-primary);
 }
 
+/* Intake form readability improvements (used across modal forms/pages) */
+input.bg-\[\#252540\],
+textarea.bg-\[\#252540\],
+select.bg-\[\#252540\] {
+  background-color: #30385a !important;
+  border-color: #667085 !important;
+  color: var(--color-text-primary) !important;
+}
+
+input.bg-\[\#252540\]::placeholder,
+textarea.bg-\[\#252540\]::placeholder {
+  color: #b6c0de;
+}
+
+/* Lighten common intake modal shells */
+div.bg-\[\#1a1a2e\].rounded-2xl,
+div.bg-\[\#1a1a2e\].rounded-t-2xl {
+  background-color: #222a44 !important;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
