@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 const actions = [
   {
     label: "New Job",
-    color: "#1e40af",
+    color: "#2563EB",
     bg: "rgba(29,78,216,0.12)",
     href: "/jobs",
     icon: (
@@ -18,7 +18,7 @@ const actions = [
   },
   {
     label: "New Customer",
-    color: "#1e40af",
+    color: "#2563EB",
     bg: "rgba(29,78,216,0.12)",
     href: "/customers",
     icon: (
@@ -40,8 +40,8 @@ const actions = [
   },
   {
     label: "New Estimate",
-    color: "#3b82f6",
-    bg: "rgba(192,132,252,0.12)",
+    color: "#2563EB",
+    bg: "rgba(37,99,235,0.12)",
     href: "/tech/estimate",
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -67,7 +67,7 @@ export default function QuickActions() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
         style={{
-          background: "linear-gradient(135deg, #1e40af, #1e40af)",
+          background: "linear-gradient(135deg, #2563EB, #2563EB)",
           color: "white",
           boxShadow: "0 0 20px rgba(29,78,216,0.3)",
         }}

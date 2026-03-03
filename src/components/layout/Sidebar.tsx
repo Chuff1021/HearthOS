@@ -218,7 +218,7 @@ export default function Sidebar() {
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{
-            background: "linear-gradient(135deg, #1e40af, #1e40af)",
+            background: "linear-gradient(135deg, #2563EB, #2563EB)",
             boxShadow: "0 0 16px rgba(29,78,216,0.35)",
           }}
         >
@@ -279,7 +279,7 @@ export default function Sidebar() {
                   }`}
                   style={{
                     background: isActive ? "rgba(29,78,216,0.15)" : "transparent",
-                    color: isActive ? "#1e40af" : "var(--color-text-secondary)",
+                    color: isActive ? "#2563EB" : "var(--color-text-secondary)",
                     fontWeight: isActive ? "600" : "400",
                   }}
                   onMouseEnter={(e) => {
@@ -305,7 +305,7 @@ export default function Sidebar() {
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
                             background: isActive ? "rgba(29,78,216,0.3)" : "rgba(29,78,216,0.2)",
-                            color: "#1e40af",
+                            color: "#2563EB",
                           }}
                         >
                           {item.badge}
@@ -335,8 +335,8 @@ export default function Sidebar() {
               collapsed ? "justify-center" : ""
             }`}
             style={{
-              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(44,160,28,0.15)" : "transparent",
-              color: hydrated && pathname === "/integrations/quickbooks" ? "#2ca01c" : "var(--color-text-secondary)",
+              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(182,245,0,0.15)" : "transparent",
+              color: hydrated && pathname === "/integrations/quickbooks" ? "#B6F500" : "var(--color-text-secondary)",
             }}
             onMouseEnter={(e) => {
               if (!(hydrated && pathname === "/integrations/quickbooks")) {
@@ -354,7 +354,7 @@ export default function Sidebar() {
           >
             {/* QuickBooks logo mark */}
             <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#2ca01c" }}>
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#B6F500" }}>
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
               </svg>
             </span>
@@ -363,7 +363,7 @@ export default function Sidebar() {
                 <span className="flex-1 text-[13px]">QuickBooks</span>
                 <span
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(44,160,28,0.2)", color: "#2ca01c" }}
+                  style={{ background: "rgba(182,245,0,0.2)", color: "#B6F500" }}
                 >
                   SYNC
                 </span>
@@ -391,7 +391,7 @@ export default function Sidebar() {
             ) : (
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 text-white"
-                style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)" }}
+                style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)" }}
               >
                 {user?.firstName?.[0] || "U"}
               </div>
@@ -412,7 +412,7 @@ export default function Sidebar() {
           <Link
             href="/sign-in"
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all ${collapsed ? "justify-center" : ""}`}
-            style={{ color: "#1e40af" }}
+            style={{ color: "#2563EB" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
               <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />

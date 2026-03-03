@@ -19,7 +19,7 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "11:00",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#1e40af" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563EB" }],
     totalAmount: "285.00",
   },
   {
@@ -54,7 +54,7 @@ const mockJobs = [
     scheduledDate: "2024-02-24",
     scheduledTimeStart: "14:00",
     scheduledTimeEnd: "15:30",
-    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#1e40af" }],
+    assignedTechs: [{ id: "tech-001", name: "Mike Johnson", color: "#2563EB" }],
     totalAmount: "185.00",
     completedAt: "2024-02-24T15:15:00Z",
   },
@@ -87,14 +87,14 @@ const mockJobs = [
     scheduledDate: "2024-02-25",
     scheduledTimeStart: "13:00",
     scheduledTimeEnd: "15:00",
-    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#1e40af" }],
+    assignedTechs: [{ id: "tech-004", name: "Chris Lee", color: "#2563EB" }],
     totalAmount: "0.00",
   },
 ];
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  scheduled: { bg: "rgba(29,78,216,0.12)", text: "#1e40af", border: "rgba(29,78,216,0.25)" },
-  in_progress: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24", border: "rgba(251,191,36,0.25)" },
+  scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
+  in_progress: { bg: "rgba(255,68,0,0.12)", text: "#FF4400", border: "rgba(255,68,0,0.25)" },
   completed: { bg: "rgba(182,245,0,0.12)", text: "#B6F500", border: "rgba(182,245,0,0.25)" },
   cancelled: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
@@ -102,8 +102,8 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
   low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
-  normal: { bg: "rgba(29,78,216,0.12)", text: "#1e40af" },
-  high: { bg: "rgba(251,191,36,0.12)", text: "#fbbf24" },
+  normal: { bg: "rgba(29,78,216,0.12)", text: "#2563EB" },
+  high: { bg: "rgba(255,68,0,0.12)", text: "#FF4400" },
   urgent: { bg: "rgba(255,32,78,0.12)", text: "#FF204E" },
 };
 
@@ -162,7 +162,7 @@ export default function JobsPage() {
           assignedTechs: formData.assignedTechs.map((id, idx) => ({
             id,
             name: ["Mike Johnson", "Sarah Williams", "Tom Davis", "Chris Lee"][idx] || id,
-            color: ["#1e40af", "#B6F500", "#FF4400", "#1e40af"][idx] || "#6b7280",
+            color: ["#2563EB", "#B6F500", "#FF4400", "#2563EB"][idx] || "#6b7280",
           })),
           totalAmount: 0,
         }),
@@ -280,7 +280,7 @@ export default function JobsPage() {
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
             style={{
-              background: "linear-gradient(135deg, #1e40af, #1e40af)",
+              background: "linear-gradient(135deg, #2563EB, #2563EB)",
               color: "white",
               boxShadow: "0 0 16px rgba(29,78,216,0.25)",
             }}
@@ -767,7 +767,7 @@ export default function JobsPage() {
                 disabled={creating || !selectedCustomer || !formData.title}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{
-                  background: "linear-gradient(135deg, #1e40af, #1e40af)",
+                  background: "linear-gradient(135deg, #2563EB, #2563EB)",
                   color: "white",
                 }}
               >

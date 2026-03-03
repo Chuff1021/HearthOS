@@ -18,7 +18,7 @@ export async function getOrCreateDefaultOrg() {
       slug,
       subscriptionTier: "starter",
       settings: {
-        brandPrimary: "#e85d04",
+        brandPrimary: "#FF4400",
         brandSecondary: "#1a1a2e",
         supportEmail: "",
         supportPhone: "",

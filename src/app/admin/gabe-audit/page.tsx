@@ -180,15 +180,15 @@ export default function GabeAuditPage() {
                       {/* Message Header */}
                       <div 
                         className="p-4 flex items-center justify-between"
-                        style={{ background: msg.flagged ? "rgba(239, 68, 68, 0.1)" : "var(--color-surface-2)" }}
+                        style={{ background: msg.flagged ? "rgba(255, 32, 78, 0.1)" : "var(--color-surface-2)" }}
                       >
                         <div className="flex items-center gap-4">
                           <div 
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
                             style={{ 
-                              background: msg.techId === "tech-001" ? "#1e40af" : 
+                              background: msg.techId === "tech-001" ? "#2563EB" : 
                                           msg.techId === "tech-002" ? "#B6F500" : 
-                                          msg.techId === "tech-003" ? "#FF4400" : "#1e40af" 
+                                          msg.techId === "tech-003" ? "#FF4400" : "#2563EB" 
                             }}
                           >
                             {msg.techName?.split(" ").map(n => n[0]).join("") || "?"}
@@ -222,7 +222,7 @@ export default function GabeAuditPage() {
                         <div className="space-y-3">
                           {msg.messages.slice(0, 2).map((m, i) => (
                             <div key={i} className={`p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-500/10'}`}>
-                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#1e40af' : '#B6F500' }}>
+                              <p className="text-xs font-medium mb-1" style={{ color: m.role === 'user' ? '#2563EB' : '#B6F500' }}>
                                 {m.role === 'user' ? '👤 Tech' : '🤖 GABE'}
                               </p>
                               <p className="text-sm line-clamp-2" style={{ color: "var(--color-text-secondary)" }}>
@@ -267,7 +267,7 @@ export default function GabeAuditPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {selectedMessage.messages.map((msg, i) => (
                 <div key={i} className={`p-4 rounded-xl ${msg.role === 'user' ? 'bg-blue-500/10' : 'bg-gray-700/30'}`}>
-                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#1e40af' : '#B6F500' }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? '#2563EB' : '#B6F500' }}>
                     {msg.role === 'user' ? `👤 ${selectedMessage.techName}` : '🤖 GABE AI'}
                   </p>
                   <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>

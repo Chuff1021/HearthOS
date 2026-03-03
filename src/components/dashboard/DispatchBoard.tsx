@@ -5,10 +5,10 @@ const techs = [
     id: 1,
     name: "Dave Torres",
     initials: "DT",
-    color: "#1e40af",
+    color: "#2563EB",
     status: "in_progress",
     statusLabel: "In Progress",
-    statusColor: "#1e40af",
+    statusColor: "#2563EB",
     statusBg: "rgba(29,78,216,0.12)",
     currentJob: "JOB-2026-00143",
     currentCustomer: "Linda Martinez",
@@ -24,11 +24,11 @@ const techs = [
     id: 2,
     name: "Amy Walsh",
     initials: "AW",
-    color: "#ec4899",
+    color: "#FF204E",
     status: "en_route",
     statusLabel: "En Route",
-    statusColor: "#fbbf24",
-    statusBg: "rgba(251,191,36,0.12)",
+    statusColor: "#FF4400",
+    statusBg: "rgba(255,68,0,0.12)",
     currentJob: "JOB-2026-00144",
     currentCustomer: "Robert Chen",
     currentType: "Clean & Burn",
@@ -43,7 +43,7 @@ const techs = [
     id: 3,
     name: "Jake Rivera",
     initials: "JR",
-    color: "#2dd4bf",
+    color: "#B6F500",
     status: "scheduled",
     statusLabel: "Next at 1:00 PM",
     statusColor: "#94a3b8",
@@ -62,7 +62,7 @@ const techs = [
     id: 4,
     name: "Carlos Mendez",
     initials: "CM",
-    color: "#818cf8",
+    color: "#2563EB",
     status: "scheduled",
     statusLabel: "Next at 4:30 PM",
     statusColor: "#94a3b8",
@@ -81,7 +81,7 @@ const techs = [
     id: 5,
     name: "Maria Santos",
     initials: "MS",
-    color: "#a78bfa",
+    color: "#2563EB",
     status: "off",
     statusLabel: "Day Off",
     statusColor: "#475569",
@@ -100,7 +100,7 @@ const techs = [
     id: 6,
     name: "Ben Kowalski",
     initials: "BK",
-    color: "#67e8f9",
+    color: "#2563EB",
     status: "off",
     statusLabel: "Vacation",
     statusColor: "#475569",
@@ -164,7 +164,7 @@ export default function DispatchBoard() {
           <button
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all font-semibold"
             style={{
-              background: "linear-gradient(135deg, #1e40af, #1e40af)",
+              background: "linear-gradient(135deg, #2563EB, #2563EB)",
               color: "white",
               boxShadow: "0 0 16px rgba(29,78,216,0.25)",
             }}
@@ -235,7 +235,7 @@ export default function DispatchBoard() {
                   border: "1px solid rgba(29,78,216,0.15)",
                 }}
               >
-                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#1e40af" }}>
+                <div className="text-[9px] font-bold mb-0.5 tracking-wider" style={{ color: "#2563EB" }}>
                   CURRENT JOB
                 </div>
                 <div className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
@@ -346,7 +346,7 @@ export default function DispatchBoard() {
                   className="flex-1 text-[10px] py-1.5 rounded-lg transition-all font-semibold"
                   style={{
                     background: "rgba(29,78,216,0.12)",
-                    color: "#1e40af",
+                    color: "#2563EB",
                     border: "1px solid rgba(29,78,216,0.2)",
                   }}
                   onMouseEnter={(e) => {

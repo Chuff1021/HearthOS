@@ -150,7 +150,7 @@ export default function TeamPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>On Job</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#1e40af" }}>{onJobCount}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#2563EB" }}>{onJobCount}</p>
               </button>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Off Duty</p>

@@ -8,7 +8,7 @@ const mockTechs = [
   {
     id: "tech-001",
     name: "Mike Johnson",
-    color: "#1e40af",
+    color: "#2563EB",
     initials: "MJ",
     status: "on_job",
     currentJob: { id: "job-001", title: "Annual Cleaning", customer: "Linda Martinez", address: "123 Oak Street" },
@@ -50,7 +50,7 @@ const mockTechs = [
   {
     id: "tech-004",
     name: "Chris Lee",
-    color: "#1e40af",
+    color: "#2563EB",
     initials: "CL",
     status: "break",
     currentJob: null,
@@ -69,8 +69,8 @@ const unassignedJobs = [
 ];
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  on_job: { label: "On Job", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-  driving: { label: "Driving", color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
+  on_job: { label: "On Job", color: "#FF4400", bg: "rgba(255,68,0,0.12)" },
+  driving: { label: "Driving", color: "#2563EB", bg: "rgba(29,78,216,0.12)" },
   available: { label: "Available", color: "#B6F500", bg: "rgba(182,245,0,0.12)" },
   break: { label: "On Break", color: "#9ca3af", bg: "rgba(156,163,175,0.12)" },
   offline: { label: "Offline", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
@@ -103,7 +103,7 @@ export default function DispatchPage() {
             </div>
             <button
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
+              style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
             >
               Dispatch Job
             </button>
@@ -124,10 +124,10 @@ export default function DispatchPage() {
               {/* Grid lines to simulate map */}
               <div className="absolute inset-0 opacity-10">
                 {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={`h${i}`} className="absolute w-full border-t" style={{ top: `${i * 5}%`, borderColor: "#1e40af" }} />
+                  <div key={`h${i}`} className="absolute w-full border-t" style={{ top: `${i * 5}%`, borderColor: "#2563EB" }} />
                 ))}
                 {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={`v${i}`} className="absolute h-full border-l" style={{ left: `${i * 5}%`, borderColor: "#1e40af" }} />
+                  <div key={`v${i}`} className="absolute h-full border-l" style={{ left: `${i * 5}%`, borderColor: "#2563EB" }} />
                 ))}
               </div>
 
@@ -321,7 +321,7 @@ export default function DispatchPage() {
                       </div>
                       <button
                         className="text-xs px-2 py-1 rounded-lg font-medium"
-                        style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
+                        style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
                       >
                         Assign
                       </button>
@@ -356,7 +356,7 @@ export default function DispatchPage() {
                   <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
                     💬 Message
                   </button>
-                  <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}>
+                  <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}>
                     + Assign Job
                   </button>
                 </div>

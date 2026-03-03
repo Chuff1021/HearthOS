@@ -166,7 +166,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(59,130,246,0.2)", color: "#1e40af" }}
+                          style={{ background: "rgba(37,99,235,0.2)", color: "#2563EB" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
@@ -202,7 +202,7 @@ export default function Header() {
                       >
                         <div
                           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(29,78,216,0.2)", color: "#67e8f9" }}
+                          style={{ background: "rgba(29,78,216,0.2)", color: "#2563EB" }}
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -269,15 +269,15 @@ export default function Header() {
           href="/integrations/quickbooks"
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
           style={{
-            background: "rgba(44,160,28,0.1)",
-            border: "1px solid rgba(44,160,28,0.2)",
+            background: "rgba(182,245,0,0.1)",
+            border: "1px solid rgba(182,245,0,0.2)",
             color: "#B6F500",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(44,160,28,0.18)";
+            e.currentTarget.style.background = "rgba(182,245,0,0.18)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(44,160,28,0.1)";
+            e.currentTarget.style.background = "rgba(182,245,0,0.1)";
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>

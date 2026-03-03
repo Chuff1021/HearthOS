@@ -3,20 +3,20 @@
 :root {
   /* Brand */
   /* Primary Accent Option in use: Luxury Tech Blue */
-  --color-ember: #1e40af;
-  --color-ember-dark: #1e40af;
-  --color-ember-light: #3b82f6;
+  --color-ember: #2563EB;
+  --color-ember-dark: #2563EB;
+  --color-ember-light: #2563EB;
   --color-ember-glow: rgba(29, 78, 216, 0.25);
 
   /* Alternate accents (quick switch if wanted)
      Premium Ember: #FF4400 / #FF4400
-     Electric Teal: #0ea5a4 / #B6F500
+     Electric Teal: #B6F500 / #B6F500
   */
-  --color-accent-violet: #1e40af;
-  --color-accent-cyan: #1e40af;
+  --color-accent-violet: #2563EB;
+  --color-accent-cyan: #2563EB;
 
   /* Premium light neutral palette */
-  --color-bg: #FFFADC;
+  --color-bg: #f6f5f3;
   --color-surface: #fcfbf9;
   --color-surface-1: #fcfbf9;
   --color-surface-2: #f8f7f5;
@@ -34,11 +34,11 @@
   --color-success: #B6F500;
   --color-warning: #FF4400;
   --color-danger: #FF204E;
-  --color-info: #1e40af;
+  --color-info: #2563EB;
 
   /* QuickBooks */
-  --color-qb: #2ca01c;
-  --color-qb-dark: #1e7a14;
+  --color-qb: #B6F500;
+  --color-qb-dark: #B6F500;
 
   /* Type scale */
   --font-size-xs: 0.75rem;
@@ -266,9 +266,9 @@ p {
 }
 
 .ui-btn-danger {
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(255, 32, 78, 0.1);
   color: #FF204E;
-  border: 1px solid rgba(220, 38, 38, 0.28);
+  border: 1px solid rgba(255, 32, 78, 0.28);
   border-radius: var(--radius-md);
   font-weight: 600;
 }

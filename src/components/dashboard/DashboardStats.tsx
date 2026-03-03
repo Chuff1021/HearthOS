@@ -35,8 +35,8 @@ export default function DashboardStats() {
       sub: "3 completed · 5 remaining",
       trend: "+2 vs yesterday",
       trendUp: true,
-      accentColor: "#1e40af",
-      accentBg: "rgba(59,130,246,0.12)",
+      accentColor: "#2563EB",
+      accentBg: "rgba(37,99,235,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -79,8 +79,8 @@ export default function DashboardStats() {
       sub: "2 on jobs · 2 en route",
       trend: "All on schedule",
       trendUp: true,
-      accentColor: "#a855f7",
-      accentBg: "rgba(168,85,247,0.12)",
+      accentColor: "#2563EB",
+      accentBg: "rgba(37,99,235,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />

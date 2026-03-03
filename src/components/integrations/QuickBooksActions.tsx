@@ -92,9 +92,9 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
           href="/api/quickbooks/connect"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
           style={{
-            background: "linear-gradient(135deg, #2ca01c, #1e7a14)",
+            background: "linear-gradient(135deg, #B6F500, #B6F500)",
             color: "white",
-            boxShadow: "0 0 16px rgba(44,160,28,0.25)",
+            boxShadow: "0 0 16px rgba(182,245,0,0.25)",
           }}
         >
           {status?.needsReconnect ? "Reconnect QuickBooks" : "Connect QuickBooks"}

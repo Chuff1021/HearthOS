@@ -47,11 +47,11 @@ function mapJobToUI(job: {
   notes?: string;
 }): Job {
   const typeColors: Record<string, { color: string; bg: string }> = {
-    cleaning: { color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
-    inspection: { color: "#67e8f9", bg: "rgba(34,211,238,0.12)" },
+    cleaning: { color: "#2563EB", bg: "rgba(29,78,216,0.12)" },
+    inspection: { color: "#2563EB", bg: "rgba(37,99,235,0.12)" },
     repair: { color: "#FF204E", bg: "rgba(255,32,78,0.12)" },
-    installation: { color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
-    service: { color: "#3b82f6", bg: "rgba(192,132,252,0.12)" },
+    installation: { color: "#2563EB", bg: "rgba(29,78,216,0.12)" },
+    service: { color: "#2563EB", bg: "rgba(37,99,235,0.12)" },
     estimate: { color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
   };
   
@@ -106,16 +106,16 @@ const statusConfig: Record<
   },
   in_progress: {
     label: "In Progress",
-    color: "#1e40af",
+    color: "#2563EB",
     bg: "rgba(29,78,216,0.12)",
-    dotColor: "#1e40af",
+    dotColor: "#2563EB",
     pulse: true,
   },
   en_route: {
     label: "En Route",
-    color: "#fbbf24",
-    bg: "rgba(251,191,36,0.12)",
-    dotColor: "#fbbf24",
+    color: "#FF4400",
+    bg: "rgba(255,68,0,0.12)",
+    dotColor: "#FF4400",
     pulse: true,
   },
   scheduled: {
@@ -187,7 +187,7 @@ export default function TodaysJobs() {
           className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
           style={{
             background: "rgba(29,78,216,0.15)",
-            color: "#1e40af",
+            color: "#2563EB",
             border: "1px solid rgba(29,78,216,0.2)",
           }}
           onMouseEnter={(e) => {
@@ -314,7 +314,7 @@ export default function TodaysJobs() {
                       {job.priority === "high" && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                          style={{ background: "rgba(255,68,0,0.2)", color: "#fbbf24" }}
+                          style={{ background: "rgba(255,68,0,0.2)", color: "#FF4400" }}
                         >
                           ↑ HIGH
                         </span>
@@ -339,7 +339,7 @@ export default function TodaysJobs() {
                         className="mt-1.5 text-xs px-2.5 py-1.5 rounded-lg"
                         style={{
                           background: "rgba(255,68,0,0.1)",
-                          color: "#fbbf24",
+                          color: "#FF4400",
                           border: "1px solid rgba(255,68,0,0.15)",
                         }}
                       >
@@ -360,7 +360,7 @@ export default function TodaysJobs() {
                                 className="h-full rounded-full transition-all"
                                 style={{
                                   width: `${job.checklistPct}%`,
-                                  background: job.checklistPct === 100 ? "#B6F500" : "#1e40af",
+                                  background: job.checklistPct === 100 ? "#B6F500" : "#2563EB",
                                 }}
                               ></div>
                             </div>
@@ -416,9 +416,9 @@ export default function TodaysJobs() {
         </span>
         <button
           className="text-xs font-medium transition-colors"
-          style={{ color: "#1e40af" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#1e40af")}
+          style={{ color: "#2563EB" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#2563EB")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563EB")}
         >
           View full schedule →
         </button>

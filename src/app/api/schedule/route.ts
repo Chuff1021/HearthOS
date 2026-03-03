@@ -23,12 +23,12 @@ export interface Tech {
 
 // Technicians data
 const technicians: Tech[] = [
-  { id: "tech-001", name: "Mike Johnson", color: "#1e40af", initials: "MJ", active: true },
+  { id: "tech-001", name: "Mike Johnson", color: "#2563EB", initials: "MJ", active: true },
   { id: "tech-002", name: "Sarah Williams", color: "#B6F500", initials: "SW", active: true },
   { id: "tech-003", name: "Tom Davis", color: "#FF4400", initials: "TD", active: true },
-  { id: "tech-004", name: "Chris Lee", color: "#1e40af", initials: "CL", active: true },
-  { id: "tech-005", name: "Amy Walsh", color: "#ec4899", initials: "AW", active: true },
-  { id: "tech-006", name: "Jake Rivera", color: "#2dd4bf", initials: "JR", active: true },
+  { id: "tech-004", name: "Chris Lee", color: "#2563EB", initials: "CL", active: true },
+  { id: "tech-005", name: "Amy Walsh", color: "#FF204E", initials: "AW", active: true },
+  { id: "tech-006", name: "Jake Rivera", color: "#B6F500", initials: "JR", active: true },
 ];
 
 // Seed schedule data

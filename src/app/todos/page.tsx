@@ -202,7 +202,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
-                <p className="text-2xl font-bold" style={{ color: "#1e40af" }}>{stats.inProgress}</p>
+                <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>{stats.inProgress}</p>
               </button>
               <button
                 onClick={() => setFilter("completed")}

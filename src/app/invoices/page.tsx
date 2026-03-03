@@ -40,7 +40,7 @@ interface Customer {
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
-  sent: { bg: "rgba(29,78,216,0.12)", text: "#1e40af", border: "rgba(29,78,216,0.25)" },
+  sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
   paid: { bg: "rgba(182,245,0,0.12)", text: "#B6F500", border: "rgba(182,245,0,0.25)" },
   overdue: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   void: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
@@ -327,7 +327,7 @@ export default function InvoicesPage() {
           <button
             onClick={() => { resetCreateForm(); setShowCreateModal(true); }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
+            style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -353,7 +353,7 @@ export default function InvoicesPage() {
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           {[
-            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#1e40af" },
+            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#2563EB" },
             { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#FF204E" },
             { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#B6F500" },
             { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
@@ -540,7 +540,7 @@ export default function InvoicesPage() {
                       <span>${selectedInvoice.totalAmount.toFixed(2)}</span>
                     </div>
                     {selectedInvoice.balance > 0 && (
-                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#FF204E" : "#1e40af" }}>
+                      <div className="flex justify-between font-bold" style={{ color: selectedInvoice.status === "overdue" ? "#FF204E" : "#2563EB" }}>
                         <span>Balance Due</span>
                         <span>${selectedInvoice.balance.toFixed(2)}</span>
                       </div>
@@ -562,7 +562,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
                     >
                       Mark as Sent
                     </button>
@@ -689,7 +689,7 @@ export default function InvoicesPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Line Items *</label>
-                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#1e40af" }}>+ Add Line Item</button>
+                  <button onClick={addLineItem} className="text-xs font-medium" style={{ color: "#2563EB" }}>+ Add Line Item</button>
                 </div>
                 <div className="space-y-2">
                   {createForm.lineItems.map((li, idx) => (
@@ -771,7 +771,7 @@ export default function InvoicesPage() {
                 onClick={handleCreateInvoice}
                 disabled={saving || !createForm.customerName || !createForm.jobTitle || createForm.lineItems.every((li) => !li.description)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white" }}
+                style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
               >
                 {saving ? "Creating..." : "Create Invoice"}
               </button>

@@ -10,10 +10,10 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 7); // 7am - 5pm
 
 const mockTechs = [
-  { id: "tech-001", name: "Mike Johnson", color: "#1e40af", initials: "MJ" },
+  { id: "tech-001", name: "Mike Johnson", color: "#2563EB", initials: "MJ" },
   { id: "tech-002", name: "Sarah Williams", color: "#B6F500", initials: "SW" },
   { id: "tech-003", name: "Tom Davis", color: "#FF4400", initials: "TD" },
-  { id: "tech-004", name: "Chris Lee", color: "#1e40af", initials: "CL" },
+  { id: "tech-004", name: "Chris Lee", color: "#2563EB", initials: "CL" },
 ];
 
 const mockJobs = [
@@ -98,7 +98,7 @@ const mockJobs = [
 
 const statusColors: Record<string, string> = {
   scheduled: "rgba(29,78,216,0.85)",
-  in_progress: "rgba(251,191,36,0.85)",
+  in_progress: "rgba(255,68,0,0.85)",
   completed: "rgba(182,245,0,0.85)",
   cancelled: "rgba(255,32,78,0.85)",
 };
@@ -218,7 +218,7 @@ export default function SchedulePage() {
             <button
               onClick={() => router.push("/jobs")}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, #1e40af, #1e40af)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
+              style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -271,7 +271,7 @@ export default function SchedulePage() {
                     <div
                       className={`text-lg font-bold mt-0.5 w-9 h-9 rounded-full flex items-center justify-center mx-auto ${isToday ? "text-white" : ""}`}
                       style={{
-                        background: isToday ? "#1e40af" : "transparent",
+                        background: isToday ? "#2563EB" : "transparent",
                         color: isToday ? "white" : "var(--color-text-primary)",
                       }}
                     >
@@ -326,7 +326,7 @@ export default function SchedulePage() {
                               style={{
                                 top: "2px",
                                 height: `${job.duration * 80 - 4}px`,
-                                background: tech?.color || "#1e40af",
+                                background: tech?.color || "#2563EB",
                                 opacity: 0.9,
                                 zIndex: 1,
                               }}

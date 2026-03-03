@@ -4,9 +4,9 @@ import QuickBooksActions from "@/components/integrations/QuickBooksActions";
 
 const syncStats = [
   { label: "Invoices Synced", value: "—", sub: "Sync to see", color: "#B6F500", bg: "rgba(182,245,0,0.12)" },
-  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#1e40af", bg: "rgba(29,78,216,0.12)" },
-  { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#3b82f6", bg: "rgba(192,132,252,0.12)" },
-  { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+  { label: "Payments Matched", value: "—", sub: "Sync to see", color: "#2563EB", bg: "rgba(29,78,216,0.12)" },
+  { label: "Customers Linked", value: "—", sub: "Sync to see", color: "#2563EB", bg: "rgba(37,99,235,0.12)" },
+  { label: "Last Sync", value: "Never", sub: "Click Sync Now", color: "#FF4400", bg: "rgba(255,68,0,0.12)" },
 ];
 
 type QuickBooksPageProps = {
@@ -40,9 +40,9 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: "rgba(44,160,28,0.15)", border: "1px solid rgba(44,160,28,0.25)" }}
+              style={{ background: "rgba(182,245,0,0.15)", border: "1px solid rgba(182,245,0,0.25)" }}
             >
-              <svg viewBox="0 0 24 24" fill="#2ca01c" className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="#B6F500" className="w-6 h-6">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
               </svg>
             </div>
@@ -177,7 +177,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
                     <div
                       className="w-10 h-5 rounded-full flex items-center px-0.5 cursor-pointer transition-all flex-shrink-0 ml-4"
                       style={{
-                        background: setting.enabled ? "#2ca01c" : "var(--color-surface-4)",
+                        background: setting.enabled ? "#B6F500" : "var(--color-surface-4)",
                         justifyContent: setting.enabled ? "flex-end" : "flex-start",
                       }}
                     >
@@ -192,11 +192,11 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
             <div
               className="rounded-xl p-5"
               style={{
-                background: "rgba(251,191,36,0.08)",
-                border: "1px solid rgba(251,191,36,0.2)",
+                background: "rgba(255,68,0,0.08)",
+                border: "1px solid rgba(255,68,0,0.2)",
               }}
             >
-              <h2 className="font-semibold text-sm mb-3" style={{ color: "#fbbf24" }}>
+              <h2 className="font-semibold text-sm mb-3" style={{ color: "#FF4400" }}>
                 ⚠️ Requirements
               </h2>
               <ul className="space-y-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>

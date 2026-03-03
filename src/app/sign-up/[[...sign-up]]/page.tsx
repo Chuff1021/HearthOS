@@ -13,7 +13,7 @@ export default function SignUpPage() {
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, #1e40af, #1e40af)",
+              background: "linear-gradient(135deg, #2563EB, #2563EB)",
               boxShadow: "0 0 16px rgba(29,78,216,0.35)",
             }}
           >
@@ -53,7 +53,7 @@ export default function SignUpPage() {
           <Link
             href="/sign-in"
             className="font-semibold hover:underline"
-            style={{ color: "#1e40af" }}
+            style={{ color: "#2563EB" }}
           >
             Sign in here
           </Link>

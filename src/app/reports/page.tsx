@@ -191,7 +191,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Scheduled</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#1e40af" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#2563EB" }}>
                           {jobs.filter(j => j.status === "scheduled").length}
                         </p>
                       </div>
@@ -277,7 +277,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>YoY Growth</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#1e40af" }}>+12.4%</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#2563EB" }}>+12.4%</p>
                       </div>
                     </div>
 
@@ -343,7 +343,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Utilization</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: "#1e40af" }}>
+                        <p className="text-2xl font-bold mt-1" style={{ color: "#2563EB" }}>
                           {Math.round(techs.reduce((sum, t) => sum + t.utilization, 0) / techs.length)}%
                         </p>
                       </div>

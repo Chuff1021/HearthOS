@@ -17,7 +17,7 @@ const activities = [
   {
     id: 2,
     iconBg: "rgba(29,78,216,0.12)",
-    iconColor: "#1e40af",
+    iconColor: "#2563EB",
     title: "Payment received",
     desc: "$1,840 · Invoice #INV-00891",
     sub: "Linda Martinez · 18 min ago",
@@ -30,8 +30,8 @@ const activities = [
   },
   {
     id: 3,
-    iconBg: "rgba(192,132,252,0.12)",
-    iconColor: "#3b82f6",
+    iconBg: "rgba(37,99,235,0.12)",
+    iconColor: "#2563EB",
     title: "12 photos uploaded",
     desc: "JOB-2026-00142 · Install complete",
     sub: "Dave Torres · 22 min ago",
@@ -43,8 +43,8 @@ const activities = [
   },
   {
     id: 4,
-    iconBg: "rgba(251,191,36,0.12)",
-    iconColor: "#fbbf24",
+    iconBg: "rgba(255,68,0,0.12)",
+    iconColor: "#FF4400",
     title: "Tech en route",
     desc: "Amy Walsh → Robert Chen",
     sub: "ETA 11 min · 11:00 AM job",
@@ -58,7 +58,7 @@ const activities = [
   {
     id: 5,
     iconBg: "rgba(29,78,216,0.12)",
-    iconColor: "#1e40af",
+    iconColor: "#2563EB",
     title: "Estimate approved",
     desc: "$3,200 · Patricia Williams",
     sub: "Customer signed · 45 min ago",
@@ -110,8 +110,8 @@ const activities = [
   },
   {
     id: 9,
-    iconBg: "rgba(45,212,191,0.12)",
-    iconColor: "#2dd4bf",
+    iconBg: "rgba(182,245,0,0.12)",
+    iconColor: "#B6F500",
     title: "New customer added",
     desc: "Susan Park · Westfield",
     sub: "Office · 2h ago",
@@ -123,8 +123,8 @@ const activities = [
   },
   {
     id: 10,
-    iconBg: "rgba(129,140,248,0.12)",
-    iconColor: "#818cf8",
+    iconBg: "rgba(37,99,235,0.12)",
+    iconColor: "#2563EB",
     title: "QB Invoice synced",
     desc: "INV-00891 → QuickBooks",
     sub: "Auto-synced · 3h ago",
@@ -218,9 +218,9 @@ export default function RecentActivity() {
       >
         <button
           className="text-xs font-medium w-full text-center transition-colors"
-          style={{ color: "#1e40af" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#1e40af")}
+          style={{ color: "#2563EB" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#2563EB")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563EB")}
         >
           View all activity →
         </button>
