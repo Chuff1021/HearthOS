@@ -3,6 +3,7 @@ import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
 export interface TechLocationPoint {
   techId: string;
   techName?: string;
+  techEmail?: string;
   lat: number;
   lng: number;
   accuracy?: number;

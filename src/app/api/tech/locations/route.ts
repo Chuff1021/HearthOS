@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { techId, techName, lat, lng, accuracy, speed, heading, timestamp } = body;
+    const { techId, techName, techEmail, lat, lng, accuracy, speed, heading, timestamp } = body;
 
     if (!techId || typeof lat !== 'number' || typeof lng !== 'number') {
       return NextResponse.json({ error: 'techId, lat, lng are required' }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     const point = addLocationPoint({
       techId,
       techName,
+      techEmail,
       lat,
       lng,
       accuracy,

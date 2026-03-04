@@ -14,7 +14,11 @@ export async function GET(request: NextRequest) {
     const latestLocations = getLatestLocationsByTech();
 
     const baseTechs = getTechs().map((t) => {
-      const loc = latestLocations.find((l) => l.techId === t.id);
+      const techEmail = String((t as any).email || '').toLowerCase();
+      const loc = latestLocations.find((l) =>
+        l.techId === t.id ||
+        (!!techEmail && String(l.techEmail || '').toLowerCase() === techEmail)
+      );
       const isGenericName = /\bservice\s*tech(?:nician)?\b/i.test(t.name || '');
       const resolvedName = (isGenericName && loc?.techName) ? loc.techName : t.name;
       return {
@@ -38,6 +42,9 @@ export async function GET(request: NextRequest) {
 
     // Include active location pings that do not yet map to a team record
     const mappedIds = new Set(baseTechs.map((t) => t.id));
+    const mappedEmails = new Set(
+      getTechs().map((t: any) => String(t.email || '').toLowerCase()).filter(Boolean)
+    );
     const freshWindowMs = 15 * 60 * 1000; // show only recent pings
     const now = Date.now();
 
@@ -50,6 +57,7 @@ export async function GET(request: NextRequest) {
 
     const unmappedLive = latestLocations
       .filter((l) => !mappedIds.has(l.techId))
+      .filter((l) => !mappedEmails.has(String(l.techEmail || '').toLowerCase()))
       .filter((l) => now - new Date(l.timestamp).getTime() <= freshWindowMs)
       .filter((l) => !genericNameRx.test(l.techName || ''))
       .filter((l) => !mappedCoordKeys.has(`${l.lat.toFixed(4)},${l.lng.toFixed(4)}`))

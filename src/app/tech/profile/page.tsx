@@ -22,14 +22,16 @@ export default function ProfilePage() {
   const [gpsState, setGpsState] = useState<string>("unknown");
   const [lastGpsPingAt, setLastGpsPingAt] = useState<string>("");
   const [techLinkStatus, setTechLinkStatus] = useState<string>("");
+  const [linkedTechName, setLinkedTechName] = useState<string>("");
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
     await signOut({ redirectUrl: "/sign-in" });
   };
 
-  // Use Clerk user data if available, otherwise use mock data
-  const userName = user?.fullName || user?.username || "Service Tech";
+  // Prefer linked team record name over generic auth profile names
+  const authName = user?.fullName || user?.firstName || user?.username || "";
+  const userName = linkedTechName || authName || "Service Tech";
   const userEmail = user?.primaryEmailAddress?.emailAddress || "tech@hearthos.com";
   const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const [isTracking, setIsTracking] = useState(true);
@@ -46,6 +48,10 @@ export default function ProfilePage() {
       const linkedTechId = user?.unsafeMetadata?.techId as string | undefined;
       if (linkedTechId && !forceCreate) {
         setTechId(linkedTechId);
+        const r = await fetch('/api/techs?activeOnly=true');
+        const d = await r.json().catch(() => ({}));
+        const m = (d.techs || []).find((t: any) => t.id === linkedTechId);
+        if (m?.name) setLinkedTechName(m.name);
         setTechLinkStatus('Tech linked via account metadata.');
         return;
       }
@@ -71,6 +77,7 @@ export default function ProfilePage() {
 
       if (match) {
         setTechId(match.id);
+        setLinkedTechName(match.name || '');
         try {
           await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: match.id } });
         } catch {
@@ -93,6 +100,7 @@ export default function ProfilePage() {
       const createData = await createRes.json().catch(() => ({}));
       if (createRes.ok && createData?.tech?.id) {
         setTechId(createData.tech.id);
+        setLinkedTechName(createData.tech.name || '');
         try {
           await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: createData.tech.id } });
         } catch {
@@ -156,6 +164,7 @@ export default function ProfilePage() {
           body: JSON.stringify({
             techId: effectiveTechId,
             techName: userName,
+            techEmail: userEmail,
             lat: latitude,
             lng: longitude,
             accuracy,
