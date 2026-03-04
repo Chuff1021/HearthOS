@@ -34,6 +34,7 @@ export default function TodosPage() {
   const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0, overdue: 0, dueToday: 0 });
 
   // Form state
+  const [formTodoType, setFormTodoType] = useState("callback");
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formPriority, setFormPriority] = useState<TodoPriority>("medium");
@@ -108,14 +109,26 @@ export default function TodosPage() {
   }, [customerQuery, showCreateModal]);
 
   async function handleCreateTodo() {
-    if (!formTitle.trim()) return;
-    
+    const titleFromType: Record<string, string> = {
+      callback: "Call Back Customer",
+      follow_up: "Follow Up",
+      schedule: "Schedule Appointment",
+      estimate: "Send/Review Estimate",
+      invoice: "Invoice Follow-up",
+      parts: "Order/Track Parts",
+      warranty: "Warranty Check",
+      other: formTitle.trim(),
+    };
+
+    const resolvedTitle = titleFromType[formTodoType] || formTitle.trim();
+    if (!resolvedTitle) return;
+
     try {
       const res = await fetch("/api/todos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: formTitle,
+          title: resolvedTitle,
           description: formDescription,
           priority: formPriority,
           dueDate: formDueDate || undefined,
@@ -163,6 +176,7 @@ export default function TodosPage() {
   }
 
   function resetForm() {
+    setFormTodoType("callback");
     setFormTitle("");
     setFormDescription("");
     setFormPriority("medium");
@@ -414,20 +428,45 @@ export default function TodosPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Title *</label>
-                <input
-                  type="text"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="What needs to be done?"
+                <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Todo Type *</label>
+                <select
+                  value={formTodoType}
+                  onChange={(e) => setFormTodoType(e.target.value)}
                   className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
                     borderColor: "var(--color-border-hover)",
                   }}
-                />
+                >
+                  <option value="callback">Call Back</option>
+                  <option value="follow_up">Follow Up</option>
+                  <option value="schedule">Schedule Appointment</option>
+                  <option value="estimate">Estimate</option>
+                  <option value="invoice">Invoice Follow-up</option>
+                  <option value="parts">Parts / Material</option>
+                  <option value="warranty">Warranty</option>
+                  <option value="other">Other (custom)</option>
+                </select>
               </div>
+
+              {formTodoType === "other" && (
+                <div>
+                  <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Custom Title *</label>
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="Enter custom todo title"
+                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    style={{
+                      color: "var(--color-text-primary)",
+                      background: "var(--color-surface-3)",
+                      borderColor: "var(--color-border-hover)",
+                    }}
+                  />
+                </div>
+              )}
               
               <div>
                 <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Description</label>
@@ -565,7 +604,7 @@ export default function TodosPage() {
             
             <button 
               onClick={handleCreateTodo}
-              disabled={!formTitle.trim()}
+              disabled={formTodoType === "other" && !formTitle.trim()}
               className="w-full mt-6 py-3 rounded-xl font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
             >
               Create Todo
