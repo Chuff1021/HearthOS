@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       messages: ChatMessage[];
       jobContext?: {
         fireplace?: string;
+        customerName?: string;
         jobType?: string;
         jobId?: string;
       };
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
             techName,
             jobId,
             jobNumber,
-            customerName: jobContext?.fireplace,
+            customerName: jobContext?.customerName,
             fireplace: jobContext?.fireplace,
             messages: [
               ...messages.filter((m) => m.role !== "system").map((m) => ({
@@ -172,7 +173,7 @@ Would you like help with a specific fireplace model or issue?`;
           techName,
           jobId,
           jobNumber,
-          customerName: jobContext?.fireplace,
+          customerName: jobContext?.customerName,
           fireplace: jobContext?.fireplace,
           messages: [
             ...messages.filter((m) => m.role !== "system").map((m) => ({
@@ -272,7 +273,7 @@ Would you like help with a specific fireplace model or issue?`;
         techName,
         jobId,
         jobNumber,
-        customerName: jobContext?.fireplace,
+        customerName: jobContext?.customerName,
         fireplace: jobContext?.fireplace,
         messages: [
           ...messages.filter((m) => m.role !== "system").map((m) => ({

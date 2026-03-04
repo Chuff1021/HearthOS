@@ -30,7 +30,7 @@ export default function GabeAuditPage() {
   const [selectedMessage, setSelectedMessage] = useState<GabeMessage | null>(null);
   const [filter, setFilter] = useState<"all" | "flagged">("all");
   const [techFilter, setTechFilter] = useState<string>("all");
-  const [stats, setStats] = useState<{ total: number; today: number; flagged: number }>({ total: 0, today: 0, flagged: 0 });
+  const [stats, setStats] = useState<{ total: number; today: number; flagged: number; avgRating?: number; techs?: { techId: string; techName: string; count: number }[] }>({ total: 0, today: 0, flagged: 0, avgRating: 0, techs: [] });
 
   async function loadMessages() {
     setLoading(true);
@@ -103,7 +103,7 @@ export default function GabeAuditPage() {
                   GABE AI Audit Log
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                  Review technician conversations with GABE AI assistant
+                  Long-term conversation memory: all GABE chats are persisted to disk for post-deploy audit/review.
                 </p>
               </div>
               <button 
@@ -130,7 +130,7 @@ export default function GabeAuditPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>4.5 ⭐</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>{(stats.avgRating || 0).toFixed(1)} ⭐</p>
               </div>
             </div>
 
@@ -152,10 +152,9 @@ export default function GabeAuditPage() {
                 style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)" }}
               >
                 <option value="all">All Technicians</option>
-                <option value="tech-001">Mike Johnson</option>
-                <option value="tech-002">Sarah Williams</option>
-                <option value="tech-003">Tom Davis</option>
-                <option value="tech-004">Chris Lee</option>
+                {(stats.techs || []).map((t) => (
+                  <option key={t.techId} value={t.techId}>{t.techName}</option>
+                ))}
               </select>
             </div>
 
@@ -186,9 +185,7 @@ export default function GabeAuditPage() {
                           <div 
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
                             style={{ 
-                              background: msg.techId === "tech-001" ? "#2563EB" : 
-                                          msg.techId === "tech-002" ? "#98CD00" : 
-                                          msg.techId === "tech-003" ? "#FF4400" : "#2563EB" 
+                              background: "#2563EB"
                             }}
                           >
                             {msg.techName?.split(" ").map(n => n[0]).join("") || "?"}
