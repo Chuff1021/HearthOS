@@ -38,6 +38,7 @@ export default function DispatchPage() {
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
   const [selectedRouteEtaMin, setSelectedRouteEtaMin] = useState<number | null>(null);
   const [selectedOffRouteMiles, setSelectedOffRouteMiles] = useState<number | null>(null);
+  const [mapReadyTick, setMapReadyTick] = useState(0);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
@@ -161,6 +162,7 @@ export default function DispatchPage() {
       clusterGroup.addTo(map);
       clusterLayerRef.current = clusterGroup;
       mapRef.current = { map, L };
+      setMapReadyTick((n) => n + 1);
     }
 
     initMap();
@@ -246,7 +248,7 @@ export default function DispatchPage() {
       }
       hasAutoFitRef.current = true;
     }
-  }, [liveTechs, selectedTechId]);
+  }, [liveTechs, selectedTechId, mapReadyTick]);
 
   useEffect(() => {
     const ctx = mapRef.current;
@@ -325,7 +327,7 @@ export default function DispatchPage() {
     }
 
     drawRouteToNextJob();
-  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng, selectedTech?.nextJob?.address]);
+  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng, selectedTech?.nextJob?.address, mapReadyTick]);
 
   function centerOnSelectedTech() {
     const ctx = mapRef.current;
