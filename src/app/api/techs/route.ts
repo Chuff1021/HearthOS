@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { clerkClient } from '@clerk/nextjs/server';
 import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
 import { appendMemoryEvent } from '@/lib/long-term-memory';
+import { isClerkConfigured } from '@/lib/auth';
 
 export interface Tech {
   id: string;
@@ -29,6 +31,23 @@ function loadStore(): TechStore {
 
 function saveStore(store: TechStore) {
   writeJsonFileWithBackup(TECHS_FILE, store);
+}
+
+async function sendClerkInvite(email: string, role: Tech['role']) {
+  if (!isClerkConfigured()) return { sent: false, reason: 'clerk_not_configured' };
+  try {
+    const client = await clerkClient();
+    const invitation = await client.invitations.createInvitation({
+      emailAddress: email,
+      redirectUrl: process.env.CLERK_INVITE_REDIRECT_URL || `${process.env.NEXT_PUBLIC_APP_URL || ''}/sign-up`,
+      publicMetadata: { hearthRole: role },
+      notify: true,
+      ignoreExisting: true,
+    } as any);
+    return { sent: true, id: invitation?.id };
+  } catch (err) {
+    return { sent: false, reason: err instanceof Error ? err.message : 'invite_failed' };
+  }
 }
 
 export function getTechs(): Tech[] {
@@ -60,7 +79,10 @@ export async function POST(request: Request) {
     if (!name || !email) return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
 
     const existing = store.techs.find((t) => t.email.toLowerCase() === email);
-    if (existing) return NextResponse.json({ tech: existing, exists: true }, { status: 200 });
+    if (existing) {
+      const invite = await sendClerkInvite(email, existing.role);
+      return NextResponse.json({ tech: existing, exists: true, invite }, { status: 200 });
+    }
 
     const initials = name
       .split(' ')
@@ -93,7 +115,10 @@ export async function POST(request: Request) {
       summary: `Tech created: ${newTech.name}`,
       payload: { tech: newTech },
     });
-    return NextResponse.json({ tech: newTech }, { status: 201 });
+
+    const invite = await sendClerkInvite(email, newTech.role);
+
+    return NextResponse.json({ tech: newTech, invite }, { status: 201 });
   } catch (err) {
     console.error('Failed to create tech:', err);
     return NextResponse.json({ error: 'Failed to create technician' }, { status: 500 });

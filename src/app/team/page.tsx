@@ -109,9 +109,14 @@ export default function TeamPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add team member');
 
-      // Invite flow intentionally skipped here to avoid blocking team creation on secondary service issues.
       setShowAddModal(false);
-      setAddSuccess(`Added ${payload.name} successfully.`);
+      const inviteSent = data?.invite?.sent;
+      const existing = data?.exists;
+      if (inviteSent) {
+        setAddSuccess(`${existing ? 'Member exists; invite re-sent' : `Added ${payload.name}`} — Clerk invite email sent.`);
+      } else {
+        setAddSuccess(`${existing ? 'Member exists' : `Added ${payload.name}`} — invite not sent (${data?.invite?.reason || 'not configured'}).`);
+      }
       setNewMember({ name: '', email: '', phone: '', role: 'tech' });
       await loadTechs();
     } catch (error) {
