@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import "leaflet/dist/leaflet.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -37,34 +38,15 @@ export default function DispatchPage() {
   const liveTechs = techs.filter((t) => t.location);
   const selectedLocation = selectedTech?.location || liveTechs[0]?.location || null;
 
-  const lats = liveTechs.map((t) => t.location!.lat);
-  const lngs = liveTechs.map((t) => t.location!.lng);
-  const minLat = lats.length ? Math.min(...lats) : 0;
-  const maxLat = lats.length ? Math.max(...lats) : 1;
-  const minLng = lngs.length ? Math.min(...lngs) : 0;
-  const maxLng = lngs.length ? Math.max(...lngs) : 1;
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+  const markersRef = useRef<Map<string, any>>(new Map());
+  const hasAutoFitRef = useRef(false);
 
-  const latSpan = Math.max(0.01, maxLat - minLat);
-  const lngSpan = Math.max(0.01, maxLng - minLng);
-  const latPad = latSpan * 0.35;
-  const lngPad = lngSpan * 0.35;
-  const bboxMinLat = minLat - latPad;
-  const bboxMaxLat = maxLat + latPad;
-  const bboxMinLng = minLng - lngPad;
-  const bboxMaxLng = maxLng + lngPad;
-  const osmEmbedSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bboxMinLng}%2C${bboxMinLat}%2C${bboxMaxLng}%2C${bboxMaxLat}&layer=mapnik`;
-
-  function markerPos(lat: number, lng: number) {
-    const lngSpan = maxLng - minLng;
-    const latSpan = maxLat - minLat;
-
-    if (Math.abs(lngSpan) < 0.000001 && Math.abs(latSpan) < 0.000001) {
-      return { left: '50%', top: '50%' };
-    }
-
-    const x = ((lng - minLng) / Math.max(0.00001, lngSpan)) * 100;
-    const y = (1 - (lat - minLat) / Math.max(0.00001, latSpan)) * 100;
-    return { left: `${Math.min(98, Math.max(2, x))}%`, top: `${Math.min(98, Math.max(2, y))}%` };
+  function markerHtml(color: string, active: boolean) {
+    const size = active ? 18 : 14;
+    const ring = active ? "rgba(255,68,0,0.35)" : "rgba(37,99,235,0.30)";
+    return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;"></div>`;
   }
 
   async function loadDispatch() {
@@ -98,6 +80,88 @@ export default function DispatchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initMap() {
+      if (!mapContainerRef.current || mapRef.current) return;
+      const L = await import('leaflet');
+      if (cancelled || !mapContainerRef.current) return;
+
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+      }).setView([39.5, -98.35], 4);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      }).addTo(map);
+
+      mapRef.current = { map, L };
+    }
+
+    initMap();
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current?.map) {
+        mapRef.current.map.remove();
+        mapRef.current = null;
+        markersRef.current.clear();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const ctx = mapRef.current;
+    if (!ctx) return;
+    const { map, L } = ctx;
+
+    const ids = new Set(liveTechs.map((t) => t.id));
+
+    for (const [id, marker] of markersRef.current.entries()) {
+      if (!ids.has(id)) {
+        map.removeLayer(marker);
+        markersRef.current.delete(id);
+      }
+    }
+
+    for (const t of liveTechs) {
+      const active = t.id === selectedTechId;
+      const color = active ? '#FF4400' : '#2563EB';
+      const icon = L.divIcon({ html: markerHtml(color, active), className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
+      const latlng: [number, number] = [t.location!.lat, t.location!.lng];
+
+      const existing = markersRef.current.get(t.id);
+      if (existing) {
+        existing.setLatLng(latlng);
+        existing.setIcon(icon);
+      } else {
+        const marker = L.marker(latlng, { icon })
+          .addTo(map)
+          .bindTooltip(`${t.name} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
+        marker.on('click', () => setSelectedTechId(t.id));
+        markersRef.current.set(t.id, marker);
+      }
+    }
+
+    if (!hasAutoFitRef.current && liveTechs.length > 0) {
+      if (liveTechs.length === 1) {
+        map.setView([liveTechs[0].location!.lat, liveTechs[0].location!.lng], 13);
+      } else {
+        const bounds = L.latLngBounds(liveTechs.map((t) => [t.location!.lat, t.location!.lng] as [number, number]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+      hasAutoFitRef.current = true;
+    }
+  }, [liveTechs, selectedTechId]);
+
+  useEffect(() => {
+    const ctx = mapRef.current;
+    if (!ctx || !selectedTech?.location) return;
+    ctx.map.flyTo([selectedTech.location.lat, selectedTech.location.lng], Math.max(ctx.map.getZoom(), 13), { duration: 0.4 });
+  }, [selectedTechId, selectedTech?.location]);
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
       <Sidebar />
@@ -123,32 +187,10 @@ export default function DispatchPage() {
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
             <h2 className="font-semibold mb-3">Dispatch Map (Live GPS)</h2>
-            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: '#0b1220', border: '1px solid var(--color-border)' }}>
-              {liveTechs.length > 0 ? (
-                <>
-                  <iframe
-                    title="Dispatch map"
-                    src={osmEmbedSrc}
-                    className="absolute inset-0 w-full h-full border-0"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
-                  {liveTechs.map((t) => {
-                    const pos = markerPos(t.location!.lat, t.location!.lng);
-                    const active = t.id === selectedTechId;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => setSelectedTechId(t.id)}
-                        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full z-10"
-                        style={{ ...pos, width: active ? 18 : 14, height: active ? 18 : 14, background: active ? '#FF4400' : '#2563EB', boxShadow: '0 0 0 4px rgba(37,99,235,0.28)' }}
-                        title={`${t.name} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`}
-                      />
-                    );
-                  })}
-                </>
-              ) : (
-                <div className="h-full flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)' }}>
+            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: '#f5f7fa', border: '1px solid var(--color-border)' }}>
+              <div ref={mapContainerRef} className="absolute inset-0" />
+              {liveTechs.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
                   No live GPS ping yet. Open Tech Profile on phone, allow location, tap Register Me as Tech, and keep tracking enabled.
                 </div>
               )}
