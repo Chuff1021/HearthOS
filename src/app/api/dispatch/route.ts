@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
               id: todays.find((j) => j.status === "scheduled")!.id,
               title: todays.find((j) => j.status === "scheduled")!.title,
               customer: todays.find((j) => j.status === "scheduled")!.customerName,
+              address: todays.find((j) => j.status === "scheduled")!.propertyAddress,
               scheduledTime: todays.find((j) => j.status === "scheduled")!.scheduledTimeStart,
             }
           : null,

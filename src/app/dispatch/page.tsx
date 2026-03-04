@@ -12,7 +12,7 @@ type Tech = {
   initials: string;
   status: string;
   currentJob: { id: string; title: string; customer: string; address: string } | null;
-  nextJob: { id: string; title: string; customer: string; scheduledTime: string } | null;
+  nextJob: { id: string; title: string; customer: string; address?: string; scheduledTime: string } | null;
   jobsToday: number;
   jobsDone: number;
   location?: { lat: number; lng: number; accuracy?: number; timestamp: string } | null;
@@ -33,6 +33,7 @@ export default function DispatchPage() {
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [gpsDebug, setGpsDebug] = useState<{ latestLocationCount: number; unmappedLiveCount: number } | null>(null);
+  const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
@@ -41,12 +42,15 @@ export default function DispatchPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
+  const tileLayerRef = useRef<any>(null);
+  const routeLineRef = useRef<any>(null);
+  const geocodeCacheRef = useRef<Map<string, [number, number]>>(new Map());
   const hasAutoFitRef = useRef(false);
 
-  function markerHtml(color: string, active: boolean) {
-    const size = active ? 18 : 14;
+  function markerHtml(color: string, active: boolean, initials: string) {
+    const size = active ? 26 : 22;
     const ring = active ? "rgba(255,68,0,0.35)" : "rgba(37,99,235,0.30)";
-    return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;"></div>`;
+    return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:system-ui;">${(initials || '?').slice(0,2).toUpperCase()}</div>`;
   }
 
   async function loadDispatch() {
@@ -92,11 +96,12 @@ export default function DispatchPage() {
         zoomControl: true,
       }).setView([39.5, -98.35], 4);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
+      const initialTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
         attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       }).addTo(map);
 
+      tileLayerRef.current = initialTile;
       mapRef.current = { map, L };
     }
 
@@ -108,9 +113,34 @@ export default function DispatchPage() {
         mapRef.current.map.remove();
         mapRef.current = null;
         markersRef.current.clear();
+        tileLayerRef.current = null;
+        routeLineRef.current = null;
       }
     };
   }, []);
+
+  useEffect(() => {
+    const ctx = mapRef.current;
+    if (!ctx) return;
+    const { map, L } = ctx;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const nextTile = mapStyle === 'satellite'
+      ? L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 20,
+          attribution: 'Tiles &copy; Esri',
+        })
+      : L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 20,
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        });
+
+    nextTile.addTo(map);
+    tileLayerRef.current = nextTile;
+  }, [mapStyle]);
 
   useEffect(() => {
     const ctx = mapRef.current;
@@ -129,7 +159,7 @@ export default function DispatchPage() {
     for (const t of liveTechs) {
       const active = t.id === selectedTechId;
       const color = active ? '#FF4400' : '#2563EB';
-      const icon = L.divIcon({ html: markerHtml(color, active), className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
+      const icon = L.divIcon({ html: markerHtml(color, active, t.initials), className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
       const latlng: [number, number] = [t.location!.lat, t.location!.lng];
 
       const existing = markersRef.current.get(t.id);
@@ -162,6 +192,57 @@ export default function DispatchPage() {
     ctx.map.flyTo([selectedTech.location.lat, selectedTech.location.lng], Math.max(ctx.map.getZoom(), 13), { duration: 0.4 });
   }, [selectedTechId, selectedTech?.location]);
 
+  useEffect(() => {
+    const ctx = mapRef.current;
+    if (!ctx) return;
+    const { map, L } = ctx;
+
+    async function drawRouteToNextJob() {
+      if (routeLineRef.current) {
+        map.removeLayer(routeLineRef.current);
+        routeLineRef.current = null;
+      }
+
+      if (!selectedTech?.location || !selectedTech?.nextJob?.address) return;
+
+      const address = selectedTech.nextJob.address.trim();
+      if (!address) return;
+
+      let dest = geocodeCacheRef.current.get(address);
+      if (!dest) {
+        try {
+          const q = encodeURIComponent(address);
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${q}`);
+          const rows = await res.json();
+          if (Array.isArray(rows) && rows[0]?.lat && rows[0]?.lon) {
+            dest = [Number(rows[0].lat), Number(rows[0].lon)];
+            geocodeCacheRef.current.set(address, dest);
+          }
+        } catch {
+          return;
+        }
+      }
+
+      if (!dest) return;
+
+      routeLineRef.current = L.polyline(
+        [
+          [selectedTech.location.lat, selectedTech.location.lng],
+          dest,
+        ],
+        { color: '#FF4400', weight: 3, opacity: 0.8, dashArray: '8 6' }
+      ).addTo(map);
+    }
+
+    drawRouteToNextJob();
+  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng, selectedTech?.nextJob?.address]);
+
+  function centerOnSelectedTech() {
+    const ctx = mapRef.current;
+    if (!ctx || !selectedTech?.location) return;
+    ctx.map.flyTo([selectedTech.location.lat, selectedTech.location.lng], Math.max(ctx.map.getZoom(), 14), { duration: 0.35 });
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
       <Sidebar />
@@ -186,7 +267,23 @@ export default function DispatchPage() {
 
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
-            <h2 className="font-semibold mb-3">Dispatch Map (Live GPS)</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                  <button onClick={() => setMapStyle('street')} className="px-2.5 py-1 text-xs" style={{ background: mapStyle === 'street' ? '#2563EB' : 'var(--color-surface-3)', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)' }}>Street</button>
+                  <button onClick={() => setMapStyle('satellite')} className="px-2.5 py-1 text-xs" style={{ background: mapStyle === 'satellite' ? '#2563EB' : 'var(--color-surface-3)', color: mapStyle === 'satellite' ? '#fff' : 'var(--color-text-secondary)' }}>Satellite</button>
+                </div>
+                <button
+                  onClick={centerOnSelectedTech}
+                  disabled={!selectedTech?.location}
+                  className="px-2.5 py-1 rounded-lg text-xs disabled:opacity-50"
+                  style={{ border: '1px solid var(--color-border)' }}
+                >
+                  Center on tech
+                </button>
+              </div>
+            </div>
             <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: '#f5f7fa', border: '1px solid var(--color-border)' }}>
               <div ref={mapContainerRef} className="absolute inset-0" />
               {liveTechs.length === 0 && (
@@ -198,6 +295,7 @@ export default function DispatchPage() {
             {selectedLocation && (
               <div className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 Tracking: {selectedTech?.name || 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                {selectedTech?.nextJob?.address ? ` · Route line to next job: ${selectedTech.nextJob.address}` : ''}
               </div>
             )}
           </div>
