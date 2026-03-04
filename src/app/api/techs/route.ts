@@ -33,13 +33,17 @@ function saveStore(store: TechStore) {
   writeJsonFileWithBackup(TECHS_FILE, store);
 }
 
-async function sendClerkInvite(email: string, role: Tech['role']) {
+async function sendClerkInvite(email: string, role: Tech['role'], origin?: string) {
   if (!isClerkConfigured()) return { sent: false, reason: 'clerk_not_configured' };
   try {
     const client = await clerkClient();
+    const inviteRedirect = process.env.CLERK_INVITE_REDIRECT_URL
+      || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/sign-up` : undefined)
+      || (origin ? `${origin.replace(/\/$/, '')}/sign-up` : undefined);
+
     const invitation = await client.invitations.createInvitation({
       emailAddress: email,
-      redirectUrl: process.env.CLERK_INVITE_REDIRECT_URL || `${process.env.NEXT_PUBLIC_APP_URL || ''}/sign-up`,
+      redirectUrl: inviteRedirect,
       publicMetadata: { hearthRole: role },
       notify: true,
       ignoreExisting: true,
@@ -70,6 +74,7 @@ export async function POST(request: Request) {
   try {
     const store = loadStore();
     const body = await request.json();
+    const origin = new URL(request.url).origin;
 
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
@@ -80,7 +85,7 @@ export async function POST(request: Request) {
 
     const existing = store.techs.find((t) => t.email.toLowerCase() === email);
     if (existing) {
-      const invite = await sendClerkInvite(email, existing.role);
+      const invite = await sendClerkInvite(email, existing.role, origin);
       return NextResponse.json({ tech: existing, exists: true, invite }, { status: 200 });
     }
 
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
       payload: { tech: newTech },
     });
 
-    const invite = await sendClerkInvite(email, newTech.role);
+    const invite = await sendClerkInvite(email, newTech.role, origin);
 
     return NextResponse.json({ tech: newTech, invite }, { status: 201 });
   } catch (err) {
