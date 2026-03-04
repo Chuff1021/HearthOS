@@ -126,6 +126,12 @@ export async function GET(request: Request) {
       const techs: Tech[] = (rows as any[])
         .map((u) => fromDbUser(u))
         .filter((t: Tech) => ['tech', 'dispatcher', 'admin'].includes(t.role));
+
+      // Keep file cache in sync for legacy readers (dispatch/jobs paths)
+      const cache = loadStore();
+      cache.techs = techs;
+      saveStore(cache);
+
       return NextResponse.json({ techs: activeOnly ? techs.filter((t) => t.active) : techs });
     }
 
@@ -186,6 +192,14 @@ export async function POST(request: Request) {
         .returning();
 
       const tech = fromDbUser(inserted[0]);
+
+      // Mirror into file cache for legacy readers
+      const cache = loadStore();
+      if (!cache.techs.find((t) => t.id === tech.id)) {
+        cache.techs.push(tech);
+        saveStore(cache);
+      }
+
       appendMemoryEvent({ entity: 'tech', action: 'create', entityId: tech.id, summary: `Tech created: ${tech.name}`, payload: { tech } });
       const invite = await sendClerkInvite(email, tech.role, origin);
       return NextResponse.json({ tech, invite }, { status: 201 });
@@ -231,6 +245,15 @@ export async function DELETE(request: Request) {
     const dbCtx = await getDbCtx();
     if (dbCtx) {
       await dbCtx.db.update(dbCtx.users).set({ isActive: false, updatedAt: new Date() }).where(dbCtx.eq(dbCtx.users.id, id));
+
+      // Mirror deactivation to file cache
+      const cache = loadStore();
+      const idx = cache.techs.findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        cache.techs[idx] = { ...cache.techs[idx], active: false };
+        saveStore(cache);
+      }
+
       appendMemoryEvent({ entity: 'tech', action: 'delete', entityId: id, summary: `Tech deactivated: ${id}` });
       return NextResponse.json({ success: true });
     }
