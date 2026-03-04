@@ -36,6 +36,7 @@ export default function TeamPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", role: "tech" as "lead" | "tech" | "helper" | "dispatcher" | "admin" });
+  const [resendingFor, setResendingFor] = useState<string | null>(null);
 
   async function loadTechs() {
     setLoading(true);
@@ -124,6 +125,39 @@ export default function TeamPage() {
       setAddError(error instanceof Error ? error.message : 'Failed to add team member');
     }
     setAdding(false);
+  }
+
+  async function resendInvite(tech: Tech) {
+    setAddError(null);
+    setAddSuccess(null);
+    setResendingFor(tech.id);
+    try {
+      const res = await fetch('/api/techs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: tech.name,
+          email: tech.email,
+          phone: tech.phone,
+          role: tech.role,
+          color: tech.color,
+          skills: tech.skills,
+          certifications: tech.certifications,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to resend invite');
+
+      if (data?.invite?.sent) {
+        setAddSuccess(`Invite re-sent to ${tech.email}.`);
+      } else {
+        setAddError(`Invite not sent for ${tech.email}: ${data?.invite?.reason || 'not configured'}`);
+      }
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Failed to resend invite');
+    } finally {
+      setResendingFor(null);
+    }
   }
 
   useEffect(() => {
@@ -278,7 +312,16 @@ export default function TeamPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>{tech.email}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{tech.email}</p>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); resendInvite(tech); }}
+                            className="px-2 py-0.5 rounded text-[11px]"
+                            style={{ border: "1px solid var(--color-border)", color: "#93C5FD" }}
+                          >
+                            {resendingFor === tech.id ? 'Sending…' : 'Resend Login'}
+                          </button>
+                        </div>
                         
                         {tech.currentJob && (
                           <div className="mt-2 p-2 rounded-lg bg-blue-500/10">
