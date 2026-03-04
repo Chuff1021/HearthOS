@@ -229,11 +229,11 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
-                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#FF204E" : "var(--color-text-muted)" }}>{stats.overdue}</p>
+                <p className="text-2xl font-bold" style={{ color: "#FF204E" }}>{stats.overdue}</p>
               </button>
               <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
-                <p className="text-2xl font-bold" style={{ color: "#FF4400" }}>{stats.dueToday}</p>
+                <p className="text-2xl font-bold" style={{ color: "#FBBF24" }}>{stats.dueToday}</p>
               </div>
             </div>
 
