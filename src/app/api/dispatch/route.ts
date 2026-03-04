@@ -41,9 +41,18 @@ export async function GET(request: NextRequest) {
     const freshWindowMs = 15 * 60 * 1000; // show only recent pings
     const now = Date.now();
 
+    const genericNameRx = /\bservice\s*tech(?:nician)?\b/i;
+    const mappedCoordKeys = new Set(
+      baseTechs
+        .filter((t) => t.location)
+        .map((t) => `${t.location!.lat.toFixed(4)},${t.location!.lng.toFixed(4)}`)
+    );
+
     const unmappedLive = latestLocations
       .filter((l) => !mappedIds.has(l.techId))
       .filter((l) => now - new Date(l.timestamp).getTime() <= freshWindowMs)
+      .filter((l) => !genericNameRx.test(l.techName || ''))
+      .filter((l) => !mappedCoordKeys.has(`${l.lat.toFixed(4)},${l.lng.toFixed(4)}`))
       .map((l) => ({
         id: l.techId,
         name: l.techName || l.techId,
