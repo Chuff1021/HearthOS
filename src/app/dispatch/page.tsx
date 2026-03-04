@@ -44,6 +44,16 @@ export default function DispatchPage() {
   const minLng = lngs.length ? Math.min(...lngs) : 0;
   const maxLng = lngs.length ? Math.max(...lngs) : 1;
 
+  const latSpan = Math.max(0.01, maxLat - minLat);
+  const lngSpan = Math.max(0.01, maxLng - minLng);
+  const latPad = latSpan * 0.35;
+  const lngPad = lngSpan * 0.35;
+  const bboxMinLat = minLat - latPad;
+  const bboxMaxLat = maxLat + latPad;
+  const bboxMinLng = minLng - lngPad;
+  const bboxMaxLng = maxLng + lngPad;
+  const osmEmbedSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bboxMinLng}%2C${bboxMinLat}%2C${bboxMaxLng}%2C${bboxMaxLat}&layer=mapnik`;
+
   function markerPos(lat: number, lng: number) {
     const lngSpan = maxLng - minLng;
     const latSpan = maxLat - minLat;
@@ -113,14 +123,16 @@ export default function DispatchPage() {
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
             <h2 className="font-semibold mb-3">Dispatch Map (Live GPS)</h2>
-            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: 'linear-gradient(180deg, #0b1220 0%, #111b2f 100%)', border: '1px solid var(--color-border)' }}>
+            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: '#0b1220', border: '1px solid var(--color-border)' }}>
               {liveTechs.length > 0 ? (
                 <>
-                  <div className="absolute inset-0" style={{
-                    backgroundImage: 'radial-gradient(rgba(148,163,184,0.16) 1px, transparent 1px)',
-                    backgroundSize: '28px 28px',
-                    opacity: 0.35,
-                  }} />
+                  <iframe
+                    title="Dispatch map"
+                    src={osmEmbedSrc}
+                    className="absolute inset-0 w-full h-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
                   {liveTechs.map((t) => {
                     const pos = markerPos(t.location!.lat, t.location!.lng);
                     const active = t.id === selectedTechId;
@@ -128,8 +140,8 @@ export default function DispatchPage() {
                       <button
                         key={t.id}
                         onClick={() => setSelectedTechId(t.id)}
-                        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
-                        style={{ ...pos, width: active ? 18 : 14, height: active ? 18 : 14, background: active ? '#FF4400' : '#2563EB', boxShadow: '0 0 0 4px rgba(37,99,235,0.22)' }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full z-10"
+                        style={{ ...pos, width: active ? 18 : 14, height: active ? 18 : 14, background: active ? '#FF4400' : '#2563EB', boxShadow: '0 0 0 4px rgba(37,99,235,0.28)' }}
                         title={`${t.name} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`}
                       />
                     );
