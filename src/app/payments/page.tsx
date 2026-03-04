@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -83,6 +83,7 @@ const samplePayments: Payment[] = [
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>(samplePayments);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [filter, setFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [checkoutAmount, setCheckoutAmount] = useState(0);
@@ -108,6 +109,19 @@ export default function PaymentsPage() {
 
   function openSquare(url: string) {
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function loadSquareTransactions() {
+    try {
+      setLoadingTransactions(true);
+      const res = await fetch("/api/square/transactions?limit=100", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data?.payments)) {
+        setPayments(data.payments as Payment[]);
+      }
+    } finally {
+      setLoadingTransactions(false);
+    }
   }
 
   async function createSquareCheckout() {
@@ -146,6 +160,13 @@ export default function PaymentsPage() {
     }
   }
 
+  useEffect(() => {
+    loadSquareTransactions();
+    const t = setInterval(loadSquareTransactions, 30000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function getStatusColor(status: string) {
     switch (status) {
       case "completed": return "bg-green-500/20 text-green-400";
@@ -181,8 +202,11 @@ export default function PaymentsPage() {
                   Track and manage customer payments
                 </p>
               </div>
-              <button className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
-                Record Payment
+              <button
+                onClick={loadSquareTransactions}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+              >
+                {loadingTransactions ? "Refreshing…" : "Refresh Payments"}
               </button>
             </div>
 
