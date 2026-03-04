@@ -18,68 +18,7 @@ interface Payment {
   notes?: string;
 }
 
-// Sample payments data
-const samplePayments: Payment[] = [
-  {
-    id: "pay-001",
-    invoiceId: "inv-003",
-    invoiceNumber: "INV-2024-0889",
-    customerId: "cust-003",
-    customerName: "Patricia Williams",
-    amount: 178.20,
-    method: "credit_card",
-    status: "completed",
-    paymentDate: "2026-02-24",
-    transactionId: "txn_abc123",
-  },
-  {
-    id: "pay-002",
-    invoiceId: "inv-005",
-    invoiceNumber: "INV-2024-0887",
-    customerId: "cust-004",
-    customerName: "James Thompson",
-    amount: 561.60,
-    method: "bank_transfer",
-    status: "completed",
-    paymentDate: "2026-02-23",
-    transactionId: "txn_def456",
-  },
-  {
-    id: "pay-003",
-    invoiceId: "inv-008",
-    invoiceNumber: "INV-2024-0884",
-    customerId: "cust-008",
-    customerName: "David Rodriguez",
-    amount: 1296.00,
-    method: "credit_card",
-    status: "completed",
-    paymentDate: "2026-02-21",
-    transactionId: "txn_ghi789",
-  },
-  {
-    id: "pay-004",
-    invoiceId: "inv-001",
-    invoiceNumber: "INV-2024-0891",
-    customerId: "cust-001",
-    customerName: "Linda Martinez",
-    amount: 270.00,
-    method: "credit_card",
-    status: "pending",
-    paymentDate: "2026-02-26",
-  },
-  {
-    id: "pay-005",
-    invoiceId: "inv-007",
-    invoiceNumber: "INV-2024-0885",
-    customerId: "cust-007",
-    customerName: "Karen Wilson",
-    amount: 193.00,
-    method: "check",
-    status: "completed",
-    paymentDate: "2026-02-20",
-    transactionId: "chk_001",
-  },
-];
+const samplePayments: Payment[] = [];
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>(samplePayments);

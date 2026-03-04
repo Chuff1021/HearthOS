@@ -38,6 +38,7 @@ export default function TodosPage() {
   const [formDueDate, setFormDueDate] = useState("");
   const [formAssignedTo, setFormAssignedTo] = useState("");
   const [formTags, setFormTags] = useState("");
+  const [techOptions, setTechOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   async function loadTodos() {
     setLoading(true);
@@ -65,6 +66,18 @@ export default function TodosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/techs?activeOnly=true');
+        const data = await res.json();
+        setTechOptions((data.techs || []).map((t: any) => ({ id: t.id, name: t.name })));
+      } catch {
+        setTechOptions([]);
+      }
+    })();
+  }, []);
+
   async function handleCreateTodo() {
     if (!formTitle.trim()) return;
     
@@ -78,10 +91,7 @@ export default function TodosPage() {
           priority: formPriority,
           dueDate: formDueDate || undefined,
           assignedTo: formAssignedTo || undefined,
-          assignedToName: formAssignedTo === "tech-001" ? "Mike Johnson" : 
-                          formAssignedTo === "tech-002" ? "Sarah Williams" :
-                          formAssignedTo === "tech-003" ? "Tom Davis" :
-                          formAssignedTo === "tech-004" ? "Chris Lee" : undefined,
+          assignedToName: techOptions.find((t) => t.id === formAssignedTo)?.name,
           tags: formTags.split(",").map(t => t.trim()).filter(Boolean),
         }),
       });
@@ -444,10 +454,9 @@ export default function TodosPage() {
                   }}
                 >
                   <option value="">Unassigned</option>
-                  <option value="tech-001">Mike Johnson</option>
-                  <option value="tech-002">Sarah Williams</option>
-                  <option value="tech-003">Tom Davis</option>
-                  <option value="tech-004">Chris Lee</option>
+                  {techOptions.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
                 </select>
               </div>
               

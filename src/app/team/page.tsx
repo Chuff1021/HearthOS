@@ -43,17 +43,12 @@ export default function TeamPage() {
       const res = await fetch("/api/techs?activeOnly=false");
       const data = await res.json();
       
-      // Add mock availability data
-      const techsWithAvailability: Tech[] = (data.techs || []).map((t: any, i: number) => ({
+      const techsWithAvailability: Tech[] = (data.techs || []).map((t: any) => ({
         ...t,
-        availability: i < 3 ? "available" : i < 5 ? "on_job" : "off" as const,
-        currentJob: i < 3 ? undefined : i < 5 ? {
-          id: `job-00${i + 1}`,
-          title: "Gas Fireplace Installation",
-          customer: "Robert Chen",
-        } : undefined,
+        availability: t.active ? "available" : "off" as const,
+        currentJob: undefined,
       }));
-      
+
       setTechs(techsWithAvailability);
     } catch (error) {
       console.error("Failed to load techs:", error);
