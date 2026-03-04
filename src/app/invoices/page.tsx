@@ -58,6 +58,8 @@ export default function InvoicesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [squareSignals, setSquareSignals] = useState<Record<string, { status: string; amount: number; paymentDate: string }>>({});
+  const [reconcilingSquare, setReconcilingSquare] = useState(false);
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -124,10 +126,69 @@ export default function InvoicesPage() {
     }
   }, []);
 
+  const fetchSquareSignals = useCallback(async () => {
+    try {
+      const res = await fetch('/api/square/transactions?limit=200', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data?.payments)) return;
+
+      const byInvoice: Record<string, { status: string; amount: number; paymentDate: string }> = {};
+      for (const p of data.payments as Array<{ invoiceNumber?: string; status?: string; amount?: number; paymentDate?: string }>) {
+        const invoiceNumber = (p.invoiceNumber || '').trim();
+        if (!invoiceNumber) continue;
+        const prev = byInvoice[invoiceNumber];
+        if (!prev || +new Date(p.paymentDate || 0) > +new Date(prev.paymentDate || 0)) {
+          byInvoice[invoiceNumber] = {
+            status: String(p.status || 'pending'),
+            amount: Number(p.amount || 0),
+            paymentDate: String(p.paymentDate || new Date().toISOString()),
+          };
+        }
+      }
+      setSquareSignals(byInvoice);
+    } catch {
+      // no-op
+    }
+  }, []);
+
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
-  }, [fetchInvoices, fetchCustomers]);
+    fetchSquareSignals();
+    const t = setInterval(fetchSquareSignals, 30000);
+    return () => clearInterval(t);
+  }, [fetchInvoices, fetchCustomers, fetchSquareSignals]);
+
+  useEffect(() => {
+    async function reconcileSquarePayments() {
+      const candidates = invoices.filter((inv) => {
+        const s = squareSignals[inv.invoiceNumber];
+        return !!s && s.status === 'completed' && inv.balance > 0 && s.amount >= inv.balance;
+      });
+
+      if (!candidates.length) return;
+      setReconcilingSquare(true);
+      try {
+        for (const inv of candidates) {
+          await fetch('/api/invoices', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: inv.id,
+              status: 'paid',
+              balance: 0,
+              notes: `${inv.notes || ''}${inv.notes ? '\n' : ''}Auto-marked paid from Square (${new Date().toISOString()}).`,
+            }),
+          });
+        }
+        fetchInvoices();
+      } finally {
+        setReconcilingSquare(false);
+      }
+    }
+
+    reconcileSquarePayments();
+  }, [invoices, squareSignals, fetchInvoices]);
 
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
@@ -420,6 +481,7 @@ export default function InvoicesPage() {
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Invoices</h1>
             <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
               {loading ? "Loading..." : `${invoices.length} invoices`}
+              {reconcilingSquare ? " · reconciling Square payments…" : ""}
             </p>
           </div>
           <button
@@ -533,6 +595,18 @@ export default function InvoicesPage() {
                           >
                             {invoice.status.toUpperCase()}
                           </span>
+                          {squareSignals[invoice.invoiceNumber] && (
+                            <span
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                              style={{
+                                background: squareSignals[invoice.invoiceNumber].status === 'completed' ? 'rgba(152,205,0,0.12)' : 'rgba(29,78,216,0.12)',
+                                color: squareSignals[invoice.invoiceNumber].status === 'completed' ? '#98CD00' : '#2563EB',
+                                border: `1px solid ${squareSignals[invoice.invoiceNumber].status === 'completed' ? 'rgba(152,205,0,0.25)' : 'rgba(29,78,216,0.25)'}`,
+                              }}
+                            >
+                              SQUARE {squareSignals[invoice.invoiceNumber].status.toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{invoice.customerName}</h3>
                         <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{invoice.jobTitle}</p>
