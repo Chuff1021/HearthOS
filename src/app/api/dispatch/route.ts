@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import { getJobs } from "@/app/api/jobs/route";
-import { getTechs } from "@/app/api/techs/route";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
+import { getTechDirectory } from "@/lib/tech-directory";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get("activeOnly") === "true";
 
     const latestLocations = getLatestLocationsByTech();
+    const directoryTechs = await getTechDirectory();
 
-    const baseTechs = getTechs().map((t) => {
+    const baseTechs = directoryTechs.map((t) => {
       const techEmail = String((t as any).email || '').toLowerCase();
       const loc = latestLocations.find((l) =>
         l.techId === t.id ||
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Include active location pings that do not yet map to a team record
     const mappedIds = new Set(baseTechs.map((t) => t.id));
     const mappedEmails = new Set(
-      getTechs().map((t: any) => String(t.email || '').toLowerCase()).filter(Boolean)
+      directoryTechs.map((t: any) => String(t.email || '').toLowerCase()).filter(Boolean)
     );
     const freshWindowMs = 15 * 60 * 1000; // show only recent pings
     const now = Date.now();
@@ -150,7 +151,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const jobs = getJobs();
-    const tech = getTechs().find((t) => t.id === techId);
+    const techs = await getTechDirectory();
+    const tech = techs.find((t) => t.id === techId);
     const idx = jobs.findIndex((j) => j.id === jobId);
 
     if (idx === -1 || !tech) {

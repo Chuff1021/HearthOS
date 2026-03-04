@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { getTechs } from '@/app/api/techs/route';
 import { getTodos } from '@/lib/todos';
+import { getTechDirectory } from '@/lib/tech-directory';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       userName = user.fullName || user.firstName || '';
     }
 
-    const techs = getTechs();
+    const techs = await getTechDirectory();
     let tech = linkedTechId ? techs.find((t) => t.id === linkedTechId) : null;
 
     if (!tech && email) {
