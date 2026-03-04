@@ -85,6 +85,12 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>(samplePayments);
   const [filter, setFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [checkoutAmount, setCheckoutAmount] = useState(0);
+  const [checkoutCustomer, setCheckoutCustomer] = useState("");
+  const [checkoutInvoice, setCheckoutInvoice] = useState("");
+  const [creatingCheckout, setCreatingCheckout] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const filteredPayments = payments.filter(p => {
     const matchesFilter = filter === "all" || p.status === filter;
@@ -102,6 +108,42 @@ export default function PaymentsPage() {
 
   function openSquare(url: string) {
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function createSquareCheckout() {
+    setCheckoutError(null);
+    setCheckoutUrl(null);
+
+    if (!checkoutAmount || checkoutAmount <= 0) {
+      setCheckoutError("Enter an amount greater than 0.");
+      return;
+    }
+
+    try {
+      setCreatingCheckout(true);
+      const res = await fetch("/api/square/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: checkoutAmount,
+          customerName: checkoutCustomer || "Customer",
+          invoiceNumber: checkoutInvoice || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data?.url) {
+        setCheckoutError(data?.error || "Failed to create Square checkout link.");
+        return;
+      }
+
+      setCheckoutUrl(data.url);
+      openSquare(data.url);
+    } catch (e) {
+      setCheckoutError("Failed to create Square checkout link.");
+    } finally {
+      setCreatingCheckout(false);
+    }
   }
 
   function getStatusColor(status: string) {
@@ -146,32 +188,82 @@ export default function PaymentsPage() {
 
             {/* Square Quick Actions */}
             <div
-              className="rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+              className="rounded-xl p-5 space-y-4"
               style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
             >
-              <div>
-                <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                  Square Payments
-                </h2>
-                <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-                  Launch Square from here to take card payments, then track payment records below.
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                    Square Payments
+                  </h2>
+                  <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+                    Create a payment checkout link from this screen and open it instantly.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openSquare(squareVirtualTerminalUrl)}
+                    className="px-4 py-2 rounded-xl text-sm font-medium"
+                    style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                  >
+                    Virtual Terminal
+                  </button>
+                  <button
+                    onClick={() => openSquare(squareDashboardUrl)}
+                    className="px-4 py-2 rounded-xl text-sm font-medium"
+                    style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                  >
+                    Open Dashboard
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="Amount (USD)"
+                  value={checkoutAmount || ""}
+                  onChange={(e) => setCheckoutAmount(Number(e.target.value || 0))}
+                  className="px-3 py-2 rounded-lg border-0 outline-none"
+                  style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Customer name"
+                  value={checkoutCustomer}
+                  onChange={(e) => setCheckoutCustomer(e.target.value)}
+                  className="px-3 py-2 rounded-lg border-0 outline-none"
+                  style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Invoice # (optional)"
+                  value={checkoutInvoice}
+                  onChange={(e) => setCheckoutInvoice(e.target.value)}
+                  className="px-3 py-2 rounded-lg border-0 outline-none"
+                  style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
+                />
                 <button
-                  onClick={() => openSquare(squareVirtualTerminalUrl)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                  onClick={createSquareCheckout}
+                  disabled={creatingCheckout}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-60"
                 >
-                  Take Payment (Square)
-                </button>
-                <button
-                  onClick={() => openSquare(squareDashboardUrl)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium"
-                  style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
-                >
-                  Open Square Dashboard
+                  {creatingCheckout ? "Creating…" : "Create Checkout Link"}
                 </button>
               </div>
+
+              {checkoutError && (
+                <div className="text-sm" style={{ color: "#FF204E" }}>
+                  {checkoutError}
+                </div>
+              )}
+              {checkoutUrl && (
+                <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                  Checkout link: <a href={checkoutUrl} target="_blank" rel="noreferrer" style={{ color: "#2563EB" }}>{checkoutUrl}</a>
+                </div>
+              )}
             </div>
 
             {/* Stats */}
