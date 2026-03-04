@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -34,6 +36,8 @@ export default function DispatchPage() {
   const [loading, setLoading] = useState(true);
   const [gpsDebug, setGpsDebug] = useState<{ latestLocationCount: number; unmappedLiveCount: number } | null>(null);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
+  const [selectedRouteEtaMin, setSelectedRouteEtaMin] = useState<number | null>(null);
+  const [selectedOffRouteMiles, setSelectedOffRouteMiles] = useState<number | null>(null);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
@@ -43,6 +47,7 @@ export default function DispatchPage() {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
   const tileLayerRef = useRef<any>(null);
+  const clusterLayerRef = useRef<any>(null);
   const routeLineRef = useRef<any>(null);
   const geocodeCacheRef = useRef<Map<string, [number, number]>>(new Map());
   const hasAutoFitRef = useRef(false);
@@ -71,6 +76,31 @@ export default function DispatchPage() {
     const size = active ? 26 : 22;
     const ring = active ? "rgba(255,68,0,0.35)" : "rgba(37,99,235,0.30)";
     return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:system-ui;">${(initials || '?').slice(0,2).toUpperCase()}</div>`;
+  }
+
+  function haversineMiles(a: [number, number], b: [number, number]) {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 3958.8;
+    const dLat = toRad(b[0] - a[0]);
+    const dLng = toRad(b[1] - a[1]);
+    const lat1 = toRad(a[0]);
+    const lat2 = toRad(b[0]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function pointToSegmentMiles(p: [number, number], a: [number, number], b: [number, number]) {
+    const ax = a[1], ay = a[0];
+    const bx = b[1], by = b[0];
+    const px = p[1], py = p[0];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const mag2 = dx * dx + dy * dy;
+    if (mag2 < 1e-12) return haversineMiles(p, a);
+    let t = ((px - ax) * dx + (py - ay) * dy) / mag2;
+    t = Math.max(0, Math.min(1, t));
+    const proj: [number, number] = [ay + t * dy, ax + t * dx];
+    return haversineMiles(p, proj);
   }
 
   async function loadDispatch() {
@@ -110,6 +140,7 @@ export default function DispatchPage() {
     async function initMap() {
       if (!mapContainerRef.current || mapRef.current) return;
       const L = await import('leaflet');
+      await import('leaflet.markercluster');
       if (cancelled || !mapContainerRef.current) return;
 
       const map = L.map(mapContainerRef.current, {
@@ -122,6 +153,13 @@ export default function DispatchPage() {
       }).addTo(map);
 
       tileLayerRef.current = initialTile;
+      const clusterGroup = (L as any).markerClusterGroup({
+        showCoverageOnHover: false,
+        spiderfyOnMaxZoom: true,
+        disableClusteringAtZoom: 15,
+      });
+      clusterGroup.addTo(map);
+      clusterLayerRef.current = clusterGroup;
       mapRef.current = { map, L };
     }
 
@@ -134,6 +172,7 @@ export default function DispatchPage() {
         mapRef.current = null;
         markersRef.current.clear();
         tileLayerRef.current = null;
+        clusterLayerRef.current = null;
         routeLineRef.current = null;
       }
     };
@@ -166,12 +205,14 @@ export default function DispatchPage() {
     const ctx = mapRef.current;
     if (!ctx) return;
     const { map, L } = ctx;
+    const cluster = clusterLayerRef.current;
+    if (!cluster) return;
 
     const ids = new Set(liveTechs.map((t) => t.id));
 
     for (const [id, marker] of markersRef.current.entries()) {
       if (!ids.has(id)) {
-        map.removeLayer(marker);
+        cluster.removeLayer(marker);
         markersRef.current.delete(id);
       }
     }
@@ -189,8 +230,8 @@ export default function DispatchPage() {
         existing.setIcon(icon);
       } else {
         const marker = L.marker(latlng, { icon })
-          .addTo(map)
           .bindTooltip(`${displayTechName(t)} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
+        cluster.addLayer(marker);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
       }
@@ -223,6 +264,8 @@ export default function DispatchPage() {
         map.removeLayer(routeLineRef.current);
         routeLineRef.current = null;
       }
+      setSelectedRouteEtaMin(null);
+      setSelectedOffRouteMiles(null);
 
       if (!selectedTech?.location || !selectedTech?.nextJob?.address) return;
 
@@ -246,9 +289,35 @@ export default function DispatchPage() {
 
       if (!dest) return;
 
+      const current: [number, number] = [selectedTech.location.lat, selectedTech.location.lng];
+      const milesToNext = haversineMiles(current, dest);
+      const avgMph = 35;
+      setSelectedRouteEtaMin(Math.max(1, Math.round((milesToNext / avgMph) * 60)));
+
+      if (selectedTech.currentJob?.address) {
+        const startAddress = selectedTech.currentJob.address.trim();
+        let start = geocodeCacheRef.current.get(startAddress);
+        if (!start && startAddress) {
+          try {
+            const qStart = encodeURIComponent(startAddress);
+            const resStart = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${qStart}`);
+            const rowsStart = await resStart.json();
+            if (Array.isArray(rowsStart) && rowsStart[0]?.lat && rowsStart[0]?.lon) {
+              start = [Number(rowsStart[0].lat), Number(rowsStart[0].lon)];
+              geocodeCacheRef.current.set(startAddress, start);
+            }
+          } catch {
+            // ignore start geocode failures
+          }
+        }
+        if (start) {
+          setSelectedOffRouteMiles(pointToSegmentMiles(current, start, dest));
+        }
+      }
+
       routeLineRef.current = L.polyline(
         [
-          [selectedTech.location.lat, selectedTech.location.lng],
+          current,
           dest,
         ],
         { color: '#FF4400', weight: 3, opacity: 0.8, dashArray: '8 6' }
@@ -314,9 +383,19 @@ export default function DispatchPage() {
               )}
             </div>
             {selectedLocation && (
-              <div className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                Tracking: {selectedTech ? displayTechName(selectedTech) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
-                {selectedTech?.nextJob?.address ? ` · Route line to next job: ${selectedTech.nextJob.address}` : ''}
+              <div className="mt-2 text-xs space-y-1" style={{ color: 'var(--color-text-muted)' }}>
+                <div>
+                  Tracking: {selectedTech ? displayTechName(selectedTech) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                </div>
+                <div>
+                  {selectedTech?.nextJob?.address ? `Route line to next job: ${selectedTech.nextJob.address}` : 'No next-job route available'}
+                  {selectedRouteEtaMin ? ` · ETA ~ ${selectedRouteEtaMin} min` : ''}
+                </div>
+                {selectedOffRouteMiles !== null && selectedOffRouteMiles > 2 && (
+                  <div className="inline-block px-2 py-0.5 rounded" style={{ background: 'rgba(255,32,78,0.14)', border: '1px solid rgba(255,32,78,0.35)', color: '#FF204E' }}>
+                    Geofence alert: ~{selectedOffRouteMiles.toFixed(1)} mi off planned line
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -337,7 +416,7 @@ export default function DispatchPage() {
               <div className="mt-3 space-y-1 max-h-40 overflow-auto">
                 {techs.map((t) => (
                   <div key={t.id} className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{cleanTechName(t.name)}:</span>{' '}
+                    <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{displayTechName(t)}:</span>{' '}
                     {t.location ? `${t.location.lat.toFixed(4)}, ${t.location.lng.toFixed(4)} (±${Math.round(t.location.accuracy || 0)}m)` : 'No GPS ping yet'}
                   </div>
                 ))}
