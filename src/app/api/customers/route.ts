@@ -7,6 +7,7 @@ import {
   updateCustomer,
   deleteCustomer,
 } from "@/lib/data-store";
+import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,14 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     });
 
+    appendMemoryEvent({
+      entity: "customer",
+      action: "create",
+      entityId: customer.id,
+      summary: `Customer created: ${customer.displayName}`,
+      payload: { customer },
+    });
+
     return NextResponse.json({ customer }, { status: 201 });
   } catch (err) {
     console.error("Failed to create customer:", err);
@@ -78,6 +87,14 @@ export async function PUT(request: NextRequest) {
     if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
+
+    appendMemoryEvent({
+      entity: "customer",
+      action: "update",
+      entityId: customer.id,
+      summary: `Customer updated: ${customer.displayName}`,
+      payload: { updates: body },
+    });
 
     return NextResponse.json({ customer });
   } catch (err) {
@@ -99,6 +116,13 @@ export async function DELETE(request: NextRequest) {
     if (!deleted) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
+
+    appendMemoryEvent({
+      entity: "customer",
+      action: "delete",
+      entityId: id,
+      summary: `Customer deleted: ${id}`,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -9,6 +9,7 @@ import {
   getDashboardStats,
 } from "@/lib/data-store";
 import { addAuditLog } from "@/lib/audit-log-store";
+import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,6 +91,14 @@ export async function POST(request: NextRequest) {
       after: invoice,
     });
 
+    appendMemoryEvent({
+      entity: "invoice",
+      action: "create",
+      entityId: invoice.id,
+      summary: `Invoice created: ${invoice.invoiceNumber} for ${invoice.customerName}`,
+      payload: { invoiceNumber: invoice.invoiceNumber, totalAmount: invoice.totalAmount },
+    });
+
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (err) {
     console.error("Failed to create invoice:", err);
@@ -121,6 +130,14 @@ export async function PUT(request: NextRequest) {
       after: invoice,
     });
 
+    appendMemoryEvent({
+      entity: "invoice",
+      action: "update",
+      entityId: invoice.id,
+      summary: `Invoice updated: ${invoice.invoiceNumber}`,
+      payload: { updates: body },
+    });
+
     return NextResponse.json({ invoice });
   } catch (err) {
     console.error("Failed to update invoice:", err);
@@ -150,6 +167,13 @@ export async function DELETE(request: NextRequest) {
       actor: "system",
       source: "api",
       before,
+    });
+
+    appendMemoryEvent({
+      entity: "invoice",
+      action: "delete",
+      entityId: id,
+      summary: `Invoice deleted: ${id}`,
     });
 
     return NextResponse.json({ success: true });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
 import { saveGabeMessage } from "@/lib/gabe-messages";
+import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
         const assistantMessage = data?.answer ?? data?.message ?? "";
 
         try {
-          saveGabeMessage({
+          const saved = saveGabeMessage({
             techId,
             techName,
             jobId,
@@ -85,6 +86,13 @@ export async function POST(request: NextRequest) {
               })),
               { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
             ],
+          });
+          appendMemoryEvent({
+            entity: "gabe_message",
+            action: "create",
+            entityId: saved.id,
+            summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
+            payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
           });
         } catch (e) {
           console.error("Failed to save message log:", e);
@@ -168,7 +176,7 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 Would you like help with a specific fireplace model or issue?`;
 
       try {
-        saveGabeMessage({
+        const saved = saveGabeMessage({
           techId,
           techName,
           jobId,
@@ -183,6 +191,13 @@ Would you like help with a specific fireplace model or issue?`;
             })),
             { role: "assistant" as const, content: fallbackResponse, timestamp: new Date().toISOString() },
           ],
+        });
+        appendMemoryEvent({
+          entity: "gabe_message",
+          action: "create",
+          entityId: saved.id,
+          summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
+          payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
         });
       } catch (e) {
         console.error("Failed to save message log:", e);
@@ -268,7 +283,7 @@ Would you like help with a specific fireplace model or issue?`;
     }
 
     try {
-      saveGabeMessage({
+      const saved = saveGabeMessage({
         techId,
         techName,
         jobId,
@@ -283,6 +298,13 @@ Would you like help with a specific fireplace model or issue?`;
           })),
           { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
         ],
+      });
+      appendMemoryEvent({
+        entity: "gabe_message",
+        action: "create",
+        entityId: saved.id,
+        summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
+        payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
       });
     } catch (e) {
       console.error("Failed to save message log:", e);

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
+import { NextResponse } from 'next/server';
+import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
+import { appendMemoryEvent } from '@/lib/long-term-memory';
 
 export interface Tech {
   id: string;
@@ -8,127 +9,47 @@ export interface Tech {
   phone: string;
   color: string;
   initials: string;
-  role: "lead" | "tech" | "helper" | "dispatcher" | "admin";
+  role: 'lead' | 'tech' | 'helper' | 'dispatcher' | 'admin';
   active: boolean;
   skills: string[];
   certifications: string[];
   hireDate: string;
 }
 
-// Technicians data
-const seedTechs: Tech[] = [
-  {
-    id: "tech-001",
-    name: "Mike Johnson",
-    email: "mike@hearthos.com",
-    phone: "(555) 111-2222",
-    color: "#2563EB",
-    initials: "MJ",
-    role: "lead",
-    active: true,
-    skills: ["Gas Installation", "Repair", "Inspection"],
-    certifications: ["NFI Certified", "Gas Line Certified"],
-    hireDate: "2022-03-15",
-  },
-  {
-    id: "tech-002",
-    name: "Sarah Williams",
-    email: "sarah@hearthos.com",
-    phone: "(555) 222-3333",
-    color: "#98CD00",
-    initials: "SW",
-    role: "tech",
-    active: true,
-    skills: ["Estimates", "Sales", "Installation"],
-    certifications: ["NFI Certified", "CSST Certified"],
-    hireDate: "2023-01-10",
-  },
-  {
-    id: "tech-003",
-    name: "Tom Davis",
-    email: "tom@hearthos.com",
-    phone: "(555) 333-4444",
-    color: "#FF4400",
-    initials: "TD",
-    role: "tech",
-    active: true,
-    skills: ["Wood Stoves", "Pellet", "Chimney"],
-    certifications: ["CSIA Certified", "NFI Certified"],
-    hireDate: "2021-08-22",
-  },
-  {
-    id: "tech-004",
-    name: "Chris Lee",
-    email: "chris@hearthos.com",
-    phone: "(555) 444-5555",
-    color: "#2563EB",
-    initials: "CL",
-    role: "tech",
-    active: true,
-    skills: ["Gas Repair", "Maintenance", "Service"],
-    certifications: ["NFI Certified"],
-    hireDate: "2023-06-01",
-  },
-  {
-    id: "tech-005",
-    name: "Amy Walsh",
-    email: "amy@hearthos.com",
-    phone: "(555) 555-6666",
-    color: "#FF204E",
-    initials: "AW",
-    role: "tech",
-    active: true,
-    skills: ["Installation", "Helper", "Delivery"],
-    certifications: ["OSHA 10"],
-    hireDate: "2024-02-15",
-  },
-  {
-    id: "tech-006",
-    name: "Jake Rivera",
-    email: "jake@hearthos.com",
-    phone: "(555) 666-7777",
-    color: "#98CD00",
-    initials: "JR",
-    role: "helper",
-    active: true,
-    skills: ["Helper", "Delivery", "Setup"],
-    certifications: [],
-    hireDate: "2024-11-01",
-  },
-];
+const TECHS_FILE = 'techs.json';
 
-const TECHS_FILE = "techs.json";
-let techs: Tech[] = readJsonFile<Tech[]>(TECHS_FILE, [...seedTechs]);
+type TechStore = { techs: Tech[]; nextId: number };
 
-function saveTechs() {
-  writeJsonFileWithBackup(TECHS_FILE, techs);
+function loadStore(): TechStore {
+  const store = readJsonFile<TechStore>(TECHS_FILE, { techs: [], nextId: 1 });
+  if (!Array.isArray(store.techs)) store.techs = [];
+  if (typeof store.nextId !== 'number') store.nextId = 1;
+  return store;
+}
+
+function saveStore(store: TechStore) {
+  writeJsonFileWithBackup(TECHS_FILE, store);
 }
 
 export function getTechs(): Tech[] {
-  return techs;
+  return loadStore().techs;
 }
 
-// GET - List technicians
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get("activeOnly") === "true";
-
-    let filtered = [...techs];
-    if (activeOnly) {
-      filtered = filtered.filter((t) => t.active);
-    }
-
-    return NextResponse.json({ techs: filtered });
+    const activeOnly = searchParams.get('activeOnly') === 'true';
+    const techs = getTechs();
+    return NextResponse.json({ techs: activeOnly ? techs.filter((t) => t.active) : techs });
   } catch (err) {
-    console.error("Failed to get techs:", err);
-    return NextResponse.json({ error: "Failed to get technicians" }, { status: 500 });
+    console.error('Failed to get techs:', err);
+    return NextResponse.json({ error: 'Failed to get technicians' }, { status: 500 });
   }
 }
 
-// POST - Create technician
 export async function POST(request: Request) {
   try {
+    const store = loadStore();
     const body = await request.json();
 
     const name = String(body.name || '').trim();
@@ -136,14 +57,10 @@ export async function POST(request: Request) {
     const phone = String(body.phone || '').trim();
     const role = (body.role || 'tech') as Tech['role'];
 
-    if (!name || !email) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
-    }
+    if (!name || !email) return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
 
-    const existing = techs.find((t) => t.email.toLowerCase() === email);
-    if (existing) {
-      return NextResponse.json({ tech: existing, exists: true }, { status: 200 });
-    }
+    const existing = store.techs.find((t) => t.email.toLowerCase() === email);
+    if (existing) return NextResponse.json({ tech: existing, exists: true }, { status: 200 });
 
     const initials = name
       .split(' ')
@@ -153,13 +70,8 @@ export async function POST(request: Request) {
       .slice(0, 3)
       .toUpperCase();
 
-    const nextNum = techs
-      .map((t) => Number(String(t.id).split('-').pop() || 0))
-      .filter((n) => !Number.isNaN(n))
-      .reduce((m, n) => Math.max(m, n), 0) + 1;
-
     const newTech: Tech = {
-      id: `tech-${String(nextNum).padStart(3, '0')}`,
+      id: `tech-${String(store.nextId++).padStart(3, '0')}`,
       name,
       email,
       phone,
@@ -172,8 +84,15 @@ export async function POST(request: Request) {
       hireDate: new Date().toISOString().split('T')[0],
     };
 
-    techs.push(newTech);
-    saveTechs();
+    store.techs.push(newTech);
+    saveStore(store);
+    appendMemoryEvent({
+      entity: 'tech',
+      action: 'create',
+      entityId: newTech.id,
+      summary: `Tech created: ${newTech.name}`,
+      payload: { tech: newTech },
+    });
     return NextResponse.json({ tech: newTech }, { status: 201 });
   } catch (err) {
     console.error('Failed to create tech:', err);
@@ -181,26 +100,27 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE - Remove technician
 export async function DELETE(request: Request) {
   try {
+    const store = loadStore();
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    
-    if (!id) {
-      return NextResponse.json({ error: "Tech ID required" }, { status: 400 });
-    }
-    
-    const index = techs.findIndex((t) => t.id === id);
-    if (index === -1) {
-      return NextResponse.json({ error: "Technician not found" }, { status: 404 });
-    }
-    
-    const deleted = techs.splice(index, 1)[0];
-    saveTechs();
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Tech ID required' }, { status: 400 });
+
+    const index = store.techs.findIndex((t) => t.id === id);
+    if (index === -1) return NextResponse.json({ error: 'Technician not found' }, { status: 404 });
+
+    const deleted = store.techs.splice(index, 1)[0];
+    saveStore(store);
+    appendMemoryEvent({
+      entity: 'tech',
+      action: 'delete',
+      entityId: deleted.id,
+      summary: `Tech deleted: ${deleted.name}`,
+    });
     return NextResponse.json({ tech: deleted });
   } catch (err) {
-    console.error("Failed to delete tech:", err);
-    return NextResponse.json({ error: "Failed to delete technician" }, { status: 500 });
+    console.error('Failed to delete tech:', err);
+    return NextResponse.json({ error: 'Failed to delete technician' }, { status: 500 });
   }
 }

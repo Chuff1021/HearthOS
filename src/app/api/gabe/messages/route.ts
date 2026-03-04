@@ -8,6 +8,7 @@ import {
   deleteGabeMessage,
   getGabeMessageStats 
 } from "@/lib/gabe-messages";
+import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 // GET - Get messages with optional filters
 export async function GET(request: NextRequest) {
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
       fireplace: body.fireplace,
       messages: body.messages,
       duration: body.duration,
+    });
+
+    appendMemoryEvent({
+      entity: "gabe_message",
+      action: "create",
+      entityId: newMessage.id,
+      summary: `GABE conversation saved (${newMessage.techName || 'Unknown Tech'})`,
+      payload: { jobNumber: newMessage.jobNumber, turns: newMessage.messages.length },
     });
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
