@@ -16,6 +16,25 @@ function useHydrated() {
   );
 }
 
+const iconTone: Record<string, { bg: string; color: string }> = {
+  "Dashboard": { bg: "rgba(37,99,235,0.16)", color: "#3B82F6" },
+  "To-Do List": { bg: "rgba(16,185,129,0.16)", color: "#10B981" },
+  "Schedule": { bg: "rgba(99,102,241,0.16)", color: "#6366F1" },
+  "Jobs": { bg: "rgba(249,115,22,0.16)", color: "#F97316" },
+  "Customers": { bg: "rgba(236,72,153,0.16)", color: "#EC4899" },
+  "Dispatch Map": { bg: "rgba(14,165,233,0.16)", color: "#0EA5E9" },
+  "Invoices": { bg: "rgba(59,130,246,0.16)", color: "#3B82F6" },
+  "Payments": { bg: "rgba(34,197,94,0.16)", color: "#22C55E" },
+  "Estimates": { bg: "rgba(245,158,11,0.16)", color: "#F59E0B" },
+  "Inventory": { bg: "rgba(139,92,246,0.16)", color: "#8B5CF6" },
+  "Vendors": { bg: "rgba(20,184,166,0.16)", color: "#14B8A6" },
+  "Reports": { bg: "rgba(168,85,247,0.16)", color: "#A855F7" },
+  "Team": { bg: "rgba(59,130,246,0.16)", color: "#3B82F6" },
+  "GABE Audit": { bg: "rgba(249,115,22,0.16)", color: "#F97316" },
+  "Time Admin": { bg: "rgba(99,102,241,0.16)", color: "#6366F1" },
+  "Settings": { bg: "rgba(107,114,128,0.16)", color: "#9CA3AF" },
+};
+
 const navItems = [
   {
     group: "Main",
@@ -307,7 +326,15 @@ export default function Sidebar() {
                   }}
                   title={collapsed ? item.label : undefined}
                 >
-                  <span className="flex-shrink-0">{item.icon}</span>
+                  <span
+                    className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: isActive ? "rgba(29,78,216,0.18)" : (iconTone[item.label]?.bg || "rgba(148,163,184,0.12)"),
+                      color: isActive ? "#2563EB" : (iconTone[item.label]?.color || "var(--color-text-secondary)"),
+                    }}
+                  >
+                    {item.icon}
+                  </span>
                   {!collapsed && (
                     <>
                       <span className="flex-1 text-[13px]">{item.label}</span>
@@ -364,7 +391,7 @@ export default function Sidebar() {
             title={collapsed ? "QuickBooks" : undefined}
           >
             {/* QuickBooks logo mark */}
-            <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+            <span className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(152,205,0,0.16)", color: "#98CD00" }}>
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#98CD00" }}>
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
               </svg>
