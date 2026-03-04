@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
 
-    const latestLocations = getLatestLocationsByTech();
+    const latestLocations = await getLatestLocationsByTech();
     const directoryTechs = await getTechDirectory();
 
     const baseTechs = directoryTechs.map((t) => {

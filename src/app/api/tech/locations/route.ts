@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
   const limit = Number(searchParams.get('limit') || 100);
 
   if (techId) {
-    const history = getLocationHistory(techId, limit);
+    const history = await getLocationHistory(techId, limit);
     return NextResponse.json({ history, total: history.length });
   }
 
-  const latest = getLatestLocationsByTech();
+  const latest = await getLatestLocationsByTech();
   return NextResponse.json({ locations: latest, total: latest.length });
 }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'techId, lat, lng are required' }, { status: 400 });
     }
 
-    const point = addLocationPoint({
+    const point = await addLocationPoint({
       techId,
       techName,
       techEmail,
