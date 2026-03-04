@@ -94,12 +94,20 @@ export default function TodosPage() {
     }
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
+        // Prefer QuickBooks-backed customer search when connected
+        let res = await fetch(`/api/quickbooks/customers?q=${encodeURIComponent(q)}`);
+        let data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          // Fallback to local customer store if QB is unavailable
+          res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+          data = await res.json().catch(() => ({}));
+        }
+
         setCustomerOptions((data.customers || []).map((c: any) => ({
           id: c.id,
-          name: c.displayName,
-          phone: c.phone,
+          name: c.displayName || c.name || c.fullName || c.companyName || c.id,
+          phone: c.phone || c.primaryPhone || c.mobile || c?.PrimaryPhone?.FreeFormNumber,
         })));
       } catch {
         setCustomerOptions([]);

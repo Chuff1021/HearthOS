@@ -69,9 +69,14 @@ export default function ProfilePage() {
         );
       }
 
-      if (match && !forceCreate) {
+      if (match) {
         setTechId(match.id);
-        setTechLinkStatus(`Tech linked: ${match.name}`);
+        try {
+          await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: match.id } });
+        } catch {
+          // non-fatal
+        }
+        setTechLinkStatus(`Tech linked: ${match.name}${forceCreate ? ' (re-linked)' : ''}`);
         return;
       }
 
@@ -88,6 +93,11 @@ export default function ProfilePage() {
       const createData = await createRes.json().catch(() => ({}));
       if (createRes.ok && createData?.tech?.id) {
         setTechId(createData.tech.id);
+        try {
+          await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: createData.tech.id } });
+        } catch {
+          // non-fatal
+        }
         setTechLinkStatus(`Tech profile ready: ${createData.tech.name}`);
         return;
       }
