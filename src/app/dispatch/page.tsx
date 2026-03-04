@@ -154,13 +154,19 @@ export default function DispatchPage() {
       }).addTo(map);
 
       tileLayerRef.current = initialTile;
-      const clusterGroup = (L as any).markerClusterGroup({
-        showCoverageOnHover: false,
-        spiderfyOnMaxZoom: true,
-        disableClusteringAtZoom: 15,
-      });
-      clusterGroup.addTo(map);
-      clusterLayerRef.current = clusterGroup;
+      const clusterFactory = (L as any).markerClusterGroup;
+      if (typeof clusterFactory === 'function') {
+        const clusterGroup = clusterFactory({
+          showCoverageOnHover: false,
+          spiderfyOnMaxZoom: true,
+          disableClusteringAtZoom: 15,
+        });
+        clusterGroup.addTo(map);
+        clusterLayerRef.current = clusterGroup;
+      } else {
+        clusterLayerRef.current = null;
+      }
+
       mapRef.current = { map, L };
       setMapReadyTick((n) => n + 1);
     }
@@ -208,13 +214,18 @@ export default function DispatchPage() {
     if (!ctx) return;
     const { map, L } = ctx;
     const cluster = clusterLayerRef.current;
-    if (!cluster) return;
+
+    const addLayer = (marker: any) => (cluster ? cluster.addLayer(marker) : marker.addTo(map));
+    const removeLayer = (marker: any) => {
+      if (cluster) cluster.removeLayer(marker);
+      else map.removeLayer(marker);
+    };
 
     const ids = new Set(liveTechs.map((t) => t.id));
 
     for (const [id, marker] of markersRef.current.entries()) {
       if (!ids.has(id)) {
-        cluster.removeLayer(marker);
+        removeLayer(marker);
         markersRef.current.delete(id);
       }
     }
@@ -233,7 +244,7 @@ export default function DispatchPage() {
       } else {
         const marker = L.marker(latlng, { icon })
           .bindTooltip(`${displayTechName(t)} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
-        cluster.addLayer(marker);
+        addLayer(marker);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
       }
