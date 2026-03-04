@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
@@ -20,10 +20,17 @@ export default function EstimatePage() {
   const [newItem, setNewItem] = useState({ description: "", quantity: 1, unitPrice: 0 });
   const [actionMsg, setActionMsg] = useState("");
 
-  const customer = {
-    name: "Johnson Residence",
-    address: "123 Oak Street, Springfield, IL 62701",
-  };
+  const [customer, setCustomer] = useState({
+    name: "",
+    address: "",
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('customer') || '';
+    const address = params.get('address') || '';
+    if (name || address) setCustomer({ name, address });
+  }, []);
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;

@@ -5,32 +5,22 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
-// Mock job data
-const mockJobData = {
-  id: "1",
-  customer: "Johnson Residence",
-  address: "123 Oak Street, Springfield, IL 62701",
-  phone: "(555) 123-4567",
-  email: "johnson@email.com",
-  fireplace: "Regency F1100 Gas Insert",
-  fireplaceModel: "F1100",
-  fireplaceType: "Gas Insert",
-  type: "Annual Inspection",
-  scheduled: "9:00 AM",
-  notes: "Customer mentioned pilot light issues. Dog in backyard - use front gate.",
-  customerNotes: [
-    { date: "2025-11-15", note: "Annual inspection completed - all clear" },
-    { date: "2025-08-20", note: "Replaced thermocouple" },
-  ],
-  estimates: [
-    { id: "E001", date: "2025-11-15", amount: 450, status: "approved" },
-  ],
-  invoices: [
-    { id: "INV-001", date: "2025-11-15", amount: 189, status: "paid" },
-  ],
-  photos: [
-    { id: "p1", url: "/placeholder-photo.jpg", caption: "Unit before service", date: "2025-11-15" },
-  ],
+const emptyJobData = {
+  id: "",
+  customer: "",
+  address: "",
+  phone: "",
+  email: "",
+  fireplace: "",
+  fireplaceModel: "",
+  fireplaceType: "",
+  type: "Service",
+  scheduled: "",
+  notes: "",
+  customerNotes: [],
+  estimates: [],
+  invoices: [],
+  photos: [],
 };
 
 const inspectionChecklist = [
@@ -101,7 +91,7 @@ export default function JobDetailPage() {
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [loadingJob, setLoadingJob] = useState(true);
-  const [job, setJob] = useState<any>(mockJobData);
+  const [job, setJob] = useState<any>(emptyJobData);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
 

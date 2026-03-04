@@ -18,10 +18,8 @@ interface Payment {
   notes?: string;
 }
 
-const samplePayments: Payment[] = [];
-
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>(samplePayments);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [filter, setFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
   const [searchQuery, setSearchQuery] = useState("");
