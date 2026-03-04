@@ -15,7 +15,7 @@ type Tech = {
   nextJob: { id: string; title: string; customer: string; address?: string; scheduledTime: string } | null;
   jobsToday: number;
   jobsDone: number;
-  location?: { lat: number; lng: number; accuracy?: number; timestamp: string } | null;
+  location?: { lat: number; lng: number; accuracy?: number; timestamp: string; techName?: string } | null;
 };
 
 type UnassignedJob = {
@@ -48,7 +48,15 @@ export default function DispatchPage() {
   const hasAutoFitRef = useRef(false);
 
   function cleanTechName(name: string) {
-    return name.replace(/\bservice\s*tech(?:nician)?\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+    return (name || '').replace(/\bservice\s*tech(?:nician)?\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  function displayTechName(t: Tech) {
+    const fromRecord = cleanTechName(t.name);
+    if (fromRecord) return fromRecord;
+    const fromGps = cleanTechName(t.location?.techName || '');
+    if (fromGps) return fromGps;
+    return t.name || t.id;
   }
 
   function deriveInitials(name: string, fallback?: string) {
@@ -171,7 +179,7 @@ export default function DispatchPage() {
     for (const t of liveTechs) {
       const active = t.id === selectedTechId;
       const color = active ? '#FF4400' : '#2563EB';
-      const initials = deriveInitials(t.name, t.initials);
+      const initials = deriveInitials(displayTechName(t), t.initials);
       const icon = L.divIcon({ html: markerHtml(color, active, initials), className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
       const latlng: [number, number] = [t.location!.lat, t.location!.lng];
 
@@ -182,7 +190,7 @@ export default function DispatchPage() {
       } else {
         const marker = L.marker(latlng, { icon })
           .addTo(map)
-          .bindTooltip(`${cleanTechName(t.name)} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
+          .bindTooltip(`${displayTechName(t)} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
       }
@@ -307,7 +315,7 @@ export default function DispatchPage() {
             </div>
             {selectedLocation && (
               <div className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                Tracking: {selectedTech?.name ? cleanTechName(selectedTech.name) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                Tracking: {selectedTech ? displayTechName(selectedTech) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
                 {selectedTech?.nextJob?.address ? ` · Route line to next job: ${selectedTech.nextJob.address}` : ''}
               </div>
             )}
@@ -323,7 +331,7 @@ export default function DispatchPage() {
                 style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}
               >
                 {techs.map((t) => (
-                  <option key={t.id} value={t.id}>{cleanTechName(t.name)} ({t.jobsDone}/{t.jobsToday})</option>
+                  <option key={t.id} value={t.id}>{displayTechName(t)} ({t.jobsDone}/{t.jobsToday})</option>
                 ))}
               </select>
               <div className="mt-3 space-y-1 max-h-40 overflow-auto">
@@ -341,7 +349,7 @@ export default function DispatchPage() {
               <div className="space-y-2 max-h-36 overflow-auto">
                 {liveTechs.length > 0 ? liveTechs.map((t) => (
                   <div key={`gps-${t.id}`} className="p-2 rounded-lg" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
-                    <div className="text-xs font-semibold">{cleanTechName(t.name)}</div>
+                    <div className="text-xs font-semibold">{displayTechName(t)}</div>
                     <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                       {t.location!.lat.toFixed(5)}, {t.location!.lng.toFixed(5)} · ±{Math.round(t.location!.accuracy || 0)}m
                     </div>

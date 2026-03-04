@@ -15,9 +15,11 @@ export async function GET(request: NextRequest) {
 
     const baseTechs = getTechs().map((t) => {
       const loc = latestLocations.find((l) => l.techId === t.id);
+      const isGenericName = /\bservice\s*tech(?:nician)?\b/i.test(t.name || '');
+      const resolvedName = (isGenericName && loc?.techName) ? loc.techName : t.name;
       return {
         id: t.id,
-        name: t.name,
+        name: resolvedName,
         color: t.color,
         initials: t.initials,
         status: t.active ? "available" : "offline",
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
               lng: loc.lng,
               accuracy: loc.accuracy,
               timestamp: loc.timestamp,
+              techName: loc.techName,
             }
           : null,
       };
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest) {
           lng: l.lng,
           accuracy: l.accuracy,
           timestamp: l.timestamp,
+          techName: l.techName,
         },
       }));
 
