@@ -152,8 +152,9 @@ export default function TodosPage() {
     switch (status) {
       case "completed": return "bg-green-500/20 text-green-400";
       case "in_progress": return "bg-blue-500/20 text-blue-400";
-      case "pending": return "bg-gray-500/20 text-gray-400";
-      case "cancelled": return "bg-red-500/20 text-red-400";
+      case "pending": return "bg-yellow-500/20 text-yellow-400";
+      case "cancelled": return "bg-slate-500/20 text-slate-300";
+      default: return "bg-slate-500/20 text-slate-300";
     }
   }
 
@@ -228,7 +229,7 @@ export default function TodosPage() {
                 style={{ background: "var(--color-surface-1)" }}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
-                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#FF204E" : "#98CD00" }}>{stats.overdue}</p>
+                <p className="text-2xl font-bold" style={{ color: stats.overdue > 0 ? "#FF204E" : "var(--color-text-muted)" }}>{stats.overdue}</p>
               </button>
               <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
