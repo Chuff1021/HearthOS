@@ -201,7 +201,7 @@ export default function TodosPage() {
     switch (priority) {
       case "urgent": return "bg-red-500/20 text-red-400";
       case "high": return "bg-orange-500/20 text-orange-400";
-      case "medium": return "bg-yellow-500/20 text-yellow-400";
+      case "medium": return "bg-orange-500/20 text-orange-300";
       case "low": return "bg-blue-500/20 text-blue-400";
     }
   }
@@ -210,7 +210,7 @@ export default function TodosPage() {
     switch (status) {
       case "completed": return "bg-green-500/20 text-green-400";
       case "in_progress": return "bg-blue-500/20 text-blue-400";
-      case "pending": return "bg-yellow-500/20 text-yellow-400";
+      case "pending": return "bg-orange-500/20 text-orange-300";
       case "cancelled": return "bg-slate-500/20 text-slate-300";
       default: return "bg-slate-500/20 text-slate-300";
     }
@@ -291,7 +291,7 @@ export default function TodosPage() {
               </button>
               <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
-                <p className="text-2xl font-bold" style={{ color: "#FBBF24" }}>{stats.dueToday}</p>
+                <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>{stats.dueToday}</p>
               </div>
             </div>
 
@@ -369,7 +369,7 @@ export default function TodosPage() {
                               <span>👤 {todo.relatedCustomerName}</span>
                             )}
                             {todo.relatedCustomerPhone && (
-                              <a href={`tel:${todo.relatedCustomerPhone}`} className="text-yellow-300">📞 {todo.relatedCustomerPhone}</a>
+                              <a href={`tel:${todo.relatedCustomerPhone}`} className="text-orange-300">📞 {todo.relatedCustomerPhone}</a>
                             )}
                             {todo.assignedToName && (
                               <span>👉 {todo.assignedToName}</span>
