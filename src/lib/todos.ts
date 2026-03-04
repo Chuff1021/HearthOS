@@ -14,6 +14,7 @@ export interface Todo {
   relatedJobNumber?: string;
   relatedCustomerId?: string;
   relatedCustomerName?: string;
+  relatedCustomerPhone?: string;
   assignedTo?: string;
   assignedToName?: string;
   createdBy: string;

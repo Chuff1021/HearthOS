@@ -16,7 +16,9 @@ interface Todo {
   dueDate?: string;
   relatedJobId?: string;
   relatedJobNumber?: string;
+  relatedCustomerId?: string;
   relatedCustomerName?: string;
+  relatedCustomerPhone?: string;
   assignedToName?: string;
   createdByName: string;
   createdAt: string;
@@ -38,7 +40,11 @@ export default function TodosPage() {
   const [formDueDate, setFormDueDate] = useState("");
   const [formAssignedTo, setFormAssignedTo] = useState("");
   const [formTags, setFormTags] = useState("");
+  const [formCallbackPhone, setFormCallbackPhone] = useState("");
   const [techOptions, setTechOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string; phone?: string }>>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone?: string } | null>(null);
 
   async function loadTodos() {
     setLoading(true);
@@ -78,6 +84,29 @@ export default function TodosPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const q = customerQuery.trim();
+    if (q.length < 2) {
+      setCustomerOptions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setCustomerOptions((data.customers || []).map((c: any) => ({
+          id: c.id,
+          name: c.displayName,
+          phone: c.phone,
+        })));
+      } catch {
+        setCustomerOptions([]);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [customerQuery, showCreateModal]);
+
   async function handleCreateTodo() {
     if (!formTitle.trim()) return;
     
@@ -90,6 +119,9 @@ export default function TodosPage() {
           description: formDescription,
           priority: formPriority,
           dueDate: formDueDate || undefined,
+          relatedCustomerId: selectedCustomer?.id,
+          relatedCustomerName: selectedCustomer?.name,
+          relatedCustomerPhone: formCallbackPhone || selectedCustomer?.phone || undefined,
           assignedTo: formAssignedTo || undefined,
           assignedToName: techOptions.find((t) => t.id === formAssignedTo)?.name,
           tags: formTags.split(",").map(t => t.trim()).filter(Boolean),
@@ -137,6 +169,10 @@ export default function TodosPage() {
     setFormDueDate("");
     setFormAssignedTo("");
     setFormTags("");
+    setFormCallbackPhone("");
+    setCustomerQuery("");
+    setSelectedCustomer(null);
+    setCustomerOptions([]);
   }
 
   function getPriorityColor(priority: TodoPriority) {
@@ -310,6 +346,9 @@ export default function TodosPage() {
                             {todo.relatedCustomerName && (
                               <span>👤 {todo.relatedCustomerName}</span>
                             )}
+                            {todo.relatedCustomerPhone && (
+                              <a href={`tel:${todo.relatedCustomerPhone}`} className="text-yellow-300">📞 {todo.relatedCustomerPhone}</a>
+                            )}
                             {todo.assignedToName && (
                               <span>👉 {todo.assignedToName}</span>
                             )}
@@ -442,6 +481,52 @@ export default function TodosPage() {
                 </div>
               </div>
               
+              <div>
+                <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Customer (QuickBooks)</label>
+                <input
+                  type="text"
+                  value={selectedCustomer?.name || customerQuery}
+                  onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }}
+                  placeholder="Search customer name..."
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
+                />
+                {!!customerOptions.length && !selectedCustomer && (
+                  <div className="mt-2 rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                    {customerOptions.slice(0, 6).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setSelectedCustomer(c); setFormCallbackPhone(c.phone || ""); setCustomerOptions([]); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
+                      >
+                        {c.name} {c.phone ? `· ${c.phone}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Callback Phone</label>
+                <input
+                  type="text"
+                  value={formCallbackPhone}
+                  onChange={(e) => setFormCallbackPhone(e.target.value)}
+                  placeholder="(555) 123-4567"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  style={{
+                    color: "var(--color-text-primary)",
+                    background: "var(--color-surface-3)",
+                    borderColor: "var(--color-border-hover)",
+                  }}
+                />
+              </div>
+
               <div>
                 <label className="text-sm font-medium mb-1 block" style={{ color: "var(--color-text-secondary)" }}>Assign To</label>
                 <select
