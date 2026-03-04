@@ -16,23 +16,23 @@ function useHydrated() {
   );
 }
 
-const iconTone: Record<string, { bg: string; color: string }> = {
-  "Dashboard": { bg: "rgba(37,99,235,0.16)", color: "#3B82F6" },
-  "To-Do List": { bg: "rgba(16,185,129,0.16)", color: "#10B981" },
-  "Schedule": { bg: "rgba(99,102,241,0.16)", color: "#6366F1" },
-  "Jobs": { bg: "rgba(249,115,22,0.16)", color: "#F97316" },
-  "Customers": { bg: "rgba(236,72,153,0.16)", color: "#EC4899" },
-  "Dispatch Map": { bg: "rgba(14,165,233,0.16)", color: "#0EA5E9" },
-  "Invoices": { bg: "rgba(59,130,246,0.16)", color: "#3B82F6" },
-  "Payments": { bg: "rgba(34,197,94,0.16)", color: "#22C55E" },
-  "Estimates": { bg: "rgba(245,158,11,0.16)", color: "#F59E0B" },
-  "Inventory": { bg: "rgba(139,92,246,0.16)", color: "#8B5CF6" },
-  "Vendors": { bg: "rgba(20,184,166,0.16)", color: "#14B8A6" },
-  "Reports": { bg: "rgba(168,85,247,0.16)", color: "#A855F7" },
-  "Team": { bg: "rgba(59,130,246,0.16)", color: "#3B82F6" },
-  "GABE Audit": { bg: "rgba(249,115,22,0.16)", color: "#F97316" },
-  "Time Admin": { bg: "rgba(99,102,241,0.16)", color: "#6366F1" },
-  "Settings": { bg: "rgba(107,114,128,0.16)", color: "#9CA3AF" },
+const iconTone: Record<string, { bg: string; color: string; border: string; glow: string }> = {
+  "Dashboard": { bg: "linear-gradient(145deg, rgba(59,130,246,0.24), rgba(37,99,235,0.1))", color: "#60A5FA", border: "rgba(96,165,250,0.35)", glow: "0 0 16px rgba(59,130,246,0.22)" },
+  "To-Do List": { bg: "linear-gradient(145deg, rgba(16,185,129,0.24), rgba(5,150,105,0.1))", color: "#34D399", border: "rgba(52,211,153,0.35)", glow: "0 0 16px rgba(16,185,129,0.2)" },
+  "Schedule": { bg: "linear-gradient(145deg, rgba(99,102,241,0.24), rgba(79,70,229,0.1))", color: "#818CF8", border: "rgba(129,140,248,0.35)", glow: "0 0 16px rgba(99,102,241,0.22)" },
+  "Jobs": { bg: "linear-gradient(145deg, rgba(249,115,22,0.24), rgba(234,88,12,0.1))", color: "#FB923C", border: "rgba(251,146,60,0.35)", glow: "0 0 16px rgba(249,115,22,0.22)" },
+  "Customers": { bg: "linear-gradient(145deg, rgba(236,72,153,0.24), rgba(219,39,119,0.1))", color: "#F472B6", border: "rgba(244,114,182,0.35)", glow: "0 0 16px rgba(236,72,153,0.2)" },
+  "Dispatch Map": { bg: "linear-gradient(145deg, rgba(14,165,233,0.24), rgba(2,132,199,0.1))", color: "#38BDF8", border: "rgba(56,189,248,0.35)", glow: "0 0 16px rgba(14,165,233,0.2)" },
+  "Invoices": { bg: "linear-gradient(145deg, rgba(59,130,246,0.24), rgba(30,64,175,0.1))", color: "#60A5FA", border: "rgba(96,165,250,0.35)", glow: "0 0 16px rgba(59,130,246,0.22)" },
+  "Payments": { bg: "linear-gradient(145deg, rgba(34,197,94,0.24), rgba(22,163,74,0.1))", color: "#4ADE80", border: "rgba(74,222,128,0.35)", glow: "0 0 16px rgba(34,197,94,0.2)" },
+  "Estimates": { bg: "linear-gradient(145deg, rgba(245,158,11,0.24), rgba(217,119,6,0.1))", color: "#FBBF24", border: "rgba(251,191,36,0.35)", glow: "0 0 16px rgba(245,158,11,0.2)" },
+  "Inventory": { bg: "linear-gradient(145deg, rgba(139,92,246,0.24), rgba(124,58,237,0.1))", color: "#A78BFA", border: "rgba(167,139,250,0.35)", glow: "0 0 16px rgba(139,92,246,0.22)" },
+  "Vendors": { bg: "linear-gradient(145deg, rgba(20,184,166,0.24), rgba(13,148,136,0.1))", color: "#2DD4BF", border: "rgba(45,212,191,0.35)", glow: "0 0 16px rgba(20,184,166,0.2)" },
+  "Reports": { bg: "linear-gradient(145deg, rgba(168,85,247,0.24), rgba(147,51,234,0.1))", color: "#C084FC", border: "rgba(192,132,252,0.35)", glow: "0 0 16px rgba(168,85,247,0.2)" },
+  "Team": { bg: "linear-gradient(145deg, rgba(59,130,246,0.24), rgba(37,99,235,0.1))", color: "#60A5FA", border: "rgba(96,165,250,0.35)", glow: "0 0 16px rgba(59,130,246,0.22)" },
+  "GABE Audit": { bg: "linear-gradient(145deg, rgba(249,115,22,0.24), rgba(234,88,12,0.1))", color: "#FB923C", border: "rgba(251,146,60,0.35)", glow: "0 0 16px rgba(249,115,22,0.22)" },
+  "Time Admin": { bg: "linear-gradient(145deg, rgba(99,102,241,0.24), rgba(79,70,229,0.1))", color: "#818CF8", border: "rgba(129,140,248,0.35)", glow: "0 0 16px rgba(99,102,241,0.22)" },
+  "Settings": { bg: "linear-gradient(145deg, rgba(148,163,184,0.24), rgba(100,116,139,0.1))", color: "#CBD5E1", border: "rgba(203,213,225,0.35)", glow: "0 0 16px rgba(148,163,184,0.18)" },
 };
 
 const navItems = [
@@ -308,9 +308,11 @@ export default function Sidebar() {
                     collapsed ? "justify-center" : ""
                   }`}
                   style={{
-                    background: isActive ? "rgba(29,78,216,0.15)" : "transparent",
-                    color: isActive ? "#2563EB" : "var(--color-text-secondary)",
+                    background: isActive ? "linear-gradient(135deg, rgba(37,99,235,0.22), rgba(30,64,175,0.1))" : "transparent",
+                    color: isActive ? "#93C5FD" : "var(--color-text-secondary)",
                     fontWeight: isActive ? "600" : "400",
+                    border: isActive ? "1px solid rgba(96,165,250,0.35)" : "1px solid transparent",
+                    boxShadow: isActive ? "0 0 22px rgba(37,99,235,0.22), inset 0 0 0 1px rgba(255,255,255,0.02)" : "none",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
@@ -327,10 +329,12 @@ export default function Sidebar() {
                   title={collapsed ? item.label : undefined}
                 >
                   <span
-                    className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+                    className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center"
                     style={{
-                      background: isActive ? "rgba(29,78,216,0.18)" : (iconTone[item.label]?.bg || "rgba(148,163,184,0.12)"),
-                      color: isActive ? "#2563EB" : (iconTone[item.label]?.color || "var(--color-text-secondary)"),
+                      background: isActive ? "linear-gradient(145deg, rgba(59,130,246,0.28), rgba(37,99,235,0.12))" : (iconTone[item.label]?.bg || "rgba(148,163,184,0.12)"),
+                      color: isActive ? "#DBEAFE" : (iconTone[item.label]?.color || "var(--color-text-secondary)"),
+                      border: `1px solid ${isActive ? "rgba(147,197,253,0.45)" : (iconTone[item.label]?.border || "rgba(148,163,184,0.2)")}`,
+                      boxShadow: isActive ? "0 0 20px rgba(59,130,246,0.28)" : (iconTone[item.label]?.glow || "none"),
                     }}
                   >
                     {item.icon}
@@ -391,7 +395,7 @@ export default function Sidebar() {
             title={collapsed ? "QuickBooks" : undefined}
           >
             {/* QuickBooks logo mark */}
-            <span className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(152,205,0,0.16)", color: "#98CD00" }}>
+            <span className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(145deg, rgba(152,205,0,0.26), rgba(107,142,35,0.1))", color: "#98CD00", border: "1px solid rgba(152,205,0,0.35)", boxShadow: "0 0 16px rgba(152,205,0,0.2)" }}>
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "#98CD00" }}>
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
               </svg>
