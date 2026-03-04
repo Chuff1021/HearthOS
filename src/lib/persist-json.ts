@@ -1,8 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const CONFIGURED_DATA_DIR = process.env.HEARTHOS_DATA_DIR?.trim();
+const DATA_DIR = CONFIGURED_DATA_DIR && CONFIGURED_DATA_DIR.length > 0
+  ? CONFIGURED_DATA_DIR
+  : path.join(process.cwd(), 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const LEGACY_DATA_DIR = path.join(process.cwd(), 'data');
 const MEM_KEY = '__hearth_persist_fallback__';
 
 type MemStore = Record<string, unknown>;
@@ -36,7 +40,13 @@ export function readJsonFile<T>(name: string, fallback: T): T {
   }
 
   const file = path.join(DATA_DIR, name);
+  const legacyFile = path.join(LEGACY_DATA_DIR, name);
   try {
+    // One-time migration path when HEARTHOS_DATA_DIR is configured.
+    if (!fs.existsSync(file) && DATA_DIR !== LEGACY_DATA_DIR && fs.existsSync(legacyFile)) {
+      fs.copyFileSync(legacyFile, file);
+    }
+
     if (!fs.existsSync(file)) {
       fs.writeFileSync(file, JSON.stringify(mem[name], null, 2));
       return mem[name] as T;
