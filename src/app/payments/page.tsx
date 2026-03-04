@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -97,6 +97,13 @@ export default function PaymentsPage() {
   const totalReceived = payments.filter(p => p.status === "completed").reduce((sum, p) => sum + p.amount, 0);
   const totalPending = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0);
 
+  const squareDashboardUrl = process.env.NEXT_PUBLIC_SQUARE_DASHBOARD_URL || "https://squareup.com/dashboard";
+  const squareVirtualTerminalUrl = process.env.NEXT_PUBLIC_SQUARE_VIRTUAL_TERMINAL_URL || "https://squareup.com/dashboard/virtual-terminal";
+
+  function openSquare(url: string) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function getStatusColor(status: string) {
     switch (status) {
       case "completed": return "bg-green-500/20 text-green-400";
@@ -135,6 +142,36 @@ export default function PaymentsPage() {
               <button className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
                 Record Payment
               </button>
+            </div>
+
+            {/* Square Quick Actions */}
+            <div
+              className="rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+              style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+            >
+              <div>
+                <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                  Square Payments
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+                  Launch Square from here to take card payments, then track payment records below.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openSquare(squareVirtualTerminalUrl)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                >
+                  Take Payment (Square)
+                </button>
+                <button
+                  onClick={() => openSquare(squareDashboardUrl)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium"
+                  style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                >
+                  Open Square Dashboard
+                </button>
+              </div>
             </div>
 
             {/* Stats */}
