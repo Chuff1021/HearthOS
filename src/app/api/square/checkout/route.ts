@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { upsertSquarePayment } from "@/lib/square-payment-store";
 
 const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || "production";
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
@@ -79,11 +80,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const orderId = data?.payment_link?.order_id as string | undefined;
+
+    upsertSquarePayment({
+      id: String(data?.payment_link?.id || crypto.randomUUID()),
+      status: 'PENDING',
+      amount,
+      currency: 'USD',
+      customerName,
+      invoiceNumber,
+      sourceType: 'CARD',
+      orderId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      raw: data,
+    });
+
     return NextResponse.json({
       ok: true,
       paymentLinkId: data?.payment_link?.id,
       url: data?.payment_link?.url,
-      orderId: data?.payment_link?.order_id,
+      orderId,
     });
   } catch (err) {
     return NextResponse.json(

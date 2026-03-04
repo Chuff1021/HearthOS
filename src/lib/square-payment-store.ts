@@ -31,3 +31,23 @@ export function upsertSquarePayment(payment: StoredSquarePayment) {
   }
   writeJsonFileWithBackup(FILE, list.slice(0, 1000));
 }
+
+export function upsertSquarePaymentByOrderId(
+  orderId: string,
+  patch: Partial<StoredSquarePayment> & { id: string; createdAt: string; updatedAt: string }
+) {
+  const list = listSquarePayments();
+  const idx = list.findIndex((p) => p.orderId === orderId || p.id === patch.id);
+  if (idx >= 0) {
+    list[idx] = {
+      ...list[idx],
+      ...patch,
+      id: patch.id || list[idx].id,
+      orderId: orderId || list[idx].orderId,
+      updatedAt: new Date().toISOString(),
+    } as StoredSquarePayment;
+  } else {
+    list.unshift({ ...patch, orderId } as StoredSquarePayment);
+  }
+  writeJsonFileWithBackup(FILE, list.slice(0, 1000));
+}

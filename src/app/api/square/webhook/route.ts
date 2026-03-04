@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { upsertSquarePayment } from '@/lib/square-payment-store';
+import { upsertSquarePayment, upsertSquarePaymentByOrderId } from '@/lib/square-payment-store';
 
 const SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 const WEBHOOK_URL = process.env.SQUARE_WEBHOOK_URL;
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       const updatedAt = payment?.updated_at || new Date().toISOString();
       const createdAt = payment?.created_at || updatedAt;
 
-      upsertSquarePayment({
+      const patch = {
         id: payment.id,
         status,
         amount,
@@ -58,7 +58,13 @@ export async function POST(request: NextRequest) {
         createdAt,
         updatedAt,
         raw: payload,
-      });
+      };
+
+      if (payment?.order_id) {
+        upsertSquarePaymentByOrderId(payment.order_id, patch);
+      } else {
+        upsertSquarePayment(patch);
+      }
     }
 
     return NextResponse.json({ ok: true });

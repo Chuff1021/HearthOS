@@ -161,6 +161,15 @@ export default function PaymentsPage() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const amount = Number(params.get("amount") || 0);
+    const customer = params.get("customer") || "";
+    const invoice = params.get("invoice") || "";
+
+    if (amount > 0) setCheckoutAmount(amount);
+    if (customer) setCheckoutCustomer(customer);
+    if (invoice) setCheckoutInvoice(invoice);
+
     loadSquareTransactions();
     const t = setInterval(loadSquareTransactions, 30000);
     return () => clearInterval(t);

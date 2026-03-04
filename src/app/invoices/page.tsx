@@ -324,6 +324,16 @@ export default function InvoicesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handlePayNow = (invoice: Invoice) => {
+    const amount = invoice.balance > 0 ? invoice.balance : invoice.totalAmount;
+    const q = new URLSearchParams({
+      amount: String(Number(amount.toFixed(2))),
+      customer: invoice.customerName,
+      invoice: invoice.invoiceNumber,
+    });
+    window.location.href = `/payments?${q.toString()}`;
+  };
+
   const handleSaveInvoiceEdits = async () => {
     if (!selectedInvoice) return;
     try {
@@ -750,6 +760,15 @@ export default function InvoicesPage() {
                       Download
                     </button>
                   </div>
+                  {selectedInvoice.balance > 0 && (
+                    <button
+                      onClick={() => handlePayNow(selectedInvoice)}
+                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
+                      style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", color: "white" }}
+                    >
+                      Pay Now (Square)
+                    </button>
+                  )}
                   {selectedInvoice.status === "draft" && (
                     <button
                       onClick={() => handleUpdateStatus(selectedInvoice.id, "sent")}
