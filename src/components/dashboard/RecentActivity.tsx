@@ -1,230 +1,201 @@
 "use client";
 
-const activities = [
-  {
-    id: 1,
-    iconBg: "rgba(152,205,0,0.12)",
-    iconColor: "#98CD00",
-    title: "Job completed",
-    desc: "JOB-2026-00142 · Mike Johnson",
-    sub: "Dave Torres · 3 min ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 2,
-    iconBg: "rgba(29,78,216,0.12)",
-    iconColor: "#2563EB",
-    title: "Payment received",
-    desc: "$1,840 · Invoice #INV-00891",
-    sub: "Linda Martinez · 18 min ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-        <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 3,
-    iconBg: "rgba(37,99,235,0.12)",
-    iconColor: "#2563EB",
-    title: "12 photos uploaded",
-    desc: "JOB-2026-00142 · Install complete",
-    sub: "Dave Torres · 22 min ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 4,
-    iconBg: "rgba(255,68,0,0.12)",
-    iconColor: "#FF4400",
-    title: "Tech en route",
-    desc: "Amy Walsh → Robert Chen",
-    sub: "ETA 11 min · 11:00 AM job",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
-      </svg>
-    ),
-  },
-  {
-    id: 5,
-    iconBg: "rgba(29,78,216,0.12)",
-    iconColor: "#2563EB",
-    title: "Estimate approved",
-    desc: "$3,200 · Patricia Williams",
-    sub: "Customer signed · 45 min ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 6,
-    iconBg: "rgba(255,32,78,0.12)",
-    iconColor: "#FF204E",
-    title: "Checklist flagged",
-    desc: "JOB-2026-00143 · Missing gas photo",
-    sub: "Needs review · 1h ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 7,
-    iconBg: "rgba(255,32,78,0.12)",
-    iconColor: "#FF204E",
-    title: "Callback scheduled",
-    desc: "Tom Bradley · Igniter issue",
-    sub: "JOB-2026-00146 · 2:30 PM today",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 8,
-    iconBg: "rgba(148,163,184,0.1)",
-    iconColor: "#94a3b8",
-    title: "Invoice sent",
-    desc: "$920 · Robert Chen",
-    sub: "INV-00892 · 2h ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 9,
-    iconBg: "rgba(152,205,0,0.12)",
-    iconColor: "#98CD00",
-    title: "New customer added",
-    desc: "Susan Park · Westfield",
-    sub: "Office · 2h ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-      </svg>
-    ),
-  },
-  {
-    id: 10,
-    iconBg: "rgba(37,99,235,0.12)",
-    iconColor: "#2563EB",
-    title: "QB Invoice synced",
-    desc: "INV-00891 → QuickBooks",
-    sub: "Auto-synced · 3h ago",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-];
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type ActivityItem = {
+  id: string;
+  title: string;
+  desc: string;
+  sub: string;
+  at: string;
+  href: string;
+  details?: Record<string, unknown>;
+  iconBg: string;
+  iconColor: string;
+  icon: ReactNode;
+};
+
+function timeAgo(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diffMs / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
 
 export default function RecentActivity() {
+  const [items, setItems] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<ActivityItem | null>(null);
+  const router = useRouter();
+
+  async function loadActivity() {
+    setLoading(true);
+    try {
+      const [jobsRes, invoicesRes, customersRes, payRes] = await Promise.all([
+        fetch("/api/jobs?limit=10", { cache: "no-store" }),
+        fetch("/api/invoices", { cache: "no-store" }),
+        fetch("/api/customers", { cache: "no-store" }),
+        fetch("/api/square/transactions?limit=10", { cache: "no-store" }),
+      ]);
+
+      const [jobsData, invData, custData, payData] = await Promise.all([
+        jobsRes.json(),
+        invoicesRes.json(),
+        customersRes.json(),
+        payRes.json(),
+      ]);
+
+      const jobs = (jobsData.jobs || []).map((j: any) => ({
+        id: `job-${j.id}`,
+        title: `Job ${String(j.status || "scheduled").replace("_", " ")}`,
+        desc: `${j.jobNumber || j.id} · ${j.title || "Job"}`,
+        sub: `${j.customerName || "Customer"} · ${timeAgo(j.updatedAt || j.createdAt || new Date().toISOString())}`,
+        at: j.updatedAt || j.createdAt || new Date().toISOString(),
+        href: "/jobs",
+        details: j,
+        iconBg: "rgba(37,99,235,0.12)",
+        iconColor: "#2563EB",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2z" clipRule="evenodd" />
+          </svg>
+        ),
+      }));
+
+      const invoices = (invData.invoices || []).map((i: any) => ({
+        id: `inv-${i.id}`,
+        title: `Invoice ${i.status || "updated"}`,
+        desc: `${i.invoiceNumber || i.id} · $${Number(i.totalAmount || 0).toFixed(2)}`,
+        sub: `${i.customerName || "Customer"} · ${timeAgo(i.updatedAt || i.createdAt || new Date().toISOString())}`,
+        at: i.updatedAt || i.createdAt || new Date().toISOString(),
+        href: "/invoices",
+        details: i,
+        iconBg: "rgba(14,165,233,0.12)",
+        iconColor: "#0EA5E9",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+          </svg>
+        ),
+      }));
+
+      const customers = (custData.customers || []).map((c: any) => ({
+        id: `cust-${c.id}`,
+        title: "Customer record",
+        desc: `${c.displayName || c.id}`,
+        sub: `${c.email || c.phone || "Profile updated"} · ${timeAgo(c.updatedAt || c.createdAt || new Date().toISOString())}`,
+        at: c.updatedAt || c.createdAt || new Date().toISOString(),
+        href: "/customers",
+        details: c,
+        iconBg: "rgba(168,85,247,0.12)",
+        iconColor: "#A855F7",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6z" />
+          </svg>
+        ),
+      }));
+
+      const payments = (payData.payments || []).map((p: any) => ({
+        id: `pay-${p.id}`,
+        title: `Payment ${p.status || "pending"}`,
+        desc: `${p.invoiceNumber || p.orderId || p.id} · $${Number(p.amount || 0).toFixed(2)}`,
+        sub: `${p.customerName || "Square Customer"} · ${timeAgo(p.paymentDate || new Date().toISOString())}`,
+        at: p.paymentDate || new Date().toISOString(),
+        href: "/payments",
+        details: p,
+        iconBg: "rgba(34,197,94,0.12)",
+        iconColor: "#22C55E",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9z" clipRule="evenodd" />
+          </svg>
+        ),
+      }));
+
+      const merged = [...jobs, ...invoices, ...customers, ...payments]
+        .sort((a, b) => +new Date(b.at) - +new Date(a.at))
+        .slice(0, 20);
+
+      setItems(merged);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadActivity();
+    const t = setInterval(loadActivity, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const hasData = useMemo(() => items.length > 0, [items]);
+
   return (
-    <div
-      className="rounded-xl overflow-hidden h-full flex flex-col"
-      style={{
-        background: "var(--color-surface-2)",
-        border: "1px solid var(--color-border)",
-      }}
-    >
-      {/* Header */}
-      <div
-        className="px-5 py-4 flex items-center justify-between flex-shrink-0"
-        style={{ borderBottom: "1px solid var(--color-border)" }}
-      >
-        <div>
-          <h2 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>
-            Activity Feed
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-            Live updates
-          </p>
+    <>
+      <div className="rounded-xl overflow-hidden h-full flex flex-col" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+        <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div>
+            <h2 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>Activity Feed</h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>Live updates from real data</p>
+          </div>
+          <button onClick={loadActivity} className="text-xs px-2 py-1 rounded" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>Refresh</button>
         </div>
-        <span
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
-          style={{
-            background: "rgba(152,205,0,0.1)",
-            color: "#98CD00",
-            border: "1px solid rgba(152,205,0,0.2)",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
-          Live
-        </span>
+
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          {loading ? (
+            <div className="px-5 py-8 text-sm" style={{ color: "var(--color-text-muted)" }}>Loading activity…</div>
+          ) : !hasData ? (
+            <div className="px-5 py-8 text-sm" style={{ color: "var(--color-text-muted)" }}>No activity yet. Create jobs/customers/invoices/payments to populate this feed.</div>
+          ) : (
+            items.map((activity, idx) => (
+              <div
+                key={activity.id}
+                className="flex items-start gap-3 px-5 py-3 cursor-pointer transition-all"
+                style={{ borderBottom: idx < items.length - 1 ? "1px solid var(--color-border)" : "none" }}
+                onClick={() => setSelected(activity)}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: activity.iconBg, color: activity.iconColor }}>
+                  {activity.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium leading-tight" style={{ color: "var(--color-text-primary)" }}>{activity.title}</div>
+                  <div className="text-xs mt-0.5 truncate" style={{ color: "var(--color-text-secondary)" }}>{activity.desc}</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{activity.sub}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Activity list */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        {activities.map((activity, idx) => (
-          <div
-            key={activity.id}
-            className="flex items-start gap-3 px-5 py-3 cursor-pointer transition-all"
-            style={{
-              borderBottom: idx < activities.length - 1 ? "1px solid var(--color-border)" : "none",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-3)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.background = "transparent";
-            }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: activity.iconBg, color: activity.iconColor }}
-            >
-              {activity.icon}
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{selected.title}</h3>
+                <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selected.desc}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{new Date(selected.at).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>✕</button>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium leading-tight" style={{ color: "var(--color-text-primary)" }}>
-                {activity.title}
-              </div>
-              <div className="text-xs mt-0.5 truncate" style={{ color: "var(--color-text-secondary)" }}>
-                {activity.desc}
-              </div>
-              <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                {activity.sub}
-              </div>
+            <div className="mt-4 rounded-lg p-3 text-xs overflow-auto max-h-64" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+              <pre>{JSON.stringify(selected.details || {}, null, 2)}</pre>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setSelected(null)} className="px-3 py-1.5 rounded text-sm" style={{ border: "1px solid var(--color-border)" }}>Close</button>
+              <button onClick={() => router.push(selected.href)} className="px-3 py-1.5 rounded text-sm text-white" style={{ background: "#2563EB" }}>Open Page</button>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div
-        className="px-5 py-3 flex-shrink-0"
-        style={{
-          borderTop: "1px solid var(--color-border)",
-          background: "var(--color-surface-1)",
-        }}
-      >
-        <button
-          className="text-xs font-medium w-full text-center transition-colors"
-          style={{ color: "#2563EB" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#2563EB")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#2563EB")}
-        >
-          View all activity →
-        </button>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
