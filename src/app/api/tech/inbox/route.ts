@@ -9,27 +9,51 @@ export async function GET(request: NextRequest) {
     const requestedEmail = searchParams.get('email')?.toLowerCase();
 
     let email = requestedEmail;
-    if (!email) {
-      const { userId } = await auth();
-      if (userId) {
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        email = user.primaryEmailAddress?.emailAddress?.toLowerCase();
-      }
+    let linkedTechId: string | undefined;
+    let userName = '';
+
+    const { userId } = await auth();
+    if (userId) {
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      email = email || user.primaryEmailAddress?.emailAddress?.toLowerCase();
+      linkedTechId = user.unsafeMetadata?.techId as string | undefined;
+      userName = user.fullName || user.firstName || '';
     }
 
     const techs = getTechs();
-    const tech = email ? techs.find((t) => (t.email || '').toLowerCase() === email) : null;
+    let tech = linkedTechId ? techs.find((t) => t.id === linkedTechId) : null;
+
+    if (!tech && email) {
+      tech = techs.find((t) => (t.email || '').toLowerCase() === email) || null;
+    }
+
+    if (!tech && userName) {
+      const nameLower = userName.toLowerCase();
+      tech = techs.find((t) => {
+        const tName = String(t.name || '').toLowerCase();
+        return tName === nameLower || nameLower.includes(tName.split(' ')[0] || '');
+      }) || null;
+    }
 
     if (!tech) {
       return NextResponse.json({
         todos: [],
         unresolved: true,
-        reason: email ? `No team member found for ${email}` : 'No signed-in user email found',
+        reason: email ? `No team member found for ${email}` : 'No signed-in user mapping found',
       });
     }
 
-    const todos = getTodos({ assignedTo: tech.id });
+    const todosById = getTodos({ assignedTo: tech.id });
+    const todosByName = getTodos().filter((t) =>
+      !!t.assignedToName && t.assignedToName.toLowerCase() === String(tech!.name || '').toLowerCase()
+    );
+    const seen = new Set<string>();
+    const todos = [...todosById, ...todosByName].filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
     return NextResponse.json({
       tech: { id: tech.id, name: tech.name, email: tech.email },
       todos,
