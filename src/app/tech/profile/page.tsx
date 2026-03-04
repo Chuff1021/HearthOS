@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [techId, setTechId] = useState<string>("");
   const [requestType, setRequestType] = useState<"paid_vacation" | "unpaid_vacation" | "unpaid_appointment_time">("paid_vacation");
@@ -24,8 +25,7 @@ export default function ProfilePage() {
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
-    // Sign out and redirect to sign-in page
-    window.location.href = "/sign-out";
+    await signOut({ redirectUrl: "/sign-in" });
   };
 
   // Use Clerk user data if available, otherwise use mock data
