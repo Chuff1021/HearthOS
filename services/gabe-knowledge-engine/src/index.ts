@@ -310,6 +310,8 @@ async function finalizeThroughGate(params: {
     const formatted = composeValidatedResponse(safeVerdict.answer) as any;
     if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
       formatted.raw_internal_response = safeVerdict.answer;
+      formatted.rejected_answer = params.answer;
+      formatted.rejected_reason = verdict.reason;
     }
     return formatted;
   }
