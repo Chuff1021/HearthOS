@@ -95,8 +95,58 @@ app.post("/ingest/manual", async (request, reply) => {
   return { ok: true, chunks: points.length };
 });
 
-app.post("/ingest/dimensions", async (request, reply) => {
-  const body = request.body as { dimensions: DimensionRecord[] };
+app.post("/ingest/diagrams", async (request, reply) => {
+  const body = request.body as {
+    diagrams: Array<{
+      brand: string;
+      model: string;
+      diagram_type: string;
+      page: number;
+      manual_url: string;
+      image_path: string;
+      structured_data: Record<string, unknown>;
+      source_text?: string;
+    }>;
+  };
+
+  if (!Array.isArray(body?.diagrams) || body.diagrams.length === 0) {
+    return reply.status(400).send({ error: "diagrams[] required" });
+  }
+
+  const texts = body.diagrams.map((d) => {
+    const sd = JSON.stringify(d.structured_data || {});
+    return `${d.brand} ${d.model} ${d.diagram_type} page ${d.page} ${sd} ${d.source_text || ""}`;
+  });
+  const vectors = await embed(texts);
+  await ensureCollection(vectors[0].length, env.QDRANT_DIAGRAM_COLLECTION);
+
+  const points = body.diagrams.map((d, i) => ({
+    id: stableUuid(`${d.manual_url}|${d.page}|${d.image_path}|${d.diagram_type}`),
+    vector: vectors[i],
+    payload: {
+      brand: d.brand,
+      manufacturer: d.brand,
+      model: d.model,
+      diagram_type: d.diagram_type,
+      page: d.page,
+      page_number: d.page,
+      manual_url: d.manual_url,
+      source_url: d.manual_url,
+      image_path: d.image_path,
+      structured_data: d.structured_data,
+      text: texts[i],
+      chunk_text: texts[i],
+      section_title: d.diagram_type,
+      doc_type: "diagram",
+      source_type: "manual"
+    }
+  }));
+
+  await qdrant.upsert(env.QDRANT_DIAGRAM_COLLECTION, { wait: true, points });
+  return { ok: true, diagrams: points.length };
+});
+
+app.post("/ingest/dimensions", async (request, reply) => {  const body = request.body as { dimensions: DimensionRecord[] };
   if (!Array.isArray(body?.dimensions) || body.dimensions.length === 0) {
     return reply.status(400).send({ error: "dimensions[] required" });
   }
