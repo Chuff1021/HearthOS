@@ -35,9 +35,10 @@ export async function POST(request: NextRequest) {
       };
       techId?: string;
       techName?: string;
+      techEmail?: string;
     };
 
-    const { messages, jobContext, techId, techName } = body;
+    const { messages, jobContext, techId, techName, techEmail } = body;
     const jobId = jobContext?.jobId;
     const jobNumber = jobContext?.jobId ? `JOB-2026-${jobContext.jobId.split("-").pop()}` : undefined;
 
@@ -72,9 +73,10 @@ export async function POST(request: NextRequest) {
         const assistantMessage = data?.answer ?? data?.message ?? "";
 
         try {
-          const saved = saveGabeMessage({
+          const saved = await saveGabeMessage({
             techId,
             techName,
+            techEmail,
             jobId,
             jobNumber,
             customerName: jobContext?.customerName,
@@ -186,9 +188,10 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 Would you like help with a specific fireplace model or issue?`;
 
       try {
-        const saved = saveGabeMessage({
+        const saved = await saveGabeMessage({
           techId,
           techName,
+          techEmail,
           jobId,
           jobNumber,
           customerName: jobContext?.customerName,
@@ -293,9 +296,10 @@ Would you like help with a specific fireplace model or issue?`;
     }
 
     try {
-      const saved = saveGabeMessage({
+      const saved = await saveGabeMessage({
         techId,
         techName,
+        techEmail,
         jobId,
         jobNumber,
         customerName: jobContext?.customerName,

@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
 
     // If requesting stats
     if (searchParams.get("stats") === "true") {
-      const stats = getGabeMessageStats();
+      const stats = await getGabeMessageStats();
       return NextResponse.json(stats);
     }
 
     // If requesting a specific message
     const id = searchParams.get("id");
     if (id) {
-      const message = getGabeMessageById(id);
+      const message = await getGabeMessageById(id);
       if (!message) {
         return NextResponse.json({ error: "Message not found" }, { status: 404 });
       }
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get filtered messages
-    const messages = getGabeMessages(filters);
+    const messages = await getGabeMessages(filters);
     return NextResponse.json({ messages });
   } catch (err) {
     console.error("Failed to get GABE messages:", err);
@@ -53,9 +53,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const newMessage = saveGabeMessage({
+    const newMessage = await saveGabeMessage({
       techId: body.techId,
       techName: body.techName,
+      techEmail: body.techEmail,
       jobId: body.jobId,
       jobNumber: body.jobNumber,
       customerName: body.customerName,
@@ -91,7 +92,7 @@ export async function PUT(request: NextRequest) {
 
     // Handle flagging
     if (body.flag && body.flagReason) {
-      const flagged = flagGabeMessage(id, body.flagReason);
+      const flagged = await flagGabeMessage(id, body.flagReason);
       if (!flagged) {
         return NextResponse.json({ error: "Message not found" }, { status: 404 });
       }
@@ -99,7 +100,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Handle regular updates
-    const updated = updateGabeMessage(id, updates);
+    const updated = await updateGabeMessage(id, updates);
     if (!updated) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
@@ -121,7 +122,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Message ID required" }, { status: 400 });
     }
 
-    const deleted = deleteGabeMessage(id);
+    const deleted = await deleteGabeMessage(id);
     if (!deleted) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
