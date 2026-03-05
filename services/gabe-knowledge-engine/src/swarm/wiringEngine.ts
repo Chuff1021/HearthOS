@@ -7,6 +7,7 @@ export type WiringRecord = {
   model: string;
   canonical_components: string[];
   synonyms: Record<string, string[]>;
+  power_source?: string;
   edges: WiringEdge[];
   source_page: number | null;
   source_url: string;
@@ -47,20 +48,39 @@ export function extractWiringRecords(chunks: RetrievedChunk[]): WiringRecord[] {
     const comps = Object.keys(WIRING_ONTOLOGY).filter((k) => WIRING_ONTOLOGY[k].some((s) => lc.includes(s)));
     const edges: WiringEdge[] = [];
     const has = (x: string) => comps.includes(x);
-    if (has('wall switch') && has('control module')) edges.push({ from: 'wall switch', to: 'control module' });
-    if (has('transformer') && has('control module')) edges.push({ from: 'transformer', to: 'control module' });
-    if (has('receiver') && has('control module')) edges.push({ from: 'receiver', to: 'control module' });
-    if (has('control module') && has('gas valve')) edges.push({ from: 'control module', to: 'gas valve' });
+    const addEdge = (from: string, to: string, note?: string) => {
+      if (!edges.some((e) => e.from === from && e.to === to)) edges.push({ from, to, note });
+    };
+
+    if (has('wall switch') && has('control module')) addEdge('wall switch', 'control module');
+    if (has('transformer') && has('control module')) addEdge('transformer', 'control module');
+    if (has('receiver') && has('control module')) addEdge('receiver', 'control module');
+    if (has('control module') && has('gas valve')) addEdge('control module', 'gas valve');
+
+    // Deeper edge extraction from relation language (not just co-occurrence)
+    if (/transformer[^.]{0,100}(connect|wire|feed|to)[^.]{0,100}(control module|ifc|module)/i.test(text)) addEdge('transformer', 'control module', 'relation_text');
+    if (/(receiver|ifc)[^.]{0,100}(connect|wire|to)[^.]{0,100}(control module|module)/i.test(text)) addEdge('receiver', 'control module', 'relation_text');
+    if (/(control module|ifc|module)[^.]{0,100}(connect|output|to|drives)[^.]{0,100}(gas valve|valve)/i.test(text)) addEdge('control module', 'gas valve', 'relation_text');
+    if (/(wall switch|switch)[^.]{0,100}(connect|wire|to)[^.]{0,100}(control module|ifc|module)/i.test(text)) addEdge('wall switch', 'control module', 'relation_text');
+
+    const powerSource = /battery/i.test(text)
+      ? 'battery pack'
+      : /transformer|24v/i.test(text)
+        ? 'transformer'
+        : /power supply/i.test(text)
+          ? 'power supply'
+          : undefined;
 
     if (comps.length === 0 || edges.length === 0) continue;
 
-    const confidence = Math.min(96, 55 + comps.length * 5 + edges.length * 9 + (c.score > 0.8 ? 8 : 0));
+    const confidence = Math.min(96, 55 + comps.length * 5 + edges.length * 9 + (powerSource ? 4 : 0) + (c.score > 0.8 ? 8 : 0));
     out.push({
       record_id: `${c.source_url}|${c.page_number}|${c.manual_title}`,
       manual_title: c.manual_title,
       model: c.model || c.manual_title || 'unknown',
       canonical_components: comps,
       synonyms: WIRING_ONTOLOGY,
+      power_source: powerSource,
       edges,
       source_page: c.page_number ?? null,
       source_url: c.source_url,
@@ -116,8 +136,10 @@ export function buildWiringAnswerFromRecord(record: WiringRecord, question: stri
   let answer = `Wiring connection path: ${formatEdges(aggregateEdges)}.`;
 
   if (qtype === 'power_source' || qtype === 'transformer_relationship') {
+    const inferredSource = record.power_source || allRecords.find((r) => r.power_source)?.power_source;
     if (!hasEdge('transformer', 'control module')) missing.push('transformer->control module edge');
-    answer = `Transformer relationship: transformer -> control module${hasEdge('transformer', 'control module') ? '' : ' not verified from structured wiring record'}.`;
+    if (!inferredSource) missing.push('power_source');
+    answer = `Power source relationship: ${inferredSource || 'not verified'} -> control module${hasEdge('transformer', 'control module') ? '' : ' (transformer edge not verified)'}.`;
   } else if (qtype === 'receiver_ifc_relationship') {
     if (!hasEdge('receiver', 'control module')) missing.push('receiver/IFC->control module edge');
     answer = `Receiver/IFC relationship: receiver (IFC) -> control module${hasEdge('receiver', 'control module') ? '' : ' not verified from structured wiring record'}.`;
@@ -133,7 +155,8 @@ export function buildWiringAnswerFromRecord(record: WiringRecord, question: stri
     const components = Array.from(new Set([record, ...allRecords].flatMap((r) => r.canonical_components)));
     answer = `Canonical wiring components: ${components.join(', ')}.`;
   } else if (qtype === 'full_path_summary') {
-    const full = buildFullPath(aggregateEdges);
+    const inferredSource = record.power_source || allRecords.find((r) => r.power_source)?.power_source || (hasEdge('transformer', 'control module') ? 'transformer' : undefined);
+    const full = buildFullPath(aggregateEdges, inferredSource);
     if (!full) missing.push('multi-edge power-to-valve path');
     answer = `Full path summary (power to valve): ${full || 'not verified from structured wiring records'}.`;
   } else if (qtype === 'connection_path') {
@@ -167,14 +190,22 @@ function mergeEdges(records: WiringRecord[]) {
   return [...map.values()];
 }
 
-function buildFullPath(edges: WiringEdge[]) {
+function buildFullPath(edges: WiringEdge[], powerSource?: string) {
   const has = (f: string, t: string) => edges.some((e) => e.from === f && e.to === t);
   const parts: string[] = [];
   if (has('transformer', 'control module')) parts.push('transformer -> control module');
   else if (has('wall switch', 'control module')) parts.push('wall switch -> control module');
+
   if (has('receiver', 'control module')) parts.push('receiver/IFC -> control module');
   if (has('control module', 'gas valve')) parts.push('control module -> gas valve');
-  return parts.length >= 2 ? parts.join(' -> ') : null;
+
+  if (parts.length >= 2) {
+    if (powerSource && !parts[0].startsWith(powerSource)) {
+      return `${powerSource} -> ${parts.join(' -> ')}`;
+    }
+    return parts.join(' -> ');
+  }
+  return null;
 }
 
 function formatEdges(edges: WiringEdge[]) {
