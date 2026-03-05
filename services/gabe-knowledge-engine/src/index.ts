@@ -349,7 +349,7 @@ app.post("/query", async (request, reply) => {
   ]);
 
   const framingDirect = tryDirectFramingLookup(body.question, keywordResults);
-  if (framingDirect) return await finalizeThroughGate({ question: body.question, answer: framingDirect, retrieved: [framingDirect] });
+  if (framingDirect && directFraming) return await finalizeThroughGate({ question: body.question, answer: framingDirect, retrieved: [directFraming] });
 
   const hybridResults = fuseHybridResults(
     [...vectorResults, ...diagramVector, ...qaMemoryVector],
