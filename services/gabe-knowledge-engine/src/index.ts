@@ -314,9 +314,9 @@ async function finalizeThroughGate(params: {
     return formatted;
   }
 
-  const fallback: any = safe;
+  const fallback: any = { ...safe };
   if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
-    fallback.raw_internal_response = safe;
+    fallback.raw_internal_response = { ...safe };
   }
   return fallback;
 }
