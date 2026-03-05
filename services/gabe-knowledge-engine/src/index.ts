@@ -274,7 +274,11 @@ async function finalizeThroughGate(params: {
       validator_notes: (verdict.answer as any).validator_notes || [],
       evidencePacket: params.evidencePacket,
     });
-    return composeValidatedResponse(verdict.answer);
+    const formatted = composeValidatedResponse(verdict.answer) as any;
+    if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
+      formatted.raw_internal_response = verdict.answer;
+    }
+    return formatted;
   }
 
   const safe = hardNone(`hard_gate_reject:${verdict.reason}`);
@@ -288,7 +292,11 @@ async function finalizeThroughGate(params: {
       evidencePacket: params.evidencePacket,
       blocked_unverified: true,
     });
-    return composeValidatedResponse(safeVerdict.answer);
+    const formatted = composeValidatedResponse(safeVerdict.answer) as any;
+    if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
+      formatted.raw_internal_response = safeVerdict.answer;
+    }
+    return formatted;
   }
 
   return safe;

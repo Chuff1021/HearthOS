@@ -13,6 +13,11 @@ services:
       - ./services/gabe-knowledge-engine/.env.example
     environment:
       - HEARTHOS_DATA_DIR=/var/lib/hearthos-data/gabe
+      - ENGINE_BUILD_ID=${ENGINE_BUILD_ID:-unknown}
+      - ENGINE_COMMIT_SHA=${ENGINE_COMMIT_SHA:-unknown}
+      - ENGINE_RUNTIME_NAME=${ENGINE_RUNTIME_NAME:-gabe-knowledge-engine}
+      - VENT_TEMPLATE_ACTIVE=${VENT_TEMPLATE_ACTIVE:-false}
+      - DIAGNOSTIC_RAW_ENABLED=${DIAGNOSTIC_RAW_ENABLED:-false}
     ports:
       - "4100:4100"
     volumes:
