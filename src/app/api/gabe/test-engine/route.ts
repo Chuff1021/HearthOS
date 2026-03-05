@@ -75,12 +75,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.max(1, Math.min(20, Number(searchParams.get('limit') || DEFAULT_CASES.length)));
+    const categoryFilter = (searchParams.get('category') || '').trim().toLowerCase();
     const engine = process.env.GABE_ENGINE_URL;
     if (!engine) {
       return NextResponse.json({ error: 'GABE_ENGINE_URL is required' }, { status: 500 });
     }
 
-    const cases = DEFAULT_CASES.slice(0, limit);
+    const pool = categoryFilter
+      ? DEFAULT_CASES.filter((c) => c.category.toLowerCase() === categoryFilter)
+      : DEFAULT_CASES;
+    const cases = pool.slice(0, limit);
     const results: any[] = [];
 
     for (const tc of cases) {

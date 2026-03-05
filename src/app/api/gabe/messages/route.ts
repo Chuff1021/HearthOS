@@ -105,6 +105,30 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
 
+    if (body.verdict && ['correct','incorrect','needs correction'].includes(body.verdict)) {
+      try {
+        const base = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+        const lastUser = (updated.messages || []).filter((m) => m.role === 'user').slice(-1)[0]?.content || '';
+        const lastAssistant = (updated.messages || []).filter((m) => m.role === 'assistant').slice(-1)[0]?.content || '';
+        await fetch(`${base.replace(/\/$/, '')}/api/gabe/qa-memory`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            question: lastUser,
+            normalizedQuestion: lastUser,
+            model: updated.fireplace || updated.jobNumber || undefined,
+            answer: lastAssistant,
+            sourceUrls: [],
+            sourcePages: [],
+            verdict: body.verdict,
+            technicianNotes: body.technicianNotes || updated.flagReason || '',
+          }),
+        });
+      } catch {
+        // non-fatal
+      }
+    }
+
     return NextResponse.json({ message: updated });
   } catch (err) {
     console.error("Failed to update GABE message:", err);

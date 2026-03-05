@@ -20,6 +20,7 @@ import { buildEvidencePacket } from "./swarm/evidenceBuilder";
 import { composeValidatedResponse } from "./swarm/responseComposer";
 import { appendRunMetadata } from "./swarm/runMetadata";
 import { expandPartTerms } from "./swarm/partAliases";
+import { extractVentRule, extractWiringGraph, normalizePartNumbers } from "./swarm/structuredTech";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
