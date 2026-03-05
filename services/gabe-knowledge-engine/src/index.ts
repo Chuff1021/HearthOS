@@ -11,6 +11,7 @@ import { RetrievedChunk } from "./types";
 import { stableUuid } from "./ingest/ids";
 import { retryAsync } from "./ingest/retry";
 import { queryDimensionsByModelTopic, upsertDimensions } from "./ingest/dimensionsStore";
+import { searchWebHints } from "./retrieval/web";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -144,8 +145,10 @@ app.post("/query", async (request, reply) => {
     if (fast) return fast;
   }
 
+  const webHints = await searchWebHints(body.question);
+
   const [queryVector] = await embed([body.question]);
-  const keywordTerms = buildKeywordTerms(body.question);
+  const keywordTerms = buildKeywordTerms(body.question, webHints.terms);
 
   const [vectorResults, keywordResults] = await Promise.all([
     searchManualChunks(queryVector, 80),
@@ -171,14 +174,14 @@ app.post("/query", async (request, reply) => {
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
-    return unavailable("insufficient_evidence", body.question);
+    return unavailable("insufficient_evidence", body.question, webHints.top);
   }
 
   const chosenChunk = selectedChunks[0];
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
-    return unavailable("semantic_mismatch", body.question);
+    return unavailable("semantic_mismatch", body.question, webHints.top);
   }
 
   const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
@@ -194,7 +197,7 @@ app.post("/query", async (request, reply) => {
     request.log.error({ err }, "GABE answer validation failed; falling back to extractive answer");
     const fallback = buildExtractiveAnswer(body.question, chosenChunk);
     if (fallback) return fallback;
-    return unavailable("validation_failed", body.question);
+    return unavailable("validation_failed", body.question, webHints.top);
   }
 });
 
@@ -306,8 +309,25 @@ function tryDirectFramingLookup(question: string, keywordResults: RetrievedChunk
   return fast;
 }
 
-function unavailable(reason: string, question?: string) {
+function unavailable(
+  reason: string,
+  question?: string,
+  webHint?: { title: string; url: string; snippet: string }
+) {
   if (reason === "validation_failed") metrics.gabe_missing_citation_total += 1;
+
+  // Directional web fallback when manual evidence is insufficient.
+  if (webHint && (reason === "insufficient_evidence" || reason === "semantic_mismatch")) {
+    return {
+      answer: `I couldn't verify this in loaded manufacturer manuals yet. Web direction: ${webHint.title}. I can use this to guide next lookup, but final technical steps should be manual-verified.`,
+      source_type: "web" as const,
+      url: webHint.url,
+      section: "web_search",
+      quote: webHint.snippet || webHint.title,
+      confidence: 35
+    };
+  }
+
   const guided = buildGuidedFallbackAnswer(reason, question || "");
   return {
     answer: guided,
@@ -730,7 +750,7 @@ function isTechnicalQuestion(q: string) {
   return technicalTerms.some((t) => q.includes(t));
 }
 
-function buildKeywordTerms(question: string) {
+function buildKeywordTerms(question: string, extraTerms: string[] = []) {
   const q = question.toLowerCase();
   const terms = new Set<string>();
   const airTerms = ["outside air", "combustion air", "air intake", "outside combustion air", "oak"];
@@ -742,6 +762,9 @@ function buildKeywordTerms(question: string) {
   brandHints.forEach((b) => terms.add(b));
   tokens.forEach((t) => {
     if (t.length >= 3) terms.add(t);
+  });
+  extraTerms.forEach((t) => {
+    if (t && t.length >= 3) terms.add(t.toLowerCase());
   });
 
   return Array.from(terms);

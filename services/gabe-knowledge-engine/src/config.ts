@@ -11,6 +11,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   JINA_API_KEY: z.string().optional(),
   BRAVE_API_KEY: z.string().optional(),
+  TAVILY_API_KEY: z.string().optional(),
   ALLOWLIST_DOMAINS: z.string().default(
     [
       "kozyheat.com",
@@ -42,6 +43,7 @@ export const env = envSchema.parse({
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   JINA_API_KEY: process.env.JINA_API_KEY,
   BRAVE_API_KEY: process.env.BRAVE_API_KEY,
+  TAVILY_API_KEY: process.env.TAVILY_API_KEY,
   ALLOWLIST_DOMAINS: process.env.ALLOWLIST_DOMAINS,
   SIMILARITY_THRESHOLD: process.env.SIMILARITY_THRESHOLD,
   MIN_EVIDENCE_CHUNKS: process.env.MIN_EVIDENCE_CHUNKS,
