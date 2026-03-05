@@ -632,7 +632,8 @@ function isTechnicalQuestion(q: string) {
   const technicalTerms = [
     "outside air", "combustion air", "air intake", "oak", "vent", "venting",
     "clearance", "install", "installation", "requirements", "required",
-    "manual", "page", "spec", "specs", "pipe", "chimney", "service"
+    "manual", "page", "spec", "specs", "pipe", "chimney", "service",
+    "smell gas", "gas leak", "before lighting", "pilot", "lighting"
   ];
   return technicalTerms.some((t) => q.includes(t));
 }
@@ -659,7 +660,8 @@ function extractIntentTerms(question: string) {
   const terms = [
     "outside air", "combustion air", "air intake", "oak",
     "vent", "venting", "chimney", "clearance", "pressure", "manifold", "hearth", "floor protection", "gas inlet",
-    "framing", "framing dimensions", "minimum framing", "fireplace framing", "rough opening", "width", "height", "depth"
+    "framing", "framing dimensions", "minimum framing", "fireplace framing", "rough opening", "width", "height", "depth",
+    "smell gas", "gas leak", "do not light", "before lighting", "pilot"
   ];
   return terms.filter((t) => q.includes(t));
 }
@@ -669,7 +671,7 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
   if (!isTechnicalQuestion(q)) return { filtered: results };
 
   const airKeywords = ["outside air", "combustion air", "air intake", "oak", "outside combustion air"];
-  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service", "pressure", "manifold", "hearth", "floor protection", "gas inlet", "framing", "dimensions", "minimum framing", "rough opening", "width", "height", "depth"];
+  const keywords = [...airKeywords, "vent", "venting", "chimney", "clearance", "install", "installation", "service", "pressure", "manifold", "hearth", "floor protection", "gas inlet", "framing", "dimensions", "minimum framing", "rough opening", "width", "height", "depth", "smell gas", "gas leak", "do not light", "before lighting", "pilot"];
 
   const prefersInstall =
     q.includes("install") ||
@@ -735,7 +737,7 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
 
 function requiresStrictEvidence(question: string) {
   const q = question.toLowerCase();
-  return ["outside air", "combustion air", "air intake", "clearance", "pressure", "service"].some((t) => q.includes(t));
+  return ["outside air", "combustion air", "air intake", "clearance", "pressure", "service", "smell gas", "gas leak", "before lighting"].some((t) => q.includes(t));
 }
 
 function classifyLowIntentQuestion(question: string): string | null {
