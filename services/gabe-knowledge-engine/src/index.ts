@@ -432,7 +432,8 @@ app.post("/query", async (request, reply) => {
     const wiringRecords = extractWiringRecords(sectionRouted);
     const bestWiring = pickBestWiringRecord(body.question, wiringRecords);
     if (bestWiring) {
-      const wiringAnswer = buildWiringAnswerFromRecord(bestWiring, body.question) as any;
+      const relatedWiring = wiringRecords.filter((r) => r.model === bestWiring.model || r.source_url === bestWiring.source_url).slice(0, 6);
+      const wiringAnswer = buildWiringAnswerFromRecord(bestWiring, body.question, relatedWiring) as any;
       wiringAnswer.validator_notes = [...(wiringAnswer.validator_notes || []), `wiring_rule_records:${wiringRecords.length}`];
       const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestWiring.manual_title && c.source_url === bestWiring.source_url && c.page_number === (bestWiring.source_page ?? 1));
       const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
