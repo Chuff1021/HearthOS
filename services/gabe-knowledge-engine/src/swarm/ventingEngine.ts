@@ -1,6 +1,8 @@
 import { RetrievedChunk } from "../types";
 
 export type VentRuleRecord = {
+  record_id: string;
+  manual_title: string;
   model: string;
   vent_system_pipe_type?: string;
   approved_vent_family?: string;
@@ -45,6 +47,8 @@ export function extractVentRuleRecords(chunks: RetrievedChunk[]): VentRuleRecord
 
     const quote = selectQuote(text);
     out.push({
+      record_id: `${c.source_url}|${c.page_number}|${c.manual_title}`,
+      manual_title: c.manual_title,
       model: c.model || c.manual_title || "unknown",
       vent_system_pipe_type: norm(pipe),
       approved_vent_family: norm(family),
@@ -130,7 +134,7 @@ export function buildVentingAnswerFromRecord(record: VentRuleRecord, question: s
     answer = `Venting rule summary: min rise ${record.min_rise || 'not verified'}, max horizontal ${record.max_horizontal || 'not verified'}, max vertical ${record.max_vertical || 'not verified'}, termination ${record.termination_constraints || 'not verified'}.`;
   }
 
-  const notes = ['vent_rule_structured', `vent_qtype:${type}`];
+  const notes = ['vent_rule_structured', `vent_qtype:${type}`, `vent_record_id:${record.record_id}`];
   let certainty: 'Verified Exact' | 'Verified Partial' = record.confidence >= 85 ? 'Verified Exact' : 'Verified Partial';
   if (missing.length) {
     notes.push(`missing_fields:${missing.join(',')}`);
@@ -140,8 +144,9 @@ export function buildVentingAnswerFromRecord(record: VentRuleRecord, question: s
   return {
     answer: `${answer} Source: page ${record.source_page ?? 'unknown'}. Model: ${record.model}.`,
     source_type: 'manual' as const,
+    manual_title: record.manual_title,
     source_url: record.source_url,
-    page_number: record.source_page,
+    page_number: record.source_page ?? 1,
     quote: record.quote,
     confidence: missing.length ? Math.min(record.confidence, 74) : record.confidence,
     certainty,
@@ -152,7 +157,7 @@ export function buildVentingAnswerFromRecord(record: VentRuleRecord, question: s
 function dedupeRecords(records: VentRuleRecord[]) {
   const m = new Map<string, VentRuleRecord>();
   for (const r of records) {
-    const key = [r.model, r.source_url, r.source_page, r.vent_system_pipe_type, r.min_rise, r.max_vertical, r.max_horizontal].join('|');
+    const key = [r.record_id, r.model, r.source_url, r.source_page, r.vent_system_pipe_type, r.min_rise, r.max_vertical, r.max_horizontal].join('|');
     const ex = m.get(key);
     if (!ex || r.confidence > ex.confidence) m.set(key, r);
   }

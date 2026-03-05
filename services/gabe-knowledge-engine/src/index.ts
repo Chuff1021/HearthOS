@@ -319,6 +319,8 @@ async function finalizeThroughGate(params: {
   const fallback: any = { ...safe };
   if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
     fallback.raw_internal_response = { ...safe };
+    fallback.rejected_answer = params.answer;
+    fallback.rejected_reason = verdict.reason;
   }
   return fallback;
 }
@@ -401,10 +403,12 @@ app.post("/query", async (request, reply) => {
     if (bestVent) {
       const ventAnswer = buildVentingAnswerFromRecord(bestVent, body.question) as any;
       ventAnswer.validator_notes = [...(ventAnswer.validator_notes || []), `vent_rule_records:${ventRecords.length}`];
+      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestVent.manual_title && c.source_url === bestVent.source_url && c.page_number === (bestVent.source_page ?? 1));
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
       return await finalizeThroughGate({
         question: body.question,
         answer: ventAnswer,
-        retrieved: sectionRouted.slice(0, 3),
+        retrieved: retrievedForValidation,
         evidencePacket: {
           ...(evidencePacket as any),
           vent_rule_records: ventRecords.length,
