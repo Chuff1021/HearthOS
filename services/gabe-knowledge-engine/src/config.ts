@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   PORT: z.string().default("4100"),
-  GROQ_API_KEY: z.string().min(1),
+  GROQ_API_KEY: z.string().optional().default(""),
   GROQ_MODEL: z.string().default("llama-3.1-8b-instant"),
   QDRANT_URL: z.string().url(),
   QDRANT_API_KEY: z.string().optional(),
