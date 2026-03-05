@@ -370,7 +370,7 @@ app.post("/query", async (request, reply) => {
     const ventRecords = extractVentRuleRecords(sectionRouted);
     const bestVent = pickBestVentRule(body.question, ventRecords);
     if (bestVent) {
-      const ventAnswer = buildVentingAnswerFromRecord(bestVent) as any;
+      const ventAnswer = buildVentingAnswerFromRecord(bestVent, body.question) as any;
       ventAnswer.validator_notes = [...(ventAnswer.validator_notes || []), `vent_rule_records:${ventRecords.length}`];
       return await finalizeThroughGate({
         question: body.question,
