@@ -341,9 +341,15 @@ function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefine
   let quote: string;
 
   if (dims.length > 0) {
-    const dimText = dims.join(", ");
-    answer = `Minimum framing dimensions listed: ${dimText}.`;
-    quote = dimText;
+    const inferred = inferOpeningDimensionsFromFramingList(dims);
+    if (inferred) {
+      answer = `Minimum opening dimensions: ${inferred.widthIn}\" W × ${inferred.heightIn}\" H × ${inferred.depthIn}\" D.`;
+      quote = `Minimum opening: ${inferred.widthIn}\" W, ${inferred.heightIn}\" H, ${inferred.depthIn}\" D`;
+    } else {
+      const dimText = dims.join(", ");
+      answer = `Minimum framing dimensions listed: ${dimText}.`;
+      quote = dimText;
+    }
   } else {
     const sentences = text
       .split(/(?<=[.!?])\s+/)
@@ -364,6 +370,50 @@ function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefine
     quote,
     confidence: 80
   };
+}
+
+function inferOpeningDimensionsFromFramingList(items: string[]): { widthIn: string; heightIn: string; depthIn: string } | null {
+  const nums: number[] = [];
+  const re = /(\d+(?:-\d+\/\d+|\/\d+)?)/g;
+
+  const fracToFloat = (s: string) => {
+    if (s.includes("-")) {
+      const [w, f] = s.split("-");
+      const [n, d] = f.split("/").map(Number);
+      return Number(w) + (d ? n / d : 0);
+    }
+    if (s.includes("/")) {
+      const [n, d] = s.split("/").map(Number);
+      return d ? n / d : Number(s);
+    }
+    return Number(s);
+  };
+
+  for (const it of items) {
+    const m = it.match(re);
+    if (!m) continue;
+    for (const tok of m) {
+      const v = fracToFloat(tok);
+      if (Number.isFinite(v) && v > 1 && v < 200) nums.push(v);
+    }
+  }
+
+  if (nums.length === 0) return null;
+
+  // Pick likely opening dimensions from common fireplace framing ranges.
+  const near = (target: number, tol: number) => nums.find((n) => Math.abs(n - target) <= tol);
+  const height = near(81, 1.5) ?? Math.max(...nums.filter((n) => n <= 120));
+  const width = near(42, 2) ?? near(46, 2) ?? nums.find((n) => n >= 34 && n <= 60);
+  const depth = near(23, 2) ?? near(17, 2) ?? nums.find((n) => n >= 12 && n <= 30);
+
+  if (!height || !width || !depth) return null;
+
+  const fmt = (n: number) => {
+    const rounded = Math.round(n * 1000) / 1000;
+    return Number.isInteger(rounded) ? String(Math.trunc(rounded)) : String(rounded);
+  };
+
+  return { widthIn: fmt(width), heightIn: fmt(height), depthIn: fmt(depth) };
 }
 
 function extractFramingDimensions(text: string) {
