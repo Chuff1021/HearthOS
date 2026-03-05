@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     if (!process.env.DATABASE_URL) return NextResponse.json({ runs: [], total: 0 });
 
     const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
+    await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
     const totalRows = await sql<{ count: number }[]>`select count(*)::int as count from gabe_run_metadata`;
     const rows = await sql<{ ts: string; payload: any }[]>`
       select ts, payload
