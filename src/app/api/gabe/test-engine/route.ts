@@ -42,6 +42,16 @@ const DEFAULT_CASES: TestCase[] = [
   { id: 'thermopile-part', category: 'parts', question: 'What part reference is used for thermopile/thermocouple replacement?', requiredTerms: ['part', 'thermopile', 'thermocouple'] },
 ];
 
+function deriveCertainty(payload: any) {
+  if (payload?.certainty) return payload.certainty;
+  if (payload?.source_type === 'none') return 'Unverified';
+  const c = Number(payload?.confidence || 0);
+  if (c >= 85) return 'Verified Exact';
+  if (c >= 65) return 'Verified Partial';
+  if (c >= 40) return 'Interpreted';
+  return 'Unverified';
+}
+
 function scoreResult(payload: any, tc: TestCase) {
   const answerBlob = `${payload?.answer || ''} ${payload?.quote || ''}`.toLowerCase();
   const hasTerms = tc.requiredTerms.some((t) => answerBlob.includes(t.toLowerCase()));
@@ -83,7 +93,8 @@ export async function GET(request: NextRequest) {
         });
         const payload = await res.json();
         const s = scoreResult(payload, tc);
-        results.push({ id: tc.id, category: tc.category, question: tc.question, ...s, source_type: payload?.source_type, certainty: payload?.certainty, validator_notes: payload?.validator_notes || [], source_url: payload?.source_url || payload?.url, page_number: payload?.page_number || null });
+        const certainty = deriveCertainty(payload);
+        results.push({ id: tc.id, category: tc.category, question: tc.question, ...s, source_type: payload?.source_type, certainty, validator_notes: payload?.validator_notes || [], source_url: payload?.source_url || payload?.url, page_number: payload?.page_number || null });
       } catch (err) {
         results.push({ id: tc.id, question: tc.question, pass: false, error: err instanceof Error ? err.message : 'query_failed' });
       }
