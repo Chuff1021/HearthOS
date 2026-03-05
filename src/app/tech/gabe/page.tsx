@@ -458,7 +458,7 @@ function GABEInner() {
         </div>
         {/* API integration hint */}
         <p className="text-xs text-gray-600 mt-2 text-center">
-          Powered by HearthOS AI · Connect Groq/OpenAI for live responses
+          Powered by GABE Engine + Manual Library (swarm-routed)
         </p>
       </div>
 

@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
 
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
     const engineUrl = process.env.GABE_ENGINE_URL;
+    const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
     if (engineUrl && lastUserMessage) {
       const engineRes = await fetch(`${engineUrl.replace(/\/$/, "")}/query`, {
@@ -100,6 +101,15 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(data);
       }
+    }
+
+    if (engineRequired) {
+      return NextResponse.json({
+        answer: "GABE engine routing is required but GABE_ENGINE_URL is not configured. Please set GABE_ENGINE_URL to the running knowledge engine endpoint.",
+        source_type: "none",
+        confidence: 0,
+        no_answer_reason: "engine_not_configured"
+      }, { status: 503 });
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
