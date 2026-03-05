@@ -208,6 +208,7 @@ async function directFramingLookupFromStore(question: string): Promise<Retrieved
   const modelForDimensionQuery = modelPhrases.sort((a, b) => b.length - a.length)[0];
   const dimensions = await queryDimensionsByModelTopic({ model: modelForDimensionQuery, topic: "framing" });
   if (dimensions.length > 0) {
+    const inferred = inferOpeningDimensionsFromDimensionRecords(dimensions);
     const dimText = dimensions
       .map((d) => `${d.dimension_key}: ${d.value_imperial}\" (${d.value_metric} mm)`)
       .join(", ");
@@ -217,7 +218,9 @@ async function directFramingLookupFromStore(question: string): Promise<Retrieved
       model: dimensions[0].model,
       page_number: dimensions[0].page_number,
       source_url: dimensions[0].source_url,
-      chunk_text: `Minimum framing dimensions listed: ${dimText}`,
+      chunk_text: inferred
+        ? `Minimum opening dimensions: ${inferred.widthIn}\" W x ${inferred.heightIn}\" H x ${inferred.depthIn}\" D.`
+        : `Minimum framing dimensions listed: ${dimText}`,
       section_title: "framing dimensions",
       doc_type: "installation",
       score: 1,
@@ -370,6 +373,30 @@ function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefine
     quote,
     confidence: 80
   };
+}
+
+function inferOpeningDimensionsFromDimensionRecords(
+  records: Array<{ value_imperial: string; dimension_key: string }>
+): { widthIn: string; heightIn: string; depthIn: string } | null {
+  const nums = records
+    .map((r) => Number(r.value_imperial))
+    .filter((n) => Number.isFinite(n) && n > 1 && n < 200);
+
+  if (nums.length === 0) return null;
+
+  const near = (target: number, tol: number) => nums.find((n) => Math.abs(n - target) <= tol);
+  const height = near(81, 1.5) ?? Math.max(...nums.filter((n) => n <= 120));
+  const width = near(42, 2) ?? near(46, 2) ?? nums.find((n) => n >= 34 && n <= 60);
+  const depth = near(23, 2) ?? near(17, 2) ?? nums.find((n) => n >= 12 && n <= 30);
+
+  if (!height || !width || !depth) return null;
+
+  const fmt = (n: number) => {
+    const rounded = Math.round(n * 1000) / 1000;
+    return Number.isInteger(rounded) ? String(Math.trunc(rounded)) : String(rounded);
+  };
+
+  return { widthIn: fmt(width), heightIn: fmt(height), depthIn: fmt(depth) };
 }
 
 function inferOpeningDimensionsFromFramingList(items: string[]): { widthIn: string; heightIn: string; depthIn: string } | null {
