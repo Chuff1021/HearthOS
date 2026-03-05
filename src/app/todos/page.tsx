@@ -42,7 +42,7 @@ export default function TodosPage() {
   const [formAssignedTo, setFormAssignedTo] = useState("");
   const [formTags, setFormTags] = useState("");
   const [formCallbackPhone, setFormCallbackPhone] = useState("");
-  const [techOptions, setTechOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [techOptions, setTechOptions] = useState<Array<{ id: string; name: string; email?: string }>>([]);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; name: string; phone?: string }>>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone?: string } | null>(null);
@@ -78,7 +78,7 @@ export default function TodosPage() {
       try {
         const res = await fetch('/api/techs?activeOnly=true');
         const data = await res.json();
-        setTechOptions((data.techs || []).map((t: any) => ({ id: t.id, name: t.name })));
+        setTechOptions((data.techs || []).map((t: any) => ({ id: t.id, name: t.name, email: t.email })));
       } catch {
         setTechOptions([]);
       }
@@ -145,6 +145,7 @@ export default function TodosPage() {
           relatedCustomerPhone: formCallbackPhone || selectedCustomer?.phone || undefined,
           assignedTo: formAssignedTo || undefined,
           assignedToName: techOptions.find((t) => t.id === formAssignedTo)?.name,
+          assignedToEmail: techOptions.find((t) => t.id === formAssignedTo)?.email,
           tags: formTags.split(",").map(t => t.trim()).filter(Boolean),
         }),
       });

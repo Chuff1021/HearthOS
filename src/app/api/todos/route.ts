@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       relatedCustomerPhone: body.relatedCustomerPhone,
       assignedTo: body.assignedTo,
       assignedToName: body.assignedToName,
+      assignedToEmail: body.assignedToEmail,
       createdBy: body.createdBy || "admin",
       createdByName: body.createdByName || "Admin",
       tags: body.tags || [],

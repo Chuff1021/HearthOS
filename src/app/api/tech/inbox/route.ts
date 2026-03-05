@@ -45,11 +45,13 @@ export async function GET(request: NextRequest) {
     }
 
     const todosById = getTodos({ assignedTo: tech.id });
-    const todosByName = getTodos().filter((t) =>
+    const all = getTodos();
+    const todosByEmail = email ? all.filter((t: any) => String(t.assignedToEmail || '').toLowerCase() === String(email).toLowerCase()) : [];
+    const todosByName = all.filter((t) =>
       !!t.assignedToName && t.assignedToName.toLowerCase() === String(tech!.name || '').toLowerCase()
     );
     const seen = new Set<string>();
-    const todos = [...todosById, ...todosByName].filter((t) => {
+    const todos = [...todosById, ...todosByEmail, ...todosByName].filter((t) => {
       if (seen.has(t.id)) return false;
       seen.add(t.id);
       return true;

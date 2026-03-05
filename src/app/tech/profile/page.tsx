@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [lastGpsPingAt, setLastGpsPingAt] = useState<string>("");
   const [techLinkStatus, setTechLinkStatus] = useState<string>("");
   const [linkedTechName, setLinkedTechName] = useState<string>("");
+  const [linkedTechEmail, setLinkedTechEmail] = useState<string>("");
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
@@ -32,7 +33,7 @@ export default function ProfilePage() {
   // Prefer linked team record name over generic auth profile names
   const authName = user?.fullName || user?.firstName || user?.username || "";
   const userName = linkedTechName || authName || "Service Tech";
-  const userEmail = user?.primaryEmailAddress?.emailAddress || "tech@hearthos.com";
+  const userEmail = linkedTechEmail || user?.primaryEmailAddress?.emailAddress || "";
   const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const [isTracking, setIsTracking] = useState(true);
 
@@ -52,6 +53,7 @@ export default function ProfilePage() {
         const d = await r.json().catch(() => ({}));
         const m = (d.techs || []).find((t: any) => t.id === linkedTechId);
         if (m?.name) setLinkedTechName(m.name);
+        if (m?.email) setLinkedTechEmail(m.email);
         setTechLinkStatus('Tech linked via account metadata.');
         return;
       }
@@ -78,6 +80,7 @@ export default function ProfilePage() {
       if (match) {
         setTechId(match.id);
         setLinkedTechName(match.name || '');
+        setLinkedTechEmail(match.email || '');
         try {
           await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: match.id } });
         } catch {
@@ -101,6 +104,7 @@ export default function ProfilePage() {
       if (createRes.ok && createData?.tech?.id) {
         setTechId(createData.tech.id);
         setLinkedTechName(createData.tech.name || '');
+        setLinkedTechEmail(createData.tech.email || '');
         try {
           await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: createData.tech.id } });
         } catch {

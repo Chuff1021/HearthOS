@@ -17,6 +17,7 @@ export interface Todo {
   relatedCustomerPhone?: string;
   assignedTo?: string;
   assignedToName?: string;
+  assignedToEmail?: string;
   createdBy: string;
   createdByName: string;
   createdAt: string;
