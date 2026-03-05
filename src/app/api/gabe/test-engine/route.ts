@@ -8,11 +8,37 @@ type TestCase = {
 };
 
 const DEFAULT_CASES: TestCase[] = [
+  // Framing / clearances
   { id: 'fpx42-framing', question: 'For FPX 42 Apex NexGen-Hybrid, what are the minimum framing dimensions?', requiredTerms: ['framing', 'dimension'], expectedSourceHints: ['100-01577', '100-01436'] },
-  { id: 'carlton-vent', question: 'For Kozy Heat Carlton 46, what vent run limits apply?', requiredTerms: ['vent', 'vertical', 'horizontal'], expectedSourceHints: ['carlton', 'kozy'] },
   { id: 'majestic-mantel', question: 'What are mantel clearances for Majestic Echelon II?', requiredTerms: ['mantel', 'clearance'], expectedSourceHints: ['majestic', 'echelon'] },
+  { id: 'rear-clearance', question: 'For Lopi Rockport NexGen-Hybrid, what rear wall clearance is required?', requiredTerms: ['rear', 'clearance'], expectedSourceHints: ['rockport', '100-01593'] },
+  { id: 'hearth-protection', question: 'For Lopi Liberty NexGen-Hybrid, what hearth/floor protection is required?', requiredTerms: ['hearth', 'protection'], expectedSourceHints: ['100-01586', '100-01511'] },
+
+  // Venting
+  { id: 'carlton-vent', question: 'For Kozy Heat Carlton 46, what vent run limits apply?', requiredTerms: ['vent', 'vertical', 'horizontal'], expectedSourceHints: ['carlton', 'kozy'] },
+  { id: 'vent-pipe-size', question: 'What vent pipe size is required for a direct vent gas fireplace installation?', requiredTerms: ['vent', 'pipe', 'size'] },
+  { id: 'termination-clearance', question: 'What are horizontal vent termination clearance requirements from openings?', requiredTerms: ['termination', 'clearance', 'opening'] },
+
+  // Gas / electrical
   { id: 'probuilder-pressure', question: 'For FPX ProBuilder 42, what are inlet and manifold gas pressure specs?', requiredTerms: ['pressure', 'manifold', 'inlet'], expectedSourceHints: ['100-01493', 'probuilder'] },
+  { id: 'lp-ng-conversion', question: 'What does the manual say about LP to NG conversion requirements?', requiredTerms: ['conversion', 'lp', 'ng'] },
   { id: 'wiring-module', question: 'How is wall switch wiring connected to control module for a gas fireplace?', requiredTerms: ['wiring', 'module', 'switch'] },
+  { id: 'transformer-check', question: 'What voltage/transformer checks are required before troubleshooting ignition?', requiredTerms: ['voltage', 'transformer', 'ignition'] },
+
+  // Troubleshooting / service
+  { id: 'pilot-goes-out', question: 'Pilot lights but goes out when main burner starts. What are the recommended diagnostic steps?', requiredTerms: ['pilot', 'diagnostic', 'burner'] },
+  { id: 'no-spark', question: 'No spark at igniter. What troubleshooting steps should a technician follow?', requiredTerms: ['spark', 'igniter', 'troubleshooting'] },
+  { id: 'remote-not-syncing', question: 'Remote won’t pair with receiver. What pairing/reset procedure is documented?', requiredTerms: ['remote', 'receiver', 'pair'] },
+
+  // Installation / code compliance
+  { id: 'outside-air', question: 'For FPX 42 Apex NexGen-Hybrid, is outside combustion air required?', requiredTerms: ['outside', 'combustion', 'air'], expectedSourceHints: ['100-01577', '100-01436'] },
+  { id: 'fresh-air-intake', question: 'For FPX 36 Elite NexGen-Hybrid, what outside air intake requirements apply?', requiredTerms: ['outside', 'air', 'intake'], expectedSourceHints: ['100-01584', '100-01585'] },
+  { id: 'install-sequence', question: 'What are the step-by-step installation sequence requirements before first fire?', requiredTerms: ['installation', 'step', 'first'] },
+  { id: 'code-permits', question: 'What code compliance notes are listed regarding local permits and inspections?', requiredTerms: ['code', 'permit', 'inspection'] },
+
+  // Parts
+  { id: 'parts-diagram', question: 'Where can I find the exploded parts diagram and part callouts for service replacement?', requiredTerms: ['parts', 'diagram', 'replacement'] },
+  { id: 'thermopile-part', question: 'What part reference is used for thermopile/thermocouple replacement?', requiredTerms: ['part', 'thermopile', 'thermocouple'] },
 ];
 
 function scoreResult(payload: any, tc: TestCase) {
