@@ -4,7 +4,7 @@ import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
 import { ensureCollection, qdrant } from "./retrieval/qdrant";
-import { keywordSearchManualChunks, searchManualChunks } from "./retrieval/search";
+import { keywordSearchDiagramChunks, keywordSearchManualChunks, searchDiagramChunks, searchManualChunks } from "./retrieval/search";
 import { callGroq } from "./llm/groq";
 import { RetrievedChunk } from "./types";
 import { stableUuid } from "./ingest/ids";
@@ -157,15 +157,23 @@ app.post("/query", async (request, reply) => {
   const [queryVector] = await embed([body.question]);
   const keywordTerms = buildKeywordTerms(body.question, webHints.terms);
 
-  const [vectorResults, keywordResults] = await Promise.all([
+  const diagramIntents = new Set(["framing", "clearances", "venting", "electrical"]);
+  const shouldUseDiagrams = diagramIntents.has(intentClassification.intent);
+
+  const [vectorResults, keywordResults, diagramVector, diagramKeyword] = await Promise.all([
     searchManualChunks(queryVector, 80),
-    keywordSearchManualChunks(keywordTerms, 80)
+    keywordSearchManualChunks(keywordTerms, 80),
+    shouldUseDiagrams ? searchDiagramChunks(queryVector, 40) : Promise.resolve([]),
+    shouldUseDiagrams ? keywordSearchDiagramChunks(keywordTerms, 40) : Promise.resolve([]),
   ]);
 
   const framingDirect = tryDirectFramingLookup(body.question, keywordResults);
   if (framingDirect) return framingDirect;
 
-  const hybridResults = fuseHybridResults(vectorResults, keywordResults);
+  const hybridResults = fuseHybridResults(
+    [...vectorResults, ...diagramVector],
+    [...keywordResults, ...diagramKeyword]
+  );
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);

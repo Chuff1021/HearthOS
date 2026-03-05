@@ -6,16 +6,14 @@ export const qdrant = new QdrantClient({
   apiKey: env.QDRANT_API_KEY
 });
 
-let collectionReady = false;
+const ready = new Set<string>();
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function ensureCollection(vectorSize: number) {
-  if (collectionReady) return;
-
-  const collection = env.QDRANT_COLLECTION;
+export async function ensureCollection(vectorSize: number, collection = env.QDRANT_COLLECTION) {
+  if (ready.has(collection)) return;
   const maxRetries = 5;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
@@ -34,7 +32,7 @@ export async function ensureCollection(vectorSize: number) {
           field_schema: "text"
         });
       } catch {}
-      collectionReady = true;
+      ready.add(collection);
       return;
     } catch (err) {
       if (attempt === maxRetries) throw err;
