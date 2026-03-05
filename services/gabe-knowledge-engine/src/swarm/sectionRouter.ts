@@ -2,16 +2,16 @@ import { RetrievedChunk } from "../types";
 import { IntentCategory } from "./intentClassifier";
 
 const sectionHints: Record<IntentCategory, string[]> = {
-  "clearances": ["clearance", "mantel"],
-  "framing": ["framing", "rough opening", "dimensions"],
-  "venting": ["vent", "chimney", "termination"],
-  "gas pressure": ["gas", "pressure", "manifold", "inlet"],
-  "electrical": ["wiring", "electrical", "switch", "module", "transformer"],
-  "troubleshooting": ["troubleshooting", "problem", "diagnostic", "pilot"],
-  "remote operation": ["remote", "receiver", "thermostat"],
-  "replacement parts": ["parts", "part", "exploded", "diagram"],
-  "installation steps": ["installation", "install", "step"],
-  "code compliance": ["code", "compliance", "approved", "listing"],
+  "clearances": ["clearance", "mantel", "sidewall", "hearth"],
+  "framing": ["framing", "rough opening", "dimensions", "width", "height", "depth"],
+  "venting": ["vent", "chimney", "termination", "vent table", "vent chart", "pipe size", "horizontal", "vertical"],
+  "gas pressure": ["gas", "pressure", "manifold", "inlet", "wc"],
+  "electrical": ["wiring", "electrical", "switch", "module", "transformer", "voltage"],
+  "troubleshooting": ["troubleshooting", "problem", "diagnostic", "pilot", "ignition", "error"],
+  "remote operation": ["remote", "receiver", "thermostat", "pairing", "sync"],
+  "replacement parts": ["parts", "part", "exploded", "diagram", "part number", "assembly"],
+  "installation steps": ["installation", "install", "step", "sequence"],
+  "code compliance": ["code", "compliance", "approved", "listing", "permit", "inspection"],
 };
 
 export function routeBySection(intent: IntentCategory, chunks: RetrievedChunk[]) {

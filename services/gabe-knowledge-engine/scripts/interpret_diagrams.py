@@ -15,15 +15,28 @@ by_img = {c.get("image_path"): c for c in cls}
 out = []
 for r in ocr:
     text = r.get("ocr_text") or ""
-    numbers = re.findall(r"\d+(?:\s*1/2|\s*1/4|\s*3/4)?\s*(?:in|\"|mm|ft)", text.lower())
     lower = text.lower()
+    numbers = re.findall(r"\d+(?:\s*1/2|\s*1/4|\s*3/4)?\s*(?:in|\"|mm|ft)", lower)
+
     vent = {}
     if "vertical" in lower and "horizontal" in lower:
-      import re
       v = re.findall(r"(\d+(?:\.\d+)?)\s*(?:ft|feet)\s*vertical", lower)
       h = re.findall(r"(\d+(?:\.\d+)?)\s*(?:ft|feet)\s*horizontal", lower)
       if v: vent["max_vertical_ft"] = v[0]
       if h: vent["max_horizontal_ft"] = h[0]
+      if "rise" in lower:
+        vent["constraints"] = ["horizontal run requires vertical rise first"]
+
+    connections = []
+    if any(k in lower for k in ["switch", "module", "gas valve", "transformer", "receiver"]):
+      if "switch" in lower and "module" in lower:
+        connections.append({"from": "wall switch", "to": "control module"})
+      if "module" in lower and "gas valve" in lower:
+        connections.append({"from": "control module", "to": "gas valve"})
+      if "transformer" in lower and "module" in lower:
+        connections.append({"from": "transformer", "to": "control module"})
+
+    part_numbers = list(dict.fromkeys(re.findall(r"\b(?:[a-z]{0,3}-)?\d{3,6}[a-z0-9-]*\b", lower)))[:30]
 
     out.append({
       "page": r.get("page"),
@@ -32,6 +45,8 @@ for r in ocr:
       "structured_data": {
         "measurements": numbers[:20],
         "vent_table": vent,
+        "connections": connections,
+        "part_numbers": part_numbers,
         "raw_ocr": text[:4000]
       }
     })

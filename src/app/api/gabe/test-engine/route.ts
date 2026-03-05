@@ -107,7 +107,8 @@ export async function GET(request: NextRequest) {
       return [c, { passed: p, total: set.length, accuracy: set.length ? Number(((p / set.length) * 100).toFixed(1)) : 0 }];
     }));
 
-    const validatorRejections = results.filter((r) => Array.isArray(r.validator_notes) && r.validator_notes.some((n: string) => String(n).includes('hard_gate_reject'))).length;
+    const validatorRejections = results.filter((r) => r.source_type === 'none' && r.certainty === 'Unverified').length;
+    const downgradedOutputs = results.filter((r) => ['Verified Partial', 'Interpreted'].includes(String(r.certainty || ''))).length;
     const fallbackUsage = results.filter((r) => r.source_type === 'web' || r.source_type === 'none').length;
     const unverifiedBlocked = results.filter((r) => r.source_type === 'none' && r.certainty === 'Unverified').length;
 
@@ -117,6 +118,8 @@ export async function GET(request: NextRequest) {
       accuracy,
       failureClasses,
       categoryAccuracy,
+      validatorRejections,
+      downgradedOutputs,
       validatorRejectionRate: total ? Number(((validatorRejections / total) * 100).toFixed(1)) : 0,
       fallbackUsageRate: total ? Number(((fallbackUsage / total) * 100).toFixed(1)) : 0,
       unverifiedAnswersBlocked: unverifiedBlocked,

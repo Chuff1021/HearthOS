@@ -19,6 +19,7 @@ import { logRefinementEvent } from "./swarm/selfRefiner";
 import { buildEvidencePacket } from "./swarm/evidenceBuilder";
 import { composeValidatedResponse } from "./swarm/responseComposer";
 import { appendRunMetadata } from "./swarm/runMetadata";
+import { expandPartTerms } from "./swarm/partAliases";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -171,6 +172,50 @@ app.post("/ingest/diagrams", async (request, reply) => {
   return { ok: true, diagrams: points.length };
 });
 
+app.post("/ingest/qa-memory", async (request, reply) => {
+  const body = request.body as {
+    entries: Array<{
+      question: string;
+      normalized_question?: string;
+      model?: string;
+      answer: string;
+      source_pages?: number[];
+      source_urls?: string[];
+      verified?: boolean;
+      technician_notes?: string;
+      correction_status?: string;
+    }>;
+  };
+
+  if (!Array.isArray(body?.entries) || body.entries.length === 0) {
+    return reply.status(400).send({ error: "entries[] required" });
+  }
+
+  const texts = body.entries.map((e) => `${e.normalized_question || e.question}\n${e.answer}`);
+  const vectors = await embed(texts);
+  await ensureCollection(vectors[0].length, "fireplace_qa_memory");
+
+  const points = body.entries.map((e, i) => ({
+    id: stableUuid(`${e.normalized_question || e.question}|${e.answer}`),
+    vector: vectors[i],
+    payload: {
+      question: e.question,
+      normalized_question: e.normalized_question || e.question,
+      model: e.model || null,
+      answer: e.answer,
+      source_pages: e.source_pages || [],
+      source_urls: e.source_urls || [],
+      verified: !!e.verified,
+      technician_notes: e.technician_notes || null,
+      correction_status: e.correction_status || null,
+      source_type: e.verified ? "manual" : "web",
+    }
+  }));
+
+  await qdrant.upsert("fireplace_qa_memory", { wait: true, points });
+  return { ok: true, inserted: points.length };
+});
+
 app.post("/ingest/dimensions", async (request, reply) => {  const body = request.body as { dimensions: DimensionRecord[] };
   if (!Array.isArray(body?.dimensions) || body.dimensions.length === 0) {
     return reply.status(400).send({ error: "dimensions[] required" });
@@ -212,7 +257,7 @@ function hardNone(note: string) {
   };
 }
 
-function finalizeThroughGate(params: {
+async function finalizeThroughGate(params: {
   question: string;
   answer: any;
   retrieved: RetrievedChunk[];
@@ -220,7 +265,7 @@ function finalizeThroughGate(params: {
 }) {
   const verdict = validateOrReject(params.answer, params.retrieved);
   if (verdict.ok) {
-    appendRunMetadata({
+    await appendRunMetadata({
       question: params.question,
       certainty: (verdict.answer as any).certainty,
       source_type: (verdict.answer as any).source_type,
@@ -233,7 +278,7 @@ function finalizeThroughGate(params: {
   const safe = hardNone(`hard_gate_reject:${verdict.reason}`);
   const safeVerdict = validateOrReject(safe as any, params.retrieved);
   if (safeVerdict.ok) {
-    appendRunMetadata({
+    await appendRunMetadata({
       question: params.question,
       certainty: (safeVerdict.answer as any).certainty,
       source_type: (safeVerdict.answer as any).source_type,
@@ -258,7 +303,7 @@ app.post("/query", async (request, reply) => {
 
   const lowIntent = classifyLowIntentQuestion(body.question);
   if (lowIntent) {
-    return finalizeThroughGate({
+    return await finalizeThroughGate({
       question: body.question,
       answer: {
         answer: "This information is not available in verified manufacturer documentation.",
@@ -274,13 +319,13 @@ app.post("/query", async (request, reply) => {
   const directFraming = await directFramingLookupFromStore(body.question);
   if (directFraming) {
     const fast = buildFramingFastPath(body.question, directFraming);
-    if (fast) return finalizeThroughGate({ question: body.question, answer: fast, retrieved: [directFraming] });
+    if (fast) return await finalizeThroughGate({ question: body.question, answer: fast, retrieved: [directFraming] });
   }
 
   const webHints = await searchWebHints(body.question);
 
   const [queryVector] = await embed([body.question]);
-  const keywordTerms = buildKeywordTerms(body.question, webHints.terms);
+  const keywordTerms = buildKeywordTerms(body.question, [...webHints.terms, ...expandPartTerms(body.question)]);
 
   const diagramIntents = new Set(["framing", "clearances", "venting", "electrical"]);
   const shouldUseDiagrams = diagramIntents.has(intentClassification.intent);
@@ -294,7 +339,7 @@ app.post("/query", async (request, reply) => {
   ]);
 
   const framingDirect = tryDirectFramingLookup(body.question, keywordResults);
-  if (framingDirect) return finalizeThroughGate({ question: body.question, answer: framingDirect, retrieved: [directFraming] });
+  if (framingDirect) return await finalizeThroughGate({ question: body.question, answer: framingDirect, retrieved: [directFraming] });
 
   const hybridResults = fuseHybridResults(
     [...vectorResults, ...diagramVector, ...qaMemoryVector],
@@ -324,20 +369,35 @@ app.post("/query", async (request, reply) => {
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
-    return finalizeThroughGate({ question: body.question, answer: unavailable("insufficient_evidence", body.question, webHints.top), retrieved: sectionRouted.slice(0,1), evidencePacket });
+    return await finalizeThroughGate({ question: body.question, answer: unavailable("insufficient_evidence", body.question, webHints.top), retrieved: sectionRouted.slice(0,1), evidencePacket });
   }
 
   const candidateChunks = selectedChunks.slice(0, 2);
   const chosenChunk = candidateChunks[0];
+
+  if (intentClassification.intent === "code compliance") {
+    const codeLike = candidateChunks.some((c) => {
+      const t = `${c.section_title || ''} ${c.chunk_text || ''}`.toLowerCase();
+      return /code|listing|inspection|permit|approved/.test(t);
+    });
+    if (!codeLike) {
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: unavailable("insufficient_evidence", body.question, webHints.top),
+        retrieved: candidateChunks.length ? candidateChunks : sectionRouted.slice(0, 1),
+        evidencePacket,
+      });
+    }
+  }
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
-    return finalizeThroughGate({ question: body.question, answer: unavailable("semantic_mismatch", body.question, webHints.top), retrieved: [chosenChunk], evidencePacket });
+    return await finalizeThroughGate({ question: body.question, answer: unavailable("semantic_mismatch", body.question, webHints.top), retrieved: [chosenChunk], evidencePacket });
   }
 
   const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
   if (framingFastPath) {
-    return finalizeThroughGate({ question: body.question, answer: framingFastPath, retrieved: [chosenChunk], evidencePacket });
+    return await finalizeThroughGate({ question: body.question, answer: framingFastPath, retrieved: [chosenChunk], evidencePacket });
   }
 
   for (let i = 0; i < candidateChunks.length; i += 1) {
@@ -346,7 +406,7 @@ app.post("/query", async (request, reply) => {
       const answer = await callGroq([c], body.question);
       const verdict = validateOrReject(answer, [c]);
       if (verdict.ok) {
-        return finalizeThroughGate({ question: body.question, answer: verdict.answer, retrieved: [c], evidencePacket });
+        return await finalizeThroughGate({ question: body.question, answer: verdict.answer, retrieved: [c], evidencePacket });
       }
 
       logRefinementEvent({
@@ -370,10 +430,10 @@ app.post("/query", async (request, reply) => {
   request.log.error("GABE validator rejected all attempts; falling back to extractive answer");
   const fallback = buildExtractiveAnswer(body.question, chosenChunk);
   if (fallback) {
-    return finalizeThroughGate({ question: body.question, answer: fallback, retrieved: [chosenChunk], evidencePacket });
+    return await finalizeThroughGate({ question: body.question, answer: fallback, retrieved: [chosenChunk], evidencePacket });
   }
 
-  return finalizeThroughGate({
+  return await finalizeThroughGate({
     question: body.question,
     answer: unavailable("validation_failed", body.question, webHints.top),
     retrieved: [chosenChunk],
