@@ -26,6 +26,21 @@ import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
 
+app.addHook('onSend', async (_req, _reply, payload) => {
+  try {
+    const text = typeof payload === 'string' ? payload : payload?.toString?.() || '';
+    if (!text || !text.trim().startsWith('{')) return payload;
+    const obj: any = JSON.parse(text);
+    obj.engine_build_id = process.env.ENGINE_BUILD_ID || 'unknown';
+    obj.engine_commit_sha = process.env.ENGINE_COMMIT_SHA || 'unknown';
+    obj.engine_runtime_name = process.env.ENGINE_RUNTIME_NAME || 'gabe-knowledge-engine';
+    obj.vent_template_active = String(process.env.VENT_TEMPLATE_ACTIVE || 'false').toLowerCase() === 'true';
+    return JSON.stringify(obj);
+  } catch {
+    return payload;
+  }
+});
+
 const metrics = {
   gabe_queries_total: 0,
   gabe_wrong_manual_total: 0,
@@ -299,7 +314,11 @@ async function finalizeThroughGate(params: {
     return formatted;
   }
 
-  return safe;
+  const fallback: any = safe;
+  if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
+    fallback.raw_internal_response = safe;
+  }
+  return fallback;
 }
 
 app.post("/query", async (request, reply) => {
