@@ -128,6 +128,16 @@ app.post("/query", async (request, reply) => {
 
   metrics.gabe_queries_total += 1;
 
+  const lowIntent = classifyLowIntentQuestion(body.question);
+  if (lowIntent) {
+    return {
+      answer: "I’m ready. Ask a fireplace install/service question and include brand/model when possible (example: 'For Travis 42 Apex, what are minimum framing dimensions?').",
+      source_type: "none" as const,
+      confidence: 0,
+      no_answer_reason: lowIntent
+    };
+  }
+
   const directFraming = await directFramingLookupFromStore(body.question);
   if (directFraming) {
     const fast = buildFramingFastPath(body.question, directFraming);
@@ -726,6 +736,17 @@ function applyTechnicalFilter(question: string, results: RetrievedChunk[]) {
 function requiresStrictEvidence(question: string) {
   const q = question.toLowerCase();
   return ["outside air", "combustion air", "air intake", "clearance", "pressure", "service"].some((t) => q.includes(t));
+}
+
+function classifyLowIntentQuestion(question: string): string | null {
+  const q = (question || "").trim().toLowerCase();
+  if (!q) return "empty_query";
+  if (["test", "testing", "hello", "hi", "hey", "yo", "sup"].includes(q)) return "low_intent_query";
+
+  const tokens = q.split(/[^a-z0-9]+/).filter(Boolean);
+  if (tokens.length <= 2 && !isTechnicalQuestion(q)) return "low_intent_query";
+
+  return null;
 }
 
 function hasQueryTermOverlap(question: string, chunkText: string) {
