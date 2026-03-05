@@ -31,6 +31,8 @@ export default function GabeAuditPage() {
   const [filter, setFilter] = useState<"all" | "flagged">("all");
   const [techFilter, setTechFilter] = useState<string>("all");
   const [stats, setStats] = useState<{ total: number; today: number; flagged: number; avgRating?: number; techs?: { techId: string; techName: string; count: number }[] }>({ total: 0, today: 0, flagged: 0, avgRating: 0, techs: [] });
+  const [testStats, setTestStats] = useState<{ passed: number; total: number; accuracy: number; failureClasses?: Record<string, number> }>({ passed: 0, total: 0, accuracy: 0 });
+  const [reviewInsights, setReviewInsights] = useState<Array<{ id: string; detectedIssue: string; suggestion: string }>>([]);
 
   async function loadMessages() {
     setLoading(true);
@@ -47,6 +49,21 @@ export default function GabeAuditPage() {
       const statsRes = await fetch("/api/gabe/messages?stats=true");
       const statsData = await statsRes.json();
       setStats(statsData);
+
+      // Load test-engine summary
+      const testRes = await fetch('/api/gabe/test-engine');
+      const testData = await testRes.json();
+      setTestStats({
+        passed: testData.passed || 0,
+        total: testData.total || 0,
+        accuracy: testData.accuracy || 0,
+        failureClasses: testData.failureClasses || {},
+      });
+
+      // Load review insights
+      const reviewRes = await fetch('/api/gabe/review?limit=120');
+      const reviewData = await reviewRes.json();
+      setReviewInsights(reviewData.insights || []);
     } catch (error) {
       console.error("Failed to load messages:", error);
     }
@@ -131,6 +148,39 @@ export default function GabeAuditPage() {
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
                 <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>{(stats.avgRating || 0).toFixed(1)} ⭐</p>
+              </div>
+            </div>
+
+            {/* Quality Panel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>GABE Test Engine</p>
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: "rgba(37,99,235,0.15)", color: "#93C5FD" }}>
+                    {testStats.passed}/{testStats.total}
+                  </span>
+                </div>
+                <p className="text-2xl font-bold mt-1" style={{ color: testStats.accuracy >= 90 ? "#98CD00" : "#FF4400" }}>
+                  {testStats.accuracy.toFixed(1)}%
+                </p>
+                <div className="mt-2 text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
+                  <div>Missing terms: {testStats.failureClasses?.missingTerms || 0}</div>
+                  <div>Missing citation: {testStats.failureClasses?.missingCitation || 0}</div>
+                  <div>Source mismatch: {testStats.failureClasses?.sourceMismatch || 0}</div>
+                </div>
+              </div>
+              <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+                <p className="text-sm mb-2" style={{ color: "var(--color-text-muted)" }}>Self-Refiner Recommendations</p>
+                <div className="space-y-2 max-h-36 overflow-auto">
+                  {reviewInsights.length === 0 ? (
+                    <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No current insights.</p>
+                  ) : reviewInsights.slice(0, 4).map((i) => (
+                    <div key={i.id} className="text-xs rounded-lg p-2" style={{ background: "var(--color-surface-2)" }}>
+                      <div className="font-semibold" style={{ color: "#FF4400" }}>{i.detectedIssue}</div>
+                      <div style={{ color: "var(--color-text-secondary)" }}>{i.suggestion}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 

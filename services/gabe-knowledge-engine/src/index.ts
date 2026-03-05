@@ -243,7 +243,8 @@ app.post("/query", async (request, reply) => {
     return unavailable("insufficient_evidence", body.question, webHints.top);
   }
 
-  const chosenChunk = selectedChunks[0];
+  const candidateChunks = selectedChunks.slice(0, 2);
+  const chosenChunk = candidateChunks[0];
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
@@ -255,36 +256,35 @@ app.post("/query", async (request, reply) => {
     return framingFastPath;
   }
 
-  try {
-    const answer = await callGroq([chosenChunk], body.question);
-    const verdict = validateOrReject(answer, [chosenChunk]);
-    if (verdict.ok) return verdict.answer;
+  for (let i = 0; i < candidateChunks.length; i += 1) {
+    const c = candidateChunks[i];
+    try {
+      const answer = await callGroq([c], body.question);
+      const verdict = validateOrReject(answer, [c]);
+      if (verdict.ok) return verdict.answer;
 
-    logRefinementEvent({
-      question: body.question,
-      intent: intentClassification.intent,
-      model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
-      failure: verdict.reason,
-      action: "validator_rejected_answer; fallback_to_extractive",
-    });
-
-    request.log.error({ reason: verdict.reason }, "GABE validator rejected response; falling back to extractive answer");
-    const fallback = buildExtractiveAnswer(body.question, chosenChunk);
-    if (fallback) return fallback;
-    return unavailable("validation_failed", body.question, webHints.top);
-  } catch (err) {
-    request.log.error({ err }, "GABE answer generation failed; falling back to extractive answer");
-    logRefinementEvent({
-      question: body.question,
-      intent: intentClassification.intent,
-      model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
-      failure: err instanceof Error ? err.message : "reasoner_error",
-      action: "reasoner_error; fallback_to_extractive",
-    });
-    const fallback = buildExtractiveAnswer(body.question, chosenChunk);
-    if (fallback) return fallback;
-    return unavailable("validation_failed", body.question, webHints.top);
+      logRefinementEvent({
+        question: body.question,
+        intent: intentClassification.intent,
+        model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
+        failure: verdict.reason,
+        action: `validator_rejected_attempt_${i + 1}`,
+      });
+    } catch (err) {
+      logRefinementEvent({
+        question: body.question,
+        intent: intentClassification.intent,
+        model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
+        failure: err instanceof Error ? err.message : "reasoner_error",
+        action: `reasoner_error_attempt_${i + 1}`,
+      });
+    }
   }
+
+  request.log.error("GABE validator rejected all attempts; falling back to extractive answer");
+  const fallback = buildExtractiveAnswer(body.question, chosenChunk);
+  if (fallback) return fallback;
+  return unavailable("validation_failed", body.question, webHints.top);
 });
 
 async function directFramingLookupFromStore(question: string): Promise<RetrievedChunk | null> {
