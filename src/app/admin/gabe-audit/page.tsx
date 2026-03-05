@@ -33,6 +33,7 @@ export default function GabeAuditPage() {
   const [stats, setStats] = useState<{ total: number; today: number; flagged: number; avgRating?: number; techs?: { techId: string; techName: string; count: number }[] }>({ total: 0, today: 0, flagged: 0, avgRating: 0, techs: [] });
   const [testStats, setTestStats] = useState<{ passed: number; total: number; accuracy: number; failureClasses?: Record<string, number> }>({ passed: 0, total: 0, accuracy: 0 });
   const [reviewInsights, setReviewInsights] = useState<Array<{ id: string; detectedIssue: string; suggestion: string }>>([]);
+  const [ops, setOps] = useState<any>(null);
 
   async function loadMessages() {
     setLoading(true);
@@ -64,6 +65,11 @@ export default function GabeAuditPage() {
       const reviewRes = await fetch('/api/gabe/review?limit=120');
       const reviewData = await reviewRes.json();
       setReviewInsights(reviewData.insights || []);
+
+      // Load ops/supervisor status
+      const opsRes = await fetch('/api/gabe/ops/supervisor');
+      const opsData = await opsRes.json();
+      setOps(opsData);
     } catch (error) {
       console.error("Failed to load messages:", error);
     }
@@ -181,6 +187,35 @@ export default function GabeAuditPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Ops Queue Panel */}
+            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)" }}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Supervisor Job Queue</h3>
+                <button
+                  onClick={async () => { await fetch('/api/gabe/ops/supervisor', { method: 'POST' }); loadMessages(); }}
+                  className="px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: '#2563EB', color: '#fff' }}
+                >
+                  Run Supervisor Tick
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)" }}>Active: <b>{ops?.counts?.active ?? 0}</b></div>
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)" }}>Queued: <b>{ops?.counts?.queued ?? 0}</b></div>
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)" }}>Failed: <b>{ops?.counts?.failed ?? 0}</b></div>
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)" }}>
+                  Diagram confidence: <b>{ops?.diagramConfidence?.score ?? 0}%</b>
+                </div>
+              </div>
+              <div className="mt-3 max-h-36 overflow-auto text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {(ops?.jobs || []).slice(0, 12).map((j: any) => (
+                  <div key={j.id} className="py-1 border-b" style={{ borderColor: "var(--color-border)" }}>
+                    {j.jobType} · {j.status} · {new Date(j.runAt).toLocaleString()}
+                  </div>
+                ))}
               </div>
             </div>
 

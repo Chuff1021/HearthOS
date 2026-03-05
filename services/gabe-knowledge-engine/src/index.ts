@@ -27,6 +27,28 @@ const metrics = {
 };
 
 app.get("/health", async () => ({ ok: true }));
+app.get("/ops/diagram-confidence", async () => {
+  try {
+    const res = await qdrant.scroll(env.QDRANT_DIAGRAM_COLLECTION, {
+      limit: 200,
+      with_payload: true,
+      with_vector: false,
+    } as any);
+    const points = (res as any).points || [];
+    const total = points.length;
+    let confident = 0;
+    for (const p of points) {
+      const sd = p?.payload?.structured_data || {};
+      const measurements = Array.isArray(sd.measurements) ? sd.measurements : [];
+      if (measurements.length > 0) confident += 1;
+    }
+    const score = total > 0 ? Number(((confident / total) * 100).toFixed(1)) : 0;
+    return { score, total };
+  } catch {
+    return { score: 0, total: 0 };
+  }
+});
+
 app.get("/metrics", async () => {
   const lines = [
     "# TYPE gabe_queries_total counter",
