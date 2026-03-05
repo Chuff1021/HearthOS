@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
 
     // If requesting stats
     if (searchParams.get("stats") === "true") {
-      const stats = getTodoStats();
+      const stats = await getTodoStats();
       return NextResponse.json(stats);
     }
 
     // If requesting a specific todo
     const id = searchParams.get("id");
     if (id) {
-      const todo = getTodoById(id);
+      const todo = await getTodoById(id);
       if (!todo) {
         return NextResponse.json({ error: "Todo not found" }, { status: 404 });
       }
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get filtered todos
-    const todos = getTodos(filters);
+    const todos = await getTodos(filters);
     return NextResponse.json({ todos });
   } catch (err) {
     console.error("Failed to get todos:", err);
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const newTodo = createTodo({
+    const newTodo = await createTodo({
       title: body.title,
       description: body.description,
       priority: body.priority || "medium",
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Todo ID required" }, { status: 400 });
     }
 
-    const updated = updateTodo(id, updates);
+    const updated = await updateTodo(id, updates);
     if (!updated) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });
     }
@@ -111,7 +111,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Todo ID required" }, { status: 400 });
     }
 
-    const deleted = deleteTodo(id);
+    const deleted = await deleteTodo(id);
     if (!deleted) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });
     }

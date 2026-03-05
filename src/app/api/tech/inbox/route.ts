@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const todosById = getTodos({ assignedTo: tech.id });
-    const all = getTodos();
+    const todosById = await getTodos({ assignedTo: tech.id });
+    const all = await getTodos();
     const todosByEmail = email ? all.filter((t: any) => String(t.assignedToEmail || '').toLowerCase() === String(email).toLowerCase()) : [];
     const todosByName = all.filter((t) =>
       !!t.assignedToName && t.assignedToName.toLowerCase() === String(tech!.name || '').toLowerCase()
