@@ -32,6 +32,7 @@ export function buildEvidencePacket(input: {
   modelDetection: ModelDetection;
   intent: { intent: IntentCategory; subtopic?: string };
   retrieved: RetrievedChunk[];
+  qaMemory?: RetrievedChunk[];
   webHints: Array<{ title: string; url: string; snippet: string }>;
 }): EvidencePacket {
   const manualEvidence = input.retrieved.filter((r) => r.source_type === "manual" && !(r.section_title || "").toLowerCase().includes("diagram"));
@@ -76,7 +77,11 @@ export function buildEvidencePacket(input: {
     manualEvidence,
     diagramEvidence,
     ocrLabels,
-    qaMemoryMatches: [],
+    qaMemoryMatches: (input.qaMemory || []).slice(0, 8).map((q) => ({
+      question: (q.chunk_text || '').split('\n')[0] || '',
+      answer: (q.chunk_text || '').split('\n').slice(1).join('\n') || '',
+      verified: q.source_type === 'manual',
+    })),
     tavilyFallbackEvidence: input.webHints,
     provenance,
     sourceRanking,

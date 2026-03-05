@@ -4,7 +4,7 @@ import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
 import { ensureCollection, qdrant } from "./retrieval/qdrant";
-import { keywordSearchDiagramChunks, keywordSearchManualChunks, searchDiagramChunks, searchManualChunks } from "./retrieval/search";
+import { keywordSearchDiagramChunks, keywordSearchManualChunks, searchDiagramChunks, searchManualChunks, searchQaMemoryChunks } from "./retrieval/search";
 import { callGroq } from "./llm/groq";
 import { RetrievedChunk } from "./types";
 import { stableUuid } from "./ingest/ids";
@@ -202,6 +202,51 @@ app.get("/query/dimensions", async (request, reply) => {
   return { ok: true, count: items.length, items };
 });
 
+function hardNone(note: string) {
+  return {
+    answer: "This information is not available in verified manufacturer documentation." as const,
+    source_type: "none" as const,
+    confidence: 0 as const,
+    certainty: "Unverified" as const,
+    validator_notes: [note],
+  };
+}
+
+function finalizeThroughGate(params: {
+  question: string;
+  answer: any;
+  retrieved: RetrievedChunk[];
+  evidencePacket?: unknown;
+}) {
+  const verdict = validateOrReject(params.answer, params.retrieved);
+  if (verdict.ok) {
+    appendRunMetadata({
+      question: params.question,
+      certainty: (verdict.answer as any).certainty,
+      source_type: (verdict.answer as any).source_type,
+      validator_notes: (verdict.answer as any).validator_notes || [],
+      evidencePacket: params.evidencePacket,
+    });
+    return composeValidatedResponse(verdict.answer);
+  }
+
+  const safe = hardNone(`hard_gate_reject:${verdict.reason}`);
+  const safeVerdict = validateOrReject(safe as any, params.retrieved);
+  if (safeVerdict.ok) {
+    appendRunMetadata({
+      question: params.question,
+      certainty: (safeVerdict.answer as any).certainty,
+      source_type: (safeVerdict.answer as any).source_type,
+      validator_notes: (safeVerdict.answer as any).validator_notes || [],
+      evidencePacket: params.evidencePacket,
+      blocked_unverified: true,
+    });
+    return composeValidatedResponse(safeVerdict.answer);
+  }
+
+  return safe;
+}
+
 app.post("/query", async (request, reply) => {
   const body = request.body as { question: string };
   if (!body?.question) return reply.status(400).send({ error: "question required" });
@@ -213,18 +258,23 @@ app.post("/query", async (request, reply) => {
 
   const lowIntent = classifyLowIntentQuestion(body.question);
   if (lowIntent) {
-    return {
-      answer: "I’m ready. Ask a fireplace install/service question and include brand/model when possible (example: 'For Travis 42 Apex, what are minimum framing dimensions?').",
-      source_type: "none" as const,
-      confidence: 0,
-      no_answer_reason: lowIntent
-    };
+    return finalizeThroughGate({
+      question: body.question,
+      answer: {
+        answer: "This information is not available in verified manufacturer documentation.",
+        source_type: "none" as const,
+        confidence: 0,
+        certainty: "Unverified" as const,
+        validator_notes: [lowIntent],
+      },
+      retrieved: [],
+    });
   }
 
   const directFraming = await directFramingLookupFromStore(body.question);
   if (directFraming) {
     const fast = buildFramingFastPath(body.question, directFraming);
-    if (fast) return fast;
+    if (fast) return finalizeThroughGate({ question: body.question, answer: fast, retrieved: [directFraming] });
   }
 
   const webHints = await searchWebHints(body.question);
@@ -235,19 +285,20 @@ app.post("/query", async (request, reply) => {
   const diagramIntents = new Set(["framing", "clearances", "venting", "electrical"]);
   const shouldUseDiagrams = diagramIntents.has(intentClassification.intent);
 
-  const [vectorResults, keywordResults, diagramVector, diagramKeyword] = await Promise.all([
+  const [vectorResults, keywordResults, diagramVector, diagramKeyword, qaMemoryVector] = await Promise.all([
     searchManualChunks(queryVector, 80),
     keywordSearchManualChunks(keywordTerms, 80),
     shouldUseDiagrams ? searchDiagramChunks(queryVector, 40) : Promise.resolve([]),
     shouldUseDiagrams ? keywordSearchDiagramChunks(keywordTerms, 40) : Promise.resolve([]),
+    searchQaMemoryChunks(queryVector, 10),
   ]);
 
   const framingDirect = tryDirectFramingLookup(body.question, keywordResults);
-  if (framingDirect) return framingDirect;
+  if (framingDirect) return finalizeThroughGate({ question: body.question, answer: framingDirect, retrieved: [directFraming] });
 
   const hybridResults = fuseHybridResults(
-    [...vectorResults, ...diagramVector],
-    [...keywordResults, ...diagramKeyword]
+    [...vectorResults, ...diagramVector, ...qaMemoryVector],
+    [...keywordResults, ...diagramKeyword, ...qaMemoryVector]
   );
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
@@ -264,6 +315,7 @@ app.post("/query", async (request, reply) => {
     modelDetection,
     intent: { intent: intentClassification.intent, subtopic: intentClassification.component },
     retrieved: sectionRouted,
+    qaMemory: qaMemoryVector,
     webHints: webHints.results,
   });
 
@@ -272,7 +324,7 @@ app.post("/query", async (request, reply) => {
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
-    return unavailable("insufficient_evidence", body.question, webHints.top);
+    return finalizeThroughGate({ question: body.question, answer: unavailable("insufficient_evidence", body.question, webHints.top), retrieved: sectionRouted.slice(0,1), evidencePacket });
   }
 
   const candidateChunks = selectedChunks.slice(0, 2);
@@ -280,12 +332,12 @@ app.post("/query", async (request, reply) => {
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
-    return unavailable("semantic_mismatch", body.question, webHints.top);
+    return finalizeThroughGate({ question: body.question, answer: unavailable("semantic_mismatch", body.question, webHints.top), retrieved: [chosenChunk], evidencePacket });
   }
 
   const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
   if (framingFastPath) {
-    return framingFastPath;
+    return finalizeThroughGate({ question: body.question, answer: framingFastPath, retrieved: [chosenChunk], evidencePacket });
   }
 
   for (let i = 0; i < candidateChunks.length; i += 1) {
@@ -294,15 +346,7 @@ app.post("/query", async (request, reply) => {
       const answer = await callGroq([c], body.question);
       const verdict = validateOrReject(answer, [c]);
       if (verdict.ok) {
-        appendRunMetadata({
-          question: body.question,
-          certainty: (verdict.answer as any).certainty,
-          model: evidencePacket.detectedModel,
-          intent: evidencePacket.intent,
-          source_type: (verdict.answer as any).source_type,
-          validator_notes: (verdict.answer as any).validator_notes || [],
-        });
-        return composeValidatedResponse(verdict.answer);
+        return finalizeThroughGate({ question: body.question, answer: verdict.answer, retrieved: [c], evidencePacket });
       }
 
       logRefinementEvent({
@@ -326,43 +370,15 @@ app.post("/query", async (request, reply) => {
   request.log.error("GABE validator rejected all attempts; falling back to extractive answer");
   const fallback = buildExtractiveAnswer(body.question, chosenChunk);
   if (fallback) {
-    const v = validateOrReject(fallback as any, [chosenChunk]);
-    if (v.ok) {
-      appendRunMetadata({
-        question: body.question,
-        certainty: (v.answer as any).certainty,
-        model: evidencePacket.detectedModel,
-        intent: evidencePacket.intent,
-        source_type: (v.answer as any).source_type,
-        validator_notes: (v.answer as any).validator_notes || [],
-        evidencePacket,
-      });
-      return composeValidatedResponse(v.answer);
-    }
+    return finalizeThroughGate({ question: body.question, answer: fallback, retrieved: [chosenChunk], evidencePacket });
   }
 
-  const noAns = unavailable("validation_failed", body.question, webHints.top) as any;
-  const vNone = validateOrReject(noAns, [chosenChunk]);
-  if (vNone.ok) {
-    appendRunMetadata({
-      question: body.question,
-      certainty: (vNone.answer as any).certainty,
-      model: evidencePacket.detectedModel,
-      intent: evidencePacket.intent,
-      source_type: (vNone.answer as any).source_type,
-      validator_notes: (vNone.answer as any).validator_notes || [],
-      evidencePacket,
-    });
-    return composeValidatedResponse(vNone.answer);
-  }
-
-  return {
-    answer: "This information is not available in verified manufacturer documentation.",
-    source_type: "none" as const,
-    confidence: 0,
-    certainty: "Unverified" as const,
-    validator_notes: ["hard_gate_fallback"],
-  };
+  return finalizeThroughGate({
+    question: body.question,
+    answer: unavailable("validation_failed", body.question, webHints.top),
+    retrieved: [chosenChunk],
+    evidencePacket,
+  });
 });
 
 async function directFramingLookupFromStore(question: string): Promise<RetrievedChunk | null> {

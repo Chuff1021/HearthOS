@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type TestCase = {
   id: string;
+  category: 'framing' | 'clearances' | 'venting' | 'gas' | 'electrical' | 'wiring' | 'troubleshooting' | 'parts' | 'installation' | 'code';
   question: string;
   requiredTerms: string[];
   expectedSourceHints?: string[];
@@ -9,36 +10,36 @@ type TestCase = {
 
 const DEFAULT_CASES: TestCase[] = [
   // Framing / clearances
-  { id: 'fpx42-framing', question: 'For FPX 42 Apex NexGen-Hybrid, what are the minimum framing dimensions?', requiredTerms: ['framing', 'dimension'], expectedSourceHints: ['100-01577', '100-01436'] },
-  { id: 'majestic-mantel', question: 'What are mantel clearances for Majestic Echelon II?', requiredTerms: ['mantel', 'clearance'], expectedSourceHints: ['majestic', 'echelon'] },
-  { id: 'rear-clearance', question: 'For Lopi Rockport NexGen-Hybrid, what rear wall clearance is required?', requiredTerms: ['rear', 'clearance'], expectedSourceHints: ['rockport', '100-01593'] },
-  { id: 'hearth-protection', question: 'For Lopi Liberty NexGen-Hybrid, what hearth/floor protection is required?', requiredTerms: ['hearth', 'protection'], expectedSourceHints: ['100-01586', '100-01511'] },
+  { id: 'fpx42-framing', category: 'framing', question: 'For FPX 42 Apex NexGen-Hybrid, what are the minimum framing dimensions?', requiredTerms: ['framing', 'dimension'], expectedSourceHints: ['100-01577', '100-01436'] },
+  { id: 'majestic-mantel', category: 'clearances', question: 'What are mantel clearances for Majestic Echelon II?', requiredTerms: ['mantel', 'clearance'], expectedSourceHints: ['majestic', 'echelon'] },
+  { id: 'rear-clearance', category: 'clearances', question: 'For Lopi Rockport NexGen-Hybrid, what rear wall clearance is required?', requiredTerms: ['rear', 'clearance'], expectedSourceHints: ['rockport', '100-01593'] },
+  { id: 'hearth-protection', category: 'clearances', question: 'For Lopi Liberty NexGen-Hybrid, what hearth/floor protection is required?', requiredTerms: ['hearth', 'protection'], expectedSourceHints: ['100-01586', '100-01511'] },
 
   // Venting
-  { id: 'carlton-vent', question: 'For Kozy Heat Carlton 46, what vent run limits apply?', requiredTerms: ['vent', 'vertical', 'horizontal'], expectedSourceHints: ['carlton', 'kozy'] },
-  { id: 'vent-pipe-size', question: 'What vent pipe size is required for a direct vent gas fireplace installation?', requiredTerms: ['vent', 'pipe', 'size'] },
-  { id: 'termination-clearance', question: 'What are horizontal vent termination clearance requirements from openings?', requiredTerms: ['termination', 'clearance', 'opening'] },
+  { id: 'carlton-vent', category: 'venting', question: 'For Kozy Heat Carlton 46, what vent run limits apply?', requiredTerms: ['vent', 'vertical', 'horizontal'], expectedSourceHints: ['carlton', 'kozy'] },
+  { id: 'vent-pipe-size', category: 'venting', question: 'What vent pipe size is required for a direct vent gas fireplace installation?', requiredTerms: ['vent', 'pipe', 'size'] },
+  { id: 'termination-clearance', category: 'venting', question: 'What are horizontal vent termination clearance requirements from openings?', requiredTerms: ['termination', 'clearance', 'opening'] },
 
   // Gas / electrical
-  { id: 'probuilder-pressure', question: 'For FPX ProBuilder 42, what are inlet and manifold gas pressure specs?', requiredTerms: ['pressure', 'manifold', 'inlet'], expectedSourceHints: ['100-01493', 'probuilder'] },
-  { id: 'lp-ng-conversion', question: 'What does the manual say about LP to NG conversion requirements?', requiredTerms: ['conversion', 'lp', 'ng'] },
-  { id: 'wiring-module', question: 'How is wall switch wiring connected to control module for a gas fireplace?', requiredTerms: ['wiring', 'module', 'switch'] },
-  { id: 'transformer-check', question: 'What voltage/transformer checks are required before troubleshooting ignition?', requiredTerms: ['voltage', 'transformer', 'ignition'] },
+  { id: 'probuilder-pressure', category: 'gas', question: 'For FPX ProBuilder 42, what are inlet and manifold gas pressure specs?', requiredTerms: ['pressure', 'manifold', 'inlet'], expectedSourceHints: ['100-01493', 'probuilder'] },
+  { id: 'lp-ng-conversion', category: 'gas', question: 'What does the manual say about LP to NG conversion requirements?', requiredTerms: ['conversion', 'lp', 'ng'] },
+  { id: 'wiring-module', category: 'wiring', question: 'How is wall switch wiring connected to control module for a gas fireplace?', requiredTerms: ['wiring', 'module', 'switch'] },
+  { id: 'transformer-check', category: 'electrical', question: 'What voltage/transformer checks are required before troubleshooting ignition?', requiredTerms: ['voltage', 'transformer', 'ignition'] },
 
   // Troubleshooting / service
-  { id: 'pilot-goes-out', question: 'Pilot lights but goes out when main burner starts. What are the recommended diagnostic steps?', requiredTerms: ['pilot', 'diagnostic', 'burner'] },
-  { id: 'no-spark', question: 'No spark at igniter. What troubleshooting steps should a technician follow?', requiredTerms: ['spark', 'igniter', 'troubleshooting'] },
-  { id: 'remote-not-syncing', question: 'Remote won’t pair with receiver. What pairing/reset procedure is documented?', requiredTerms: ['remote', 'receiver', 'pair'] },
+  { id: 'pilot-goes-out', category: 'troubleshooting', question: 'Pilot lights but goes out when main burner starts. What are the recommended diagnostic steps?', requiredTerms: ['pilot', 'diagnostic', 'burner'] },
+  { id: 'no-spark', category: 'troubleshooting', question: 'No spark at igniter. What troubleshooting steps should a technician follow?', requiredTerms: ['spark', 'igniter', 'troubleshooting'] },
+  { id: 'remote-not-syncing', category: 'electrical', question: 'Remote won’t pair with receiver. What pairing/reset procedure is documented?', requiredTerms: ['remote', 'receiver', 'pair'] },
 
   // Installation / code compliance
-  { id: 'outside-air', question: 'For FPX 42 Apex NexGen-Hybrid, is outside combustion air required?', requiredTerms: ['outside', 'combustion', 'air'], expectedSourceHints: ['100-01577', '100-01436'] },
-  { id: 'fresh-air-intake', question: 'For FPX 36 Elite NexGen-Hybrid, what outside air intake requirements apply?', requiredTerms: ['outside', 'air', 'intake'], expectedSourceHints: ['100-01584', '100-01585'] },
-  { id: 'install-sequence', question: 'What are the step-by-step installation sequence requirements before first fire?', requiredTerms: ['installation', 'step', 'first'] },
-  { id: 'code-permits', question: 'What code compliance notes are listed regarding local permits and inspections?', requiredTerms: ['code', 'permit', 'inspection'] },
+  { id: 'outside-air', category: 'installation', question: 'For FPX 42 Apex NexGen-Hybrid, is outside combustion air required?', requiredTerms: ['outside', 'combustion', 'air'], expectedSourceHints: ['100-01577', '100-01436'] },
+  { id: 'fresh-air-intake', category: 'installation', question: 'For FPX 36 Elite NexGen-Hybrid, what outside air intake requirements apply?', requiredTerms: ['outside', 'air', 'intake'], expectedSourceHints: ['100-01584', '100-01585'] },
+  { id: 'install-sequence', category: 'installation', question: 'What are the step-by-step installation sequence requirements before first fire?', requiredTerms: ['installation', 'step', 'first'] },
+  { id: 'code-permits', category: 'code', question: 'What code compliance notes are listed regarding local permits and inspections?', requiredTerms: ['code', 'permit', 'inspection'] },
 
   // Parts
-  { id: 'parts-diagram', question: 'Where can I find the exploded parts diagram and part callouts for service replacement?', requiredTerms: ['parts', 'diagram', 'replacement'] },
-  { id: 'thermopile-part', question: 'What part reference is used for thermopile/thermocouple replacement?', requiredTerms: ['part', 'thermopile', 'thermocouple'] },
+  { id: 'parts-diagram', category: 'parts', question: 'Where can I find the exploded parts diagram and part callouts for service replacement?', requiredTerms: ['parts', 'diagram', 'replacement'] },
+  { id: 'thermopile-part', category: 'parts', question: 'What part reference is used for thermopile/thermocouple replacement?', requiredTerms: ['part', 'thermopile', 'thermocouple'] },
 ];
 
 function scoreResult(payload: any, tc: TestCase) {
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
         });
         const payload = await res.json();
         const s = scoreResult(payload, tc);
-        results.push({ id: tc.id, question: tc.question, ...s, source_type: payload?.source_type, source_url: payload?.source_url || payload?.url, page_number: payload?.page_number || null });
+        results.push({ id: tc.id, category: tc.category, question: tc.question, ...s, source_type: payload?.source_type, certainty: payload?.certainty, validator_notes: payload?.validator_notes || [], source_url: payload?.source_url || payload?.url, page_number: payload?.page_number || null });
       } catch (err) {
         results.push({ id: tc.id, question: tc.question, pass: false, error: err instanceof Error ? err.message : 'query_failed' });
       }
@@ -99,7 +100,28 @@ export async function GET(request: NextRequest) {
       queryErrors: results.filter((r) => !!r.error).length,
     };
 
-    return NextResponse.json({ passed, total, accuracy, failureClasses, results });
+    const categories = Array.from(new Set(results.map((r) => r.category).filter(Boolean)));
+    const categoryAccuracy = Object.fromEntries(categories.map((c) => {
+      const set = results.filter((r) => r.category === c);
+      const p = set.filter((r) => r.pass).length;
+      return [c, { passed: p, total: set.length, accuracy: set.length ? Number(((p / set.length) * 100).toFixed(1)) : 0 }];
+    }));
+
+    const validatorRejections = results.filter((r) => Array.isArray(r.validator_notes) && r.validator_notes.some((n: string) => String(n).includes('hard_gate_reject'))).length;
+    const fallbackUsage = results.filter((r) => r.source_type === 'web' || r.source_type === 'none').length;
+    const unverifiedBlocked = results.filter((r) => r.source_type === 'none' && r.certainty === 'Unverified').length;
+
+    return NextResponse.json({
+      passed,
+      total,
+      accuracy,
+      failureClasses,
+      categoryAccuracy,
+      validatorRejectionRate: total ? Number(((validatorRejections / total) * 100).toFixed(1)) : 0,
+      fallbackUsageRate: total ? Number(((fallbackUsage / total) * 100).toFixed(1)) : 0,
+      unverifiedAnswersBlocked: unverifiedBlocked,
+      results,
+    });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to run gabe test engine' }, { status: 500 });
   }

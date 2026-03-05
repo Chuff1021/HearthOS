@@ -48,6 +48,30 @@ export async function searchDiagramChunks(vector: number[], limit = 5): Promise<
   return res.map((r: any) => mapHit(r, r.score));
 }
 
+export async function searchQaMemoryChunks(vector: number[], limit = 5): Promise<RetrievedChunk[]> {
+  const res = await qdrant.search('fireplace_qa_memory', {
+    vector,
+    limit,
+    with_payload: true,
+  } as any);
+  return res.map((r: any) => {
+    const p = r.payload || {};
+    return {
+      manual_title: 'Technician QA Memory',
+      manufacturer: p.brand || '',
+      model: p.model,
+      page_number: 0,
+      source_url: (Array.isArray(p.source_urls) ? p.source_urls[0] : p.source_urls) || '',
+      chunk_text: `${p.question || ''}\n${p.answer || ''}`,
+      section_title: 'qa_memory',
+      doc_type: 'other',
+      score: r.score,
+      source_type: p.verified ? 'manual' : 'web',
+      section: 'qa_memory',
+    } as RetrievedChunk;
+  });
+}
+
 export async function keywordSearchDiagramChunks(terms: string[], limit = 30): Promise<RetrievedChunk[]> {
   if (terms.length === 0) return [];
   const res = await qdrant.scroll(env.QDRANT_DIAGRAM_COLLECTION, {
