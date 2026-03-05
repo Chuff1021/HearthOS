@@ -16,6 +16,9 @@ import { classifyIntent } from "./swarm/intentClassifier";
 import { routeBySection } from "./swarm/sectionRouter";
 import { validateOrReject } from "./swarm/validatorAgent";
 import { logRefinementEvent } from "./swarm/selfRefiner";
+import { buildEvidencePacket } from "./swarm/evidenceBuilder";
+import { composeValidatedResponse } from "./swarm/responseComposer";
+import { appendRunMetadata } from "./swarm/runMetadata";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -257,6 +260,13 @@ app.post("/query", async (request, reply) => {
   const fallbackCandidates = sectionRouted.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
   const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
 
+  const evidencePacket = buildEvidencePacket({
+    modelDetection,
+    intent: { intent: intentClassification.intent, subtopic: intentClassification.component },
+    retrieved: sectionRouted,
+    webHints: webHints.results,
+  });
+
   const rerankedCandidates = rerankCandidates(body.question, candidatePool).slice(0, 40);
   const framingPreferred = selectFramingPreferredChunk(body.question, rerankedCandidates);
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
@@ -283,7 +293,17 @@ app.post("/query", async (request, reply) => {
     try {
       const answer = await callGroq([c], body.question);
       const verdict = validateOrReject(answer, [c]);
-      if (verdict.ok) return verdict.answer;
+      if (verdict.ok) {
+        appendRunMetadata({
+          question: body.question,
+          certainty: (verdict.answer as any).certainty,
+          model: evidencePacket.detectedModel,
+          intent: evidencePacket.intent,
+          source_type: (verdict.answer as any).source_type,
+          validator_notes: (verdict.answer as any).validator_notes || [],
+        });
+        return composeValidatedResponse(verdict.answer);
+      }
 
       logRefinementEvent({
         question: body.question,
@@ -305,8 +325,44 @@ app.post("/query", async (request, reply) => {
 
   request.log.error("GABE validator rejected all attempts; falling back to extractive answer");
   const fallback = buildExtractiveAnswer(body.question, chosenChunk);
-  if (fallback) return fallback;
-  return unavailable("validation_failed", body.question, webHints.top);
+  if (fallback) {
+    const v = validateOrReject(fallback as any, [chosenChunk]);
+    if (v.ok) {
+      appendRunMetadata({
+        question: body.question,
+        certainty: (v.answer as any).certainty,
+        model: evidencePacket.detectedModel,
+        intent: evidencePacket.intent,
+        source_type: (v.answer as any).source_type,
+        validator_notes: (v.answer as any).validator_notes || [],
+        evidencePacket,
+      });
+      return composeValidatedResponse(v.answer);
+    }
+  }
+
+  const noAns = unavailable("validation_failed", body.question, webHints.top) as any;
+  const vNone = validateOrReject(noAns, [chosenChunk]);
+  if (vNone.ok) {
+    appendRunMetadata({
+      question: body.question,
+      certainty: (vNone.answer as any).certainty,
+      model: evidencePacket.detectedModel,
+      intent: evidencePacket.intent,
+      source_type: (vNone.answer as any).source_type,
+      validator_notes: (vNone.answer as any).validator_notes || [],
+      evidencePacket,
+    });
+    return composeValidatedResponse(vNone.answer);
+  }
+
+  return {
+    answer: "This information is not available in verified manufacturer documentation.",
+    source_type: "none" as const,
+    confidence: 0,
+    certainty: "Unverified" as const,
+    validator_notes: ["hard_gate_fallback"],
+  };
 });
 
 async function directFramingLookupFromStore(question: string): Promise<RetrievedChunk | null> {
@@ -432,15 +488,18 @@ function unavailable(
       url: webHint.url,
       section: "web_search",
       quote: webHint.snippet || webHint.title,
-      confidence: 35
+      confidence: 35,
+      certainty: "Interpreted",
+      validator_notes: ["web_fallback_directional"]
     };
   }
 
-  const guided = buildGuidedFallbackAnswer(reason, question || "");
   return {
-    answer: guided,
+    answer: "This information is not available in verified manufacturer documentation.",
     source_type: "none" as const,
     confidence: 0,
+    certainty: "Unverified" as const,
+    validator_notes: [reason],
     no_answer_reason: reason
   };
 }
@@ -499,7 +558,9 @@ function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefine
     page_number: chunk.page_number,
     source_url: chunk.source_url,
     quote,
-    confidence: 80
+    confidence: 80,
+    certainty: "Verified Partial" as const,
+    validator_notes: ["framing_fast_path"]
   };
 }
 
@@ -604,7 +665,9 @@ function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefin
     page_number: chunk.page_number,
     source_url: chunk.source_url,
     quote,
-    confidence: 60
+    confidence: 60,
+    certainty: "Verified Partial" as const,
+    validator_notes: ["extractive_fallback"]
   };
 }
 

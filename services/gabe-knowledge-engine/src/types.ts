@@ -15,6 +15,8 @@ export type RetrievedChunk = ManualChunk & {
   section?: string;
 };
 
+export type CertaintyLadder = "Verified Exact" | "Verified Partial" | "Interpreted" | "Unverified";
+
 export type GabeAnswer =
   | {
       answer: string;
@@ -24,6 +26,8 @@ export type GabeAnswer =
       source_url: string;
       quote: string;
       confidence: number;
+      certainty: CertaintyLadder;
+      validator_notes?: string[];
     }
   | {
       answer: string;
@@ -32,11 +36,15 @@ export type GabeAnswer =
       section: string;
       quote: string;
       confidence: number;
+      certainty: CertaintyLadder;
+      validator_notes?: string[];
     }
   | {
       answer: "This information is not available in verified manufacturer documentation.";
       source_type: "none";
       confidence: 0;
+      certainty: "Unverified";
+      validator_notes?: string[];
     };
 
 export type InstallAngle = "standard" | "45" | "unknown";

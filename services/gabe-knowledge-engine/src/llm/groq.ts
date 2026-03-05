@@ -15,7 +15,8 @@ Rules:
 - If evidence is insufficient, output source_type = "none".
 - Include a short verbatim quote (max 25 words) from one chunk that directly supports the answer as "quote".
 - Use exactly one chunk to answer. Do not combine multiple chunks.
-- Include confidence score 0-100.`;
+- Include confidence score 0-100.
+- Include certainty as one of: "Verified Exact", "Verified Partial", "Interpreted", "Unverified".`;
 }
 
 function buildContext(chunks: RetrievedChunk[]) {
@@ -58,5 +59,11 @@ export async function callGroq(chunks: RetrievedChunk[], question: string) {
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Missing Groq content");
 
-  return JSON.parse(content) as GabeAnswer;
+  const parsed = JSON.parse(content) as any;
+  if (!parsed?.certainty) {
+    const c = Number(parsed?.confidence || 0);
+    parsed.certainty = c >= 85 ? "Verified Exact" : c >= 65 ? "Verified Partial" : c >= 40 ? "Interpreted" : "Unverified";
+  }
+  if (!Array.isArray(parsed?.validator_notes)) parsed.validator_notes = [];
+  return parsed as GabeAnswer;
 }
