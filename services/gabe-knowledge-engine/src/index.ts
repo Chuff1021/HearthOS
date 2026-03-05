@@ -21,6 +21,7 @@ import { composeValidatedResponse } from "./swarm/responseComposer";
 import { appendRunMetadata } from "./swarm/runMetadata";
 import { expandPartTerms } from "./swarm/partAliases";
 import { extractVentRule, extractWiringGraph, normalizePartNumbers } from "./swarm/structuredTech";
+import { buildVentingAnswerFromRecord, extractVentRuleRecords, pickBestVentRule } from "./swarm/ventingEngine";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -364,6 +365,34 @@ app.post("/query", async (request, reply) => {
     qaMemory: qaMemoryVector,
     webHints: webHints.results,
   });
+
+  if (intentClassification.intent === "venting") {
+    const ventRecords = extractVentRuleRecords(sectionRouted);
+    const bestVent = pickBestVentRule(body.question, ventRecords);
+    if (bestVent) {
+      const ventAnswer = buildVentingAnswerFromRecord(bestVent) as any;
+      ventAnswer.validator_notes = [...(ventAnswer.validator_notes || []), `vent_rule_records:${ventRecords.length}`];
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: ventAnswer,
+        retrieved: sectionRouted.slice(0, 3),
+        evidencePacket: {
+          ...(evidencePacket as any),
+          vent_rule_records: ventRecords.length,
+        },
+      });
+    }
+
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: unavailable("insufficient_structured_vent_rules", body.question, webHints.top),
+      retrieved: sectionRouted.slice(0, 1),
+      evidencePacket: {
+        ...(evidencePacket as any),
+        vent_rule_records: 0,
+      },
+    });
+  }
 
   const rerankedCandidates = rerankCandidates(body.question, candidatePool, intentClassification.intent).slice(0, 40);
   const framingPreferred = selectFramingPreferredChunk(body.question, rerankedCandidates);
@@ -731,6 +760,43 @@ function extractFramingDimensions(text: string) {
   return Array.from(new Set(results));
 }
 
+function buildIntentFastPath(intent: IntentCategory, question: string, chunk: RetrievedChunk) {
+  const text = chunk.chunk_text || '';
+  const mk = (answer: string, quote: string, note: string) => ({
+    answer,
+    source_type: 'manual' as const,
+    manual_title: chunk.manual_title,
+    page_number: chunk.page_number,
+    source_url: chunk.source_url,
+    quote,
+    confidence: 78,
+    certainty: 'Verified Partial' as const,
+    validator_notes: [note],
+  });
+
+  if (intent === 'venting') {
+    const q = extractQuote(question, text);
+    if (q) return mk('Manufacturer venting guidance found in cited section.', q, 'venting_fast_path');
+  }
+
+  if (intent === 'electrical' || intent === 'remote operation') {
+    const q = extractQuote(question, text);
+    if (q) return mk('Manufacturer wiring/control guidance found in cited section.', q, 'wiring_fast_path');
+  }
+
+  if (intent === 'replacement parts') {
+    const q = extractQuote(question, text);
+    if (q) return mk('Manufacturer parts guidance found in cited section.', q, 'parts_fast_path');
+  }
+
+  if (intent === 'code compliance') {
+    const q = extractQuote(question, text);
+    if (q) return mk('Manufacturer compliance-related guidance found in cited section.', q, 'code_fast_path');
+  }
+
+  return null;
+}
+
 function buildExtractiveAnswer(question: string, chunk: RetrievedChunk | undefined) {
   if (!chunk || chunk.source_type !== "manual") return null;
   const quote = extractQuote(question, chunk.chunk_text);
@@ -780,7 +846,7 @@ function extractQuote(question: string, text: string) {
   return words.join(" ");
 }
 
-function rerankCandidates(question: string, candidates: RetrievedChunk[]) {
+function rerankCandidates(question: string, candidates: RetrievedChunk[], intent?: IntentCategory) {
   const intents = extractIntentTerms(question);
   const q = question.toLowerCase();
 
@@ -800,6 +866,7 @@ function rerankCandidates(question: string, candidates: RetrievedChunk[]) {
         else if (text.includes("framing")) boost += 0.12;
       }
       if (section.includes("introduction") || text.includes("table of contents") || text.includes("welcome you as a new owner")) boost -= 0.12;
+      if (intent === 'venting' && /vent|termination|horizontal|vertical|elbow|pipe/.test(text)) boost += 0.14;
 
       return { ...c, score: Math.max(0, Math.min(1, c.score + boost)) };
     })

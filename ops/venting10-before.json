@@ -1,0 +1,107 @@
+{
+  "passed": 5,
+  "total": 10,
+  "accuracy": 50.0,
+  "results": [
+    {
+      "id": "v1",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v2",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v3",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v4",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v5",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v6",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v7",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v8",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v9",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    },
+    {
+      "id": "v10",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source": "manual",
+      "certainty": null,
+      "notes": null,
+      "no_answer_reason": null
+    }
+  ]
+}
