@@ -171,14 +171,14 @@ app.post("/query", async (request, reply) => {
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
-    return unavailable("insufficient_evidence");
+    return unavailable("insufficient_evidence", body.question);
   }
 
   const chosenChunk = selectedChunks[0];
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
-    return unavailable("semantic_mismatch");
+    return unavailable("semantic_mismatch", body.question);
   }
 
   const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
@@ -194,7 +194,7 @@ app.post("/query", async (request, reply) => {
     request.log.error({ err }, "GABE answer validation failed; falling back to extractive answer");
     const fallback = buildExtractiveAnswer(body.question, chosenChunk);
     if (fallback) return fallback;
-    return unavailable("validation_failed");
+    return unavailable("validation_failed", body.question);
   }
 });
 
@@ -303,14 +303,29 @@ function tryDirectFramingLookup(question: string, keywordResults: RetrievedChunk
   return fast;
 }
 
-function unavailable(reason: string) {
+function unavailable(reason: string, question?: string) {
   if (reason === "validation_failed") metrics.gabe_missing_citation_total += 1;
+  const guided = buildGuidedFallbackAnswer(reason, question || "");
   return {
-    answer: "This information is not available in verified manufacturer documentation.",
+    answer: guided,
     source_type: "none" as const,
     confidence: 0,
     no_answer_reason: reason
   };
+}
+
+function buildGuidedFallbackAnswer(reason: string, question: string) {
+  const q = (question || "").toLowerCase();
+  const isSafety = ["smell gas", "gas leak", "before lighting", "pilot", "vent", "clearance", "pressure"].some((t) => q.includes(t));
+
+  if (reason === "insufficient_evidence" || reason === "semantic_mismatch") {
+    if (isSafety) {
+      return "I can’t verify this in the loaded manuals yet. For safety: do not proceed on unverified gas/venting steps. If you smell gas, shut off gas supply, avoid ignition sources, ventilate the area, and follow the manufacturer ‘If You Smell Gas’ section. Re-ask with brand + exact model so I can target the correct manual section.";
+    }
+    return "I don’t have enough verified manual evidence for that exact question yet. Please include brand and model (example: ‘Travis 42 Apex’) and the section type (install/service/owner), and I’ll give a manual-grounded answer with citation.";
+  }
+
+  return "This information is not available in verified manufacturer documentation.";
 }
 
 function buildFramingFastPath(question: string, chunk: RetrievedChunk | undefined) {
