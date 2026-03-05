@@ -1,0 +1,12 @@
+[
+  {"id":"w1","question":"How is wall switch wiring connected to the control module?","requiredTerms":["wall switch","control module","connect"]},
+  {"id":"w2","question":"What is the wiring path from transformer to control module?","requiredTerms":["transformer","control module","path"]},
+  {"id":"w3","question":"How does the control module connect to the gas valve?","requiredTerms":["control module","gas valve","connect"]},
+  {"id":"w4","question":"What power source feeds the control module?","requiredTerms":["power","transformer","control module"]},
+  {"id":"w5","question":"What is the relationship between wall switch and module terminals?","requiredTerms":["wall switch","module","terminal"]},
+  {"id":"w6","question":"What is the relationship between gas valve and module outputs?","requiredTerms":["gas valve","module","output"]},
+  {"id":"w7","question":"Where does the receiver/IFC connect in the wiring chain?","requiredTerms":["receiver","ifc","connect"]},
+  {"id":"w8","question":"Which component controls valve opening in the wiring circuit?","requiredTerms":["component","valve","control"]},
+  {"id":"w9","question":"What are the canonical wiring components in this control circuit?","requiredTerms":["component","control module","gas valve"]},
+  {"id":"w10","question":"Summarize the wiring connection path from power to valve.","requiredTerms":["power","control module","gas valve"]}
+]

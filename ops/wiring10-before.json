@@ -1,0 +1,167 @@
+{
+  "passed": 7,
+  "total": 10,
+  "accuracy": 70.0,
+  "results": [
+    {
+      "id": "w1",
+      "question": "How is wall switch wiring connected to the control module?",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 27,
+      "validator_notes": [
+        "wiring_fast_path",
+        "validator_outcome:approved_partial"
+      ],
+      "answer": "Manufacturer wiring/control guidance found in cited section."
+    },
+    {
+      "id": "w2",
+      "question": "What is the wiring path from transformer to control module?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://electrical-engineering-portal.com/control-power-transformer",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Wiring of control power transformer for motor control circuits | EEP. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w3",
+      "question": "How does the control module connect to the gas valve?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://www.diychatroom.com/threads/control-module-to-gas-valve-questions.330185/",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Control Module to Gas Valve Questions. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w4",
+      "question": "What power source feeds the control module?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://control.com/technical-articles/all-about-plcs-the-power-supply-unit/",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: All About PLCs: The Power Supply Unit - Modular and Built-in Devices. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w5",
+      "question": "What is the relationship between wall switch and module terminals?",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 27,
+      "validator_notes": [
+        "wiring_fast_path",
+        "validator_outcome:approved_partial"
+      ],
+      "answer": "Manufacturer wiring/control guidance found in cited section."
+    },
+    {
+      "id": "w6",
+      "question": "What is the relationship between gas valve and module outputs?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://palsusa.com/wp-content/uploads/sites/6/2015/11/EA-019-001_MGV-CNTRL-MANUAL.pdf",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: [PDF] Modulating Gas Valve - PALS. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w7",
+      "question": "Where does the receiver/IFC connect in the wiring chain?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://www.youtube.com/watch?v=FkvKUrvrfN0",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Furnace IFC how to connect electrical components. - YouTube. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w8",
+      "question": "Which component controls valve opening in the wiring circuit?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 27,
+      "validator_notes": [
+        "wiring_fast_path",
+        "validator_outcome:approved_partial"
+      ],
+      "answer": "Manufacturer wiring/control guidance found in cited section."
+    },
+    {
+      "id": "w9",
+      "question": "What are the canonical wiring components in this control circuit?",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://electricalwiringcourses.com/power-control-circuits/",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Power & Control Circuits | Learn Wiring Principles Now. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    },
+    {
+      "id": "w10",
+      "question": "Summarize the wiring connection path from power to valve.",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://tameson.com/pages/how-to-wire-pneumatic-solenoid-valve",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ],
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Pneumatic Solenoid Valve Wiring Instructions - Tameson.com. I can use this to guide next lookup, but final technical steps should be manual-verified."
+    }
+  ]
+}

@@ -1,0 +1,386 @@
+[
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|33",
+    "model": "100-01537",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|34",
+    "model": "100-01537",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|37",
+    "model": "100-01537",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|48",
+    "model": "100-01537",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|38",
+    "model": "100-01443",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|39",
+    "model": "100-01443",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|42",
+    "model": "100-01443",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|38",
+    "model": "100-01444",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|39",
+    "model": "100-01444",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|42",
+    "model": "100-01444",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|33",
+    "model": "100-01536",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|36",
+    "model": "100-01536",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|47",
+    "model": "100-01536",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|68",
+    "model": "100-01488",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|30",
+    "model": "100-01559",
+    "source_page": 30,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|31",
+    "model": "100-01559",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|34",
+    "model": "100-01559",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|68",
+    "model": "100-01493",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|30",
+    "model": "100-01558",
+    "source_page": 30,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|31",
+    "model": "100-01558",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|34",
+    "model": "100-01558",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|37",
+    "model": "100-01442",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|38",
+    "model": "100-01442",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|41",
+    "model": "100-01442",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "components": [
+      "control module",
+      "wall switch"
+    ],
+    "edges": [
+      {
+        "from": "wall switch",
+        "to": "control module"
+      }
+    ]
+  }
+]

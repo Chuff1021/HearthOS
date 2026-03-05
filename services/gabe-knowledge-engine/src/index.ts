@@ -22,6 +22,7 @@ import { appendRunMetadata } from "./swarm/runMetadata";
 import { expandPartTerms } from "./swarm/partAliases";
 import { extractVentRule, extractWiringGraph, normalizePartNumbers } from "./swarm/structuredTech";
 import { buildVentingAnswerFromRecord, extractVentRuleRecords, pickBestVentRule } from "./swarm/ventingEngine";
+import { buildWiringAnswerFromRecord, extractWiringRecords, pickBestWiringRecord } from "./swarm/wiringEngine";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -423,6 +424,36 @@ app.post("/query", async (request, reply) => {
       evidencePacket: {
         ...(evidencePacket as any),
         vent_rule_records: 0,
+      },
+    });
+  }
+
+  if (intentClassification.intent === "electrical" || intentClassification.intent === "remote operation") {
+    const wiringRecords = extractWiringRecords(sectionRouted);
+    const bestWiring = pickBestWiringRecord(body.question, wiringRecords);
+    if (bestWiring) {
+      const wiringAnswer = buildWiringAnswerFromRecord(bestWiring, body.question) as any;
+      wiringAnswer.validator_notes = [...(wiringAnswer.validator_notes || []), `wiring_rule_records:${wiringRecords.length}`];
+      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestWiring.manual_title && c.source_url === bestWiring.source_url && c.page_number === (bestWiring.source_page ?? 1));
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: wiringAnswer,
+        retrieved: retrievedForValidation,
+        evidencePacket: {
+          ...(evidencePacket as any),
+          wiring_graph_records: wiringRecords.length,
+        },
+      });
+    }
+
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: unavailable("insufficient_structured_wiring_graph", body.question, webHints.top),
+      retrieved: sectionRouted.slice(0, 1),
+      evidencePacket: {
+        ...(evidencePacket as any),
+        wiring_graph_records: 0,
       },
     });
   }
