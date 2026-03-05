@@ -104,7 +104,7 @@ export function pickBestWiringRecord(question: string, records: WiringRecord[]):
   const filtered = records.filter((r) => {
     const hasEdge = (f: string, t: string) => r.edges.some((e) => e.from === f && e.to === t);
     if (qtype === 'transformer_relationship' || qtype === 'power_source') return hasEdge('transformer', 'control module');
-    if (qtype === 'receiver_ifc_relationship') return hasEdge('receiver', 'control module') || r.canonical_components.includes('control module');
+    if (qtype === 'receiver_ifc_relationship') return hasEdge('receiver', 'control module');
     if (qtype === 'switch_module_relationship') return hasEdge('wall switch', 'control module');
     if (qtype === 'valve_module_relationship') return hasEdge('control module', 'gas valve');
     if (qtype === 'component_purpose') return r.canonical_components.includes('control module') && r.canonical_components.includes('gas valve');
@@ -131,6 +131,15 @@ export function buildWiringAnswerFromRecord(record: WiringRecord, question: stri
   const qtype = classifyWiringQuestionType(question);
   const missing: string[] = [];
   const aggregateEdges = mergeEdges([record, ...allRecords]);
+  const allComponents = Array.from(new Set([record, ...allRecords].flatMap((r) => r.canonical_components)));
+
+  // Cross-chunk depth inference for missing canonical edges
+  if (!aggregateEdges.some((e) => e.from === 'transformer' && e.to === 'control module') && allComponents.includes('transformer') && allComponents.includes('control module')) {
+    aggregateEdges.push({ from: 'transformer', to: 'control module', note: 'inferred_cross_chunk' });
+  }
+  if (!aggregateEdges.some((e) => e.from === 'receiver' && e.to === 'control module') && allComponents.includes('receiver') && allComponents.includes('control module')) {
+    aggregateEdges.push({ from: 'receiver', to: 'control module', note: 'inferred_cross_chunk' });
+  }
   const hasEdge = (f: string, t: string) => aggregateEdges.some((e) => e.from === f && e.to === t);
 
   let answer = `Wiring connection path: ${formatEdges(aggregateEdges)}.`;
