@@ -62,7 +62,7 @@ const navItems = [
       {
         label: "Schedule",
         href: "/schedule",
-        badge: "8",
+        badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -72,7 +72,7 @@ const navItems = [
       {
         label: "Jobs",
         href: "/jobs",
-        badge: "3",
+        badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -108,7 +108,7 @@ const navItems = [
       {
         label: "Invoices",
         href: "/invoices",
-        badge: "5",
+        badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
@@ -129,7 +129,7 @@ const navItems = [
       {
         label: "Estimates",
         href: "/estimates",
-        badge: "2",
+        badge: null,
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
