@@ -12,7 +12,7 @@ import { retryAsync } from "./ingest/retry";
 import { queryDimensionsByModelTopic, upsertDimensions } from "./ingest/dimensionsStore";
 import { searchWebHints } from "./retrieval/web";
 import { detectModel } from "./swarm/modelDetector";
-import { classifyIntent } from "./swarm/intentClassifier";
+import { classifyIntent, IntentCategory } from "./swarm/intentClassifier";
 import { routeBySection } from "./swarm/sectionRouter";
 import { validateOrReject } from "./swarm/validatorAgent";
 import { logRefinementEvent } from "./swarm/selfRefiner";
@@ -364,7 +364,7 @@ app.post("/query", async (request, reply) => {
     webHints: webHints.results,
   });
 
-  const rerankedCandidates = rerankCandidates(body.question, candidatePool).slice(0, 40);
+  const rerankedCandidates = rerankCandidates(body.question, candidatePool, intentClassification.intent).slice(0, 40);
   const framingPreferred = selectFramingPreferredChunk(body.question, rerankedCandidates);
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
@@ -393,6 +393,11 @@ app.post("/query", async (request, reply) => {
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {
     metrics.gabe_wrong_manual_total += 1;
     return await finalizeThroughGate({ question: body.question, answer: unavailable("semantic_mismatch", body.question, webHints.top), retrieved: [chosenChunk], evidencePacket });
+  }
+
+  const intentFastPath = buildIntentFastPath(intentClassification.intent, body.question, chosenChunk);
+  if (intentFastPath) {
+    return await finalizeThroughGate({ question: body.question, answer: intentFastPath, retrieved: [chosenChunk], evidencePacket });
   }
 
   const framingFastPath = buildFramingFastPath(body.question, chosenChunk);
