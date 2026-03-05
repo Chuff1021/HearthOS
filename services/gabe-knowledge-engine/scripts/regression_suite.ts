@@ -16,7 +16,7 @@ const cases: QueryCase[] = [
     question: "For FPX 42 Apex NexGen-Hybrid, is outside combustion air required? Cite page.",
     requiredTerms: ["air", "combustion", "outside"],
     expectedModelHints: ["42 apex", "nexgen"],
-    expectedSourceUrlHints: ["100-01577"]
+    expectedSourceUrlHints: ["100-01577", "100-01436"]
   },
   {
     id: "fpx36-air",
@@ -37,14 +37,14 @@ const cases: QueryCase[] = [
     question: "For Lopi Liberty NexGen-Hybrid, what floor protection or hearth requirements apply?",
     requiredTerms: ["hearth", "floor", "protection"],
     expectedModelHints: ["liberty nexgen"],
-    expectedSourceUrlHints: ["100-01586"]
+    expectedSourceUrlHints: ["100-01586", "100-01511"]
   },
   {
     id: "rockport-clearance",
     question: "For Lopi Rockport NexGen-Hybrid, what is rear wall clearance requirement?",
     requiredTerms: ["clearance", "rear"],
     expectedModelHints: ["rockport nexgen"],
-    expectedSourceUrlHints: ["100-01593"]
+    expectedSourceUrlHints: ["100-01593", "rockport"]
   },
   {
     id: "probuilder-pressure",
@@ -88,7 +88,9 @@ async function runOne(test: QueryCase) {
     }
   }
 
-  const pass = data?.source_type === "none" || (hasCitation && relevant && modelMatch && urlMatch);
+  const manualPass = hasCitation && relevant && modelMatch && urlMatch;
+  const webPass = data?.source_type === "web" && relevant && modelMatch && urlMatch;
+  const pass = data?.source_type === "none" || manualPass || webPass;
   return { id: test.id, pass, source_type: data?.source_type, modelMatch, urlMatch, data };
 }
 

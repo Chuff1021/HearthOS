@@ -6,12 +6,16 @@ import { chunkPages } from "./ingest/chunker";
 import { ensureCollection, qdrant } from "./retrieval/qdrant";
 import { keywordSearchManualChunks, searchManualChunks } from "./retrieval/search";
 import { callGroq } from "./llm/groq";
-import { validateAnswer } from "./validation/validate";
 import { RetrievedChunk } from "./types";
 import { stableUuid } from "./ingest/ids";
 import { retryAsync } from "./ingest/retry";
 import { queryDimensionsByModelTopic, upsertDimensions } from "./ingest/dimensionsStore";
 import { searchWebHints } from "./retrieval/web";
+import { detectModel } from "./swarm/modelDetector";
+import { classifyIntent } from "./swarm/intentClassifier";
+import { routeBySection } from "./swarm/sectionRouter";
+import { validateOrReject } from "./swarm/validatorAgent";
+import { logRefinementEvent } from "./swarm/selfRefiner";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -129,6 +133,9 @@ app.post("/query", async (request, reply) => {
 
   metrics.gabe_queries_total += 1;
 
+  const modelDetection = detectModel(body.question);
+  const intentClassification = classifyIntent(body.question);
+
   const lowIntent = classifyLowIntentQuestion(body.question);
   if (lowIntent) {
     return {
@@ -162,11 +169,12 @@ app.post("/query", async (request, reply) => {
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
+  const sectionRouted = routeBySection(intentClassification.intent, technical);
 
   const isFramingQuestion = body.question.toLowerCase().includes("framing") && body.question.toLowerCase().includes("dimension");
   const dynamicThreshold = isFramingQuestion ? 0.5 : Math.max(0.66, similarityThreshold - 0.08);
-  const strongCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
-  const fallbackCandidates = technical.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
+  const strongCandidates = sectionRouted.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
+  const fallbackCandidates = sectionRouted.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
   const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
 
   const rerankedCandidates = rerankCandidates(body.question, candidatePool).slice(0, 40);
@@ -191,10 +199,30 @@ app.post("/query", async (request, reply) => {
 
   try {
     const answer = await callGroq([chosenChunk], body.question);
-    validateAnswer(answer, [chosenChunk]);
-    return answer;
+    const verdict = validateOrReject(answer, [chosenChunk]);
+    if (verdict.ok) return verdict.answer;
+
+    logRefinementEvent({
+      question: body.question,
+      intent: intentClassification.intent,
+      model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
+      failure: verdict.reason,
+      action: "validator_rejected_answer; fallback_to_extractive",
+    });
+
+    request.log.error({ reason: verdict.reason }, "GABE validator rejected response; falling back to extractive answer");
+    const fallback = buildExtractiveAnswer(body.question, chosenChunk);
+    if (fallback) return fallback;
+    return unavailable("validation_failed", body.question, webHints.top);
   } catch (err) {
-    request.log.error({ err }, "GABE answer validation failed; falling back to extractive answer");
+    request.log.error({ err }, "GABE answer generation failed; falling back to extractive answer");
+    logRefinementEvent({
+      question: body.question,
+      intent: intentClassification.intent,
+      model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
+      failure: err instanceof Error ? err.message : "reasoner_error",
+      action: "reasoner_error; fallback_to_extractive",
+    });
     const fallback = buildExtractiveAnswer(body.question, chosenChunk);
     if (fallback) return fallback;
     return unavailable("validation_failed", body.question, webHints.top);
