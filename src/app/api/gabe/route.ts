@@ -104,6 +104,59 @@ export async function POST(request: NextRequest) {
     const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
 
+    // STRICT MANUAL GUARD:
+    // When a manual is selected, only answer from that exact manual.
+    if (selectedManual?.manualId && lastUserMessage) {
+      const allManuals = await listManuals();
+      const selectedManualRecord = allManuals.find((manual) => manual.id === selectedManual.manualId);
+
+      if (!selectedManualRecord) {
+        return NextResponse.json({
+          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
+          source_type: "none",
+          confidence: 0,
+          selected_manual_id: selectedManual.manualId,
+          selected_manual_title: selectedManual.manualTitle ?? null,
+          answered_from_selected_manual: false,
+          manual_title: selectedManual.manualTitle ?? null,
+          page_number: null,
+        });
+      }
+
+      const selectedSections = await listManualSections(selectedManual.manualId);
+      const bestSection = pickBestManualSection(lastUserMessage, selectedSections);
+
+      if (!bestSection) {
+        return NextResponse.json({
+          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
+          source_type: "none",
+          confidence: 0,
+          selected_manual_id: selectedManual.manualId,
+          selected_manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
+          answered_from_selected_manual: false,
+          manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
+          page_number: null,
+        });
+      }
+
+      const selectedManualTitle = selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`;
+      const answer = buildStrictManualAnswer(lastUserMessage, bestSection);
+
+      return NextResponse.json({
+        answer,
+        source_type: "manual",
+        manual_title: selectedManualTitle,
+        page_number: bestSection.pageStart ?? null,
+        source_url: selectedManualRecord.url,
+        confidence: 72,
+        selected_manual_id: selectedManual.manualId,
+        selected_manual_title: selectedManualTitle,
+        answered_from_selected_manual: true,
+        cited_manual_title: selectedManualTitle,
+        cited_page_number: bestSection.pageStart ?? null,
+      });
+    }
+
     if (orchestratorUrl && lastUserMessage) {
       const orchestratorRes = await fetch(`${orchestratorUrl.replace(/\/$/, "")}/query`, {
         method: "POST",
@@ -393,6 +446,52 @@ Would you like help with a specific fireplace model or issue?`;
       { status: 500 }
     );
   }
+}
+
+function pickBestManualSection(question: string, sections: Array<{ pageStart?: number | null; title?: string | null; snippet?: string | null }>) {
+  if (!sections.length) return null;
+
+  const qTokens = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .filter((t) => t.length > 2);
+
+  let best: { section: typeof sections[number]; score: number } | null = null;
+
+  for (const section of sections) {
+    const hay = `${section.title ?? ""} ${section.snippet ?? ""}`.toLowerCase();
+    if (!hay.trim()) continue;
+
+    let score = 0;
+    for (const t of qTokens) {
+      if (hay.includes(t)) score += 1;
+    }
+
+    if (/vent|clearance|install|gas|manifold|pilot|light|startup|ignition/.test(question.toLowerCase())) {
+      if (/vent|clearance|install|gas|manifold|pilot|lighting|startup|ignition/.test(hay)) score += 2;
+    }
+
+    if (!best || score > best.score) {
+      best = { section, score };
+    }
+  }
+
+  if (!best) return null;
+  // Require at least minimal lexical overlap to avoid hallucinated/manual-mismatch responses.
+  if (best.score <= 0) return null;
+
+  return best.section;
+}
+
+function buildStrictManualAnswer(question: string, section: { title?: string | null; snippet?: string | null }) {
+  const quote = (section.snippet ?? "").replace(/\s+/g, " ").trim().slice(0, 420);
+  if (!quote) {
+    return "I could not verify this answer in the selected manual.";
+  }
+
+  const titlePrefix = section.title ? `${section.title}: ` : "";
+  return `${titlePrefix}Manual states: "${quote}"`;
 }
 
 function saveConversationLog(params: {
