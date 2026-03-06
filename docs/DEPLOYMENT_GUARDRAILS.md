@@ -3,14 +3,15 @@
 ## Production Deployment Policy (HearthOS)
 
 ### 1) Production deploy source control
-- Production deploys only from the approved recovery branch lineage.
-- Current locked baseline pointer:
+- Locked baseline pointers:
   - Deployment: `dpl_FvHRQE4x6XkeU3ETC2s443hBNRiN`
   - URL: `https://hearth-mwbgyf1ds-chuff1021s-projects.vercel.app`
   - Git baseline: `cfbdbf1`
   - Branch: `production-recovered-safe`
   - Tag: `production-recovered-safe-tag`
-- Do not deploy production from stale/unknown branches.
+- Vercel Git auto-deploys are disabled (`gitProviderOptions.createDeployments=disabled`).
+- Production must be changed only by explicit manual promotion / alias action from an approved preview deployment.
+- `main` and feature branches are not allowed to auto-deploy production.
 
 ### 2) Preview gate before any production promote
 - Every change must deploy to Preview first.
