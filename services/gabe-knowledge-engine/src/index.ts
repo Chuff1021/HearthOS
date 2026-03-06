@@ -273,7 +273,55 @@ function hardNone(note: string) {
     source_type: "none" as const,
     confidence: 0 as const,
     certainty: "Unverified" as const,
+    run_outcome: "refused_unverified",
     validator_notes: [note],
+  };
+}
+
+function normalizeReasonCode(answer: any, rejectedReason?: string) {
+  const notes = Array.isArray(answer?.validator_notes) ? answer.validator_notes.map((x: unknown) => String(x)) : [];
+  const noteBlob = `${notes.join("|")}|${String(rejectedReason || "")}`.toLowerCase();
+  if (/missing_explicit|insufficient_explicit/.test(noteBlob)) return "missing_explicit_support";
+  if (/missing_fields|missing_structured|insufficient_structured/.test(noteBlob)) return "missing_structured_fields";
+  if (/semantic_mismatch|model_ambiguous|ambiguous/.test(noteBlob)) return "model_ambiguous";
+  if (/source_not_found|insufficient_evidence|no_sources/.test(noteBlob)) return "source_not_found";
+  return "source_not_found";
+}
+
+function normalizeRunOutcome(answer: any) {
+  const sourceType = String(answer?.source_type || "none");
+  const certainty = String(answer?.certainty || "Unverified");
+  const notes = Array.isArray(answer?.validator_notes) ? answer.validator_notes.map((x: unknown) => String(x).toLowerCase()) : [];
+  if (notes.some((n: string) => n.includes("handoff"))) return "escalated_handoff";
+  if (sourceType === "none") return "refused_unverified";
+  if (sourceType === "manual" || sourceType === "web") {
+    if (certainty === "Verified Exact") return "answered_verified";
+    if (certainty === "Verified Partial" || certainty === "Interpreted") return "answered_partial";
+  }
+  return "source_evidence_missing";
+}
+
+function inferSelectedEngine(answer: any) {
+  const notes = Array.isArray(answer?.validator_notes) ? answer.validator_notes.map((x: unknown) => String(x).toLowerCase()) : [];
+  if (notes.some((n: string) => n.includes("parts_"))) return "parts_engine";
+  if (notes.some((n: string) => n.includes("wiring_"))) return "wiring_engine";
+  if (notes.some((n: string) => n.includes("vent") || n.includes("chimney"))) return "venting_engine";
+  if (notes.some((n: string) => n.includes("compliance_") || n.includes("code_"))) return "compliance_engine";
+  return "general_engine";
+}
+
+function enrichMetadata(answer: any, selectedEngine: string | undefined, rejectedReason?: string) {
+  const run_outcome = normalizeRunOutcome(answer);
+  const source_evidence_status = answer?.source_type === "manual" || answer?.source_type === "web" ? "present" : "missing";
+  const truth_audit_status = run_outcome === "refused_unverified" ? "not_applicable" : "validator_passed";
+  return {
+    ...answer,
+    selected_engine: selectedEngine || inferSelectedEngine(answer),
+    run_outcome,
+    refusal_reason: run_outcome === "refused_unverified" ? normalizeReasonCode(answer, rejectedReason) : undefined,
+    source_evidence_status,
+    truth_audit_status,
+    validator_version: process.env.VALIDATOR_VERSION || "v1",
   };
 }
 
@@ -282,17 +330,29 @@ async function finalizeThroughGate(params: {
   answer: any;
   retrieved: RetrievedChunk[];
   evidencePacket?: unknown;
+  selectedEngine?: string;
 }) {
   const verdict = validateOrReject(params.answer, params.retrieved);
   if (verdict.ok) {
+    const enriched = enrichMetadata(verdict.answer as any, params.selectedEngine || "general_engine");
     await appendRunMetadata({
       question: params.question,
-      certainty: (verdict.answer as any).certainty,
-      source_type: (verdict.answer as any).source_type,
-      validator_notes: (verdict.answer as any).validator_notes || [],
+      selected_engine: enriched.selected_engine,
+      certainty: enriched.certainty,
+      run_outcome: enriched.run_outcome,
+      truth_audit_status: enriched.truth_audit_status,
+      source_evidence_status: enriched.source_evidence_status,
+      validator_version: enriched.validator_version,
+      source_type: enriched.source_type,
+      validator_notes: enriched.validator_notes || [],
+      refusal_reason: enriched.refusal_reason,
+      manual_title: enriched.manual_title,
+      page_number: enriched.page_number,
+      source_url: enriched.source_url,
+      quote: enriched.quote,
       evidencePacket: params.evidencePacket,
     });
-    const formatted = composeValidatedResponse(verdict.answer) as any;
+    const formatted = composeValidatedResponse(enriched as any) as any;
     if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
       formatted.raw_internal_response = verdict.answer;
     }
@@ -302,15 +362,26 @@ async function finalizeThroughGate(params: {
   const safe = hardNone(`hard_gate_reject:${verdict.reason}`);
   const safeVerdict = validateOrReject(safe as any, params.retrieved);
   if (safeVerdict.ok) {
+    const enrichedSafe = enrichMetadata(safeVerdict.answer as any, params.selectedEngine || "general_engine", verdict.reason);
     await appendRunMetadata({
       question: params.question,
-      certainty: (safeVerdict.answer as any).certainty,
-      source_type: (safeVerdict.answer as any).source_type,
-      validator_notes: (safeVerdict.answer as any).validator_notes || [],
+      selected_engine: enrichedSafe.selected_engine,
+      certainty: enrichedSafe.certainty,
+      run_outcome: enrichedSafe.run_outcome,
+      truth_audit_status: enrichedSafe.truth_audit_status,
+      source_evidence_status: enrichedSafe.source_evidence_status,
+      validator_version: enrichedSafe.validator_version,
+      source_type: enrichedSafe.source_type,
+      validator_notes: enrichedSafe.validator_notes || [],
+      refusal_reason: enrichedSafe.refusal_reason,
+      manual_title: enrichedSafe.manual_title,
+      page_number: enrichedSafe.page_number,
+      source_url: enrichedSafe.source_url,
+      quote: enrichedSafe.quote,
       evidencePacket: params.evidencePacket,
       blocked_unverified: true,
     });
-    const formatted = composeValidatedResponse(safeVerdict.answer) as any;
+    const formatted = composeValidatedResponse(enrichedSafe as any) as any;
     if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
       formatted.raw_internal_response = safeVerdict.answer;
       formatted.rejected_answer = params.answer;
@@ -319,7 +390,7 @@ async function finalizeThroughGate(params: {
     return formatted;
   }
 
-  const fallback: any = { ...safe };
+  const fallback: any = enrichMetadata({ ...safe }, params.selectedEngine || "general_engine", verdict.reason);
   if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
     fallback.raw_internal_response = { ...safe };
     fallback.rejected_answer = params.answer;
@@ -734,7 +805,8 @@ function unavailable(
       quote: webHint.snippet || webHint.title,
       confidence: 35,
       certainty: "Interpreted",
-      validator_notes: ["web_fallback_directional"]
+      run_outcome: "source_evidence_missing",
+      validator_notes: ["web_fallback_directional", reason]
     };
   }
 
@@ -743,6 +815,7 @@ function unavailable(
     source_type: "none" as const,
     confidence: 0,
     certainty: "Unverified" as const,
+    run_outcome: "refused_unverified",
     validator_notes: [reason],
     no_answer_reason: reason
   };
