@@ -16,7 +16,8 @@
     "score:compliance": "tsx scripts/compliance_score.ts",
     "audit:compliance": "tsx scripts/compliance_truth_audit.ts",
     "score:expanded": "tsx scripts/expanded_engine_eval.ts",
-    "score:venting32": "tsx scripts/venting_32_hardening.ts"
+    "score:venting32": "tsx scripts/venting_32_hardening.ts",
+    "score:parts32": "tsx scripts/parts_32_gating_cleanup.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.12.0",

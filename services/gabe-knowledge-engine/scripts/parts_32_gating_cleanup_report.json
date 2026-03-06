@@ -1,0 +1,83 @@
+{
+  "before": {
+    "total": 32,
+    "passed": 28,
+    "accuracy": 0.875
+  },
+  "after": {
+    "total": 32,
+    "passed": 32,
+    "accuracy": 1
+  },
+  "delta": {
+    "passed": 4,
+    "accuracy": 0.125
+  },
+  "failed_cases_before": [
+    {
+      "test_id": "P6-1",
+      "question": "is paint code same as part number",
+      "selected_qtype": "alias_lookup",
+      "selected_part_record": "https://example.com/parts/P6-1.pdf|12|PARTS Test Manual",
+      "citation_fields_present": {
+        "manual_title": true,
+        "page_number": true,
+        "source_url": true,
+        "quote": true
+      },
+      "final_response": "Alias lookup result: canonical aliases not verified.",
+      "validator_result": "approved",
+      "exact_gating_failure_reason": null,
+      "pass": false
+    },
+    {
+      "test_id": "P6-2",
+      "question": "is paint code same as part number",
+      "selected_qtype": "alias_lookup",
+      "selected_part_record": "https://example.com/parts/P6-2.pdf|12|PARTS Test Manual",
+      "citation_fields_present": {
+        "manual_title": true,
+        "page_number": true,
+        "source_url": true,
+        "quote": true
+      },
+      "final_response": "Alias lookup result: canonical aliases not verified.",
+      "validator_result": "approved",
+      "exact_gating_failure_reason": null,
+      "pass": false
+    },
+    {
+      "test_id": "P6-3",
+      "question": "is paint code same as part number",
+      "selected_qtype": "alias_lookup",
+      "selected_part_record": "https://example.com/parts/P6-3.pdf|12|PARTS Test Manual",
+      "citation_fields_present": {
+        "manual_title": true,
+        "page_number": true,
+        "source_url": true,
+        "quote": true
+      },
+      "final_response": "Alias lookup result: canonical aliases not verified.",
+      "validator_result": "approved",
+      "exact_gating_failure_reason": null,
+      "pass": false
+    },
+    {
+      "test_id": "P6-4",
+      "question": "is paint code same as part number",
+      "selected_qtype": "alias_lookup",
+      "selected_part_record": "https://example.com/parts/P6-4.pdf|12|PARTS Test Manual",
+      "citation_fields_present": {
+        "manual_title": true,
+        "page_number": true,
+        "source_url": true,
+        "quote": true
+      },
+      "final_response": "Alias lookup result: canonical aliases not verified.",
+      "validator_result": "approved",
+      "exact_gating_failure_reason": null,
+      "pass": false
+    }
+  ],
+  "failed_cases_after": []
+}

@@ -65,6 +65,9 @@ export function extractPartsRecords(chunks: RetrievedChunk[]): PartsRecord[] {
     if (!/(part|replacement|diagram|callout|sku|item\s*#|p\/?n\b|revision|rev\.|series|family|aka|alias)/i.test(lc)) {
       continue;
     }
+    if (isNegativePartsContext(lc)) {
+      continue;
+    }
 
     const canonical_part_numbers = canonicalizePartNumbers(text);
     const aliases_found = expandAliasesFromText(text);
@@ -306,4 +309,8 @@ function templateAliasLookup(aliases: string[], partNumbers: string[]) {
   const aliasTxt = aliases.length ? aliases.join(", ") : "not verified";
   const pn = partNumbers.length ? ` Candidate part numbers: ${partNumbers.slice(0, 4).join(", ")}.` : "";
   return `Alias lookup result: canonical aliases ${aliasTxt}.${pn}`;
+}
+
+function isNegativePartsContext(lc: string) {
+  return /not\s+(a\s+)?replacement\s+part|not\s+replacement\s+parts|not\s+a\s+part\s+number|paint\s+option|finish\s+option|decorative\s+option/.test(lc);
 }
