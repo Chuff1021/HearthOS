@@ -335,6 +335,9 @@ app.post("/query", async (request, reply) => {
 
   const modelDetection = detectModel(body.question);
   const intentClassification = classifyIntent(body.question);
+  const qLower = body.question.toLowerCase();
+  const partsHint = /\b(part|replacement|diagram|callout|sku|item\s*#|thermopile|thermocouple|blower|gasket|pilot assembly|alias|revision|variant|family)\b/.test(qLower);
+  const effectiveIntent: IntentCategory = partsHint ? "replacement parts" : intentClassification.intent;
 
   const lowIntent = classifyLowIntentQuestion(body.question);
   if (lowIntent) {
@@ -363,7 +366,7 @@ app.post("/query", async (request, reply) => {
   const keywordTerms = buildKeywordTerms(body.question, [...webHints.terms, ...expandPartTerms(body.question)]);
 
   const diagramIntents = new Set(["framing", "clearances", "venting", "electrical"]);
-  const shouldUseDiagrams = diagramIntents.has(intentClassification.intent);
+  const shouldUseDiagrams = diagramIntents.has(effectiveIntent);
 
   const [vectorResults, keywordResults, diagramVector, diagramKeyword, qaMemoryVector] = await Promise.all([
     searchManualChunks(queryVector, 80),
@@ -383,7 +386,7 @@ app.post("/query", async (request, reply) => {
   const boostedResults = applyKeywordBoost(body.question, hybridResults);
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
-  const sectionRouted = routeBySection(intentClassification.intent, technical);
+  const sectionRouted = routeBySection(effectiveIntent, technical);
 
   const isFramingQuestion = body.question.toLowerCase().includes("framing") && body.question.toLowerCase().includes("dimension");
   const dynamicThreshold = isFramingQuestion ? 0.5 : Math.max(0.66, similarityThreshold - 0.08);
@@ -393,13 +396,13 @@ app.post("/query", async (request, reply) => {
 
   const evidencePacket = buildEvidencePacket({
     modelDetection,
-    intent: { intent: intentClassification.intent, subtopic: intentClassification.component },
+    intent: { intent: effectiveIntent, subtopic: intentClassification.component },
     retrieved: sectionRouted,
     qaMemory: qaMemoryVector,
     webHints: webHints.results,
   });
 
-  if (intentClassification.intent === "venting") {
+  if (effectiveIntent === "venting") {
     const ventRecords = extractVentRuleRecords(sectionRouted);
     const bestVent = pickBestVentRule(body.question, ventRecords);
     if (bestVent) {
@@ -429,7 +432,7 @@ app.post("/query", async (request, reply) => {
     });
   }
 
-  if (intentClassification.intent === "electrical" || intentClassification.intent === "remote operation") {
+  if (effectiveIntent === "electrical" || effectiveIntent === "remote operation") {
     const wiringRecords = extractWiringRecords(sectionRouted);
     const bestWiring = pickBestWiringRecord(body.question, wiringRecords);
     if (bestWiring) {
@@ -460,7 +463,7 @@ app.post("/query", async (request, reply) => {
     });
   }
 
-  if (intentClassification.intent === "replacement parts") {
+  if (effectiveIntent === "replacement parts") {
     const partsRecords = extractPartsRecords(sectionRouted);
     const bestParts = pickBestPartsRecord(body.question, partsRecords);
     if (bestParts) {
@@ -468,6 +471,11 @@ app.post("/query", async (request, reply) => {
       const partsAnswer = buildPartsAnswerFromRecord(bestParts, body.question, relatedParts) as any;
       partsAnswer.validator_notes = [...(partsAnswer.validator_notes || []), `parts_rule_records:${partsRecords.length}`];
       const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestParts.manual_title && c.source_url === bestParts.source_url && c.page_number === (bestParts.source_page ?? 1));
+      if (matchedChunk) {
+        const strictQuote = extractQuote(body.question, matchedChunk.chunk_text || '') || (matchedChunk.chunk_text || '').split(/\s+/).slice(0, 32).join(' ');
+        partsAnswer.quote = strictQuote;
+        partsAnswer.page_number = matchedChunk.page_number;
+      }
       const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
       return await finalizeThroughGate({
         question: body.question,
@@ -491,7 +499,7 @@ app.post("/query", async (request, reply) => {
     });
   }
 
-  const rerankedCandidates = rerankCandidates(body.question, candidatePool, intentClassification.intent).slice(0, 40);
+  const rerankedCandidates = rerankCandidates(body.question, candidatePool, effectiveIntent).slice(0, 40);
   const framingPreferred = selectFramingPreferredChunk(body.question, rerankedCandidates);
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
@@ -502,7 +510,7 @@ app.post("/query", async (request, reply) => {
   const candidateChunks = selectedChunks.slice(0, 2);
   const chosenChunk = candidateChunks[0];
 
-  if (intentClassification.intent === "code compliance") {
+  if (effectiveIntent === "code compliance") {
     const codeLike = candidateChunks.some((c) => {
       const t = `${c.section_title || ''} ${c.chunk_text || ''}`.toLowerCase();
       return /code|listing|inspection|permit|approved/.test(t);
@@ -522,7 +530,7 @@ app.post("/query", async (request, reply) => {
     return await finalizeThroughGate({ question: body.question, answer: unavailable("semantic_mismatch", body.question, webHints.top), retrieved: [chosenChunk], evidencePacket });
   }
 
-  const intentFastPath = buildIntentFastPath(intentClassification.intent, body.question, chosenChunk);
+  const intentFastPath = buildIntentFastPath(effectiveIntent, body.question, chosenChunk);
   if (intentFastPath) {
     return await finalizeThroughGate({ question: body.question, answer: intentFastPath, retrieved: [chosenChunk], evidencePacket });
   }
@@ -543,7 +551,7 @@ app.post("/query", async (request, reply) => {
 
       logRefinementEvent({
         question: body.question,
-        intent: intentClassification.intent,
+        intent: effectiveIntent,
         model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
         failure: verdict.reason,
         action: `validator_rejected_attempt_${i + 1}`,
@@ -551,7 +559,7 @@ app.post("/query", async (request, reply) => {
     } catch (err) {
       logRefinementEvent({
         question: body.question,
-        intent: intentClassification.intent,
+        intent: effectiveIntent,
         model: `${modelDetection.brand || ''} ${modelDetection.model || ''}`.trim() || undefined,
         failure: err instanceof Error ? err.message : "reasoner_error",
         action: `reasoner_error_attempt_${i + 1}`,

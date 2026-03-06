@@ -1,7 +1,8 @@
 import json, requests
 from pathlib import Path
 
-BASE='https://hearth-os.vercel.app/api/gabe'
+import os
+BASE=os.environ.get('PARTS_TEST_BASE','http://127.0.0.1:3000/api/gabe')
 cases=json.loads(Path('/root/.openclaw/workspace/HearthOS/ops/parts10-testset.json').read_text())
 
 def note(notes,prefix):
