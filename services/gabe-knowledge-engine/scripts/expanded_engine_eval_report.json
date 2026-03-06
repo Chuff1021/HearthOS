@@ -1,0 +1,762 @@
+{
+  "venting": {
+    "total": 32,
+    "before": {
+      "total": 32,
+      "passed": 20,
+      "accuracy": 0.625
+    },
+    "after": {
+      "total": 32,
+      "passed": 20,
+      "accuracy": 0.625
+    },
+    "delta": {
+      "passed": 0,
+      "accuracy": 0
+    },
+    "topFailures": [
+      {
+        "cause": "scorer mismatch",
+        "count": 8
+      },
+      {
+        "cause": "retrieval gap",
+        "count": 4
+      }
+    ],
+    "rows": [
+      {
+        "id": "V01-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V02-1",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V03-1",
+        "pass": false,
+        "beforePass": true,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V04-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V05-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V06-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V07-1",
+        "pass": false,
+        "beforePass": true,
+        "cause": "retrieval gap"
+      },
+      {
+        "id": "V08-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V01-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V02-2",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V03-2",
+        "pass": false,
+        "beforePass": true,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V04-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V05-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V06-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V07-2",
+        "pass": false,
+        "beforePass": true,
+        "cause": "retrieval gap"
+      },
+      {
+        "id": "V08-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V01-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V02-3",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V03-3",
+        "pass": false,
+        "beforePass": true,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V04-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V05-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V06-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V07-3",
+        "pass": false,
+        "beforePass": true,
+        "cause": "retrieval gap"
+      },
+      {
+        "id": "V08-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V01-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V02-4",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V03-4",
+        "pass": false,
+        "beforePass": true,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "V04-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V05-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "V06-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "V07-4",
+        "pass": false,
+        "beforePass": true,
+        "cause": "retrieval gap"
+      },
+      {
+        "id": "V08-4",
+        "pass": true,
+        "beforePass": true
+      }
+    ]
+  },
+  "wiring": {
+    "total": 32,
+    "before": {
+      "total": 32,
+      "passed": 16,
+      "accuracy": 0.5
+    },
+    "after": {
+      "total": 32,
+      "passed": 28,
+      "accuracy": 0.875
+    },
+    "delta": {
+      "passed": 12,
+      "accuracy": 0.375
+    },
+    "topFailures": [
+      {
+        "cause": "scorer mismatch",
+        "count": 4
+      }
+    ],
+    "rows": [
+      {
+        "id": "W01-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W02-1",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "W03-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W04-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W05-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W06-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W07-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W08-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W01-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W02-2",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "W03-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W04-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W05-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W06-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W07-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W08-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W01-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W02-3",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "W03-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W04-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W05-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W06-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W07-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W08-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W01-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W02-4",
+        "pass": false,
+        "beforePass": false,
+        "cause": "scorer mismatch"
+      },
+      {
+        "id": "W03-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W04-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W05-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W06-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "W07-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "W08-4",
+        "pass": true,
+        "beforePass": true
+      }
+    ]
+  },
+  "parts": {
+    "total": 32,
+    "before": {
+      "total": 32,
+      "passed": 28,
+      "accuracy": 0.875
+    },
+    "after": {
+      "total": 32,
+      "passed": 28,
+      "accuracy": 0.875
+    },
+    "delta": {
+      "passed": 0,
+      "accuracy": 0
+    },
+    "topFailures": [
+      {
+        "cause": "validator/gating issue",
+        "count": 4
+      }
+    ],
+    "rows": [
+      {
+        "id": "P01-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P02-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P03-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P04-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P05-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P06-1",
+        "pass": false,
+        "beforePass": false,
+        "cause": "validator/gating issue"
+      },
+      {
+        "id": "P07-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P08-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P01-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P02-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P03-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P04-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P05-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P06-2",
+        "pass": false,
+        "beforePass": false,
+        "cause": "validator/gating issue"
+      },
+      {
+        "id": "P07-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P08-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P01-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P02-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P03-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P04-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P05-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P06-3",
+        "pass": false,
+        "beforePass": false,
+        "cause": "validator/gating issue"
+      },
+      {
+        "id": "P07-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P08-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P01-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P02-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P03-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P04-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P05-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P06-4",
+        "pass": false,
+        "beforePass": false,
+        "cause": "validator/gating issue"
+      },
+      {
+        "id": "P07-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "P08-4",
+        "pass": true,
+        "beforePass": true
+      }
+    ]
+  },
+  "compliance": {
+    "total": 32,
+    "before": {
+      "total": 32,
+      "passed": 28,
+      "accuracy": 0.875
+    },
+    "after": {
+      "total": 32,
+      "passed": 32,
+      "accuracy": 1
+    },
+    "delta": {
+      "passed": 4,
+      "accuracy": 0.125
+    },
+    "topFailures": [],
+    "rows": [
+      {
+        "id": "C01-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C02-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C03-1",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "C04-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C05-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C06-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C07-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C08-1",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C01-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C02-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C03-2",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "C04-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C05-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C06-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C07-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C08-2",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C01-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C02-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C03-3",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "C04-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C05-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C06-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C07-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C08-3",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C01-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C02-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C03-4",
+        "pass": true,
+        "beforePass": false
+      },
+      {
+        "id": "C04-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C05-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C06-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C07-4",
+        "pass": true,
+        "beforePass": true
+      },
+      {
+        "id": "C08-4",
+        "pass": true,
+        "beforePass": true
+      }
+    ]
+  },
+  "generated_at": "2026-03-06T02:28:29.275Z"
+}
