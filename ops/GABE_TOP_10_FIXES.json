@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-03-06T23:00:09.250Z",
+  "basedOn": "ops/GABE_REALWORLD_QA_REPORT.json",
+  "fixes": [
+    {
+      "rank": 1,
+      "title": "Add per-manual section quality score and prefer sections with complete technical fields",
+      "category": "retrieval issue",
+      "impact": "high"
+    },
+    {
+      "rank": 2,
+      "title": "Add explicit fallback template when answer is weak/boilerplate but sourced",
+      "category": "wording/UX issue",
+      "impact": "high"
+    },
+    {
+      "rank": 3,
+      "title": "Normalize manual type taxonomy (Manual vs Installation vs Owner) for better routing",
+      "category": "retrieval issue",
+      "impact": "high"
+    },
+    {
+      "rank": 4,
+      "title": "Prioritize sections with numeric constraints for clearance/venting questions",
+      "category": "retrieval issue",
+      "impact": "high"
+    },
+    {
+      "rank": 5,
+      "title": "Emit confidence reason codes (coverage_gap, weak_chunk, low_overlap)",
+      "category": "citation issue",
+      "impact": "medium"
+    },
+    {
+      "rank": 6,
+      "title": "Add guard to avoid generic sentence reuse for different technical question types",
+      "category": "wording/UX issue",
+      "impact": "medium"
+    },
+    {
+      "rank": 7,
+      "title": "Backfill richer snippets for UNASSIGNED manuals with sparse section text",
+      "category": "missing source coverage",
+      "impact": "high"
+    },
+    {
+      "rank": 8,
+      "title": "Add QA checker for selected_manual_title/cited_manual_title/page consistency",
+      "category": "citation issue",
+      "impact": "medium"
+    },
+    {
+      "rank": 9,
+      "title": "Add brand-model synonym map for question token matching",
+      "category": "retrieval issue",
+      "impact": "medium"
+    },
+    {
+      "rank": 10,
+      "title": "Show “evidence strength” badge in tech UI for manual-scoped answers",
+      "category": "wording/UX issue",
+      "impact": "medium"
+    }
+  ]
+}

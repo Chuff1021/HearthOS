@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-03-06T22:59:00Z",
+  "batchName": "manual-library-cleanup-batch-1",
+  "mode": "safe-non-destructive-preview-first",
+  "scope": [
+    "exact duplicate manual_sections",
+    "deterministic UNASSIGNED reclassification",
+    "manual type label normalization"
+  ],
+  "actions": [
+    {
+      "id": "A1",
+      "action": "dedupe_manual_sections_exact",
+      "targetRows": 8,
+      "method": "same manual_id + page_start + snippet hash",
+      "risk": "low"
+    },
+    {
+      "id": "A2",
+      "action": "reclassify_unassigned_deterministic",
+      "targetRows": 40,
+      "method": "model/file token mapping to known brand dictionary (HHT/Travis/Lopi/FPX)",
+      "risk": "medium",
+      "guardrail": "skip ambiguous rows"
+    },
+    {
+      "id": "A3",
+      "action": "normalize_type_labels",
+      "targetRows": 310,
+      "method": "map to canonical set: Installation Manual | Owner's Manual | Service Manual | Parts Manual | Manual",
+      "risk": "low"
+    }
+  ],
+  "successCriteria": {
+    "manuals_active_not_lower_than": 310,
+    "manual_sections_not_lower_than": 8634,
+    "manual_scoped_qa_min_pass": "10/10",
+    "no_selected_manual_citation_mismatch": true
+  }
+}

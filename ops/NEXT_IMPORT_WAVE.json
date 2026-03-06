@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-03-06T22:59:00Z",
+  "wave": "next-import-wave-01",
+  "status": "planned",
+  "sources": [
+    {
+      "brand": "Napoleon",
+      "priority": "high",
+      "sourceType": "manufacturer PDF manual URLs",
+      "qualityGate": [
+        "PDF only",
+        "exclude index/landing pages",
+        "must include model/manual type metadata"
+      ]
+    },
+    {
+      "brand": "HHT-family incremental",
+      "priority": "medium",
+      "sourceType": "remaining installation/owner manuals",
+      "qualityGate": [
+        "dedupe by URL+filename",
+        "skip malformed/unparseable docs",
+        "validate section extraction count > 0"
+      ]
+    }
+  ],
+  "execution_guards": [
+    "preview-only validation first",
+    "no schema or infrastructure changes",
+    "post-batch QA must keep manual-scoped trust behavior"
+  ]
+}

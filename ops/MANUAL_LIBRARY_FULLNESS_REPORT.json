@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-03-06T22:59:00Z",
+  "source": "Neon manual registry used by Vercel app",
+  "summary": {
+    "manuals_total": 315,
+    "manuals_active": 310,
+    "manual_sections_total": 8642,
+    "rows_ready_for_live_use": 183,
+    "rows_needing_cleanup": 127
+  },
+  "manuals_by_brand": [
+    {"brand": "HHT-shared", "count": 131},
+    {"brand": "UNASSIGNED", "count": 119},
+    {"brand": "Travis Industries", "count": 26},
+    {"brand": "Lopi", "count": 15},
+    {"brand": "FPX", "count": 10},
+    {"brand": "Heatilator", "count": 5},
+    {"brand": "Heat & Glo", "count": 4}
+  ],
+  "manuals_by_type": [
+    {"type": "Manual", "count": 241},
+    {"type": "Installation Manual", "count": 31},
+    {"type": "Owner's Manual", "count": 28},
+    {"type": "Owner's/Installation Manual", "count": 9},
+    {"type": "Single Page Flyer", "count": 1}
+  ],
+  "quality_findings": {
+    "unassigned_active_rows": 119,
+    "landing_page_rows": 0,
+    "duplicate_url_rows": 0,
+    "duplicate_brand_model_type_rows": 0,
+    "exact_duplicate_manual_section_rows": 8
+  },
+  "ui_usability_notes": [
+    "Brand grouping is functional but dominated by UNASSIGNED bucket",
+    "Type labels are inconsistent (Manual vs Owner's/Installation Manual)",
+    "Search/filter should prioritize brand+model+type normalized tokens"
+  ],
+  "cleanup_priority": [
+    "1) Resolve UNASSIGNED rows into known brands/models where deterministic",
+    "2) Remove exact duplicate manual_sections (8 rows)",
+    "3) Normalize type taxonomy into canonical labels"
+  ]
+}

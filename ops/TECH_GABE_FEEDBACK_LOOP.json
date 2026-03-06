@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-03-06T22:59:00Z",
+  "loop": {
+    "capture": {
+      "requiredFields": [
+        "timestamp",
+        "tech_id",
+        "selected_manual_id",
+        "selected_manual_title",
+        "question",
+        "answer",
+        "source_type",
+        "cited_manual_title",
+        "cited_page_number",
+        "issue_type"
+      ],
+      "issueTypes": [
+        "missing_manual",
+        "missing_source_coverage",
+        "retrieval_issue",
+        "citation_issue",
+        "wording_ux_issue"
+      ]
+    },
+    "triage": {
+      "cadence": "daily",
+      "owners": ["ops", "gabe-quality"],
+      "priorityRules": [
+        "safety-related issues first",
+        "repeat failures across brands next",
+        "single-user wording issues last"
+      ]
+    },
+    "improvement": {
+      "outputs": [
+        "manual cleanup batch",
+        "targeted retrieval tuning",
+        "prompt/UX updates",
+        "coverage expansion wave updates"
+      ],
+      "qaGate": "10-question manual-scoped suite must stay >=10/10 before promote"
+    }
+  }
+}

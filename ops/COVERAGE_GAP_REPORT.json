@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-03-06T22:59:00Z",
+  "summary": {
+    "highest_gap_brand": "UNASSIGNED",
+    "unassigned_rows": 119,
+    "low_coverage_brands": [
+      {"brand": "Heat & Glo", "count": 4},
+      {"brand": "Heatilator", "count": 5}
+    ],
+    "blocked_brands": ["Napoleon"]
+  },
+  "gap_types": {
+    "brand_mapping_gap": "high",
+    "manual_type_normalization_gap": "medium",
+    "section_duplication_gap": "low",
+    "landing_page_noise": "low"
+  },
+  "recommended_actions": [
+    "Resolve deterministic UNASSIGNED -> known brand mappings",
+    "Seed additional Heatilator/Heat & Glo manuals where available",
+    "Prepare Napoleon import wave with quality-gated source list",
+    "Re-run completeness report after batch"
+  ]
+}
