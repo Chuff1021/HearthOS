@@ -11,15 +11,23 @@ export async function POST(request: NextRequest) {
     const chatwootApi = process.env.CHATWOOT_API_URL;
     const token = process.env.CHATWOOT_API_TOKEN;
 
-    let upstream: any = { simulated: true };
-    if (chatwootApi && token) {
-      const r = await fetch(`${chatwootApi.replace(/\/$/, '')}/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', api_access_token: token },
-        body: JSON.stringify({ content: message, message_type: 'outgoing' }),
-      });
-      upstream = await r.json();
+    if (!chatwootApi || !token || !process.env.CHATWOOT_ACCOUNT_ID) {
+      return NextResponse.json({
+        error: 'chatwoot_not_configured',
+        missing: {
+          CHATWOOT_API_URL: !chatwootApi,
+          CHATWOOT_API_TOKEN: !token,
+          CHATWOOT_ACCOUNT_ID: !process.env.CHATWOOT_ACCOUNT_ID,
+        },
+      }, { status: 503 });
     }
+
+    const r = await fetch(`${chatwootApi.replace(/\/$/, '')}/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', api_access_token: token },
+      body: JSON.stringify({ content: message, message_type: 'outgoing' }),
+    });
+    const upstream: any = await r.json();
 
     await insertSupportConversation({
       chatwoot_conversation_id: conversationId,

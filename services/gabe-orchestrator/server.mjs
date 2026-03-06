@@ -25,10 +25,15 @@ const server = http.createServer(async (req, res) => {
       const state = await workflow.invoke({ question });
       const payload = state.payload || {};
 
-      payload.engine_build_id = payload.engine_build_id || ORCH_BUILD_ID;
-      payload.engine_commit_sha = payload.engine_commit_sha || ORCH_COMMIT_SHA;
-      payload.engine_runtime_name = payload.engine_runtime_name || ORCH_RUNTIME_NAME;
+      payload.retrieval_engine_build_id = payload.engine_build_id || 'unknown';
+      payload.retrieval_engine_commit_sha = payload.engine_commit_sha || 'unknown';
+      payload.retrieval_backend_runtime_name = payload.engine_runtime_name || 'unknown';
+
+      payload.engine_build_id = ORCH_BUILD_ID;
+      payload.engine_commit_sha = ORCH_COMMIT_SHA;
+      payload.engine_runtime_name = ORCH_RUNTIME_NAME;
       payload.orchestrator_runtime = 'langgraph';
+      payload.orchestrator_runtime_name = ORCH_RUNTIME_NAME;
 
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(payload));
