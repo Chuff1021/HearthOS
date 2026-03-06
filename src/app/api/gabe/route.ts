@@ -24,11 +24,33 @@ interface GroqResponse {
   };
 }
 
+function normalizeRunPayload(payload: Record<string, any>) {
+  const sourceType = String(payload?.source_type || "none");
+  const certainty = String(payload?.certainty || (sourceType === "none" ? "Unverified" : "Verified Partial"));
+  const run_outcome = String(
+    payload?.run_outcome ||
+      (sourceType === "none"
+        ? "refused_unverified"
+        : certainty === "Verified Exact"
+          ? "answered_verified"
+          : "answered_partial")
+  );
+  return {
+    ...payload,
+    selected_engine: payload?.selected_engine || "general_engine",
+    run_outcome,
+    certainty,
+    truth_audit_status: payload?.truth_audit_status || "pending",
+    validator_version: payload?.validator_version || "v1",
+  };
+}
+
 async function appendRunMetadataLocal(payload: Record<string, unknown>) {
   if (!process.env.DATABASE_URL) return;
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
   await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
-  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify(payload)}::jsonb)`;
+  const normalized = normalizeRunPayload(payload as any);
+  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify(normalized)}::jsonb)`;
 }
 
 export async function POST(request: NextRequest) {
@@ -64,6 +86,24 @@ export async function POST(request: NextRequest) {
     const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
     if (primaryUrl && lastUserMessage) {
+      if (lastUserMessage.includes("[DRILL_SOURCE_EVIDENCE_MISSING]")) {
+        const drillPayload = normalizeRunPayload({
+          answer: "Verified source evidence is currently unavailable.",
+          question: lastUserMessage,
+          source_type: "none",
+          confidence: 0,
+          certainty: "Unverified",
+          run_outcome: "source_evidence_missing",
+          no_answer_reason: "source_evidence_missing",
+          validator_notes: ["controlled_outage_drill"],
+          selected_engine: "general_engine",
+          truth_audit_status: "pending",
+          validator_version: "v1",
+        });
+        await appendRunMetadataLocal(drillPayload);
+        return NextResponse.json(drillPayload);
+      }
+
       let engineRes: Response;
       try {
         engineRes = await fetch(`${primaryUrl.replace(/\/$/, "")}/query`, {
@@ -73,43 +113,41 @@ export async function POST(request: NextRequest) {
         });
       } catch (e) {
         console.error("GABE upstream unavailable:", e);
-        await appendRunMetadataLocal({
-          question: lastUserMessage,
-          source_type: 'none',
-          certainty: 'Unverified',
-          run_outcome: 'source_evidence_missing',
-          validator_notes: ['upstream_unavailable'],
-        });
-        return NextResponse.json({
+        const unavailablePayload = normalizeRunPayload({
           answer: "Verified source evidence is currently unavailable.",
+          question: lastUserMessage,
           source_type: "none",
           confidence: 0,
           certainty: "Unverified",
           run_outcome: "source_evidence_missing",
           no_answer_reason: "source_evidence_missing",
+          validator_notes: ["upstream_unavailable"],
+          selected_engine: "general_engine",
+          truth_audit_status: "pending",
           validator_version: "v1",
         });
+        await appendRunMetadataLocal(unavailablePayload);
+        return NextResponse.json(unavailablePayload);
       }
 
       if (!engineRes.ok) {
         const error = await engineRes.text();
         console.error("GABE engine error:", error);
-        await appendRunMetadataLocal({
-          question: lastUserMessage,
-          source_type: 'none',
-          certainty: 'Unverified',
-          run_outcome: 'source_evidence_missing',
-          validator_notes: ['upstream_not_ok'],
-        });
-        return NextResponse.json({
+        const unavailablePayload = normalizeRunPayload({
           answer: "Verified source evidence is currently unavailable.",
+          question: lastUserMessage,
           source_type: "none",
           confidence: 0,
           certainty: "Unverified",
           run_outcome: "source_evidence_missing",
           no_answer_reason: "source_evidence_missing",
+          validator_notes: ["upstream_not_ok"],
+          selected_engine: "general_engine",
+          truth_audit_status: "pending",
           validator_version: "v1",
         });
+        await appendRunMetadataLocal(unavailablePayload);
+        return NextResponse.json(unavailablePayload);
       } else {
         const data = await engineRes.json();
         const assistantMessage = data?.answer ?? data?.message ?? "";
@@ -143,26 +181,26 @@ export async function POST(request: NextRequest) {
           console.error("Failed to save message log:", e);
         }
 
-        await appendRunMetadataLocal({
+        const normalizedData = normalizeRunPayload({
+          ...(data || {}),
           question: lastUserMessage,
-          source_type: data?.source_type || 'none',
-          certainty: data?.certainty || 'Unverified',
-          run_outcome: data?.run_outcome || (data?.certainty === 'Verified Exact' ? 'answered_verified' : data?.certainty ? 'answered_partial' : 'refused_unverified'),
-          validator_notes: data?.validator_notes || [],
-          selected_engine: data?.selected_engine || null,
         });
 
-        return NextResponse.json(data);
+        await appendRunMetadataLocal(normalizedData);
+
+        return NextResponse.json(normalizedData);
       }
     }
 
     if (engineRequired) {
-      return NextResponse.json({
+      const payload = normalizeRunPayload({
         answer: "GABE routing is required but neither GABE_ORCHESTRATOR_URL nor GABE_ENGINE_URL is configured.",
         source_type: "none",
         confidence: 0,
-        no_answer_reason: "engine_not_configured"
-      }, { status: 503 });
+        no_answer_reason: "engine_not_configured",
+        run_outcome: "source_evidence_missing",
+      });
+      return NextResponse.json(payload, { status: 503 });
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
