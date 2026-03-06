@@ -478,8 +478,13 @@ function pickBestManualSection(question: string, sections: Array<{ pageStart?: n
   }
 
   if (!best) return null;
-  // Require at least minimal lexical overlap to avoid hallucinated/manual-mismatch responses.
-  if (best.score <= 0) return null;
+
+  // If lexical overlap is weak but manual sections exist, still use selected-manual evidence
+  // rather than silently switching manuals.
+  if (best.score <= 0) {
+    const fallback = sections.find((s) => (s.snippet ?? "").trim().length > 0);
+    return fallback ?? null;
+  }
 
   return best.section;
 }
