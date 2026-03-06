@@ -1,0 +1,244 @@
+{
+  "before": {
+    "total": 32,
+    "passed": 20,
+    "accuracy": 0.625
+  },
+  "after": {
+    "total": 32,
+    "passed": 32,
+    "accuracy": 1
+  },
+  "delta": {
+    "passed": 12,
+    "accuracy": 0.375
+  },
+  "failed_cases_before": [
+    {
+      "test_id": "V2-1",
+      "question": "max hori run?? gsb2 dv",
+      "expected_key_terms": [
+        "max",
+        "horizontal",
+        "run"
+      ],
+      "expected_rule": "maximum horizontal run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V2-1.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_horizontal",
+        "required_conditions"
+      ],
+      "final_response": "Maximum horizontal rule: max horizontal run = 20 feet. Vent table/chart condition: vent table. Source: page 10. Model: GSB2.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V3-1",
+      "question": "vertical limit for this vent setup",
+      "expected_key_terms": [
+        "maximum",
+        "vertical",
+        "run"
+      ],
+      "expected_rule": "maximum vertical run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V3-1.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_vertical",
+        "required_conditions"
+      ],
+      "final_response": "Maximum vertical rule: max vertical run = 40 feet. Vent table/chart condition: vent chart. Source: page 10. Model: Apex 42.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V7-1",
+      "question": "Apex maybe 36 or 42, what venting applies?",
+      "expected_key_terms": [
+        "model",
+        "vent table"
+      ],
+      "expected_rule": "model-specific vent table guidance",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": null,
+      "source_page": null,
+      "structured_fields_populated": [],
+      "final_response": "<no answer>",
+      "exact_failure_bucket": "retrieval gap",
+      "pass": false
+    },
+    {
+      "test_id": "V2-2",
+      "question": "max hori run?? gsb2 dv",
+      "expected_key_terms": [
+        "max",
+        "horizontal",
+        "run"
+      ],
+      "expected_rule": "maximum horizontal run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V2-2.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_horizontal",
+        "required_conditions"
+      ],
+      "final_response": "Maximum horizontal rule: max horizontal run = 20 feet. Vent table/chart condition: vent table. Source: page 10. Model: GSB2.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V3-2",
+      "question": "vertical limit for this vent setup",
+      "expected_key_terms": [
+        "maximum",
+        "vertical",
+        "run"
+      ],
+      "expected_rule": "maximum vertical run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V3-2.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_vertical",
+        "required_conditions"
+      ],
+      "final_response": "Maximum vertical rule: max vertical run = 40 feet. Vent table/chart condition: vent chart. Source: page 10. Model: Apex 42.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V7-2",
+      "question": "Apex maybe 36 or 42, what venting applies?",
+      "expected_key_terms": [
+        "model",
+        "vent table"
+      ],
+      "expected_rule": "model-specific vent table guidance",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": null,
+      "source_page": null,
+      "structured_fields_populated": [],
+      "final_response": "<no answer>",
+      "exact_failure_bucket": "retrieval gap",
+      "pass": false
+    },
+    {
+      "test_id": "V2-3",
+      "question": "max hori run?? gsb2 dv",
+      "expected_key_terms": [
+        "max",
+        "horizontal",
+        "run"
+      ],
+      "expected_rule": "maximum horizontal run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V2-3.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_horizontal",
+        "required_conditions"
+      ],
+      "final_response": "Maximum horizontal rule: max horizontal run = 20 feet. Vent table/chart condition: vent table. Source: page 10. Model: GSB2.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V3-3",
+      "question": "vertical limit for this vent setup",
+      "expected_key_terms": [
+        "maximum",
+        "vertical",
+        "run"
+      ],
+      "expected_rule": "maximum vertical run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V3-3.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_vertical",
+        "required_conditions"
+      ],
+      "final_response": "Maximum vertical rule: max vertical run = 40 feet. Vent table/chart condition: vent chart. Source: page 10. Model: Apex 42.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V7-3",
+      "question": "Apex maybe 36 or 42, what venting applies?",
+      "expected_key_terms": [
+        "model",
+        "vent table"
+      ],
+      "expected_rule": "model-specific vent table guidance",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": null,
+      "source_page": null,
+      "structured_fields_populated": [],
+      "final_response": "<no answer>",
+      "exact_failure_bucket": "retrieval gap",
+      "pass": false
+    },
+    {
+      "test_id": "V2-4",
+      "question": "max hori run?? gsb2 dv",
+      "expected_key_terms": [
+        "max",
+        "horizontal",
+        "run"
+      ],
+      "expected_rule": "maximum horizontal run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V2-4.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_horizontal",
+        "required_conditions"
+      ],
+      "final_response": "Maximum horizontal rule: max horizontal run = 20 feet. Vent table/chart condition: vent table. Source: page 10. Model: GSB2.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V3-4",
+      "question": "vertical limit for this vent setup",
+      "expected_key_terms": [
+        "maximum",
+        "vertical",
+        "run"
+      ],
+      "expected_rule": "maximum vertical run",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": "https://example.com/venting/V3-4.pdf|10|VENTING Test Manual",
+      "source_page": 10,
+      "structured_fields_populated": [
+        "max_vertical",
+        "required_conditions"
+      ],
+      "final_response": "Maximum vertical rule: max vertical run = 40 feet. Vent table/chart condition: vent chart. Source: page 10. Model: Apex 42.",
+      "exact_failure_bucket": "scorer mismatch",
+      "pass": false
+    },
+    {
+      "test_id": "V7-4",
+      "question": "Apex maybe 36 or 42, what venting applies?",
+      "expected_key_terms": [
+        "model",
+        "vent table"
+      ],
+      "expected_rule": "model-specific vent table guidance",
+      "detected_vent_qtype": "general_venting",
+      "selected_vent_rule_record": null,
+      "source_page": null,
+      "structured_fields_populated": [],
+      "final_response": "<no answer>",
+      "exact_failure_bucket": "retrieval gap",
+      "pass": false
+    }
+  ],
+  "failed_cases_after": [],
+  "top_failure_modes_after": []
+}

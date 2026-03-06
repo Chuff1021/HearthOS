@@ -42,7 +42,8 @@ export function extractVentRuleRecords(chunks: RetrievedChunk[]): VentRuleRecord
     const termExc = capture(text, [/(?:except|unless)[^.]{0,120}(?:termination|vent)[^.]{0,120}/i]);
     const termination = capture(text, [/(termination[^.]{0,160}(?:window|door|opening|clearance)[^.]{0,120})/i]);
 
-    const fields = [pipe, family, minRise, maxVertical, maxHorizontal, elbow, equivalentPenalty, requiredConditions, windowDoor, termExc, termination].filter(Boolean).length;
+    const ventTableHint = capture(text, [/(vent\s*(table|chart|graph)[^.]{0,120})/i, /(model-specific\s+vent[^.]{0,120})/i]);
+    const fields = [pipe, family, minRise, maxVertical, maxHorizontal, elbow, equivalentPenalty, requiredConditions, windowDoor, termExc, termination, ventTableHint].filter(Boolean).length;
     if (fields === 0) continue;
 
     const quote = selectQuote(text);
@@ -59,7 +60,7 @@ export function extractVentRuleRecords(chunks: RetrievedChunk[]): VentRuleRecord
       equivalent_run_penalty: norm(equivalentPenalty),
       elbow_notes: norm(elbow),
       window_door_clearance_notes: norm(windowDoor),
-      required_conditions: norm(requiredConditions),
+      required_conditions: norm(requiredConditions || ventTableHint),
       termination_exceptions: norm(termExc),
       termination_constraints: norm(termination),
       source_page: c.page_number ?? null,
@@ -75,29 +76,45 @@ export function extractVentRuleRecords(chunks: RetrievedChunk[]): VentRuleRecord
 export function pickBestVentRule(question: string, records: VentRuleRecord[]): VentRuleRecord | null {
   if (records.length === 0) return null;
   const q = question.toLowerCase();
-  const byModel = records.map((r) => {
-    let bonus = 0;
-    const m = (r.model || "").toLowerCase();
-    if (m && q.includes(m)) bonus += 15;
-    if (q.includes("termination") && r.termination_constraints) bonus += 12;
-    if (q.includes("elbow") && r.elbow_offset_constraints) bonus += 12;
-    if ((q.includes("vertical") || q.includes("rise")) && (r.min_rise || r.max_vertical)) bonus += 10;
-    if (q.includes("horizontal") && r.max_horizontal) bonus += 10;
-    if (q.includes("pipe") && r.vent_system_pipe_type) bonus += 10;
-    if ((q.includes("family") || q.includes("approved")) && r.approved_vent_family) bonus += 10;
-    return { r, score: r.confidence + bonus };
-  }).sort((a, b) => b.score - a.score);
+
+  const qNums = new Set((question.match(/\b\d{2,3}\b/g) || []).map((n) => String(n)));
+  const hasAny = (...arr: string[]) => arr.some((a) => q.includes(a));
+
+  const byModel = records
+    .map((r) => {
+      let bonus = 0;
+      const m = (r.model || "").toLowerCase();
+      if (m && q.includes(m)) bonus += 18;
+      if (qNums.size > 0 && [...qNums].some((n) => m.includes(n))) bonus += 14;
+
+      if (hasAny("vent table", "vent chart") && (r.required_conditions || "").toLowerCase().includes("vent")) bonus += 10;
+
+      if (hasAny("termination", "window", "door", "opening") && (r.termination_constraints || r.window_door_clearance_notes)) bonus += 12;
+      if (hasAny("elbow", "offset", "90-degree", "90 degree") && (r.elbow_offset_constraints || r.equivalent_run_penalty)) bonus += 12;
+      if (hasAny("vertical", "rise", "limit") && (r.min_rise || r.max_vertical)) bonus += 10;
+      if (hasAny("horizontal", "hori") && r.max_horizontal) bonus += 10;
+      if (hasAny("pipe", "direct vent", "dv") && r.vent_system_pipe_type) bonus += 10;
+      if (hasAny("family", "approved") && r.approved_vent_family) bonus += 10;
+
+      return { r, score: r.confidence + bonus };
+    })
+    .sort((a, b) => b.score - a.score);
+
   return byModel[0]?.r || null;
 }
 
 export function classifyVentingQuestionType(question: string) {
   const q = question.toLowerCase();
-  if ((q.includes('minimum') || q.includes('min')) && q.includes('rise')) return 'min_rise_before_horizontal' as const;
-  if (q.includes('maximum') && q.includes('horizontal')) return 'max_horizontal_run' as const;
-  if (q.includes('maximum') && q.includes('vertical')) return 'max_vertical_run' as const;
-  if (q.includes('elbow') || q.includes('offset')) return 'elbow_offset_effect' as const;
-  if (q.includes('termination') || q.includes('window') || q.includes('door') || q.includes('opening')) return 'termination_restriction' as const;
-  if (q.includes('pipe') || q.includes('vent family') || q.includes('approved')) return 'pipe_or_family' as const;
+  const has = (x: string) => q.includes(x);
+  const hasAny = (...arr: string[]) => arr.some((a) => q.includes(a));
+
+  if (hasAny('minimum', 'min') && has('rise')) return 'min_rise_before_horizontal' as const;
+  if (hasAny('maximum', 'max') && hasAny('horizontal', 'hori')) return 'max_horizontal_run' as const;
+  if (hasAny('maximum', 'max', 'limit') && hasAny('vertical', 'vert')) return 'max_vertical_run' as const;
+  if (hasAny('elbow', 'offset', '90-degree', '90 degree')) return 'elbow_offset_effect' as const;
+  if (hasAny('termination', 'window', 'door', 'opening')) return 'termination_restriction' as const;
+  if (hasAny('pipe', 'vent family', 'approved', 'dv', 'direct vent')) return 'pipe_or_family' as const;
+  if (hasAny('vent table', 'vent chart', 'venting applies')) return 'general_venting' as const;
   return 'general_venting' as const;
 }
 
@@ -108,30 +125,31 @@ export function buildVentingAnswerFromRecord(record: VentRuleRecord, question: s
 
   if (type === 'min_rise_before_horizontal') {
     if (!record.min_rise) missing.push('min_rise');
-    answer = `The minimum vertical rise before any horizontal run is: ${record.min_rise || 'not verified from structured vent-rule records'}.`;
-    if (record.required_conditions) answer += ` Required conditions: ${record.required_conditions}.`;
+    answer = `Minimum rise rule: minimum vertical rise before horizontal run = ${record.min_rise || 'not verified from structured vent-rule records'}.`;
+    answer += ` Horizontal precondition: ${record.required_conditions || 'not verified from structured vent-rule records'}.`;
   } else if (type === 'max_horizontal_run') {
     if (!record.max_horizontal) missing.push('max_horizontal');
-    answer = `The maximum allowed horizontal run is: ${record.max_horizontal || 'not verified from structured vent-rule records'}.`;
-    if (record.required_conditions) answer += ` Conditions: ${record.required_conditions}.`;
+    answer = `Maximum horizontal rule: max horizontal run = ${record.max_horizontal || 'not verified from structured vent-rule records'}.`;
+    answer += ` Vent table/chart condition: ${record.required_conditions || 'not verified from structured vent-rule records'}.`;
   } else if (type === 'max_vertical_run') {
     if (!record.max_vertical) missing.push('max_vertical');
-    answer = `The maximum allowed vertical run is: ${record.max_vertical || 'not verified from structured vent-rule records'}.`;
-    if (record.required_conditions) answer += ` Conditions: ${record.required_conditions}.`;
+    answer = `Maximum vertical rule: max vertical run = ${record.max_vertical || 'not verified from structured vent-rule records'}.`;
+    answer += ` Vent table/chart condition: ${record.required_conditions || 'not verified from structured vent-rule records'}.`;
   } else if (type === 'elbow_offset_effect') {
     if (!record.elbow_offset_constraints && !record.equivalent_run_penalty) missing.push('elbow/equivalent_run_penalty');
-    answer = `A 90-degree elbow affects vent run as follows: ${record.elbow_offset_constraints || 'not verified from structured vent-rule records'}.`;
-    answer += ` Equivalent run / reduction note: ${record.equivalent_run_penalty || 'not verified from structured vent-rule records'}.`;
+    answer = `Elbow effect rule: elbow/offset constraint = ${record.elbow_offset_constraints || 'not verified from structured vent-rule records'}.`;
+    answer += ` Equivalent run penalty = ${record.equivalent_run_penalty || 'not verified from structured vent-rule records'}.`;
   } else if (type === 'termination_restriction') {
     if (!record.termination_constraints && !record.window_door_clearance_notes) missing.push('termination/window_door_clearance_notes');
-    answer = `Termination clearance from openings (window/door) is: ${record.window_door_clearance_notes || record.termination_constraints || 'not verified from structured vent-rule records'}.`;
+    answer = `Termination restriction rule: window/door opening clearance = ${record.window_door_clearance_notes || 'not verified from structured vent-rule records'}.`;
+    answer += ` Termination constraint = ${record.termination_constraints || 'not verified from structured vent-rule records'}.`;
     if (record.termination_exceptions) answer += ` Exceptions: ${record.termination_exceptions}.`;
   } else if (type === 'pipe_or_family') {
     if (!record.vent_system_pipe_type && !record.approved_vent_family) missing.push('vent_system_pipe_type/approved_vent_family');
-    answer = `Approved vent system / pipe type: ${record.vent_system_pipe_type || 'not verified from structured vent-rule records'}.`;
-    answer += ` Approved vent family: ${record.approved_vent_family || 'not verified from structured vent-rule records'}.`;
+    answer = `Venting family rule: approved pipe type = ${record.vent_system_pipe_type || 'not verified from structured vent-rule records'}.`;
+    answer += ` Approved vent family = ${record.approved_vent_family || 'not verified from structured vent-rule records'}.`;
   } else {
-    answer = `Venting rule summary: min rise ${record.min_rise || 'not verified'}, max horizontal ${record.max_horizontal || 'not verified'}, max vertical ${record.max_vertical || 'not verified'}, termination ${record.termination_constraints || 'not verified'}.`;
+    answer = `General venting rule: min rise ${record.min_rise || 'not verified'}, max horizontal ${record.max_horizontal || 'not verified'}, max vertical ${record.max_vertical || 'not verified'}, vent table/chart condition ${record.required_conditions || 'not verified'}, termination ${record.termination_constraints || record.window_door_clearance_notes || 'not verified'}.`;
   }
 
   const notes = ['vent_rule_structured', `vent_qtype:${type}`, `vent_record_id:${record.record_id}`];
