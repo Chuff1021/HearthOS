@@ -1,0 +1,192 @@
+{
+  "summary": {
+    "cases": 10,
+    "structured_records_created": 10,
+    "before": {
+      "qtype_accuracy": 0.9,
+      "part_extraction_recall": 1
+    },
+    "after": {
+      "qtype_accuracy": 1,
+      "part_extraction_recall": 1,
+      "alias_match_recall": 1,
+      "callout_match_recall": 1,
+      "contract_fields_present": 1
+    }
+  },
+  "delta": {
+    "qtype_accuracy": 0.1,
+    "part_extraction_recall": 0
+  },
+  "details": [
+    {
+      "id": "P01",
+      "expectedQtype": "part_lookup",
+      "baselineQtype": "part_lookup",
+      "newQtype": "part_lookup",
+      "expectedParts": [
+        "94400999"
+      ],
+      "baselineParts": [
+        "94400999"
+      ],
+      "newParts": [
+        "94400999"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/apex42.pdf|53|Apex 42 Install Manual"
+    },
+    {
+      "id": "P02",
+      "expectedQtype": "diagram_callout",
+      "baselineQtype": "diagram_callout",
+      "newQtype": "diagram_callout",
+      "expectedParts": [],
+      "baselineParts": [
+        "250-01488"
+      ],
+      "newParts": [
+        "250-01488"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/apex42-service.pdf|67|Apex 42 Service Guide"
+    },
+    {
+      "id": "P03",
+      "expectedQtype": "revision_disambiguation",
+      "baselineQtype": "revision_disambiguation",
+      "newQtype": "revision_disambiguation",
+      "expectedParts": [
+        "250-02011"
+      ],
+      "baselineParts": [
+        "616",
+        "250-02011",
+        "250-02010"
+      ],
+      "newParts": [
+        "250-02011",
+        "250-02010"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/616-bulletin.pdf|4|616 Family Parts Bulletin"
+    },
+    {
+      "id": "P04",
+      "expectedQtype": "alias_lookup",
+      "baselineQtype": "alias_lookup",
+      "newQtype": "alias_lookup",
+      "expectedParts": [],
+      "baselineParts": [
+        "99300123"
+      ],
+      "newParts": [
+        "99300123"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/pilot-components.pdf|12|Pilot Components Reference"
+    },
+    {
+      "id": "P05",
+      "expectedQtype": "part_lookup",
+      "baselineQtype": "part_lookup",
+      "newQtype": "part_lookup",
+      "expectedParts": [
+        "250-03100"
+      ],
+      "baselineParts": [
+        "250-03100"
+      ],
+      "newParts": [
+        "250-03100"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/ifc-troubleshooting.pdf|22|IFC Troubleshooting"
+    },
+    {
+      "id": "P06",
+      "expectedQtype": "diagram_callout",
+      "baselineQtype": "part_lookup",
+      "newQtype": "diagram_callout",
+      "expectedParts": [],
+      "baselineParts": [
+        "93007456"
+      ],
+      "newParts": [
+        "93007456"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/ignition-service.pdf|31|Ignition Service Manual"
+    },
+    {
+      "id": "P07",
+      "expectedQtype": "revision_disambiguation",
+      "baselineQtype": "revision_disambiguation",
+      "newQtype": "revision_disambiguation",
+      "expectedParts": [
+        "251-00077"
+      ],
+      "baselineParts": [
+        "251-00077",
+        "251-00061"
+      ],
+      "newParts": [
+        "251-00077",
+        "251-00061"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/gsb2-revisions.pdf|8|GSB2 Revision Matrix"
+    },
+    {
+      "id": "P08",
+      "expectedQtype": "alias_lookup",
+      "baselineQtype": "alias_lookup",
+      "newQtype": "alias_lookup",
+      "expectedParts": [],
+      "baselineParts": [
+        "99000111"
+      ],
+      "newParts": [
+        "99000111"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/fan-kit.pdf|17|Fan Kit Install"
+    },
+    {
+      "id": "P09",
+      "expectedQtype": "part_lookup",
+      "baselineQtype": "part_lookup",
+      "newQtype": "part_lookup",
+      "expectedParts": [
+        "250-01495"
+      ],
+      "baselineParts": [
+        "250-01495",
+        "250-01496"
+      ],
+      "newParts": [
+        "250-01495",
+        "250-01496"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/valve-service.pdf|19|Valve Service Notes"
+    },
+    {
+      "id": "P10",
+      "expectedQtype": "diagram_callout",
+      "baselineQtype": "diagram_callout",
+      "newQtype": "diagram_callout",
+      "expectedParts": [
+        "945-00421"
+      ],
+      "baselineParts": [
+        "945-00421"
+      ],
+      "newParts": [
+        "945-00421"
+      ],
+      "recordsCreated": 1,
+      "bestRecordId": "https://example.com/manuals/wiring-addendum.pdf|44|Wiring Addendum"
+    }
+  ]
+}

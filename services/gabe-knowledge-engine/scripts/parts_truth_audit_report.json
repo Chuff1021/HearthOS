@@ -1,0 +1,131 @@
+{
+  "summary": {
+    "total_cases": 10,
+    "passed_cases": 10,
+    "failed_cases": 0,
+    "pass_rate": 1,
+    "acceptable": true
+  },
+  "rows": [
+    {
+      "id": "P01",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "Apex 42 Install Manual",
+      "page_number": 53,
+      "source_url": "https://example.com/manuals/apex42.pdf",
+      "quote": "Replacement Parts: Thermopile (pilot generator) part no."
+    },
+    {
+      "id": "P02",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "Apex 42 Service Guide",
+      "page_number": 67,
+      "source_url": "https://example.com/manuals/apex42-service.pdf",
+      "quote": "Exploded Diagram: callout 14 = burner assembly, item #14, part number 250-01488."
+    },
+    {
+      "id": "P03",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "616 Family Parts Bulletin",
+      "page_number": 4,
+      "source_url": "https://example.com/manuals/616-bulletin.pdf",
+      "quote": "Family 616 revision B uses valve assembly P/N 250-02011."
+    },
+    {
+      "id": "P04",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 91,
+      "certainty": "Verified Exact",
+      "manual_title": "Pilot Components Reference",
+      "page_number": 12,
+      "source_url": "https://example.com/manuals/pilot-components.pdf",
+      "quote": "The pilot sensor (thermocouple) assembly is listed as part # 99300123."
+    },
+    {
+      "id": "P05",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 91,
+      "certainty": "Verified Exact",
+      "manual_title": "IFC Troubleshooting",
+      "page_number": 22,
+      "source_url": "https://example.com/manuals/ifc-troubleshooting.pdf",
+      "quote": "IFC control module board replacement SKU: 250-03100 for deluxe fireplaces."
+    },
+    {
+      "id": "P06",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "Ignition Service Manual",
+      "page_number": 31,
+      "source_url": "https://example.com/manuals/ignition-service.pdf",
+      "quote": "Figure 3 parts list: item #3 spark igniter electrode, P/N 93007456."
+    },
+    {
+      "id": "P07",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "GSB2 Revision Matrix",
+      "page_number": 8,
+      "source_url": "https://example.com/manuals/gsb2-revisions.pdf",
+      "quote": "GSB2 series rev C manifold assembly part no 251-00077; rev B used 251-00061."
+    },
+    {
+      "id": "P08",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 84,
+      "certainty": "Verified Partial",
+      "manual_title": "Fan Kit Install",
+      "page_number": 17,
+      "source_url": "https://example.com/manuals/fan-kit.pdf",
+      "quote": "Convection fan kit (blower) also called circulation fan, replacement part 99000111."
+    },
+    {
+      "id": "P09",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "Valve Service Notes",
+      "page_number": 19,
+      "source_url": "https://example.com/manuals/valve-service.pdf",
+      "quote": "Gas control valve assembly part number: 250-01495 (NG), 250-01496 (LP)."
+    },
+    {
+      "id": "P10",
+      "status": "pass",
+      "reason": "",
+      "records": 1,
+      "confidence": 97,
+      "certainty": "Verified Exact",
+      "manual_title": "Wiring Addendum",
+      "page_number": 44,
+      "source_url": "https://example.com/manuals/wiring-addendum.pdf",
+      "quote": "Wiring diagram: ref A12 identifies wire harness P/N 945-00421 for remote receiver module."
+    }
+  ]
+}

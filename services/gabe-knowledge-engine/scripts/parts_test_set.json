@@ -1,0 +1,119 @@
+[
+  {
+    "id": "P01",
+    "question": "What is the replacement part number for the pilot generator thermopile?",
+    "expectedQtype": "part_lookup",
+    "expectedParts": ["94400999"],
+    "expectedAliases": ["thermopile"],
+    "chunk": "Replacement Parts: Thermopile (pilot generator) part no. 94400999 for Apex 42 MV units.",
+    "manual_title": "Apex 42 Install Manual",
+    "model": "Apex 42",
+    "page_number": 53,
+    "source_url": "https://example.com/manuals/apex42.pdf"
+  },
+  {
+    "id": "P02",
+    "question": "In the exploded diagram, what is callout 14?",
+    "expectedQtype": "diagram_callout",
+    "expectedCallouts": ["callout 14"],
+    "chunk": "Exploded Diagram: callout 14 = burner assembly, item #14, part number 250-01488.",
+    "manual_title": "Apex 42 Service Guide",
+    "model": "Apex 42",
+    "page_number": 67,
+    "source_url": "https://example.com/manuals/apex42-service.pdf"
+  },
+  {
+    "id": "P03",
+    "question": "Is there a different part for revision B in the 616 family?",
+    "expectedQtype": "revision_disambiguation",
+    "expectedParts": ["250-02011"],
+    "chunk": "Family 616 revision B uses valve assembly P/N 250-02011. Revision A uses 250-02010.",
+    "manual_title": "616 Family Parts Bulletin",
+    "model": "616",
+    "page_number": 4,
+    "source_url": "https://example.com/manuals/616-bulletin.pdf"
+  },
+  {
+    "id": "P04",
+    "question": "Is pilot sensor the same as thermocouple?",
+    "expectedQtype": "alias_lookup",
+    "expectedAliases": ["thermocouple"],
+    "chunk": "The pilot sensor (thermocouple) assembly is listed as part # 99300123.",
+    "manual_title": "Pilot Components Reference",
+    "model": "Universal",
+    "page_number": 12,
+    "source_url": "https://example.com/manuals/pilot-components.pdf"
+  },
+  {
+    "id": "P05",
+    "question": "Need SKU for IFC control board replacement",
+    "expectedQtype": "part_lookup",
+    "expectedAliases": ["module"],
+    "expectedParts": ["250-03100"],
+    "chunk": "IFC control module board replacement SKU: 250-03100 for deluxe fireplaces.",
+    "manual_title": "IFC Troubleshooting",
+    "model": "Deluxe 36",
+    "page_number": 22,
+    "source_url": "https://example.com/manuals/ifc-troubleshooting.pdf"
+  },
+  {
+    "id": "P06",
+    "question": "Show the item number from figure 3 for the igniter",
+    "expectedQtype": "diagram_callout",
+    "expectedAliases": ["igniter"],
+    "expectedCallouts": ["item #3"],
+    "chunk": "Figure 3 parts list: item #3 spark igniter electrode, P/N 93007456.",
+    "manual_title": "Ignition Service Manual",
+    "model": "GSR2",
+    "page_number": 31,
+    "source_url": "https://example.com/manuals/ignition-service.pdf"
+  },
+  {
+    "id": "P07",
+    "question": "For the GSB2 series rev C, which manifold assembly applies?",
+    "expectedQtype": "revision_disambiguation",
+    "expectedAliases": ["manifold"],
+    "expectedParts": ["251-00077"],
+    "chunk": "GSB2 series rev C manifold assembly part no 251-00077; rev B used 251-00061.",
+    "manual_title": "GSB2 Revision Matrix",
+    "model": "GSB2",
+    "page_number": 8,
+    "source_url": "https://example.com/manuals/gsb2-revisions.pdf"
+  },
+  {
+    "id": "P08",
+    "question": "aka names for the convection fan kit?",
+    "expectedQtype": "alias_lookup",
+    "expectedAliases": ["blower"],
+    "chunk": "Convection fan kit (blower) also called circulation fan, replacement part 99000111.",
+    "manual_title": "Fan Kit Install",
+    "model": "Universal",
+    "page_number": 17,
+    "source_url": "https://example.com/manuals/fan-kit.pdf"
+  },
+  {
+    "id": "P09",
+    "question": "What's the gas valve part number",
+    "expectedQtype": "part_lookup",
+    "expectedAliases": ["valve"],
+    "expectedParts": ["250-01495"],
+    "chunk": "Gas control valve assembly part number: 250-01495 (NG), 250-01496 (LP).",
+    "manual_title": "Valve Service Notes",
+    "model": "Apex 36",
+    "page_number": 19,
+    "source_url": "https://example.com/manuals/valve-service.pdf"
+  },
+  {
+    "id": "P10",
+    "question": "Diagram callout ref A12 for wire harness?",
+    "expectedQtype": "diagram_callout",
+    "expectedAliases": ["harness"],
+    "expectedCallouts": ["ref a12"],
+    "expectedParts": ["945-00421"],
+    "chunk": "Wiring diagram: ref A12 identifies wire harness P/N 945-00421 for remote receiver module.",
+    "manual_title": "Wiring Addendum",
+    "model": "Apex 42",
+    "page_number": 44,
+    "source_url": "https://example.com/manuals/wiring-addendum.pdf"
+  }
+]

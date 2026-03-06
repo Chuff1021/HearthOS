@@ -10,7 +10,9 @@
     "ingest:manual": "tsx scripts/ingest_manual.ts",
     "extract:framing": "tsx scripts/extract_framing_dimensions.ts",
     "test:query": "tsx scripts/test_query.ts",
-    "test:regression": "tsx scripts/regression_suite.ts"
+    "test:regression": "tsx scripts/regression_suite.ts",
+    "score:parts": "tsx scripts/parts_score.ts",
+    "audit:parts": "tsx scripts/parts_truth_audit.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.12.0",
