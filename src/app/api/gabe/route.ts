@@ -3,6 +3,7 @@ import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
 import { saveGabeMessage } from "@/lib/gabe-messages";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
+import postgres from "postgres";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -21,6 +22,13 @@ interface GroqResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+}
+
+async function appendRunMetadataLocal(payload: Record<string, unknown>) {
+  if (!process.env.DATABASE_URL) return;
+  const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
+  await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
+  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify(payload)}::jsonb)`;
 }
 
 export async function POST(request: NextRequest) {
@@ -50,23 +58,57 @@ export async function POST(request: NextRequest) {
     }
 
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
+    const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
+    const primaryUrl = orchestratorUrl || engineUrl;
     const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
-    if (engineUrl && lastUserMessage) {
-      const engineRes = await fetch(`${engineUrl.replace(/\/$/, "")}/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: lastUserMessage }),
-      });
+    if (primaryUrl && lastUserMessage) {
+      let engineRes: Response;
+      try {
+        engineRes = await fetch(`${primaryUrl.replace(/\/$/, "")}/query`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: lastUserMessage }),
+        });
+      } catch (e) {
+        console.error("GABE upstream unavailable:", e);
+        await appendRunMetadataLocal({
+          question: lastUserMessage,
+          source_type: 'none',
+          certainty: 'Unverified',
+          run_outcome: 'source_evidence_missing',
+          validator_notes: ['upstream_unavailable'],
+        });
+        return NextResponse.json({
+          answer: "Verified source evidence is currently unavailable.",
+          source_type: "none",
+          confidence: 0,
+          certainty: "Unverified",
+          run_outcome: "source_evidence_missing",
+          no_answer_reason: "source_evidence_missing",
+          validator_version: "v1",
+        });
+      }
 
       if (!engineRes.ok) {
         const error = await engineRes.text();
         console.error("GABE engine error:", error);
+        await appendRunMetadataLocal({
+          question: lastUserMessage,
+          source_type: 'none',
+          certainty: 'Unverified',
+          run_outcome: 'source_evidence_missing',
+          validator_notes: ['upstream_not_ok'],
+        });
         return NextResponse.json({
-          answer: "This information is not available in verified manufacturer documentation.",
+          answer: "Verified source evidence is currently unavailable.",
           source_type: "none",
-          confidence: 0
+          confidence: 0,
+          certainty: "Unverified",
+          run_outcome: "source_evidence_missing",
+          no_answer_reason: "source_evidence_missing",
+          validator_version: "v1",
         });
       } else {
         const data = await engineRes.json();
@@ -101,13 +143,22 @@ export async function POST(request: NextRequest) {
           console.error("Failed to save message log:", e);
         }
 
+        await appendRunMetadataLocal({
+          question: lastUserMessage,
+          source_type: data?.source_type || 'none',
+          certainty: data?.certainty || 'Unverified',
+          run_outcome: data?.run_outcome || (data?.certainty === 'Verified Exact' ? 'answered_verified' : data?.certainty ? 'answered_partial' : 'refused_unverified'),
+          validator_notes: data?.validator_notes || [],
+          selected_engine: data?.selected_engine || null,
+        });
+
         return NextResponse.json(data);
       }
     }
 
     if (engineRequired) {
       return NextResponse.json({
-        answer: "GABE engine routing is required but GABE_ENGINE_URL is not configured. Please set GABE_ENGINE_URL to the running knowledge engine endpoint.",
+        answer: "GABE routing is required but neither GABE_ORCHESTRATOR_URL nor GABE_ENGINE_URL is configured.",
         source_type: "none",
         confidence: 0,
         no_answer_reason: "engine_not_configured"

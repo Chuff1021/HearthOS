@@ -18,6 +18,7 @@ services:
       - ENGINE_RUNTIME_NAME=${ENGINE_RUNTIME_NAME:-gabe-knowledge-engine}
       - VENT_TEMPLATE_ACTIVE=${VENT_TEMPLATE_ACTIVE:-false}
       - DIAGNOSTIC_RAW_ENABLED=${DIAGNOSTIC_RAW_ENABLED:-false}
+      - DATABASE_URL=${DATABASE_URL:-}
     ports:
       - "4100:4100"
     volumes:

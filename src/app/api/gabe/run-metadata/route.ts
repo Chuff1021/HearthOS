@@ -17,7 +17,21 @@ export async function GET(request: NextRequest) {
       limit ${limit}
     `;
 
-    const runs = rows.map((r) => ({ ts: new Date(r.ts).toISOString(), ...(r.payload || {}) }));
+    const runs = rows.map((r) => {
+      let payload: any = r.payload;
+      if (typeof payload === 'string') {
+        try { payload = JSON.parse(payload); } catch { payload = { raw: payload }; }
+      }
+      const p = payload || {};
+      const run_outcome = p.run_outcome || (
+        p.source_type === 'none' ? 'source_evidence_missing'
+        : p.certainty === 'Verified Exact' ? 'answered_verified'
+        : p.certainty === 'Verified Partial' || p.certainty === 'Interpreted' ? 'answered_partial'
+        : 'refused_unverified'
+      );
+      const truth_audit_status = p.truth_audit_status || 'pending';
+      return { ts: new Date(r.ts).toISOString(), ...p, run_outcome, truth_audit_status };
+    });
     return NextResponse.json({ runs, total: totalRows[0]?.count || 0 });
   } catch {
     return NextResponse.json({ error: 'Failed to read run metadata' }, { status: 500 });
