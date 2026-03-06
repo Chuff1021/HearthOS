@@ -184,6 +184,12 @@ export default function ManualsPage() {
                 </div>
                 {/* Actions */}
                 <div className="flex gap-2 mt-3">
+                  <Link
+                    href={`/tech/gabe?manualId=${encodeURIComponent(manual.id)}&fireplace=${encodeURIComponent(`${manual.brand} ${manual.model}`)}&manualTitle=${encodeURIComponent(`${manual.brand} ${manual.model}`)}`}
+                    className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 py-2 rounded-lg text-sm font-medium text-center"
+                  >
+                    Ask GABE
+                  </Link>
                   <a
                     href={manual.url}
                     target="_blank"
@@ -191,14 +197,6 @@ export default function ManualsPage() {
                     className="flex-1 bg-[#252540] py-2 rounded-lg text-sm font-medium hover:bg-[#2f2f4a] transition-colors text-center"
                   >
                     View PDF
-                  </a>
-                  <a
-                    href={manual.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 bg-orange-500/20 text-orange-400 py-2 rounded-lg text-sm font-medium hover:bg-orange-500/30 transition-colors text-center"
-                  >
-                    Open Link
                   </a>
                 </div>
               </div>

@@ -8,6 +8,15 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 
 ## Recently Completed
 
+- [x] Phase 1 GABE migration foundation: added `gabe-orchestrator` skeleton with internal engine modules for `general_retrieval`, `venting`, `wiring`, `parts`, and `compliance`
+- [x] Added `services/gabe-validator` and made validator enforcement mandatory in the orchestrator answer path
+- [x] Added GABE Postgres schema for run metadata, truth audits, technician reviews, handoff events, test runs, category scores, and support conversation links
+- [x] Added formal run metadata/debug fields from day one: `engine_build_id`, `engine_commit_sha`, `engine_runtime_name`, `selected_engine`, `validator_version`, `certainty`, `run_outcome`, and `truth_audit_status`
+- [x] Added formal run outcomes: `answered_verified`, `answered_partial`, `refused_unverified`, `escalated_handoff`, `source_evidence_missing`
+- [x] Added source-evidence audit classification as an official workflow for incomplete answers
+- [x] Updated the Next `/api/gabe` route to prefer `GABE_ORCHESTRATOR_URL`, persist orchestrator run metadata, and preserve the existing retrieval backend path as fallback
+- [x] Expanded Qdrant configuration away from a single collection and initialized the Phase 1 collection set:
+  `fireplace_manual_chunks`, `fireplace_qa_memory`, `fireplace_vent_rules`, `fireplace_wiring_graphs`
 - [x] Base Next.js 16 setup with App Router, TypeScript, Tailwind CSS 4
 - [x] **docs/PRD.md** — Full product requirements document (9 sections)
 - [x] **docs/DATABASE_SCHEMA.md** — Complete PostgreSQL schema (18 tables: organizations, users, customers, properties, fireplace_units, jobs, job_assignments, checklist_templates, job_checklists, job_checklist_items, job_photos, job_signatures, job_notes, invoices, invoice_line_items, payments, service_plans, inventory_items, audit_logs)
@@ -46,6 +55,8 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `docs/MOBILE_WIREFRAMES.md` | Mobile wireframes | ✅ Done |
 | `docs/ARCHITECTURE.md` | Backend architecture | ✅ Done |
 | `docs/ROADMAP.md` | MVP + Phase 2/3 roadmap | ✅ Done |
+| `services/gabe-orchestrator/` | New GABE orchestration layer | ✅ Added |
+| `services/gabe-validator/` | Mandatory answer-path validator | ✅ Added |
 
 ## Product Identity
 
@@ -150,6 +161,13 @@ HearthOS is a purpose-built field service management platform for fireplace inst
 | `src/app/api/gabe/route.ts` | Groq API endpoint | ✅ Done |
 | `src/app/tech/gabe/page.tsx` | Chat UI (calls real API) | ✅ Done |
 
+## GABE Migration State
+
+- `gabe-knowledge-engine` remains the active retrieval backend during migration.
+- `gabe-orchestrator` now exists as the Phase 1 workflow shell and sits in front of the retrieval backend when `GABE_ORCHESTRATOR_URL` is configured.
+- `gabe-validator` is required in the orchestrator answer path and assigns certainty, run outcome, truth-audit status, and source-evidence status.
+- Public Chatwoot rollout is still blocked. Venting and wiring must reach acceptable scorer-validated and truth-audited quality first.
+
 ## Environment Variables Required
 
 See `.env.local.example` for all required env vars:
@@ -218,6 +236,7 @@ See `.env.local.example` for all required env vars:
 |------|---------|
 | 2026-02-24 | Initial template created |
 | 2026-02-24 | HearthOS FSM platform — full docs suite + dashboard UI built |
+| 2026-03-05 | Added Phase 1 GABE orchestrator + validator foundation, run/audit schema, debug metadata, and strangler migration wiring |
 | 2026-02-24 | Professional dark theme redesign — Inter font, dark navy palette, SVG icons, QuickBooks integration page |
 | 2026-02-24 | Service Tech mobile app built — 7 pages: jobs, job detail, GABE AI, manuals, estimate builder, profile with GPS |
 | 2026-02-24 | Materials tracking on checklist (auto-invoice), GABE job context awareness, Sales Pipeline dashboard tab |

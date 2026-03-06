@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
+import { CLERK_ENABLED } from "@/lib/auth";
 
 // Mock data for demo
 const mockJobs = [
@@ -38,13 +39,11 @@ const mockJobs = [
   },
 ];
 
-export default function TechApp() {
+function TechAppContent({ displayName }: { displayName: string }) {
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [shiftStartTime, setShiftStartTime] = useState<Date | null>(null);
   const [activeJob, setActiveJob] = useState<string | null>(null);
   const [jobStartTime, setJobStartTime] = useState<Date | null>(null);
-  const { user } = useUser();
-  const displayName = user?.firstName || user?.fullName || "Tech";
 
   const handleClockIn = () => {
     if (!isClockedIn) {
@@ -231,4 +230,19 @@ export default function TechApp() {
       </nav>
     </div>
   );
+}
+
+function TechAppWithClerk() {
+  const { user } = useUser();
+  const displayName = user?.firstName || user?.fullName || "Tech";
+
+  return <TechAppContent displayName={displayName} />;
+}
+
+export default function TechApp() {
+  if (!CLERK_ENABLED) {
+    return <TechAppContent displayName="Tech" />;
+  }
+
+  return <TechAppWithClerk />;
 }

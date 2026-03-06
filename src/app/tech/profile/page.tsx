@@ -4,10 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { CLERK_ENABLED } from "@/lib/auth";
 
-export default function ProfilePage() {
+function ProfilePageContent({
+  userName,
+  userEmail,
+  userPhone,
+}: {
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+}) {
   const router = useRouter();
-  const { user, isLoaded } = useUser();
   const [gpsEnabled, setGpsEnabled] = useState(true);
 
   const handleSignOut = async () => {
@@ -16,8 +24,6 @@ export default function ProfilePage() {
   };
 
   // Use Clerk user data if available, otherwise use mock data
-  const userName = user?.fullName || user?.username || "Service Tech";
-  const userEmail = user?.primaryEmailAddress?.emailAddress || "tech@hearthos.com";
   const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const [isTracking, setIsTracking] = useState(true);
 
@@ -141,7 +147,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Phone</span>
-              <span className="text-sm">{user?.phoneNumbers?.[0]?.phoneNumber || "(555) 123-4567"}</span>
+              <span className="text-sm">{userPhone}</span>
             </div>
           </div>
         </div>
@@ -208,4 +214,30 @@ export default function ProfilePage() {
       </nav>
     </div>
   );
+}
+
+function ProfilePageWithClerk() {
+  const { user } = useUser();
+
+  return (
+    <ProfilePageContent
+      userName={user?.fullName || user?.username || "Service Tech"}
+      userEmail={user?.primaryEmailAddress?.emailAddress || "tech@hearthos.com"}
+      userPhone={user?.phoneNumbers?.[0]?.phoneNumber || "(555) 123-4567"}
+    />
+  );
+}
+
+export default function ProfilePage() {
+  if (!CLERK_ENABLED) {
+    return (
+      <ProfilePageContent
+        userName="Service Tech"
+        userEmail="tech@hearthos.com"
+        userPhone="(555) 123-4567"
+      />
+    );
+  }
+
+  return <ProfilePageWithClerk />;
 }

@@ -7,6 +7,18 @@ export const jobTypeEnum = pgEnum('job_type', ['installation', 'service', 'inspe
 export const priorityEnum = pgEnum('priority', ['low', 'normal', 'high', 'urgent']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'partial', 'paid', 'overdue']);
 export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'sent', 'paid', 'void']);
+export const gabeCertaintyEnum = pgEnum('gabe_certainty', ['verified_exact', 'verified_partial', 'interpreted', 'unverified']);
+export const gabeRunOutcomeEnum = pgEnum('gabe_run_outcome', [
+  'answered_verified',
+  'answered_partial',
+  'refused_unverified',
+  'escalated_handoff',
+  'source_evidence_missing',
+]);
+export const gabeTruthAuditStatusEnum = pgEnum('gabe_truth_audit_status', ['pending', 'passed', 'failed', 'needs_review']);
+export const gabeReviewActionEnum = pgEnum('gabe_review_action', ['correct', 'incorrect', 'incomplete', 'needs_clarification']);
+export const gabeSourceEvidenceStatusEnum = pgEnum('gabe_source_evidence_status', ['present', 'partial', 'missing', 'not_applicable']);
+export const gabeAuditClassificationEnum = pgEnum('gabe_audit_classification', ['standard', 'source_evidence', 'validator']);
 
 // Organizations
 export const organizations = pgTable('organizations', {
@@ -159,6 +171,135 @@ export const manualSections = pgTable('manual_sections', {
 }, (table) => ({
   manualIdx: index('idx_manual_sections_manual_id').on(table.manualId),
   pageIdx: index('idx_manual_sections_page').on(table.pageStart),
+}));
+
+// GABE Run Metadata
+export const gabeRunMetadata = pgTable('gabe_run_metadata', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  conversationId: varchar('conversation_id', { length: 255 }),
+  externalConversationId: varchar('external_conversation_id', { length: 255 }),
+  channel: varchar('channel', { length: 50 }).notNull().default('internal'),
+  customerId: uuid('customer_id').references(() => customers.id),
+  propertyId: uuid('property_id').references(() => properties.id),
+  fireplaceUnitId: uuid('fireplace_unit_id').references(() => fireplaceUnits.id),
+  jobId: uuid('job_id').references(() => jobs.id),
+  technicianId: uuid('technician_id').references(() => users.id),
+  question: text('question').notNull(),
+  selectedModel: varchar('selected_model', { length: 255 }),
+  selectedEngine: varchar('selected_engine', { length: 100 }).notNull(),
+  certainty: gabeCertaintyEnum('certainty').notNull().default('unverified'),
+  runOutcome: gabeRunOutcomeEnum('run_outcome').notNull(),
+  truthAuditStatus: gabeTruthAuditStatusEnum('truth_audit_status').notNull().default('pending'),
+  sourceEvidenceStatus: gabeSourceEvidenceStatusEnum('source_evidence_status').notNull().default('not_applicable'),
+  confidence: integer('confidence'),
+  validatorVersion: varchar('validator_version', { length: 100 }).notNull(),
+  engineBuildId: varchar('engine_build_id', { length: 100 }).notNull(),
+  engineCommitSha: varchar('engine_commit_sha', { length: 100 }).notNull(),
+  engineRuntimeName: varchar('engine_runtime_name', { length: 100 }).notNull(),
+  debugMetadata: jsonb('debug_metadata').default({}),
+  requestMetadata: jsonb('request_metadata').default({}),
+  answerText: text('answer_text'),
+  refusalReason: text('refusal_reason'),
+  handoffReason: text('handoff_reason'),
+  latencyMs: integer('latency_ms'),
+  usedFallback: boolean('used_fallback').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_gabe_run_metadata_org_id').on(table.orgId),
+  channelIdx: index('idx_gabe_run_metadata_channel').on(table.channel),
+  outcomeIdx: index('idx_gabe_run_metadata_outcome').on(table.runOutcome),
+  truthAuditIdx: index('idx_gabe_run_metadata_truth_audit_status').on(table.truthAuditStatus),
+  conversationIdx: index('idx_gabe_run_metadata_conversation_id').on(table.conversationId),
+  createdAtIdx: index('idx_gabe_run_metadata_created_at').on(table.createdAt),
+}));
+
+// Support conversation to run link table
+export const supportConversationLinks = pgTable('support_conversation_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  runId: uuid('run_id').references(() => gabeRunMetadata.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar('provider', { length: 50 }).notNull(),
+  conversationId: varchar('conversation_id', { length: 255 }).notNull(),
+  messageId: varchar('message_id', { length: 255 }),
+  inboxId: varchar('inbox_id', { length: 255 }),
+  contactId: varchar('contact_id', { length: 255 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  runIdx: index('idx_support_conversation_links_run_id').on(table.runId),
+  providerConversationIdx: index('idx_support_conversation_links_provider_conversation').on(table.provider, table.conversationId),
+}));
+
+// Handoff events
+export const handoffEvents = pgTable('handoff_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  runId: uuid('run_id').references(() => gabeRunMetadata.id, { onDelete: 'cascade' }).notNull(),
+  reason: text('reason').notNull(),
+  destination: varchar('destination', { length: 100 }),
+  assignedToUserId: uuid('assigned_to_user_id').references(() => users.id),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  runIdx: index('idx_handoff_events_run_id').on(table.runId),
+  createdAtIdx: index('idx_handoff_events_created_at').on(table.createdAt),
+}));
+
+// Technician reviews
+export const technicianReviews = pgTable('technician_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  runId: uuid('run_id').references(() => gabeRunMetadata.id, { onDelete: 'cascade' }).notNull(),
+  reviewerUserId: uuid('reviewer_user_id').references(() => users.id),
+  action: gabeReviewActionEnum('action').notNull(),
+  notes: text('notes'),
+  correctedAnswer: text('corrected_answer'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  runIdx: index('idx_technician_reviews_run_id').on(table.runId),
+  reviewerIdx: index('idx_technician_reviews_reviewer').on(table.reviewerUserId),
+}));
+
+// Truth audits
+export const truthAudits = pgTable('truth_audits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  runId: uuid('run_id').references(() => gabeRunMetadata.id, { onDelete: 'cascade' }).notNull(),
+  classification: gabeAuditClassificationEnum('classification').notNull().default('standard'),
+  status: gabeTruthAuditStatusEnum('status').notNull().default('pending'),
+  sourceEvidenceStatus: gabeSourceEvidenceStatusEnum('source_evidence_status').notNull().default('not_applicable'),
+  findings: jsonb('findings').default([]),
+  summary: text('summary'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  runIdx: index('idx_truth_audits_run_id').on(table.runId),
+  classificationIdx: index('idx_truth_audits_classification').on(table.classification),
+  statusIdx: index('idx_truth_audits_status').on(table.status),
+}));
+
+// Test and scoring tables
+export const testRuns = pgTable('test_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  category: varchar('category', { length: 100 }).notNull(),
+  suiteName: varchar('suite_name', { length: 255 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  summary: jsonb('summary').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (table) => ({
+  categoryIdx: index('idx_test_runs_category').on(table.category),
+  statusIdx: index('idx_test_runs_status').on(table.status),
+}));
+
+export const categoryScores = pgTable('category_scores', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  category: varchar('category', { length: 100 }).notNull(),
+  scorerVersion: varchar('scorer_version', { length: 100 }).notNull(),
+  score: decimal('score', { precision: 5, scale: 2 }).notNull(),
+  sampleSize: integer('sample_size').notNull().default(0),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  categoryIdx: index('idx_category_scores_category').on(table.category),
+  createdAtIdx: index('idx_category_scores_created_at').on(table.createdAt),
 }));
 
 // Jobs

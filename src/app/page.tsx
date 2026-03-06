@@ -10,13 +10,12 @@ import DispatchBoard from "@/components/dashboard/DispatchBoard";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import QuickActions from "@/components/dashboard/QuickActions";
 import SalesFunnel from "@/components/dashboard/SalesFunnel";
+import { CLERK_ENABLED } from "@/lib/auth";
 
 type DashboardTab = "overview" | "pipeline";
 
-export default function DashboardPage() {
+function DashboardPageContent({ displayName }: { displayName: string }) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-  const { user } = useUser();
-  const displayName = user?.firstName || user?.fullName || "there";
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -99,4 +98,19 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function DashboardPageWithClerk() {
+  const { user } = useUser();
+  const displayName = user?.firstName || user?.fullName || "there";
+
+  return <DashboardPageContent displayName={displayName} />;
+}
+
+export default function DashboardPage() {
+  if (!CLERK_ENABLED) {
+    return <DashboardPageContent displayName="there" />;
+  }
+
+  return <DashboardPageWithClerk />;
 }

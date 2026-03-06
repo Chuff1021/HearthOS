@@ -6,22 +6,20 @@ export const qdrant = new QdrantClient({
   apiKey: env.QDRANT_API_KEY
 });
 
-let collectionReady = false;
+const readyCollections = new Set<string>();
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function ensureCollection(vectorSize: number) {
-  if (collectionReady) return;
-
-  const collection = env.QDRANT_COLLECTION;
+export async function ensureCollection(collection: string, vectorSize: number) {
+  if (readyCollections.has(collection)) return;
   const maxRetries = 5;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       const exists = await qdrant.getCollections();
-      const found = exists.collections?.some((c) => c.name === collection);
+      const found = exists.collections?.some((c: any) => c.name === collection);
       if (!found) {
         await qdrant.createCollection(collection, {
           vectors: { size: vectorSize, distance: "Cosine" }
@@ -34,7 +32,7 @@ export async function ensureCollection(vectorSize: number) {
           field_schema: "text"
         });
       } catch {}
-      collectionReady = true;
+      readyCollections.add(collection);
       return;
     } catch (err) {
       if (attempt === maxRetries) throw err;

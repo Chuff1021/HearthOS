@@ -10,14 +10,15 @@ const syncStats = [
 ];
 
 type QuickBooksPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     connected?: string;
     error?: string;
-  };
+  }>;
 };
 
-export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
-  const error = searchParams?.error;
+export default async function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const error = resolvedSearchParams?.error;
   const errorMessage =
     error === "missing_params"
       ? "QuickBooks connection failed: missing parameters."
@@ -74,7 +75,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
               </div>
             ) : null}
 
-            {searchParams?.connected === "true" && (
+            {resolvedSearchParams?.connected === "true" && (
               <div
                 className="rounded-lg px-4 py-3 text-sm"
                 style={{

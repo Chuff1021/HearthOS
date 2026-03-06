@@ -1,9 +1,9 @@
 import { qdrant } from "./qdrant";
-import { env } from "../config";
+import { qdrantCollections } from "../config";
 import { RetrievedChunk } from "../types";
 
 export async function searchManualChunks(vector: number[], limit = 5): Promise<RetrievedChunk[]> {
-  const res = await qdrant.search(env.QDRANT_COLLECTION, {
+  const res = await qdrant.search(qdrantCollections.manualChunks, {
     vector,
     limit,
     with_payload: true
@@ -29,7 +29,7 @@ export async function searchManualChunks(vector: number[], limit = 5): Promise<R
 
 export async function keywordSearchManualChunks(terms: string[], limit = 50): Promise<RetrievedChunk[]> {
   if (terms.length === 0) return [];
-  const res = await qdrant.scroll(env.QDRANT_COLLECTION, {
+  const res = await qdrant.scroll(qdrantCollections.manualChunks, {
     limit,
     with_payload: true,
     with_vector: false,

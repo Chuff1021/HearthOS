@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { CLERK_ENABLED } from "@/lib/auth";
 
 interface SearchResult {
   id: string;
@@ -332,28 +333,43 @@ export default function Header() {
         <div className="w-px h-5 mx-1" style={{ background: "var(--color-border)" }}></div>
 
         {/* User / Auth */}
-        <SignedIn>
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: "w-8 h-8",
-              },
-            }}
-          />
-        </SignedIn>
-        <SignedOut>
-          <Link
-            href="/sign-in"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+        {CLERK_ENABLED ? (
+          <>
+            <SignedIn>
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                  },
+                }}
+              />
+            </SignedIn>
+            <SignedOut>
+              <Link
+                href="/sign-in"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+                  color: "white",
+                }}
+              >
+                Sign In
+              </Link>
+            </SignedOut>
+          </>
+        ) : (
+          <div
+            className="px-3 py-1.5 rounded-lg text-xs font-medium"
             style={{
-              background: "linear-gradient(135deg, #f97316, #ea6c0a)",
-              color: "white",
+              background: "var(--color-surface-3)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
             }}
           >
-            Sign In
-          </Link>
-        </SignedOut>
+            Auth offline
+          </div>
+        )}
       </div>
     </header>
   );

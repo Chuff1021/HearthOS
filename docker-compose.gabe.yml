@@ -18,5 +18,16 @@ services:
     depends_on:
       - qdrant
 
+  gabe-orchestrator:
+    build:
+      context: .
+      dockerfile: ./services/gabe-orchestrator/Dockerfile
+    env_file:
+      - ./services/gabe-orchestrator/.env.example
+    ports:
+      - "4200:4200"
+    depends_on:
+      - gabe-knowledge-engine
+
 volumes:
   qdrant_data:

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { manualKnowledgeBase } from "@/lib/gabe/prompts";
 
@@ -20,6 +21,11 @@ interface Message {
   };
 }
 
+interface SelectedManualContext {
+  manualId: string;
+  manualTitle: string;
+}
+
 // ─── GABE Knowledge Base ───────────────────────────────────────────────────
 // In production: replace getGabeResponse() with a real API call to
 // OpenAI / Anthropic / Groq (cheap option) with a system prompt that
@@ -29,7 +35,7 @@ interface Message {
 // System prompt template is exported below for easy wiring.
 // ──────────────────────────────────────────────────────────────────────────
 
-export function buildGabeSystemPrompt(jobContext?: {
+function buildGabeSystemPrompt(jobContext?: {
   fireplace?: string;
   jobType?: string;
   jobId?: string;
@@ -150,19 +156,25 @@ function getGabeResponse(query: string, jobContext?: { fireplace?: string; jobTy
 
 // ─── Inner component that uses useSearchParams ─────────────────────────────
 function GABEInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("jobId") || undefined;
   const fireplace = searchParams.get("fireplace") || undefined;
   const jobType = searchParams.get("jobType") || undefined;
+  const manualId = searchParams.get("manualId") || undefined;
+  const manualTitle = searchParams.get("manualTitle") || undefined;
 
   const jobContext = fireplace ? { fireplace, jobType, jobId } : undefined;
+  const selectedManual = manualId && manualTitle
+    ? { manualId, manualTitle }
+    : undefined;
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
       content: jobContext?.fireplace
-        ? `🔥 Hey! I'm **GABE**, your Fireplace Expert AI.\n\nI can see you're working on a **${jobContext.fireplace}** (${jobContext.jobType || "service call"}). I'll keep that in mind for all my answers.\n\nWhat do you need help with?`
+        ? `🔥 Hey! I'm **GABE**, your Fireplace Expert AI.\n\nI can see you're working on a **${jobContext.fireplace}** (${jobContext.jobType || "service call"}).${selectedManual ? ` I’ll prioritize the **${selectedManual.manualTitle}** manual first.` : ""}\n\nWhat do you need help with?`
         : "🔥 Hey there! I'm **GABE**, your Fireplace Expert AI assistant.\n\nI'm here to help with any service or installation questions. Need help troubleshooting a pilot light? Figuring out venting requirements? Just ask!\n\nWhat can I help you with today?",
       timestamp: new Date(),
     },
@@ -174,6 +186,15 @@ function GABEInner() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const clearSelectedManual = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("manualId");
+    params.delete("manualTitle");
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `/tech/gabe?${nextQuery}` : "/tech/gabe");
   };
 
   useEffect(() => {
@@ -206,7 +227,7 @@ function GABEInner() {
       const res = await fetch("/api/gabe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, jobContext }),
+        body: JSON.stringify({ messages: apiMessages, jobContext, selectedManual }),
       });
 
       let responseText: string;
@@ -318,6 +339,26 @@ function GABEInner() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {selectedManual && (
+          <div className="sticky top-0 z-10 -mt-4 pt-4 pb-2 bg-[#0f0f1a]">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+              <svg className="h-4 w-4 flex-shrink-0 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span className="truncate">
+                Manual: <span className="font-semibold">{selectedManual.manualTitle}</span>
+              </span>
+              <button
+                type="button"
+                onClick={clearSelectedManual}
+                className="rounded-full border border-blue-400/30 px-2 py-0.5 text-[11px] font-medium text-blue-200 transition-colors hover:bg-blue-400/10"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => (
           <div
             key={message.id}
@@ -437,7 +478,7 @@ function GABEInner() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={jobContext?.fireplace ? `Ask about the ${jobContext.fireplace}...` : "Ask GABE anything..."}
+            placeholder={selectedManual?.manualTitle ? `Ask about the ${selectedManual.manualTitle} manual...` : jobContext?.fireplace ? `Ask about the ${jobContext.fireplace}...` : "Ask GABE anything..."}
             className="flex-1 bg-[#1a1a2e] rounded-xl px-4 py-3 text-sm border border-gray-700 focus:border-orange-500 outline-none"
           />
           <button

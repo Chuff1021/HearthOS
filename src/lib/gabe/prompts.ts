@@ -20,6 +20,15 @@ type ManualContext = {
   }>;
 };
 
+export const manualKnowledgeBase = [
+  "Majestic",
+  "Regency",
+  "Napoleon",
+  "Heat & Glo",
+  "Heatilator",
+  "Empire",
+].join(", ");
+
 function buildManualsBlock(manualContext?: ManualContext) {
   const manuals = manualContext?.manuals ?? [];
   const sections = manualContext?.sections ?? [];

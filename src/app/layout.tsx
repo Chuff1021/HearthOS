@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import {
   ClerkProvider,
   SignInButton,
@@ -8,13 +7,8 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { isClerkConfigured } from "@/lib/auth";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 // Force dynamic rendering to avoid Clerk prerender issues
 export const dynamic = "force-dynamic";
@@ -30,6 +24,33 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clerkEnabled = isClerkConfigured();
+
+  const appShell = (
+    <html lang="en">
+      <body className="font-sans">
+        <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-neutral-900 bg-black text-white">
+          {clerkEnabled ? (
+            <>
+              <SignedOut>
+                <SignInButton />
+                <SignUpButton />
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            </>
+          ) : null}
+        </header>
+        {children}
+      </body>
+    </html>
+  );
+
+  if (!clerkEnabled) {
+    return appShell;
+  }
+
   return (
     <ClerkProvider
       appearance={{
@@ -54,20 +75,7 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en">
-        <body className={inter.className}>
-          <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-neutral-900 bg-black text-white">
-            <SignedOut>
-              <SignInButton />
-              <SignUpButton />
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
-          {children}
-        </body>
-      </html>
+      {appShell}
     </ClerkProvider>
   );
 }

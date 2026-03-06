@@ -6,7 +6,10 @@ const envSchema = z.object({
   GROQ_MODEL: z.string().default("llama-3.1-8b-instant"),
   QDRANT_URL: z.string().url(),
   QDRANT_API_KEY: z.string().optional(),
-  QDRANT_COLLECTION: z.string().default("gabe_manual_chunks"),
+  QDRANT_MANUAL_COLLECTION: z.string().default("fireplace_manual_chunks"),
+  QDRANT_QA_MEMORY_COLLECTION: z.string().default("fireplace_qa_memory"),
+  QDRANT_VENT_RULES_COLLECTION: z.string().default("fireplace_vent_rules"),
+  QDRANT_WIRING_GRAPHS_COLLECTION: z.string().default("fireplace_wiring_graphs"),
   EMBEDDINGS_PROVIDER: z.enum(["transformers", "openai", "jina"]).default("transformers"),
   OPENAI_API_KEY: z.string().optional(),
   JINA_API_KEY: z.string().optional(),
@@ -35,7 +38,10 @@ export const env = envSchema.parse({
   GROQ_MODEL: process.env.GROQ_MODEL,
   QDRANT_URL: process.env.QDRANT_URL,
   QDRANT_API_KEY: process.env.QDRANT_API_KEY,
-  QDRANT_COLLECTION: process.env.QDRANT_COLLECTION,
+  QDRANT_MANUAL_COLLECTION: process.env.QDRANT_MANUAL_COLLECTION,
+  QDRANT_QA_MEMORY_COLLECTION: process.env.QDRANT_QA_MEMORY_COLLECTION,
+  QDRANT_VENT_RULES_COLLECTION: process.env.QDRANT_VENT_RULES_COLLECTION,
+  QDRANT_WIRING_GRAPHS_COLLECTION: process.env.QDRANT_WIRING_GRAPHS_COLLECTION,
   EMBEDDINGS_PROVIDER: process.env.EMBEDDINGS_PROVIDER,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   JINA_API_KEY: process.env.JINA_API_KEY,
@@ -48,3 +54,9 @@ export const env = envSchema.parse({
 
 export const allowlistDomains = env.ALLOWLIST_DOMAINS.split(",").map((d) => d.trim()).filter(Boolean);
 export const similarityThreshold = Number(env.SIMILARITY_THRESHOLD);
+export const qdrantCollections = {
+  manualChunks: env.QDRANT_MANUAL_COLLECTION,
+  qaMemory: env.QDRANT_QA_MEMORY_COLLECTION,
+  ventRules: env.QDRANT_VENT_RULES_COLLECTION,
+  wiringGraphs: env.QDRANT_WIRING_GRAPHS_COLLECTION,
+} as const;

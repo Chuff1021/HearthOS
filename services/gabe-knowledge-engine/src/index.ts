@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { env, similarityThreshold } from "./config";
+import { env, qdrantCollections, similarityThreshold } from "./config";
 import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
@@ -16,7 +16,7 @@ const app = Fastify({ logger: { level: env.LOG_LEVEL } });
 
 app.get("/health", async () => ({ ok: true }));
 
-app.post("/ingest/manual", async (request, reply) => {
+app.post("/ingest/manual", async (request: any, reply: any) => {
   const body = request.body as {
     file_path: string;
     manual_title: string;
@@ -33,7 +33,7 @@ app.post("/ingest/manual", async (request, reply) => {
   const chunks = chunkPages(pages, 500, 800);
   const embeddings = await embed(chunks.map((c) => c.text));
 
-  await ensureCollection(embeddings[0].length);
+  await ensureCollection(qdrantCollections.manualChunks, embeddings[0].length);
   const docType = inferDocType(body.manual_title);
 
   const points = chunks.map((c, idx) => ({
@@ -52,12 +52,12 @@ app.post("/ingest/manual", async (request, reply) => {
     }
   }));
 
-  await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
+  await qdrant.upsert(qdrantCollections.manualChunks, { wait: true, points });
 
   return { ok: true, chunks: points.length };
 });
 
-app.post("/query", async (request, reply) => {
+app.post("/query", async (request: any, reply: any) => {
   const body = request.body as { question: string };
   if (!body?.question) return reply.status(400).send({ error: "question required" });
 

@@ -1,4 +1,4 @@
-import { env } from "../src/config";
+import { qdrantCollections } from "../src/config";
 import { extractPdfPages } from "../src/ingest/pdf";
 import { chunkPages } from "../src/ingest/chunker";
 import { embed } from "../src/embeddings";
@@ -22,7 +22,7 @@ async function sleep(ms: number) {
 
 async function upsertWithRetry(points: any[], attempt = 1) {
   try {
-    await qdrant.upsert(env.QDRANT_COLLECTION, { wait: true, points });
+    await qdrant.upsert(qdrantCollections.manualChunks, { wait: true, points });
   } catch (err) {
     if (attempt >= MAX_RETRIES) throw err;
     const delay = 1000 * attempt;
@@ -37,7 +37,7 @@ async function run() {
   const chunks = chunkPages(pages, 500, 800);
   const embeddings = await embed(chunks.map((c) => c.text));
   if (process.env.SKIP_COLLECTION_CHECK !== "1") {
-    await ensureCollection(embeddings[0].length);
+    await ensureCollection(qdrantCollections.manualChunks, embeddings[0].length);
   }
   const docType = inferDocType(manualTitle);
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCustomers, getInvoices } from "@/lib/data-store";
-import { getJobs as getJobsFromApi } from "../jobs/route";
+import { getJobs } from "@/lib/jobs-store";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 import {
   searchCustomers as searchQBCustomers,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }));
 
   // Search local jobs
-  const jobs = getJobsFromApi();
+  const jobs = getJobs();
   const matchedJobs = jobs
     .filter(
       (j) =>

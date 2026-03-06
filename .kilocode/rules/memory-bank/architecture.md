@@ -1,23 +1,46 @@
-# System Patterns: Next.js Starter Template
+# System Patterns: HearthOS + GABE Platform
 
 ## Architecture Overview
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx          # Root layout + metadata
-│   ├── page.tsx            # Home page
-│   ├── globals.css         # Tailwind imports + global styles
-│   └── favicon.ico         # Site icon
-└── (expand as needed)
-    ├── components/         # React components (add when needed)
-    ├── lib/                # Utilities and helpers (add when needed)
-    └── db/                 # Database files (add via recipe)
+├── app/                    # Next.js App Router + admin/tech/API shell
+├── components/             # UI components
+├── lib/                    # App-side utilities
+└── db/                     # Drizzle schema and DB client
+
+services/
+├── gabe-knowledge-engine/  # Existing retrieval backend kept alive during migration
+├── gabe-orchestrator/      # New orchestration layer with internal engine modules
+└── gabe-validator/         # Internal validator dependency for orchestrator
 ```
 
 ## Key Design Patterns
 
-### 1. App Router Pattern
+### 1. Strangler Migration for GABE
+
+- Keep `gabe-knowledge-engine` alive as the retrieval backend during migration.
+- Route new answer traffic through `gabe-orchestrator`.
+- Make `gabe-validator` mandatory in the orchestrator answer path.
+- Move category logic into orchestrator modules first, not separate deployable services.
+
+### 2. Validator-First Technical Answers
+
+- No technical answer leaves the orchestrator without validator approval.
+- Run metadata carries certainty, run outcome, truth-audit status, and source-evidence status.
+- `source_evidence_missing` is an official run outcome, not an ad hoc error case.
+
+### 3. Category Engines as Internal Modules
+
+- `venting`
+- `wiring`
+- `parts`
+- `compliance`
+- `general_retrieval`
+
+These live inside `gabe-orchestrator/src/engines` until the architecture proves they need service separation.
+
+### 4. App Router Pattern
 
 Uses Next.js App Router with file-based routing:
 ```
@@ -31,7 +54,7 @@ src/app/
     └── route.ts       # API Route: /api
 ```
 
-### 2. Component Organization Pattern (When Expanding)
+### 5. Component Organization Pattern
 
 ```
 src/components/
@@ -41,7 +64,7 @@ src/components/
 └── forms/             # Form components
 ```
 
-### 3. Server Components by Default
+### 6. Server Components by Default
 
 All components are Server Components unless marked with `"use client"`:
 ```tsx
@@ -58,7 +81,7 @@ export default function Counter() {
 }
 ```
 
-### 4. Layout Pattern
+### 7. Layout Pattern
 
 Layouts wrap pages and can be nested:
 ```tsx
@@ -81,6 +104,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 ```
+
+## GABE Runtime Patterns
+
+### Orchestrator Diagnostics
+
+Every orchestrated run should expose:
+- `engine_build_id`
+- `engine_commit_sha`
+- `engine_runtime_name`
+- `selected_engine`
+- `validator_version`
+
+Debug-mode API responses can also expose:
+- `certainty`
+- `run_outcome`
+
+### Truth-Audit Gating
+
+No category is considered complete until it has:
+- scorer coverage
+- validator coverage
+- truth-audit coverage
+
+Public Chatwoot rollout is blocked until at least venting and wiring reach acceptable scorer-validated and truth-audited quality.
 
 ## Styling Conventions
 
