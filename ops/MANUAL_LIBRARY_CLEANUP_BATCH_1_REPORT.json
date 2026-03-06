@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-03-06T23:07:04.137Z",
+  "mode": "preview-safe-non-destructive",
+  "actions": [
+    {
+      "id": "A2",
+      "action": "reclassify_unassigned_deterministic",
+      "moved_to_travis": 0,
+      "moved_to_hht_shared": 0,
+      "total_reclassified": 0
+    },
+    {
+      "id": "A3",
+      "action": "normalize_type_labels",
+      "updated_rows": 9
+    }
+  ],
+  "errors": [],
+  "before": {
+    "manuals": 315,
+    "active": 310,
+    "sections": 8638,
+    "sectionDupRows": 0,
+    "byBrand": [
+      {
+        "brand": "HHT-shared",
+        "count": 131
+      },
+      {
+        "brand": "UNASSIGNED",
+        "count": 119
+      },
+      {
+        "brand": "Travis Industries",
+        "count": 26
+      },
+      {
+        "brand": "Lopi",
+        "count": 15
+      },
+      {
+        "brand": "FPX",
+        "count": 10
+      },
+      {
+        "brand": "Heatilator",
+        "count": 5
+      },
+      {
+        "brand": "Heat & Glo",
+        "count": 4
+      }
+    ],
+    "byType": [
+      {
+        "type": "Manual",
+        "count": 241
+      },
+      {
+        "type": "Installation Manual",
+        "count": 31
+      },
+      {
+        "type": "Owner's Manual",
+        "count": 28
+      },
+      {
+        "type": "Owner's/Installation Manual",
+        "count": 9
+      },
+      {
+        "type": "Single Page Flyer",
+        "count": 1
+      }
+    ]
+  },
+  "after": {
+    "manuals": 315,
+    "active": 310,
+    "sections": 8638,
+    "sectionDupRows": 0,
+    "byBrand": [
+      {
+        "brand": "HHT-shared",
+        "count": 131
+      },
+      {
+        "brand": "UNASSIGNED",
+        "count": 119
+      },
+      {
+        "brand": "Travis Industries",
+        "count": 26
+      },
+      {
+        "brand": "Lopi",
+        "count": 15
+      },
+      {
+        "brand": "FPX",
+        "count": 10
+      },
+      {
+        "brand": "Heatilator",
+        "count": 5
+      },
+      {
+        "brand": "Heat & Glo",
+        "count": 4
+      }
+    ],
+    "byType": [
+      {
+        "type": "Manual",
+        "count": 241
+      },
+      {
+        "type": "Owner's Manual",
+        "count": 37
+      },
+      {
+        "type": "Installation Manual",
+        "count": 31
+      },
+      {
+        "type": "Single Page Flyer",
+        "count": 1
+      }
+    ]
+  },
+  "success": true
+}
