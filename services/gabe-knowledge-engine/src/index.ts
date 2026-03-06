@@ -24,6 +24,7 @@ import { extractVentRule, extractWiringGraph, normalizePartNumbers } from "./swa
 import { buildVentingAnswerFromRecord, extractVentRuleRecords, pickBestVentRule } from "./swarm/ventingEngine";
 import { buildWiringAnswerFromRecord, extractWiringRecords, pickBestWiringRecord } from "./swarm/wiringEngine";
 import { buildPartsAnswerFromRecord, extractPartsRecords, pickBestPartsRecord } from "./swarm/partsEngine";
+import { buildComplianceAnswerFromRecord, buildComplianceRefusal, extractComplianceRecords, pickBestComplianceRecord } from "./swarm/complianceEngine";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -511,18 +512,45 @@ app.post("/query", async (request, reply) => {
   const chosenChunk = candidateChunks[0];
 
   if (effectiveIntent === "code compliance") {
-    const codeLike = candidateChunks.some((c) => {
-      const t = `${c.section_title || ''} ${c.chunk_text || ''}`.toLowerCase();
-      return /code|listing|inspection|permit|approved/.test(t);
-    });
-    if (!codeLike) {
+    const complianceRecords = extractComplianceRecords(sectionRouted, body.question);
+    const bestCompliance = pickBestComplianceRecord(body.question, complianceRecords);
+
+    if (bestCompliance) {
+      const complianceAnswer = buildComplianceAnswerFromRecord(bestCompliance, body.question) as any;
+      complianceAnswer.validator_notes = [
+        ...(complianceAnswer.validator_notes || []),
+        `compliance_structured_records:${complianceRecords.length}`,
+      ];
+
+      const matchedChunk = sectionRouted.find(
+        (c) =>
+          c.source_type === 'manual' &&
+          c.manual_title === bestCompliance.manual_title &&
+          c.source_url === bestCompliance.source_url &&
+          c.page_number === (bestCompliance.source_page ?? 1)
+      );
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+
       return await finalizeThroughGate({
         question: body.question,
-        answer: unavailable("insufficient_evidence", body.question, webHints.top),
-        retrieved: candidateChunks.length ? candidateChunks : sectionRouted.slice(0, 1),
-        evidencePacket,
+        answer: complianceAnswer,
+        retrieved: retrievedForValidation,
+        evidencePacket: {
+          ...(evidencePacket as any),
+          compliance_structured_records: complianceRecords.length,
+        },
       });
     }
+
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: buildComplianceRefusal(body.question, "insufficient_explicit_manufacturer_compliance_support") as any,
+      retrieved: sectionRouted.slice(0, 1),
+      evidencePacket: {
+        ...(evidencePacket as any),
+        compliance_structured_records: 0,
+      },
+    });
   }
   const explicitModelScoped = buildModelPhrases(body.question).length > 0;
   if (!explicitModelScoped && !hasQueryTermOverlap(body.question, chosenChunk.chunk_text)) {

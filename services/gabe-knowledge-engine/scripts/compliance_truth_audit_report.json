@@ -1,0 +1,131 @@
+{
+  "summary": {
+    "total_cases": 10,
+    "passed_cases": 10,
+    "failed_cases": 0,
+    "pass_rate": 1,
+    "acceptable": true
+  },
+  "rows": [
+    {
+      "id": "C01",
+      "qtype": "listing",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Apex Listing Sheet",
+      "page_number": 2,
+      "source_url": "https://example.com/compliance/apex-listing.pdf",
+      "quote": "This appliance is listed to ANSI Z21.88 and certified by CSA for use as described in this manual."
+    },
+    {
+      "id": "C02",
+      "qtype": "approval",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Apex Install Manual",
+      "page_number": 14,
+      "source_url": "https://example.com/compliance/apex-install.pdf",
+      "quote": "Approved for installation in manufactured homes when installed per manufacturer requirements."
+    },
+    {
+      "id": "C03",
+      "qtype": "inspection",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Owner Safety Guide",
+      "page_number": 5,
+      "source_url": "https://example.com/compliance/owner-safety.pdf",
+      "quote": "Installation must be inspected by the authority having jurisdiction prior to operation."
+    },
+    {
+      "id": "C04",
+      "qtype": "permit",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Install Checklist",
+      "page_number": 3,
+      "source_url": "https://example.com/compliance/checklist.pdf",
+      "quote": "Permit and final inspection requirements are determined by local jurisdiction and AHJ."
+    },
+    {
+      "id": "C05",
+      "qtype": "code_vs_manufacturer",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Venting Requirements",
+      "page_number": 21,
+      "source_url": "https://example.com/compliance/venting.pdf",
+      "quote": "Manufacturer requires venting components listed in this manual."
+    },
+    {
+      "id": "C06",
+      "qtype": "clearance_compliance",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Clearance Table",
+      "page_number": 9,
+      "source_url": "https://example.com/compliance/clearances.pdf",
+      "quote": "Minimum side clearance to combustibles shall be maintained as listed in Table 4."
+    },
+    {
+      "id": "C07",
+      "qtype": "code_vs_manufacturer",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Safety Compliance",
+      "page_number": 11,
+      "source_url": "https://example.com/compliance/safety.pdf",
+      "quote": "Manufacturer requires all minimum clearances in this manual; local authority may impose stricter requirements."
+    },
+    {
+      "id": "C08",
+      "qtype": "approval",
+      "status": "pass",
+      "reason": "refusal_expected",
+      "run_outcome": "refused_missing_explicit_support",
+      "records": 0
+    },
+    {
+      "id": "C09",
+      "qtype": "permit",
+      "status": "pass",
+      "reason": "refusal_expected",
+      "run_outcome": "refused_missing_explicit_support",
+      "records": 0
+    },
+    {
+      "id": "C10",
+      "qtype": "listing",
+      "status": "pass",
+      "reason": "",
+      "run_outcome": "approved_compliance",
+      "certainty": "Verified Partial",
+      "records": 1,
+      "manual_title": "Certification Addendum",
+      "page_number": 1,
+      "source_url": "https://example.com/compliance/certification.pdf",
+      "quote": "Certified and listed by CSA under ANSI standards for residential gas appliances."
+    }
+  ]
+}

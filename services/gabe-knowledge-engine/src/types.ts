@@ -28,6 +28,7 @@ export type GabeAnswer =
       confidence: number;
       certainty: CertaintyLadder;
       validator_notes?: string[];
+      run_outcome?: string;
     }
   | {
       answer: string;
@@ -38,6 +39,7 @@ export type GabeAnswer =
       confidence: number;
       certainty: CertaintyLadder;
       validator_notes?: string[];
+      run_outcome?: string;
     }
   | {
       answer: "This information is not available in verified manufacturer documentation.";
@@ -45,6 +47,7 @@ export type GabeAnswer =
       confidence: 0;
       certainty: "Unverified";
       validator_notes?: string[];
+      run_outcome?: string;
     };
 
 export type InstallAngle = "standard" | "45" | "unknown";

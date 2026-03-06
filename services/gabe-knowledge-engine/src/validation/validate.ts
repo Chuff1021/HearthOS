@@ -13,6 +13,7 @@ const manualSchema = z.object({
   confidence: z.number().min(0).max(100),
   certainty: certaintySchema,
   validator_notes: z.array(z.string()).optional(),
+  run_outcome: z.string().optional(),
 });
 
 const webSchema = z.object({
@@ -24,6 +25,7 @@ const webSchema = z.object({
   confidence: z.number().min(0).max(100),
   certainty: certaintySchema,
   validator_notes: z.array(z.string()).optional(),
+  run_outcome: z.string().optional(),
 });
 
 const noneSchema = z.object({
@@ -32,6 +34,7 @@ const noneSchema = z.object({
   confidence: z.literal(0),
   certainty: z.literal("Unverified"),
   validator_notes: z.array(z.string()).optional(),
+  run_outcome: z.string().optional(),
 });
 
 type ManualAnswer = z.infer<typeof manualSchema>;

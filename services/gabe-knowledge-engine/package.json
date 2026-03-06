@@ -12,7 +12,9 @@
     "test:query": "tsx scripts/test_query.ts",
     "test:regression": "tsx scripts/regression_suite.ts",
     "score:parts": "tsx scripts/parts_score.ts",
-    "audit:parts": "tsx scripts/parts_truth_audit.ts"
+    "audit:parts": "tsx scripts/parts_truth_audit.ts",
+    "score:compliance": "tsx scripts/compliance_score.ts",
+    "audit:compliance": "tsx scripts/compliance_truth_audit.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.12.0",

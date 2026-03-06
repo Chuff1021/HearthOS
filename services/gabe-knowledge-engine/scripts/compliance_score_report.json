@@ -1,0 +1,131 @@
+{
+  "summary": {
+    "cases": 10,
+    "structured_records_created": 8,
+    "before": {
+      "qtype_accuracy": 1,
+      "support_gating_accuracy": 0.8
+    },
+    "after": {
+      "qtype_accuracy": 1,
+      "support_gating_accuracy": 1,
+      "contract_fields_present": 1
+    }
+  },
+  "delta": {
+    "qtype_accuracy": 0,
+    "support_gating_accuracy": 0.2
+  },
+  "details": [
+    {
+      "id": "C01",
+      "expectedQtype": "listing",
+      "baselineQtype": "listing",
+      "newQtype": "listing",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C02",
+      "expectedQtype": "approval",
+      "baselineQtype": "approval",
+      "newQtype": "approval",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C03",
+      "expectedQtype": "inspection",
+      "baselineQtype": "inspection",
+      "newQtype": "inspection",
+      "expectedSupport": true,
+      "baselineSupport": false,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C04",
+      "expectedQtype": "permit",
+      "baselineQtype": "permit",
+      "newQtype": "permit",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C05",
+      "expectedQtype": "code_vs_manufacturer",
+      "baselineQtype": "code_vs_manufacturer",
+      "newQtype": "code_vs_manufacturer",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C06",
+      "expectedQtype": "clearance_compliance",
+      "baselineQtype": "clearance_compliance",
+      "newQtype": "clearance_compliance",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C07",
+      "expectedQtype": "code_vs_manufacturer",
+      "baselineQtype": "code_vs_manufacturer",
+      "newQtype": "code_vs_manufacturer",
+      "expectedSupport": true,
+      "baselineSupport": false,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    },
+    {
+      "id": "C08",
+      "expectedQtype": "approval",
+      "baselineQtype": "approval",
+      "newQtype": "approval",
+      "expectedSupport": false,
+      "baselineSupport": false,
+      "newSupport": false,
+      "recordsCreated": 0,
+      "outcome": "refused_missing_explicit_support"
+    },
+    {
+      "id": "C09",
+      "expectedQtype": "permit",
+      "baselineQtype": "permit",
+      "newQtype": "permit",
+      "expectedSupport": false,
+      "baselineSupport": false,
+      "newSupport": false,
+      "recordsCreated": 0,
+      "outcome": "refused_missing_explicit_support"
+    },
+    {
+      "id": "C10",
+      "expectedQtype": "listing",
+      "baselineQtype": "listing",
+      "newQtype": "listing",
+      "expectedSupport": true,
+      "baselineSupport": true,
+      "newSupport": true,
+      "recordsCreated": 1,
+      "outcome": "approved_compliance"
+    }
+  ]
+}
