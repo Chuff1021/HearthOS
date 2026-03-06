@@ -1,0 +1,170 @@
+{
+  "passed": 7,
+  "total": 10,
+  "accuracy": 70.0,
+  "results": [
+    {
+      "id": "p1",
+      "question": "What is the replacement part number for the thermopile?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "Manufacturer parts guidance found in cited section.",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 22,
+      "validator_notes": [
+        "parts_fast_path",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p2",
+      "question": "From the exploded diagram, what is the callout for the pilot assembly?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "Manual states: \"Intermittent/Continuous Pilot This heater may run with the pilot continuously running or in intermittent mode.\"",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+      "page_number": 39,
+      "validator_notes": [
+        "extractive_fallback",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p3",
+      "question": "Is there a revision or variant difference for this control module part?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "Wiring connection path: wall switch -> control module; control module -> gas valve. Source: page 42. Model: 100-01444.",
+      "source_type": "manual",
+      "certainty": "Verified Exact",
+      "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+      "page_number": 42,
+      "validator_notes": [
+        "wiring_rule_structured",
+        "wiring_qtype:connection_path",
+        "wiring_record_id:file:///var/lib/gabe/manuals/100-01444.pdf|42|Travis Manual 100-01444.pdf",
+        "wiring_rule_records:5",
+        "validator_outcome:approved"
+      ]
+    },
+    {
+      "id": "p4",
+      "question": "What aliases are used for thermocouple in the manual?",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "answer": "Manufacturer compliance-related guidance found in cited section.",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+      "page_number": 10,
+      "validator_notes": [
+        "code_fast_path",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p5",
+      "question": "List normalized part numbers for the gas valve assembly.",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "Manufacturer parts guidance found in cited section.",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 22,
+      "validator_notes": [
+        "parts_fast_path",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p6",
+      "question": "Which diagram callout references the igniter electrode?",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: [PDF] 17\" & 21\" 3-burner all glass gas range with ffd - Lippert Support. I can use this to guide next lookup, but final technical steps should be manual-verified.",
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://support.lci1.com/documents/ccd-0008217",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ]
+    },
+    {
+      "id": "p7",
+      "question": "Provide family/revision disambiguation for blower parts.",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "answer": "Manufacturer compliance-related guidance found in cited section.",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 23,
+      "validator_notes": [
+        "code_fast_path",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p8",
+      "question": "Is pilot generator the same alias as thermopile?",
+      "pass": false,
+      "hasTerms": false,
+      "hasCitation": true,
+      "answer": "Manual states: \"Intermittent/Continuous Pilot This heater may run with the pilot continuously running or in intermittent mode.\"",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+      "page_number": 39,
+      "validator_notes": [
+        "extractive_fallback",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p9",
+      "question": "Give the part lookup for gasket replacement.",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "Manufacturer parts guidance found in cited section.",
+      "source_type": "manual",
+      "certainty": "Verified Partial",
+      "source_url": "https://www.travisindustries.com/docs/100-01436.pdf",
+      "page_number": 22,
+      "validator_notes": [
+        "parts_fast_path",
+        "validator_outcome:approved_partial"
+      ]
+    },
+    {
+      "id": "p10",
+      "question": "From exploded view callouts, identify valve-related item references.",
+      "pass": true,
+      "hasTerms": true,
+      "hasCitation": true,
+      "answer": "I couldn't verify this in loaded manufacturer manuals yet. Web direction: Exploded Drawing BOM and Callouts - YouTube. I can use this to guide next lookup, but final technical steps should be manual-verified.",
+      "source_type": "web",
+      "certainty": "Interpreted",
+      "source_url": "https://www.youtube.com/watch?v=XFMeu6fI8gc",
+      "page_number": null,
+      "validator_notes": [
+        "web_fallback_directional",
+        "validator_outcome:approved"
+      ]
+    }
+  ]
+}

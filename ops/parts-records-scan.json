@@ -1,0 +1,6255 @@
+[
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|1",
+    "model": "100-01537",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "0028GN126S",
+      "100-01537",
+      "12521",
+      "2020",
+      "2026",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|3",
+    "model": "100-01537",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "430",
+      "94500953",
+      "94500956",
+      "94500957"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|4",
+    "model": "100-01537",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "3280"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|5",
+    "model": "100-01537",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|7",
+    "model": "100-01537",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "250-01463",
+      "3280",
+      "94400999",
+      "96200330",
+      "96200339"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|9",
+    "model": "100-01537",
+    "source_page": 9,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refractory"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|11",
+    "model": "100-01537",
+    "source_page": 11,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "120-",
+      "1537",
+      "2026",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|23",
+    "model": "100-01537",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|24",
+    "model": "100-01537",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "810014340",
+      "810014742"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|25",
+    "model": "100-01537",
+    "source_page": 25,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "96100318",
+      "96100324",
+      "96100361",
+      "96100362",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|41",
+    "model": "100-01537",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "module"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|42",
+    "model": "100-01537",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|43",
+    "model": "100-01537",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|44",
+    "model": "100-01537",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|45",
+    "model": "100-01537",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|46",
+    "model": "100-01537",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|48",
+    "model": "100-01537",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "module",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|49",
+    "model": "100-01537",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|50",
+    "model": "100-01537",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "250-00107",
+      "250-00402",
+      "250-00753",
+      "250-00803",
+      "250-01463",
+      "250-01612",
+      "250-02904",
+      "250-03378",
+      "250-03380"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|52",
+    "model": "100-01537",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|61",
+    "model": "100-01537",
+    "source_page": 61,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "250-05237",
+      "250-05238",
+      "250-05239",
+      "250-05240",
+      "250-05241",
+      "250-05242",
+      "250-05243",
+      "250-05244",
+      "250-05245",
+      "250-05246",
+      "94500956",
+      "94500957"
+    ],
+    "aliases_found": [
+      "valve"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|62",
+    "model": "100-01537",
+    "source_page": 62,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "250-05247",
+      "250-05248",
+      "250-05249",
+      "250-05250",
+      "250-05251",
+      "250-05252",
+      "250-05253",
+      "250-05254",
+      "250-05255",
+      "250-05256",
+      "94500956"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|74",
+    "model": "100-01537",
+    "source_page": 74,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "94500953"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01537.pdf|88",
+    "model": "100-01537",
+    "source_page": 88,
+    "source_url": "file:///var/lib/gabe/manuals/100-01537.pdf",
+    "canonical_part_numbers": [
+      "1537",
+      "2026",
+      "84052701"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|1",
+    "model": "100-01443",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "0028GH106S",
+      "100-01443",
+      "12521",
+      "2019",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|3",
+    "model": "100-01443",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|4",
+    "model": "100-01443",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "3280",
+      "5601"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|5",
+    "model": "100-01443",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "021",
+      "037",
+      "066",
+      "068",
+      "1443",
+      "170",
+      "25249",
+      "2755517",
+      "443",
+      "469",
+      "602",
+      "726",
+      "953"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|7",
+    "model": "100-01443",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "3280",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|14",
+    "model": "100-01443",
+    "source_page": 14,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "94400998",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|18",
+    "model": "100-01443",
+    "source_page": 18,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|19",
+    "model": "100-01443",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "94400998"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|20",
+    "model": "100-01443",
+    "source_page": 20,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "94400998"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|21",
+    "model": "100-01443",
+    "source_page": 21,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "1775",
+      "441",
+      "94400998",
+      "96200328",
+      "96200331"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|29",
+    "model": "100-01443",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "250-03375",
+      "250-03376"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|31",
+    "model": "100-01443",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|47",
+    "model": "100-01443",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|48",
+    "model": "100-01443",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|50",
+    "model": "100-01443",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|52",
+    "model": "100-01443",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|53",
+    "model": "100-01443",
+    "source_page": 53,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "250-01612",
+      "250-02137",
+      "250-02777",
+      "250-02903",
+      "250-03375",
+      "250-03376"
+    ],
+    "aliases_found": [
+      "igniter",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|54",
+    "model": "100-01443",
+    "source_page": 54,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|56",
+    "model": "100-01443",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443"
+    ],
+    "aliases_found": [
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01443.pdf|64",
+    "model": "100-01443",
+    "source_page": 64,
+    "source_url": "file:///var/lib/gabe/manuals/100-01443.pdf",
+    "canonical_part_numbers": [
+      "1443",
+      "84052701"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|2",
+    "model": "100-01593",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|3",
+    "model": "100-01593",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023",
+      "94400951",
+      "99000139"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|5",
+    "model": "100-01593",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1593",
+      "170",
+      "2023",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|7",
+    "model": "100-01593",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "018",
+      "134M",
+      "1593",
+      "2023",
+      "211"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|10",
+    "model": "100-01593",
+    "source_page": 10,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "103",
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|12",
+    "model": "100-01593",
+    "source_page": 12,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "048M",
+      "1593",
+      "2024",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|16",
+    "model": "100-01593",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024",
+      "211"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|22",
+    "model": "100-01593",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024",
+      "500"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|29",
+    "model": "100-01593",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|34",
+    "model": "100-01593",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|35",
+    "model": "100-01593",
+    "source_page": 35,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023",
+      "225-20039",
+      "250-02074",
+      "250-02184",
+      "250-02832",
+      "250-03514",
+      "250-03515",
+      "250-03891",
+      "99900427"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|36",
+    "model": "100-01593",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024",
+      "250-02186",
+      "250-02489",
+      "250-02643",
+      "250-03887",
+      "250-03889",
+      "250-03901",
+      "250-04485",
+      "98900248"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|37",
+    "model": "100-01593",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|38",
+    "model": "100-01593",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|39",
+    "model": "100-01593",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023",
+      "251-00000",
+      "251-00022"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|40",
+    "model": "100-01593",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|41",
+    "model": "100-01593",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|43",
+    "model": "100-01593",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2023",
+      "94400951",
+      "99000139"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01593.pdf|48",
+    "model": "100-01593",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01593.pdf",
+    "canonical_part_numbers": [
+      "1593",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|1",
+    "model": "100-01444",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "0028GH106S",
+      "100-01444",
+      "12521",
+      "2019",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|3",
+    "model": "100-01444",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|4",
+    "model": "100-01444",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "3280",
+      "5601"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|5",
+    "model": "100-01444",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "021",
+      "037",
+      "066",
+      "068",
+      "1444",
+      "170",
+      "25249",
+      "2755517",
+      "443",
+      "469",
+      "602",
+      "726",
+      "953"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|7",
+    "model": "100-01444",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "3280",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|10",
+    "model": "100-01444",
+    "source_page": 10,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "96200317"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|14",
+    "model": "100-01444",
+    "source_page": 14,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "94400998",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|18",
+    "model": "100-01444",
+    "source_page": 18,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "96200317"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|19",
+    "model": "100-01444",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "94400998"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|20",
+    "model": "100-01444",
+    "source_page": 20,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "94400998"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|21",
+    "model": "100-01444",
+    "source_page": 21,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "1775",
+      "441",
+      "94400998",
+      "96200328",
+      "96200331"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|29",
+    "model": "100-01444",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "250-03375",
+      "250-03376"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|31",
+    "model": "100-01444",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|46",
+    "model": "100-01444",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "module"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|47",
+    "model": "100-01444",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|48",
+    "model": "100-01444",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|50",
+    "model": "100-01444",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|52",
+    "model": "100-01444",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|53",
+    "model": "100-01444",
+    "source_page": 53,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "250-01612",
+      "250-02137",
+      "250-02777",
+      "250-02903",
+      "250-03375",
+      "250-03376"
+    ],
+    "aliases_found": [
+      "igniter",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|54",
+    "model": "100-01444",
+    "source_page": 54,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|56",
+    "model": "100-01444",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "12521",
+      "1444",
+      "98275"
+    ],
+    "aliases_found": [
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01444.pdf|64",
+    "model": "100-01444",
+    "source_page": 64,
+    "source_url": "file:///var/lib/gabe/manuals/100-01444.pdf",
+    "canonical_part_numbers": [
+      "1444",
+      "84052701"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|2",
+    "model": "100-01586",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|3",
+    "model": "100-01586",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "94400955",
+      "99000144",
+      "99200139"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|5",
+    "model": "100-01586",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1586",
+      "170",
+      "2024",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|11",
+    "model": "100-01586",
+    "source_page": 11,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "103",
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|13",
+    "model": "100-01586",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|16",
+    "model": "100-01586",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "211"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|28",
+    "model": "100-01586",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|31",
+    "model": "100-01586",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "600"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|33",
+    "model": "100-01586",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|35",
+    "model": "100-01586",
+    "source_page": 35,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|36",
+    "model": "100-01586",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "250-02489",
+      "250-05134",
+      "250-05338",
+      "250-05339",
+      "250-05858",
+      "251-00000",
+      "251-00015",
+      "251-00068",
+      "251-00076",
+      "251-00087",
+      "251-00088",
+      "98900333",
+      "98900378"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|37",
+    "model": "100-01586",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|38",
+    "model": "100-01586",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|39",
+    "model": "100-01586",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|41",
+    "model": "100-01586",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|43",
+    "model": "100-01586",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1586",
+      "2024",
+      "99000144"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|49",
+    "model": "100-01586",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "94400955"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|50",
+    "model": "100-01586",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024",
+      "99200139"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01586.pdf|52",
+    "model": "100-01586",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01586.pdf",
+    "canonical_part_numbers": [
+      "1586",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|1",
+    "model": "100-01566",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "100-01566",
+      "12521",
+      "2022",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|3",
+    "model": "100-01566",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566",
+      "99200136"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|4",
+    "model": "100-01566",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|6",
+    "model": "100-01566",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566",
+      "25249"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|13",
+    "model": "100-01566",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566",
+      "98900509",
+      "99200136",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "referred"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|29",
+    "model": "100-01566",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|42",
+    "model": "100-01566",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|44",
+    "model": "100-01566",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566",
+      "250-00174",
+      "250-00178",
+      "250-00364",
+      "250-00598",
+      "250-01478",
+      "250-02073",
+      "250-02074",
+      "250-02678",
+      "250-02801",
+      "250-02964",
+      "600"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|45",
+    "model": "100-01566",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1004",
+      "120",
+      "1566",
+      "200"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|48",
+    "model": "100-01566",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01566.pdf|52",
+    "model": "100-01566",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01566.pdf",
+    "canonical_part_numbers": [
+      "1566",
+      "50698952"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|3",
+    "model": "100-01578",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2023",
+      "94400951"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|5",
+    "model": "100-01578",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1578",
+      "170",
+      "2022",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|18",
+    "model": "100-01578",
+    "source_page": 18,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|20",
+    "model": "100-01578",
+    "source_page": 20,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022",
+      "500"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|21",
+    "model": "100-01578",
+    "source_page": 21,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|24",
+    "model": "100-01578",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|25",
+    "model": "100-01578",
+    "source_page": 25,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "100",
+      "1578",
+      "2022",
+      "250-00311",
+      "250-04176",
+      "250-04188",
+      "250-04189",
+      "250-04190",
+      "250-04207",
+      "250-04220",
+      "250-04221",
+      "98500731",
+      "99900402"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "Item\n1"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|26",
+    "model": "100-01578",
+    "source_page": 26,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022",
+      "250-00556",
+      "250-02493",
+      "250-03587",
+      "250-04174",
+      "250-04177",
+      "250-04185",
+      "250-04186",
+      "250-04202",
+      "250-04219",
+      "251-00000",
+      "251-00021",
+      "251-00076",
+      "251-00082",
+      "251-00083",
+      "91001612"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Item\n\nSKU"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|27",
+    "model": "100-01578",
+    "source_page": 27,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|28",
+    "model": "100-01578",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022",
+      "94400951"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01578.pdf|32",
+    "model": "100-01578",
+    "source_page": 32,
+    "source_url": "file:///var/lib/gabe/manuals/100-01578.pdf",
+    "canonical_part_numbers": [
+      "1578",
+      "2022"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|2",
+    "model": "100-01568",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|3",
+    "model": "100-01568",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021",
+      "99000118",
+      "99000123",
+      "99200137",
+      "99200139"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|5",
+    "model": "100-01568",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1568",
+      "170",
+      "2021",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|11",
+    "model": "100-01568",
+    "source_page": 11,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "103",
+      "1568",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|13",
+    "model": "100-01568",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021",
+      "99200134",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|23",
+    "model": "100-01568",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021",
+      "99200137"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|34",
+    "model": "100-01568",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|39",
+    "model": "100-01568",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|41",
+    "model": "100-01568",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|42",
+    "model": "100-01568",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024",
+      "250-02186",
+      "250-02489",
+      "250-02493",
+      "250-02643",
+      "250-03887",
+      "250-05858",
+      "250-05860",
+      "251-00000",
+      "251-00018",
+      "98900334"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|43",
+    "model": "100-01568",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|44",
+    "model": "100-01568",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|46",
+    "model": "100-01568",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|48",
+    "model": "100-01568",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|49",
+    "model": "100-01568",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2021"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|51",
+    "model": "100-01568",
+    "source_page": 51,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "110",
+      "1568",
+      "2021",
+      "99000118"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|52",
+    "model": "100-01568",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024",
+      "99200139"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|54",
+    "model": "100-01568",
+    "source_page": 54,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "1568",
+      "2024",
+      "96100440",
+      "96100441",
+      "96100593"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|55",
+    "model": "100-01568",
+    "source_page": 55,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "110",
+      "110-",
+      "1568",
+      "2021",
+      "99000123"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01568.pdf|56",
+    "model": "100-01568",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01568.pdf",
+    "canonical_part_numbers": [
+      "12521",
+      "1568",
+      "2024",
+      "425",
+      "609-2500",
+      "98275"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|2",
+    "model": "100-01573",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|3",
+    "model": "100-01573",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|4",
+    "model": "100-01573",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|5",
+    "model": "100-01573",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1573",
+      "170",
+      "2024",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|13",
+    "model": "100-01573",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1127",
+      "115",
+      "1573",
+      "2024",
+      "207",
+      "96100392",
+      "97200337"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|24",
+    "model": "100-01573",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|29",
+    "model": "100-01573",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|31",
+    "model": "100-01573",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|32",
+    "model": "100-01573",
+    "source_page": 32,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024",
+      "250-01305",
+      "250-02182",
+      "250-02184",
+      "250-02191",
+      "250-02193",
+      "250-02196",
+      "250-02533",
+      "250-02905",
+      "250-03582",
+      "250-04477"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|33",
+    "model": "100-01573",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024",
+      "228-10069",
+      "228-10070",
+      "228-30050",
+      "250-00302",
+      "250-00316",
+      "250-00369",
+      "250-02186",
+      "250-02489",
+      "250-02493",
+      "250-02643",
+      "250-05858",
+      "250-06094",
+      "93005017",
+      "98900296",
+      "98900333"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|34",
+    "model": "100-01573",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|37",
+    "model": "100-01573",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|40",
+    "model": "100-01573",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01573.pdf|44",
+    "model": "100-01573",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01573.pdf",
+    "canonical_part_numbers": [
+      "1573",
+      "2024"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|2",
+    "model": "100-01574",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|3",
+    "model": "100-01574",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "94400955",
+      "99000144",
+      "99200139"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|5",
+    "model": "100-01574",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1574",
+      "170",
+      "2025",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|11",
+    "model": "100-01574",
+    "source_page": 11,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "103",
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|13",
+    "model": "100-01574",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|17",
+    "model": "100-01574",
+    "source_page": 17,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "211"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|28",
+    "model": "100-01574",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|31",
+    "model": "100-01574",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "600"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|33",
+    "model": "100-01574",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|35",
+    "model": "100-01574",
+    "source_page": 35,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|36",
+    "model": "100-01574",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "250-02186",
+      "250-02489",
+      "250-02643",
+      "250-05133",
+      "250-05134",
+      "250-05957",
+      "250-05958",
+      "250-06327",
+      "250-06328",
+      "251-00000",
+      "251-00001",
+      "251-00018",
+      "98900260",
+      "98900332"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|37",
+    "model": "100-01574",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|38",
+    "model": "100-01574",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|40",
+    "model": "100-01574",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|43",
+    "model": "100-01574",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|45",
+    "model": "100-01574",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1574",
+      "2025",
+      "99000144"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|51",
+    "model": "100-01574",
+    "source_page": 51,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "94400955"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|52",
+    "model": "100-01574",
+    "source_page": 52,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025",
+      "99200139"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01574.pdf|56",
+    "model": "100-01574",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01574.pdf",
+    "canonical_part_numbers": [
+      "1574",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|2",
+    "model": "100-01575",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|3",
+    "model": "100-01575",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "94400955",
+      "99000144"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|5",
+    "model": "100-01575",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1575",
+      "170",
+      "2023",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|10",
+    "model": "100-01575",
+    "source_page": 10,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "103",
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|12",
+    "model": "100-01575",
+    "source_page": 12,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "048M",
+      "1575",
+      "2023",
+      "99200139"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|16",
+    "model": "100-01575",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "211"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|26",
+    "model": "100-01575",
+    "source_page": 26,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|34",
+    "model": "100-01575",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|36",
+    "model": "100-01575",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "250-01305",
+      "250-02832",
+      "250-03605",
+      "250-03606",
+      "250-03656",
+      "250-03657",
+      "250-04477",
+      "99900405"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|37",
+    "model": "100-01575",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "250-02186",
+      "250-02489",
+      "250-02643",
+      "250-03595",
+      "250-04254",
+      "250-05858",
+      "250-06094",
+      "98900297"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|38",
+    "model": "100-01575",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|41",
+    "model": "100-01575",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "251-00000",
+      "251-00001",
+      "251-00036",
+      "251-00051",
+      "251-00078",
+      "251-00079"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|42",
+    "model": "100-01575",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|44",
+    "model": "100-01575",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023",
+      "94400955",
+      "99000144"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01575.pdf|48",
+    "model": "100-01575",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01575.pdf",
+    "canonical_part_numbers": [
+      "1575",
+      "2023"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|2",
+    "model": "100-01577",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "0028WF102S",
+      "0028WF134E",
+      "127",
+      "1577",
+      "2020",
+      "2021",
+      "2515-11",
+      "275",
+      "660",
+      "TL-130"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|3",
+    "model": "100-01577",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "ITEMS",
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|4",
+    "model": "100-01577",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1577",
+      "170",
+      "2021",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|6",
+    "model": "100-01577",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|7",
+    "model": "100-01577",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021",
+      "250-01741"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "ITEMS"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|12",
+    "model": "100-01577",
+    "source_page": 12,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021",
+      "98900290"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|13",
+    "model": "100-01577",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021",
+      "98900001",
+      "98900002",
+      "98900003",
+      "98900004",
+      "98900005",
+      "98900006",
+      "98900007",
+      "98900008",
+      "98900009",
+      "98900010",
+      "98900011",
+      "98900012",
+      "98900015",
+      "98900016",
+      "98900108"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|18",
+    "model": "100-01577",
+    "source_page": 18,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021",
+      "98900280",
+      "98900281",
+      "98900282",
+      "98900283",
+      "98900284",
+      "98900285",
+      "98900286",
+      "98900287",
+      "98900288",
+      "98900289",
+      "98900290",
+      "98900292",
+      "98900293",
+      "98900294",
+      "98900295"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|22",
+    "model": "100-01577",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|23",
+    "model": "100-01577",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1577",
+      "2021"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01577.pdf|36",
+    "model": "100-01577",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01577.pdf",
+    "canonical_part_numbers": [
+      "1577",
+      "2021"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|1",
+    "model": "100-01536",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "0028GN125S",
+      "100-01536",
+      "12521",
+      "2020",
+      "2026",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|3",
+    "model": "100-01536",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "616",
+      "94500951",
+      "94500952",
+      "94500958"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|4",
+    "model": "100-01536",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "3280"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|5",
+    "model": "100-01536",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|7",
+    "model": "100-01536",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "250-01463",
+      "3280",
+      "94400999",
+      "96200331",
+      "96200340"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|9",
+    "model": "100-01536",
+    "source_page": 9,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refractory"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|11",
+    "model": "100-01536",
+    "source_page": 11,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "120-",
+      "1536",
+      "2026",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|22",
+    "model": "100-01536",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|23",
+    "model": "100-01536",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "810014340",
+      "810014742"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|24",
+    "model": "100-01536",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "96100319",
+      "96100323",
+      "96100364",
+      "96100365",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|41",
+    "model": "100-01536",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|42",
+    "model": "100-01536",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|43",
+    "model": "100-01536",
+    "source_page": 43,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|44",
+    "model": "100-01536",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|45",
+    "model": "100-01536",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|47",
+    "model": "100-01536",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [
+      "module",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|48",
+    "model": "100-01536",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|49",
+    "model": "100-01536",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "250-00400",
+      "250-00406",
+      "250-00410",
+      "250-01280",
+      "250-01463",
+      "250-01612",
+      "250-02903",
+      "250-03377",
+      "250-03379"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|51",
+    "model": "100-01536",
+    "source_page": 51,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|60",
+    "model": "100-01536",
+    "source_page": 60,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "94500951",
+      "94500952"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|61",
+    "model": "100-01536",
+    "source_page": 61,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "250-05171",
+      "250-05172",
+      "250-05173",
+      "250-05174",
+      "250-05175",
+      "250-05176",
+      "250-05177",
+      "250-05178",
+      "250-05179",
+      "250-05180",
+      "94500952"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|62",
+    "model": "100-01536",
+    "source_page": 62,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "250-05181",
+      "250-05182",
+      "250-05183",
+      "250-05184",
+      "250-05185",
+      "250-05186",
+      "250-05187",
+      "250-05188",
+      "250-05189",
+      "250-05190",
+      "94500951"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|71",
+    "model": "100-01536",
+    "source_page": 71,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "94500958"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01536.pdf|84",
+    "model": "100-01536",
+    "source_page": 84,
+    "source_url": "file:///var/lib/gabe/manuals/100-01536.pdf",
+    "canonical_part_numbers": [
+      "1536",
+      "2026",
+      "84052701"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|2",
+    "model": "100-01436",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "-125",
+      "0028WF102E",
+      "028WF102S",
+      "127",
+      "1436",
+      "2020",
+      "2022",
+      "2515-11",
+      "537",
+      "626",
+      "TL-130"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|3",
+    "model": "100-01436",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "ITEMS",
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|4",
+    "model": "100-01436",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1436",
+      "170",
+      "2022",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|6",
+    "model": "100-01436",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|7",
+    "model": "100-01436",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022",
+      "250-01741"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "ITEMS"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|12",
+    "model": "100-01436",
+    "source_page": 12,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022",
+      "98900290"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|13",
+    "model": "100-01436",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022",
+      "98900001",
+      "98900002",
+      "98900003",
+      "98900004",
+      "98900005",
+      "98900006",
+      "98900007",
+      "98900008",
+      "98900009",
+      "98900010",
+      "98900011",
+      "98900012",
+      "98900015",
+      "98900016",
+      "98900108"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|18",
+    "model": "100-01436",
+    "source_page": 18,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022",
+      "98900280",
+      "98900281",
+      "98900282",
+      "98900283",
+      "98900284",
+      "98900285",
+      "98900286",
+      "98900287",
+      "98900288",
+      "98900289",
+      "98900290",
+      "98900292",
+      "98900293",
+      "98900294",
+      "98900295"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|22",
+    "model": "100-01436",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|23",
+    "model": "100-01436",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1436",
+      "2022"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01436.pdf|36",
+    "model": "100-01436",
+    "source_page": 36,
+    "source_url": "file:///var/lib/gabe/manuals/100-01436.pdf",
+    "canonical_part_numbers": [
+      "1436",
+      "2022"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|2",
+    "model": "100-01576",
+    "source_page": 2,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "reflects"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|3",
+    "model": "100-01576",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|4",
+    "model": "100-01576",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|5",
+    "model": "100-01576",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1576",
+      "170",
+      "2024",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|13",
+    "model": "100-01576",
+    "source_page": 13,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1127",
+      "115",
+      "1576",
+      "2024",
+      "207",
+      "96100212",
+      "96100215",
+      "97200337"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|24",
+    "model": "100-01576",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|29",
+    "model": "100-01576",
+    "source_page": 29,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|31",
+    "model": "100-01576",
+    "source_page": 31,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|32",
+    "model": "100-01576",
+    "source_page": 32,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024",
+      "250-01305",
+      "250-02182",
+      "250-02183",
+      "250-02184",
+      "250-02191",
+      "250-02193",
+      "250-02195",
+      "250-02196",
+      "250-03582",
+      "250-04477"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|33",
+    "model": "100-01576",
+    "source_page": 33,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024",
+      "228-10069",
+      "228-10070",
+      "228-30050",
+      "250-00302",
+      "250-00316",
+      "250-00369",
+      "250-02186",
+      "250-02489",
+      "250-02492",
+      "250-02493",
+      "250-02643",
+      "250-05858",
+      "93005017",
+      "98900298",
+      "98900333"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|34",
+    "model": "100-01576",
+    "source_page": 34,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|37",
+    "model": "100-01576",
+    "source_page": 37,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|40",
+    "model": "100-01576",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01576.pdf|44",
+    "model": "100-01576",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01576.pdf",
+    "canonical_part_numbers": [
+      "1576",
+      "2024"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|1",
+    "model": "100-01488",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "0028GF115S",
+      "100-01488",
+      "12521",
+      "2018",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|3",
+    "model": "100-01488",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|4",
+    "model": "100-01488",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "3280"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|5",
+    "model": "100-01488",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "021",
+      "037",
+      "066",
+      "068",
+      "1488",
+      "170",
+      "25249",
+      "2755517",
+      "443",
+      "469",
+      "602",
+      "726",
+      "953"
+    ],
+    "aliases_found": [
+      "igniter",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|8",
+    "model": "100-01488",
+    "source_page": 8,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "2034",
+      "248",
+      "720"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "referenced"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|24",
+    "model": "100-01488",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "1370",
+      "1488",
+      "800"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|28",
+    "model": "100-01488",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "98900165"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|30",
+    "model": "100-01488",
+    "source_page": 30,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "1777",
+      "934"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|49",
+    "model": "100-01488",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "250-04839"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|50",
+    "model": "100-01488",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "250-04837"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|53",
+    "model": "100-01488",
+    "source_page": 53,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488",
+      "250-04842",
+      "250-04843",
+      "250-04844",
+      "250-04845",
+      "250-04846",
+      "250-04847",
+      "250-04848",
+      "250-04849",
+      "94500624",
+      "94500626"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|67",
+    "model": "100-01488",
+    "source_page": 67,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|68",
+    "model": "100-01488",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1488"
+    ],
+    "aliases_found": [
+      "thermocouple",
+      "module",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|69",
+    "model": "100-01488",
+    "source_page": 69,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01488.pdf|76",
+    "model": "100-01488",
+    "source_page": 76,
+    "source_url": "file:///var/lib/gabe/manuals/100-01488.pdf",
+    "canonical_part_numbers": [
+      "1488"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|3",
+    "model": "100-01583",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|5",
+    "model": "100-01583",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1583",
+      "170",
+      "2023",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|16",
+    "model": "100-01583",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|19",
+    "model": "100-01583",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023",
+      "500"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|21",
+    "model": "100-01583",
+    "source_page": 21,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|22",
+    "model": "100-01583",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|24",
+    "model": "100-01583",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "100",
+      "130",
+      "1583",
+      "2023",
+      "251-00004",
+      "251-00037",
+      "251-00038",
+      "251-00039",
+      "302B",
+      "375",
+      "875",
+      "91001605",
+      "91001627",
+      "91001628",
+      "91001629",
+      "91001630",
+      "91001631",
+      "91001632",
+      "91001634",
+      "91001635"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|26",
+    "model": "100-01583",
+    "source_page": 26,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01583.pdf|28",
+    "model": "100-01583",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01583.pdf",
+    "canonical_part_numbers": [
+      "1583",
+      "2023"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|1",
+    "model": "100-01559",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "-002",
+      "100-01559",
+      "12521",
+      "2022",
+      "2023",
+      "616",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|3",
+    "model": "100-01559",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|4",
+    "model": "100-01559",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "3280",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|5",
+    "model": "100-01559",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|6",
+    "model": "100-01559",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "000",
+      "120",
+      "1559",
+      "2023",
+      "205",
+      "250-01463",
+      "600",
+      "616",
+      "94400999"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|7",
+    "model": "100-01559",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "250-01463",
+      "3280",
+      "616",
+      "94400999",
+      "96100928",
+      "96100931",
+      "96200340"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|9",
+    "model": "100-01559",
+    "source_page": 9,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "127",
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refractory"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|14",
+    "model": "100-01559",
+    "source_page": 14,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "120-",
+      "1559",
+      "2023",
+      "616",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|17",
+    "model": "100-01559",
+    "source_page": 17,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "1777",
+      "2025",
+      "441",
+      "616",
+      "96200331",
+      "96200340",
+      "98900124"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|23",
+    "model": "100-01559",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|24",
+    "model": "100-01559",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616",
+      "810014340",
+      "810014742"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|38",
+    "model": "100-01559",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [
+      "module",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|39",
+    "model": "100-01559",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|40",
+    "model": "100-01559",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|41",
+    "model": "100-01559",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|42",
+    "model": "100-01559",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|44",
+    "model": "100-01559",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|45",
+    "model": "100-01559",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|46",
+    "model": "100-01559",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "250-00022",
+      "250-00398",
+      "250-00401",
+      "250-00406",
+      "250-00409",
+      "250-01612",
+      "250-02549",
+      "250-02555",
+      "250-03262",
+      "250-03826",
+      "250-05135",
+      "250-05136",
+      "250-05210",
+      "616"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|48",
+    "model": "100-01559",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|56",
+    "model": "100-01559",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616",
+      "94500580",
+      "94500581",
+      "94500582",
+      "94500583",
+      "94500942",
+      "94500943",
+      "94500960",
+      "94500961"
+    ],
+    "aliases_found": [
+      "valve"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01559.pdf|68",
+    "model": "100-01559",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01559.pdf",
+    "canonical_part_numbers": [
+      "1559",
+      "2023",
+      "616",
+      "84052701"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|1",
+    "model": "100-01567",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "100-01567",
+      "12521",
+      "2022",
+      "98275",
+      "ULC-628"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|3",
+    "model": "100-01567",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567",
+      "99200136"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|4",
+    "model": "100-01567",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|6",
+    "model": "100-01567",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567",
+      "25249"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|8",
+    "model": "100-01567",
+    "source_page": 8,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567",
+      "96100711"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|16",
+    "model": "100-01567",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567",
+      "99200136"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|32",
+    "model": "100-01567",
+    "source_page": 32,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|45",
+    "model": "100-01567",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|47",
+    "model": "100-01567",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567",
+      "250-00174",
+      "250-00178",
+      "250-00364",
+      "250-00598",
+      "250-01478",
+      "250-02073",
+      "250-02074",
+      "250-02678",
+      "250-02801",
+      "250-02964",
+      "600"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|48",
+    "model": "100-01567",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1077",
+      "110",
+      "1567",
+      "200"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|50",
+    "model": "100-01567",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567"
+    ],
+    "aliases_found": [
+      "igniter",
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01567.pdf|56",
+    "model": "100-01567",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01567.pdf",
+    "canonical_part_numbers": [
+      "1567"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|1",
+    "model": "100-01493",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "0028GF115S",
+      "100-01493",
+      "12521",
+      "2019",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|3",
+    "model": "100-01493",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "98900779"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|4",
+    "model": "100-01493",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "3280"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|5",
+    "model": "100-01493",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "021",
+      "037",
+      "066",
+      "068",
+      "1493",
+      "170",
+      "25249",
+      "2755517",
+      "443",
+      "469",
+      "602",
+      "726",
+      "953"
+    ],
+    "aliases_found": [
+      "igniter",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|8",
+    "model": "100-01493",
+    "source_page": 8,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "2034",
+      "248",
+      "720"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference",
+      "referenced"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|24",
+    "model": "100-01493",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "-2017",
+      "1370",
+      "1493",
+      "800"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|28",
+    "model": "100-01493",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "98900165"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|30",
+    "model": "100-01493",
+    "source_page": 30,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "1777",
+      "934"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|49",
+    "model": "100-01493",
+    "source_page": 49,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "250-04903"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|50",
+    "model": "100-01493",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "250-04902"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|53",
+    "model": "100-01493",
+    "source_page": 53,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493",
+      "250-05070",
+      "250-05071",
+      "250-05072",
+      "250-05073",
+      "250-05074",
+      "250-05075",
+      "250-05076",
+      "250-05077",
+      "94500770",
+      "94500771",
+      "94500772"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|67",
+    "model": "100-01493",
+    "source_page": 67,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|68",
+    "model": "100-01493",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1493"
+    ],
+    "aliases_found": [
+      "thermocouple",
+      "module",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|69",
+    "model": "100-01493",
+    "source_page": 69,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01493.pdf|80",
+    "model": "100-01493",
+    "source_page": 80,
+    "source_url": "file:///var/lib/gabe/manuals/100-01493.pdf",
+    "canonical_part_numbers": [
+      "1493"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|3",
+    "model": "100-01584",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "1584",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|4",
+    "model": "100-01584",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1584",
+      "170",
+      "2024",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|10",
+    "model": "100-01584",
+    "source_page": 10,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "1584",
+      "2024",
+      "250-01741"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|19",
+    "model": "100-01584",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1584",
+      "2024",
+      "98900001",
+      "98900002",
+      "98900003",
+      "98900004",
+      "98900005",
+      "98900006",
+      "98900007",
+      "98900008",
+      "98900009",
+      "98900010",
+      "98900011",
+      "98900012",
+      "98900013",
+      "98900015"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|25",
+    "model": "100-01584",
+    "source_page": 25,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "1584",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|28",
+    "model": "100-01584",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "1584",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01584.pdf|40",
+    "model": "100-01584",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01584.pdf",
+    "canonical_part_numbers": [
+      "1584",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|1",
+    "model": "100-01558",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "-002",
+      "100-01558",
+      "12521",
+      "2022",
+      "2023",
+      "430",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|3",
+    "model": "100-01558",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|4",
+    "model": "100-01558",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "3280",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|5",
+    "model": "100-01558",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|6",
+    "model": "100-01558",
+    "source_page": 6,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "000",
+      "120",
+      "1558",
+      "2023",
+      "205",
+      "250-01463",
+      "430",
+      "500",
+      "600",
+      "94400999"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|7",
+    "model": "100-01558",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "250-01463",
+      "3280",
+      "430",
+      "94400999",
+      "96100920",
+      "96100922",
+      "96200339"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|9",
+    "model": "100-01558",
+    "source_page": 9,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "127",
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "refractory"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|14",
+    "model": "100-01558",
+    "source_page": 14,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1558",
+      "2023",
+      "430",
+      "97200315"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|17",
+    "model": "100-01558",
+    "source_page": 17,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "1777",
+      "2023",
+      "430",
+      "441",
+      "96200330",
+      "96200339"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|23",
+    "model": "100-01558",
+    "source_page": 23,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|24",
+    "model": "100-01558",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430",
+      "810014340",
+      "810014742"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|38",
+    "model": "100-01558",
+    "source_page": 38,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [
+      "module",
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|39",
+    "model": "100-01558",
+    "source_page": 39,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|40",
+    "model": "100-01558",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|41",
+    "model": "100-01558",
+    "source_page": 41,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|42",
+    "model": "100-01558",
+    "source_page": 42,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|44",
+    "model": "100-01558",
+    "source_page": 44,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|45",
+    "model": "100-01558",
+    "source_page": 45,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|46",
+    "model": "100-01558",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "250-00022",
+      "250-00107",
+      "250-00402",
+      "250-00753",
+      "250-00803",
+      "250-01612",
+      "250-02555",
+      "250-02861",
+      "250-03262",
+      "250-03826",
+      "250-05135",
+      "250-05136",
+      "250-05210",
+      "430"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|48",
+    "model": "100-01558",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|56",
+    "model": "100-01558",
+    "source_page": 56,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430",
+      "94500580",
+      "94500581",
+      "94500582",
+      "94500583",
+      "94500942",
+      "94500943",
+      "94500960",
+      "94500961"
+    ],
+    "aliases_found": [
+      "valve"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01558.pdf|68",
+    "model": "100-01558",
+    "source_page": 68,
+    "source_url": "file:///var/lib/gabe/manuals/100-01558.pdf",
+    "canonical_part_numbers": [
+      "1558",
+      "2023",
+      "430",
+      "84052701"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|3",
+    "model": "100-01585",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2022"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|5",
+    "model": "100-01585",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1585",
+      "170",
+      "2022",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|16",
+    "model": "100-01585",
+    "source_page": 16,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|19",
+    "model": "100-01585",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2022",
+      "500"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|21",
+    "model": "100-01585",
+    "source_page": 21,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2022"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|22",
+    "model": "100-01585",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2024"
+    ],
+    "aliases_found": [
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|24",
+    "model": "100-01585",
+    "source_page": 24,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2024",
+      "250-00019",
+      "250-00021",
+      "250-00301",
+      "250-00359",
+      "250-00499",
+      "250-00556",
+      "250-00560",
+      "250-01635",
+      "250-03586",
+      "251-00040",
+      "251-00041",
+      "251-00042",
+      "91001600",
+      "91001601",
+      "91001602",
+      "91001603",
+      "91001604",
+      "91001605"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|26",
+    "model": "100-01585",
+    "source_page": 26,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01585.pdf|28",
+    "model": "100-01585",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01585.pdf",
+    "canonical_part_numbers": [
+      "1585",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|1",
+    "model": "100-01442",
+    "source_page": 1,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "100-01442",
+      "12521",
+      "2022",
+      "2025",
+      "98275"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "reference"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|3",
+    "model": "100-01442",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|4",
+    "model": "100-01442",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025",
+      "3280",
+      "5601"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|5",
+    "model": "100-01442",
+    "source_page": 5,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "021",
+      "037",
+      "066",
+      "068",
+      "1442",
+      "170",
+      "2025",
+      "25249",
+      "2755517",
+      "443",
+      "469",
+      "602",
+      "726",
+      "953"
+    ],
+    "aliases_found": [
+      "igniter"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|7",
+    "model": "100-01442",
+    "source_page": 7,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025",
+      "3280",
+      "B-149"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|19",
+    "model": "100-01442",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025",
+      "98900127",
+      "98900164"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|22",
+    "model": "100-01442",
+    "source_page": 22,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "1775",
+      "2025",
+      "441",
+      "96200330",
+      "96200339"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|32",
+    "model": "100-01442",
+    "source_page": 32,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "valve",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|46",
+    "model": "100-01442",
+    "source_page": 46,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|47",
+    "model": "100-01442",
+    "source_page": 47,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "valve",
+      "blower",
+      "pilot"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|48",
+    "model": "100-01442",
+    "source_page": 48,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|50",
+    "model": "100-01442",
+    "source_page": 50,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|51",
+    "model": "100-01442",
+    "source_page": 51,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|53",
+    "model": "100-01442",
+    "source_page": 53,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025"
+    ],
+    "aliases_found": [
+      "gasket",
+      "pilot"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01442.pdf|60",
+    "model": "100-01442",
+    "source_page": 60,
+    "source_url": "file:///var/lib/gabe/manuals/100-01442.pdf",
+    "canonical_part_numbers": [
+      "1442",
+      "2025",
+      "84052701"
+    ],
+    "aliases_found": [
+      "pilot"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|3",
+    "model": "100-01582",
+    "source_page": 3,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "1582",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|4",
+    "model": "100-01582",
+    "source_page": 4,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "025",
+      "1582",
+      "170",
+      "2024",
+      "25249",
+      "665",
+      "889"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": [
+      "refer"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|10",
+    "model": "100-01582",
+    "source_page": 10,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "1582",
+      "2024",
+      "250-01741"
+    ],
+    "aliases_found": [],
+    "callout_refs": [
+      "Items"
+    ]
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|19",
+    "model": "100-01582",
+    "source_page": 19,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "120",
+      "1582",
+      "2024",
+      "98900001",
+      "98900002",
+      "98900003",
+      "98900004",
+      "98900005",
+      "98900006",
+      "98900007",
+      "98900008",
+      "98900009",
+      "98900010",
+      "98900011",
+      "98900012",
+      "98900013",
+      "98900015"
+    ],
+    "aliases_found": [
+      "blower"
+    ],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|25",
+    "model": "100-01582",
+    "source_page": 25,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "1582",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|28",
+    "model": "100-01582",
+    "source_page": 28,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "1582",
+      "2024"
+    ],
+    "aliases_found": [],
+    "callout_refs": []
+  },
+  {
+    "record_id": "file:///var/lib/gabe/manuals/100-01582.pdf|40",
+    "model": "100-01582",
+    "source_page": 40,
+    "source_url": "file:///var/lib/gabe/manuals/100-01582.pdf",
+    "canonical_part_numbers": [
+      "1582",
+      "2024"
+    ],
+    "aliases_found": [
+      "blower",
+      "gasket"
+    ],
+    "callout_refs": [
+      "items"
+    ]
+  }
+]

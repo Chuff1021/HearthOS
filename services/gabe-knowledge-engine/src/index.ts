@@ -23,6 +23,7 @@ import { expandPartTerms } from "./swarm/partAliases";
 import { extractVentRule, extractWiringGraph, normalizePartNumbers } from "./swarm/structuredTech";
 import { buildVentingAnswerFromRecord, extractVentRuleRecords, pickBestVentRule } from "./swarm/ventingEngine";
 import { buildWiringAnswerFromRecord, extractWiringRecords, pickBestWiringRecord } from "./swarm/wiringEngine";
+import { buildPartsAnswerFromRecord, extractPartsRecords, pickBestPartsRecord } from "./swarm/partsEngine";
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
@@ -455,6 +456,37 @@ app.post("/query", async (request, reply) => {
       evidencePacket: {
         ...(evidencePacket as any),
         wiring_graph_records: 0,
+      },
+    });
+  }
+
+  if (intentClassification.intent === "replacement parts") {
+    const partsRecords = extractPartsRecords(sectionRouted);
+    const bestParts = pickBestPartsRecord(body.question, partsRecords);
+    if (bestParts) {
+      const relatedParts = partsRecords.slice(0, 20);
+      const partsAnswer = buildPartsAnswerFromRecord(bestParts, body.question, relatedParts) as any;
+      partsAnswer.validator_notes = [...(partsAnswer.validator_notes || []), `parts_rule_records:${partsRecords.length}`];
+      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestParts.manual_title && c.source_url === bestParts.source_url && c.page_number === (bestParts.source_page ?? 1));
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: partsAnswer,
+        retrieved: retrievedForValidation,
+        evidencePacket: {
+          ...(evidencePacket as any),
+          parts_structured_records: partsRecords.length,
+        },
+      });
+    }
+
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: unavailable("insufficient_structured_parts_records", body.question, webHints.top),
+      retrieved: sectionRouted.slice(0, 1),
+      evidencePacket: {
+        ...(evidencePacket as any),
+        parts_structured_records: 0,
       },
     });
   }
