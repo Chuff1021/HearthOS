@@ -4,11 +4,11 @@
 
 ### 1) Production deploy source control
 - Locked baseline pointers:
-  - Deployment: `dpl_FvHRQE4x6XkeU3ETC2s443hBNRiN`
-  - URL: `https://hearth-mwbgyf1ds-chuff1021s-projects.vercel.app`
-  - Git baseline: `cfbdbf1`
-  - Branch: `production-recovered-safe`
-  - Tag: `production-recovered-safe-tag`
+  - Deployment: `dpl_5yaXETRJxBuuj6YADQTQ9fagRKmq`
+  - URL: `https://hearth-i5ebpg6ut-chuff1021s-projects.vercel.app`
+  - Redeployed production lock: `https://hearth-hww8fnlza-chuff1021s-projects.vercel.app`
+  - Git baseline: `main` (build source used by `hearth-i5ebpg6ut`)
+  - Branch lock label: `production-baseline-i5ebpg6ut`
 - Vercel Git auto-deploys are disabled (`gitProviderOptions.createDeployments=disabled`).
 - Production must be changed only by explicit manual promotion / alias action from an approved preview deployment.
 - `main` and feature branches are not allowed to auto-deploy production.
