@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
 interface Tech {
@@ -26,8 +25,7 @@ interface Job {
 }
 
 export default function TechApp() {
-  const { user } = useUser();
-  const displayName = user?.firstName || user?.fullName || "Tech";
+  const displayName = "Tech";
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [activeJob, setActiveJob] = useState<string | null>(null);

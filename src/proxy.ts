@@ -1,6 +1,13 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default clerkMiddleware();
+/**
+ * Phase 1 Clerk removal: keep middleware as a no-op pass-through so routes
+ * are no longer hard-coupled to Clerk runtime/env.
+ */
+export default function proxy(_request: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
