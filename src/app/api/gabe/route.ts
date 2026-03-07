@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
     const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
+    const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
     // STRICT MANUAL GUARD:
     // When a manual is selected, only answer from that exact manual.
@@ -217,9 +218,10 @@ export async function POST(request: NextRequest) {
         const error = await engineRes.text();
         console.error("GABE engine error:", error);
         return NextResponse.json({
-          answer: "This information is not available in verified manufacturer documentation.",
+          answer: "Verified source evidence is currently unavailable.",
           source_type: "none",
-          confidence: 0
+          confidence: 0,
+          run_outcome: "source_evidence_missing",
         });
       }
 
@@ -241,6 +243,14 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(data);
+    }
+
+    if (engineRequired) {
+      return NextResponse.json({
+        error: "GABE engine routing is required but neither GABE_ORCHESTRATOR_URL nor GABE_ENGINE_URL is configured.",
+        source_type: "none",
+        run_outcome: "source_evidence_missing",
+      }, { status: 503 });
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
