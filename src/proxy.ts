@@ -1,17 +1,9 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
-import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-import { isClerkConfigured } from "@/lib/auth";
-
-const withClerk = clerkMiddleware();
-
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
-  if (!isClerkConfigured()) {
-    return NextResponse.next();
-  }
-
-  return withClerk(request, event);
+// Phase 1 Clerk removal for critical path: no auth middleware at runtime.
+export default function proxy(_request: NextRequest) {
+  return NextResponse.next();
 }
 
 export const config = {

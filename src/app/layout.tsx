@@ -10,7 +10,6 @@ import {
 import { isClerkConfigured } from "@/lib/auth";
 import "./globals.css";
 
-// Force dynamic rendering to avoid Clerk prerender issues
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
