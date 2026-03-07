@@ -217,7 +217,7 @@ function GABEInner() {
     setInput("");
     setIsTyping(true);
 
-    // Call real GABE AI API (Groq llama-3.1-8b-instant)
+    // Call real GABE API (engine/orchestrator-backed)
     try {
       const apiMessages = messages
         .filter((m) => m.id !== "1") // Skip the initial greeting
@@ -248,8 +248,16 @@ function GABEInner() {
           responseText = data.message ?? "No response from AI";
         }
       } else {
-        // Fallback to local responses if API fails
-        responseText = getGabeResponse(text, jobContext);
+        let errorMsg = "GABE engine is unavailable right now. Please retry in a moment.";
+        try {
+          const data = await res.json() as any;
+          if (typeof data?.error === "string" && data.error.trim()) {
+            errorMsg = data.error;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        responseText = `⚠️ ${errorMsg}`;
       }
 
       const assistantMessage: Message = {
@@ -262,12 +270,10 @@ function GABEInner() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch {
-      // Fallback to local responses on network error
-      const response = getGabeResponse(text, jobContext);
       const assistantMessage: Message = {
         id: (msgCounter.current + 1).toString(),
         role: "assistant",
-        content: response,
+        content: "⚠️ GABE engine connection failed. Please retry.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -493,7 +499,7 @@ function GABEInner() {
         </div>
         {/* API integration hint */}
         <p className="text-xs text-gray-600 mt-2 text-center">
-          Powered by HearthOS AI · Connect Groq/OpenAI for live responses
+          Powered by GABE Engine (verified routing)
         </p>
       </div>
 
