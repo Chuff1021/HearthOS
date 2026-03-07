@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import {
   ClerkProvider,
   SignInButton,
@@ -8,15 +7,9 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { isClerkConfigured } from "@/lib/auth";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-// Force dynamic rendering to avoid Clerk prerender issues
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -30,11 +23,38 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clerkEnabled = isClerkConfigured();
+
+  const appShell = (
+    <html lang="en">
+      <body className="font-sans">
+        <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-neutral-900 bg-black text-white">
+          {clerkEnabled ? (
+            <>
+              <SignedOut>
+                <SignInButton />
+                <SignUpButton />
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            </>
+          ) : null}
+        </header>
+        {children}
+      </body>
+    </html>
+  );
+
+  if (!clerkEnabled) {
+    return appShell;
+  }
+
   return (
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#2563EB",
+          colorPrimary: "#f97316",
           colorBackground: "#0f1629",
           colorInputBackground: "#1a2540",
           colorInputText: "#f0f4ff",
@@ -48,26 +68,13 @@ export default function RootLayout({
             border: "1px solid rgba(255,255,255,0.07)",
           },
           formButtonPrimary: {
-            background: "linear-gradient(135deg, #2563EB, #2563EB)",
-            boxShadow: "0 0 16px rgba(29,78,216,0.25)",
+            background: "linear-gradient(135deg, #f97316, #ea6c0a)",
+            boxShadow: "0 0 16px rgba(249,115,22,0.25)",
           },
         },
       }}
     >
-      <html lang="en">
-        <body className={inter.className}>
-          <header className="flex items-center justify-end gap-3 px-6 py-3 border-b border-neutral-900 bg-black text-white">
-            <SignedOut>
-              <SignInButton />
-              <SignUpButton />
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
-          {children}
-        </body>
-      </html>
+      {appShell}
     </ClerkProvider>
   );
 }
