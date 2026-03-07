@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
 import { saveGabeMessage } from "@/lib/gabe-messages";
-import { appendMemoryEvent } from "@/lib/long-term-memory";
 import postgres from "postgres";
 
 interface ChatMessage {
@@ -24,33 +23,56 @@ interface GroqResponse {
   };
 }
 
-function normalizeRunPayload(payload: Record<string, any>) {
-  const sourceType = String(payload?.source_type || "none");
-  const certainty = String(payload?.certainty || (sourceType === "none" ? "Unverified" : "Verified Partial"));
-  const run_outcome = String(
-    payload?.run_outcome ||
-      (sourceType === "none"
-        ? "refused_unverified"
-        : certainty === "Verified Exact"
-          ? "answered_verified"
-          : "answered_partial")
-  );
-  return {
-    ...payload,
-    selected_engine: payload?.selected_engine || "general_engine",
-    run_outcome,
-    certainty,
-    truth_audit_status: payload?.truth_audit_status || "pending",
-    validator_version: payload?.validator_version || "v1",
-  };
+interface SelectedManual {
+  manualId: string;
+  manualTitle?: string;
 }
 
-async function appendRunMetadataLocal(payload: Record<string, unknown>) {
-  if (!process.env.DATABASE_URL) return;
-  const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
-  await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
-  const normalized = normalizeRunPayload(payload as any);
-  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify(normalized)}::jsonb)`;
+interface OrchestratorResponse {
+  answer: string;
+  source_type: "manual" | "web" | "none";
+  manual_title?: string;
+  page_number?: number;
+  source_url?: string;
+  quote?: string;
+  confidence: number;
+  run: {
+    selectedEngine: string;
+    certainty: "verified_exact" | "verified_partial" | "interpreted" | "unverified";
+    runOutcome:
+      | "answered_verified"
+      | "answered_partial"
+      | "refused_unverified"
+      | "escalated_handoff"
+      | "source_evidence_missing";
+    truthAuditStatus: "pending" | "passed" | "failed" | "needs_review";
+    sourceEvidenceStatus: "present" | "partial" | "missing" | "not_applicable";
+    auditClassification: "standard" | "source_evidence" | "validator";
+    validatorVersion: string;
+    diagnostics: {
+      engine_build_id: string;
+      engine_commit_sha: string;
+      engine_runtime_name: string;
+      selected_engine: string;
+      certainty: "verified_exact" | "verified_partial" | "interpreted" | "unverified";
+      run_outcome:
+        | "answered_verified"
+        | "answered_partial"
+        | "refused_unverified"
+        | "escalated_handoff"
+        | "source_evidence_missing";
+      validator_version: string;
+    };
+  };
+  debug?: {
+    engine_build_id: string;
+    engine_commit_sha: string;
+    engine_runtime_name: string;
+    selected_engine: string;
+    certainty: string;
+    run_outcome: string;
+    validator_version: string;
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -59,16 +81,15 @@ export async function POST(request: NextRequest) {
       messages: ChatMessage[];
       jobContext?: {
         fireplace?: string;
-        customerName?: string;
         jobType?: string;
         jobId?: string;
       };
+      selectedManual?: SelectedManual;
       techId?: string;
       techName?: string;
-      techEmail?: string;
     };
 
-    const { messages, jobContext, techId, techName, techEmail } = body;
+    const { messages, jobContext, selectedManual, techId, techName } = body;
     const jobId = jobContext?.jobId;
     const jobNumber = jobContext?.jobId ? `JOB-2026-${jobContext.jobId.split("-").pop()}` : undefined;
 
@@ -82,125 +103,154 @@ export async function POST(request: NextRequest) {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
     const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
-    const primaryUrl = orchestratorUrl || engineUrl;
     const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
-    if (primaryUrl && lastUserMessage) {
-      if (lastUserMessage.includes("[DRILL_SOURCE_EVIDENCE_MISSING]")) {
-        const drillPayload = normalizeRunPayload({
-          answer: "Verified source evidence is currently unavailable.",
-          question: lastUserMessage,
+    // STRICT MANUAL GUARD:
+    // When a manual is selected, only answer from that exact manual.
+    if (selectedManual?.manualId && lastUserMessage) {
+      const allManuals = await listManuals();
+      const selectedManualRecord = allManuals.find((manual) => manual.id === selectedManual.manualId);
+
+      if (!selectedManualRecord) {
+        return NextResponse.json({
+          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
           source_type: "none",
           confidence: 0,
-          certainty: "Unverified",
-          run_outcome: "source_evidence_missing",
-          no_answer_reason: "source_evidence_missing",
-          validator_notes: ["controlled_outage_drill"],
-          selected_engine: "general_engine",
-          truth_audit_status: "pending",
-          validator_version: "v1",
+          selected_manual_id: selectedManual.manualId,
+          selected_manual_title: selectedManual.manualTitle ?? null,
+          answered_from_selected_manual: false,
+          manual_title: selectedManual.manualTitle ?? null,
+          page_number: null,
         });
-        await appendRunMetadataLocal(drillPayload);
-        return NextResponse.json(drillPayload);
       }
 
-      let engineRes: Response;
-      try {
-        engineRes = await fetch(`${primaryUrl.replace(/\/$/, "")}/query`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: lastUserMessage }),
-        });
-      } catch (e) {
-        console.error("GABE upstream unavailable:", e);
-        const unavailablePayload = normalizeRunPayload({
-          answer: "Verified source evidence is currently unavailable.",
-          question: lastUserMessage,
+      const selectedSections = await listManualSections(selectedManual.manualId);
+      const bestSection = pickBestManualSection(lastUserMessage, selectedSections);
+
+      if (!bestSection) {
+        return NextResponse.json({
+          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
           source_type: "none",
           confidence: 0,
-          certainty: "Unverified",
-          run_outcome: "source_evidence_missing",
-          no_answer_reason: "source_evidence_missing",
-          validator_notes: ["upstream_unavailable"],
-          selected_engine: "general_engine",
-          truth_audit_status: "pending",
-          validator_version: "v1",
+          selected_manual_id: selectedManual.manualId,
+          selected_manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
+          answered_from_selected_manual: false,
+          manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
+          page_number: null,
         });
-        await appendRunMetadataLocal(unavailablePayload);
-        return NextResponse.json(unavailablePayload);
       }
+
+      const selectedManualTitle = selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`;
+      const answer = buildStrictManualAnswer(lastUserMessage, bestSection);
+
+      return NextResponse.json({
+        answer,
+        source_type: "manual",
+        manual_title: selectedManualTitle,
+        page_number: bestSection.pageStart ?? null,
+        source_url: selectedManualRecord.url,
+        confidence: 72,
+        selected_manual_id: selectedManual.manualId,
+        selected_manual_title: selectedManualTitle,
+        answered_from_selected_manual: true,
+        cited_manual_title: selectedManualTitle,
+        cited_page_number: bestSection.pageStart ?? null,
+      });
+    }
+
+    if (orchestratorUrl && lastUserMessage) {
+      const orchestratorRes = await fetch(`${orchestratorUrl.replace(/\/$/, "")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: lastUserMessage,
+          conversationId: jobId ?? techId ?? undefined,
+          selectedManualId: selectedManual?.manualId,
+          selectedManualTitle: selectedManual?.manualTitle,
+          debug: process.env.GABE_DEBUG_MODE === "true",
+        }),
+      });
+
+      if (!orchestratorRes.ok) {
+        const error = await orchestratorRes.text();
+        console.error("GABE orchestrator error:", error);
+        return NextResponse.json({
+          answer: "This information is not available in verified manufacturer documentation.",
+          source_type: "none",
+          confidence: 0
+        });
+      }
+
+      const data = await orchestratorRes.json() as OrchestratorResponse;
+      const assistantMessage = data.answer ?? "";
+
+      try {
+        saveConversationLog({
+          techId,
+          techName,
+          jobId,
+          jobNumber,
+          fireplace: jobContext?.fireplace,
+          messages,
+          assistantMessage,
+        });
+        await persistRunMetadata({
+          response: data,
+          question: lastUserMessage,
+          jobId,
+          techId,
+        });
+      } catch (e) {
+        console.error("Failed to save orchestrator run state:", e);
+      }
+
+      return NextResponse.json(data);
+    }
+
+    if (engineUrl && lastUserMessage) {
+      const engineRes = await fetch(`${engineUrl.replace(/\/$/, "")}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: lastUserMessage }),
+      });
 
       if (!engineRes.ok) {
         const error = await engineRes.text();
         console.error("GABE engine error:", error);
-        const unavailablePayload = normalizeRunPayload({
+        return NextResponse.json({
           answer: "Verified source evidence is currently unavailable.",
-          question: lastUserMessage,
           source_type: "none",
           confidence: 0,
-          certainty: "Unverified",
           run_outcome: "source_evidence_missing",
-          no_answer_reason: "source_evidence_missing",
-          validator_notes: ["upstream_not_ok"],
-          selected_engine: "general_engine",
-          truth_audit_status: "pending",
-          validator_version: "v1",
         });
-        await appendRunMetadataLocal(unavailablePayload);
-        return NextResponse.json(unavailablePayload);
-      } else {
-        const data = await engineRes.json();
-        const assistantMessage = data?.answer ?? data?.message ?? "";
-
-        try {
-          const saved = await saveGabeMessage({
-            techId,
-            techName,
-            techEmail,
-            jobId,
-            jobNumber,
-            customerName: jobContext?.customerName,
-            fireplace: jobContext?.fireplace,
-            messages: [
-              ...messages.filter((m) => m.role !== "system").map((m) => ({
-                role: m.role as "user" | "assistant",
-                content: m.content,
-                timestamp: new Date().toISOString(),
-              })),
-              { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
-            ],
-          });
-          appendMemoryEvent({
-            entity: "gabe_message",
-            action: "create",
-            entityId: saved.id,
-            summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
-            payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
-          });
-        } catch (e) {
-          console.error("Failed to save message log:", e);
-        }
-
-        const normalizedData = normalizeRunPayload({
-          ...(data || {}),
-          question: lastUserMessage,
-        });
-
-        await appendRunMetadataLocal(normalizedData);
-
-        return NextResponse.json(normalizedData);
       }
+
+      const data = await engineRes.json();
+      const assistantMessage = data?.answer ?? data?.message ?? "";
+
+      try {
+        saveConversationLog({
+          techId,
+          techName,
+          jobId,
+          jobNumber,
+          fireplace: jobContext?.fireplace,
+          messages,
+          assistantMessage,
+        });
+      } catch (e) {
+        console.error("Failed to save message log:", e);
+      }
+
+      return NextResponse.json(data);
     }
 
     if (engineRequired) {
-      const payload = normalizeRunPayload({
-        answer: "GABE routing is required but neither GABE_ORCHESTRATOR_URL nor GABE_ENGINE_URL is configured.",
+      return NextResponse.json({
+        error: "GABE engine routing is required but neither GABE_ORCHESTRATOR_URL nor GABE_ENGINE_URL is configured.",
         source_type: "none",
-        confidence: 0,
-        no_answer_reason: "engine_not_configured",
         run_outcome: "source_evidence_missing",
-      });
-      return NextResponse.json(payload, { status: 503 });
+      }, { status: 503 });
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
@@ -277,29 +327,14 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 Would you like help with a specific fireplace model or issue?`;
 
       try {
-        const saved = await saveGabeMessage({
+        saveConversationLog({
           techId,
           techName,
-          techEmail,
           jobId,
           jobNumber,
-          customerName: jobContext?.customerName,
           fireplace: jobContext?.fireplace,
-          messages: [
-            ...messages.filter((m) => m.role !== "system").map((m) => ({
-              role: m.role as "user" | "assistant",
-              content: m.content,
-              timestamp: new Date().toISOString(),
-            })),
-            { role: "assistant" as const, content: fallbackResponse, timestamp: new Date().toISOString() },
-          ],
-        });
-        appendMemoryEvent({
-          entity: "gabe_message",
-          action: "create",
-          entityId: saved.id,
-          summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
-          payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
+          messages,
+          assistantMessage: fallbackResponse,
         });
       } catch (e) {
         console.error("Failed to save message log:", e);
@@ -321,9 +356,20 @@ Would you like help with a specific fireplace model or issue?`;
         })
       : [];
 
-    const manualsForPrompt = (matchedManuals.length > 0 ? matchedManuals : allManuals).slice(0, 25);
+    const selectedManualRecord = selectedManual?.manualId
+      ? allManuals.find((manual) => manual.id === selectedManual.manualId)
+      : undefined;
+    const prioritizedManuals = selectedManualRecord
+      ? [selectedManualRecord]
+      : matchedManuals.length > 0
+        ? matchedManuals
+        : allManuals;
+
+    const manualsForPrompt = prioritizedManuals.slice(0, 25);
     const manualIds = new Set(manualsForPrompt.map((m) => m.id));
-    const allSections = await listManualSections();
+    const allSections = selectedManualRecord
+      ? await listManualSections(selectedManualRecord.id)
+      : await listManualSections();
     const sectionsForPrompt = allSections
       .filter((s) => manualIds.has(s.manualId))
       .slice(0, 200);
@@ -385,29 +431,14 @@ Would you like help with a specific fireplace model or issue?`;
     }
 
     try {
-      const saved = await saveGabeMessage({
+      saveConversationLog({
         techId,
         techName,
-        techEmail,
         jobId,
         jobNumber,
-        customerName: jobContext?.customerName,
         fireplace: jobContext?.fireplace,
-        messages: [
-          ...messages.filter((m) => m.role !== "system").map((m) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            timestamp: new Date().toISOString(),
-          })),
-          { role: "assistant" as const, content: assistantMessage, timestamp: new Date().toISOString() },
-        ],
-      });
-      appendMemoryEvent({
-        entity: "gabe_message",
-        action: "create",
-        entityId: saved.id,
-        summary: `GABE conversation saved (${saved.techName || 'Unknown Tech'})`,
-        payload: { jobNumber: saved.jobNumber, turns: saved.messages.length },
+        messages,
+        assistantMessage,
       });
     } catch (e) {
       console.error("Failed to save message log:", e);
@@ -425,4 +456,109 @@ Would you like help with a specific fireplace model or issue?`;
       { status: 500 }
     );
   }
+}
+
+function pickBestManualSection(question: string, sections: Array<{ pageStart?: number | null; title?: string | null; snippet?: string | null }>) {
+  if (!sections.length) return null;
+
+  const qTokens = question
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .filter((t) => t.length > 2);
+
+  let best: { section: typeof sections[number]; score: number } | null = null;
+
+  for (const section of sections) {
+    const hay = `${section.title ?? ""} ${section.snippet ?? ""}`.toLowerCase();
+    if (!hay.trim()) continue;
+
+    let score = 0;
+    for (const t of qTokens) {
+      if (hay.includes(t)) score += 1;
+    }
+
+    if (/vent|clearance|install|gas|manifold|pilot|light|startup|ignition/.test(question.toLowerCase())) {
+      if (/vent|clearance|install|gas|manifold|pilot|lighting|startup|ignition/.test(hay)) score += 2;
+    }
+
+    if (!best || score > best.score) {
+      best = { section, score };
+    }
+  }
+
+  if (!best) return null;
+
+  // If lexical overlap is weak but manual sections exist, still use selected-manual evidence
+  // rather than silently switching manuals.
+  if (best.score <= 0) {
+    const fallback = sections.find((s) => (s.snippet ?? "").trim().length > 0);
+    return fallback ?? null;
+  }
+
+  return best.section;
+}
+
+function buildStrictManualAnswer(question: string, section: { title?: string | null; snippet?: string | null }) {
+  const quote = (section.snippet ?? "").replace(/\s+/g, " ").trim().slice(0, 420);
+  if (!quote) {
+    return "I could not verify this answer in the selected manual.";
+  }
+
+  const titlePrefix = section.title ? `${section.title}: ` : "";
+  return `${titlePrefix}Manual states: "${quote}"`;
+}
+
+function saveConversationLog(params: {
+  techId?: string;
+  techName?: string;
+  jobId?: string;
+  jobNumber?: string;
+  fireplace?: string;
+  messages: ChatMessage[];
+  assistantMessage: string;
+}) {
+  saveGabeMessage({
+    techId: params.techId,
+    techName: params.techName,
+    jobId: params.jobId,
+    jobNumber: params.jobNumber,
+    customerName: params.fireplace,
+    fireplace: params.fireplace,
+    messages: [
+      ...params.messages.filter((m) => m.role !== "system").map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        timestamp: new Date().toISOString(),
+      })),
+      { role: "assistant" as const, content: params.assistantMessage, timestamp: new Date().toISOString() },
+    ],
+  });
+}
+
+async function persistRunMetadata(params: {
+  response: OrchestratorResponse;
+  question: string;
+  jobId?: string;
+  techId?: string;
+}) {
+  if (!process.env.DATABASE_URL) return;
+  const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
+  await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
+  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify({
+    conversationId: params.jobId ?? params.techId ?? null,
+    jobId: params.jobId ?? null,
+    technicianId: params.techId ?? null,
+    question: params.question,
+    selectedEngine: params.response.run.selectedEngine,
+    certainty: params.response.run.certainty,
+    runOutcome: params.response.run.runOutcome,
+    truthAuditStatus: params.response.run.truthAuditStatus,
+    sourceEvidenceStatus: params.response.run.sourceEvidenceStatus,
+    confidence: params.response.confidence,
+    validatorVersion: params.response.run.validatorVersion,
+    diagnostics: params.response.run.diagnostics,
+    sourceType: params.response.source_type,
+    answer: params.response.answer,
+  })}::jsonb)`;
 }
