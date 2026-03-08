@@ -75,6 +75,44 @@ interface OrchestratorResponse {
   };
 }
 
+export async function GET() {
+  const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
+  const engineUrl = process.env.GABE_ENGINE_URL;
+  const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
+
+  const result: Record<string, unknown> = {
+    engineRequired,
+    orchestratorConfigured: Boolean(orchestratorUrl),
+    engineConfigured: Boolean(engineUrl),
+    status: "ok",
+  };
+
+  try {
+    const probeUrl = orchestratorUrl || engineUrl;
+    if (probeUrl) {
+      const ping = await fetch(`${probeUrl.replace(/\/$/, "")}/health`, {
+        method: "GET",
+        cache: "no-store",
+        signal: AbortSignal.timeout(3500),
+      });
+      result.runtimeReachable = ping.ok;
+      result.runtimeStatus = ping.status;
+    } else {
+      result.runtimeReachable = false;
+      result.runtimeStatus = null;
+      if (engineRequired) {
+        result.status = "degraded";
+      }
+    }
+  } catch {
+    result.runtimeReachable = false;
+    result.runtimeStatus = null;
+    result.status = "degraded";
+  }
+
+  return NextResponse.json(result, { status: result.status === "ok" ? 200 : 503 });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as {
@@ -155,6 +193,7 @@ export async function POST(request: NextRequest) {
         answered_from_selected_manual: true,
         cited_manual_title: selectedManualTitle,
         cited_page_number: bestSection.pageStart ?? null,
+        backend: "manual-guard",
       });
     }
 
@@ -177,7 +216,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           answer: "This information is not available in verified manufacturer documentation.",
           source_type: "none",
-          confidence: 0
+          confidence: 0,
+          run_outcome: "source_evidence_missing",
+          backend: "orchestrator",
+          backend_status: orchestratorRes.status,
         });
       }
 
@@ -204,7 +246,10 @@ export async function POST(request: NextRequest) {
         console.error("Failed to save orchestrator run state:", e);
       }
 
-      return NextResponse.json(data);
+      return NextResponse.json({
+        ...data,
+        backend: "orchestrator",
+      });
     }
 
     if (engineUrl && lastUserMessage) {
@@ -242,7 +287,10 @@ export async function POST(request: NextRequest) {
         console.error("Failed to save message log:", e);
       }
 
-      return NextResponse.json(data);
+      return NextResponse.json({
+        ...data,
+        backend: "engine",
+      });
     }
 
     if (engineRequired) {

@@ -21,6 +21,8 @@ function normalize(v?: string | null) {
 export default function ManualsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedBrand, setSelectedBrand] = useState("All Makes");
+  const [selectedModel, setSelectedModel] = useState("All Models");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [manuals, setManuals] = useState<Manual[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +66,28 @@ export default function ManualsPage() {
     [manuals]
   );
 
+  const brands = useMemo(
+    () => [
+      "All Makes",
+      ...Array.from(new Set(manuals.map((m) => m.brand).filter((b): b is string => Boolean(b)))).sort((a, b) => a.localeCompare(b)),
+    ],
+    [manuals]
+  );
+
+  const models = useMemo(() => {
+    const source = manuals.filter((m) => selectedBrand === "All Makes" || m.brand === selectedBrand);
+    return [
+      "All Models",
+      ...Array.from(new Set(source.map((m) => m.model).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)),
+    ];
+  }, [manuals, selectedBrand]);
+
+  useEffect(() => {
+    if (selectedModel !== "All Models" && !models.includes(selectedModel)) {
+      setSelectedModel("All Models");
+    }
+  }, [selectedBrand, selectedModel, models]);
+
   const filteredManuals = useMemo(
     () =>
       manuals.filter((manual) => {
@@ -75,9 +99,11 @@ export default function ManualsPage() {
           normalize(manual.type).includes(q) ||
           normalize(manual.category).includes(q);
         const matchesCategory = selectedCategory === "All" || manual.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        const matchesBrand = selectedBrand === "All Makes" || manual.brand === selectedBrand;
+        const matchesModel = selectedModel === "All Models" || manual.model === selectedModel;
+        return matchesSearch && matchesCategory && matchesBrand && matchesModel;
       }),
-    [manuals, searchQuery, selectedCategory]
+    [manuals, searchQuery, selectedCategory, selectedBrand, selectedModel]
   );
 
   const grouped = useMemo(() => {
@@ -163,18 +189,46 @@ export default function ManualsPage() {
       </header>
 
       <div className="bg-[#1a1a2e] border-b border-gray-800 overflow-x-auto">
-        <div className="flex gap-2 px-4 py-2">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                selectedCategory === category ? "bg-orange-500 text-white" : "bg-[#252540] text-gray-400"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+        <div className="px-4 py-2 space-y-2">
+          <div className="flex gap-2">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                  selectedCategory === category ? "bg-orange-500 text-white" : "bg-[#252540] text-gray-400"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {brands.map((brand) => (
+              <button
+                key={brand}
+                onClick={() => setSelectedBrand(brand)}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
+                  selectedBrand === brand ? "bg-blue-500 text-white" : "bg-[#252540] text-gray-400"
+                }`}
+              >
+                {brand}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {models.slice(0, 20).map((model) => (
+              <button
+                key={model}
+                onClick={() => setSelectedModel(model)}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
+                  selectedModel === model ? "bg-emerald-500 text-white" : "bg-[#252540] text-gray-400"
+                }`}
+              >
+                {model}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

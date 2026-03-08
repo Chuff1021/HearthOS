@@ -18,6 +18,8 @@ interface Message {
     sourceUrl?: string;
     section?: string;
     confidence?: number;
+    backend?: string;
+    runOutcome?: string;
   };
 }
 
@@ -243,6 +245,8 @@ function GABEInner() {
             sourceUrl: data.source_url || data.url,
             section: data.section,
             confidence: data.confidence,
+            backend: data.backend,
+            runOutcome: data.run_outcome,
           };
         } else {
           responseText = data.message ?? "No response from AI";
@@ -428,6 +432,8 @@ function GABEInner() {
                   {typeof message.meta.confidence === "number" && (
                     <div>Confidence: {message.meta.confidence}</div>
                   )}
+                  {message.meta.backend && <div>Engine: {message.meta.backend}</div>}
+                  {message.meta.runOutcome && <div>Outcome: {message.meta.runOutcome}</div>}
                 </div>
               )}
               <p className="text-xs opacity-40 mt-1.5">
