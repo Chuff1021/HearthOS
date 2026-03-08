@@ -224,6 +224,14 @@ export async function POST(request: NextRequest) {
       }
 
       const data = await orchestratorRes.json() as OrchestratorResponse;
+
+      if ((data.source_type === "none" || data.run.runOutcome === "refused_unverified") && lastUserMessage) {
+        const fallback = await buildManualFallback(lastUserMessage, selectedManual?.manualId);
+        if (fallback) {
+          return NextResponse.json({ ...fallback, backend: "manual-fallback" });
+        }
+      }
+
       const assistantMessage = data.answer ?? "";
 
       try {
@@ -271,6 +279,14 @@ export async function POST(request: NextRequest) {
       }
 
       const data = await engineRes.json();
+
+      if ((data?.source_type === "none" || data?.run_outcome === "refused_unverified") && lastUserMessage) {
+        const fallback = await buildManualFallback(lastUserMessage, selectedManual?.manualId);
+        if (fallback) {
+          return NextResponse.json({ ...fallback, backend: "manual-fallback" });
+        }
+      }
+
       const assistantMessage = data?.answer ?? data?.message ?? "";
 
       try {
@@ -555,6 +571,42 @@ function buildStrictManualAnswer(question: string, section: { title?: string | n
 
   const titlePrefix = section.title ? `${section.title}: ` : "";
   return `${titlePrefix}Manual states: "${quote}"`;
+}
+
+async function buildManualFallback(question: string, preferredManualId?: string) {
+  const manuals = await listManuals();
+  const sections = preferredManualId ? await listManualSections(preferredManualId) : await listManualSections();
+  if (!sections.length) return null;
+
+  const q = question.toLowerCase();
+  const isPipeQuestion = /\b(pipe|vent|venting|diameter|liner|run\b|elbow|clearance)\b/.test(q);
+
+  const narrowed = isPipeQuestion
+    ? sections.filter((s) => /\b(pipe|vent|venting|diameter|liner|run|elbow|clearance|termination)\b/i.test(`${s.title ?? ""} ${s.snippet ?? ""}`))
+    : sections;
+
+  const candidates = narrowed.length ? narrowed : sections;
+  const best = pickBestManualSection(question, candidates as Array<{ pageStart?: number | null; title?: string | null; snippet?: string | null }>);
+  if (!best) return null;
+
+  const picked = candidates.find((s) => s.pageStart === best.pageStart && s.title === best.title && s.snippet === best.snippet) ?? candidates[0];
+  const manual = manuals.find((m) => m.id === (picked as any).manualId);
+  if (!manual) return null;
+
+  const manualTitle = `${manual.brand} ${manual.model}`.replace(/\s+/g, " ").trim();
+  return {
+    answer: buildStrictManualAnswer(question, best),
+    source_type: "manual",
+    manual_title: manualTitle,
+    page_number: best.pageStart ?? null,
+    source_url: manual.url,
+    confidence: 68,
+    selected_manual_title: manualTitle,
+    answered_from_selected_manual: Boolean(preferredManualId ? manual.id === preferredManualId : true),
+    cited_manual_title: manualTitle,
+    cited_page_number: best.pageStart ?? null,
+    run_outcome: "answered_partial",
+  };
 }
 
 function saveConversationLog(params: {

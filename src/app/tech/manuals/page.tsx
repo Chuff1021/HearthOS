@@ -18,6 +18,28 @@ function normalize(v?: string | null) {
   return (v || "").trim().toLowerCase();
 }
 
+function deriveMake(manual: Manual) {
+  const brand = (manual.brand || "").trim();
+  if (!brand || /^hht\b|hht-shared$/i.test(brand)) return "HHT";
+  return brand;
+}
+
+function deriveModel(manual: Manual) {
+  const raw = (manual.model || "").trim();
+  if (!raw) return "Unknown Model";
+
+  if (!/^hht\b|hht-shared$/i.test((manual.brand || "").trim())) {
+    return raw;
+  }
+
+  const parts = raw.split("_").map((p) => p.trim()).filter(Boolean);
+  const stop = new Set(["INSTALL", "OWNER", "MANUAL", "FC", "FR", "SP", "PDF"]);
+  const keep = parts.filter((p) => !stop.has(p.toUpperCase()) && /[A-Z]/i.test(p));
+  if (keep.length === 0) return raw;
+  const modelLike = keep.slice(Math.max(0, keep.length - 2)).join(" ").replace(/%20/g, " ").trim();
+  return modelLike || raw;
+}
+
 export default function ManualsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -69,16 +91,16 @@ export default function ManualsPage() {
   const brands = useMemo(
     () => [
       "All Makes",
-      ...Array.from(new Set(manuals.map((m) => m.brand).filter((b): b is string => Boolean(b)))).sort((a, b) => a.localeCompare(b)),
+      ...Array.from(new Set(manuals.map((m) => deriveMake(m)).filter((b): b is string => Boolean(b)))).sort((a, b) => a.localeCompare(b)),
     ],
     [manuals]
   );
 
   const models = useMemo(() => {
-    const source = manuals.filter((m) => selectedBrand === "All Makes" || m.brand === selectedBrand);
+    const source = manuals.filter((m) => selectedBrand === "All Makes" || deriveMake(m) === selectedBrand);
     return [
       "All Models",
-      ...Array.from(new Set(source.map((m) => m.model).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)),
+      ...Array.from(new Set(source.map((m) => deriveModel(m)).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)),
     ];
   }, [manuals, selectedBrand]);
 
@@ -94,13 +116,13 @@ export default function ManualsPage() {
         const q = normalize(searchQuery);
         const matchesSearch =
           !q ||
-          normalize(manual.brand).includes(q) ||
-          normalize(manual.model).includes(q) ||
+          normalize(deriveMake(manual)).includes(q) ||
+          normalize(deriveModel(manual)).includes(q) ||
           normalize(manual.type).includes(q) ||
           normalize(manual.category).includes(q);
         const matchesCategory = selectedCategory === "All" || manual.category === selectedCategory;
-        const matchesBrand = selectedBrand === "All Makes" || manual.brand === selectedBrand;
-        const matchesModel = selectedModel === "All Models" || manual.model === selectedModel;
+        const matchesBrand = selectedBrand === "All Makes" || deriveMake(manual) === selectedBrand;
+        const matchesModel = selectedModel === "All Models" || deriveModel(manual) === selectedModel;
         return matchesSearch && matchesCategory && matchesBrand && matchesModel;
       }),
     [manuals, searchQuery, selectedCategory, selectedBrand, selectedModel]
@@ -109,7 +131,7 @@ export default function ManualsPage() {
   const grouped = useMemo(() => {
     const map = new Map<string, Manual[]>();
     for (const manual of filteredManuals) {
-      const brand = (manual.brand || "Unknown").trim() || "Unknown";
+      const brand = deriveMake(manual) || "Unknown";
       if (!map.has(brand)) map.set(brand, []);
       map.get(brand)!.push(manual);
     }
@@ -118,7 +140,7 @@ export default function ManualsPage() {
       .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
       .map(([brand, rows]) => ({
         brand,
-        manuals: rows.sort((a, b) => (a.model || "").localeCompare(b.model || "", undefined, { sensitivity: "base" })),
+        manuals: rows.sort((a, b) => deriveModel(a).localeCompare(deriveModel(b), undefined, { sensitivity: "base" })),
       }));
   }, [filteredManuals]);
 
@@ -253,9 +275,9 @@ export default function ManualsPage() {
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold leading-tight">{manual.model || "Unknown Model"}</h3>
+                          <h3 className="font-semibold leading-tight">{deriveModel(manual)}</h3>
                           <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
-                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200">{manual.brand || "Unknown make"}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200">{deriveMake(manual)}</span>
                             {manual.type ? <span className="px-2 py-0.5 rounded-full bg-gray-700 text-gray-200">{manual.type}</span> : null}
                             <span className="text-gray-500">{manual.pages ? `${manual.pages} pages` : "pages n/a"}</span>
                           </div>
@@ -264,7 +286,7 @@ export default function ManualsPage() {
 
                       <div className="flex gap-2 mt-3">
                         <Link
-                          href={`/tech/gabe?manualId=${encodeURIComponent(manual.id)}&fireplace=${encodeURIComponent(`${manual.brand} ${manual.model}`)}&manualTitle=${encodeURIComponent(`${manual.brand} ${manual.model}`)}`}
+                          href={`/tech/gabe?manualId=${encodeURIComponent(manual.id)}&fireplace=${encodeURIComponent(`${deriveMake(manual)} ${deriveModel(manual)}`)}&manualTitle=${encodeURIComponent(`${deriveMake(manual)} ${deriveModel(manual)}`)}`}
                           className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 py-2 rounded-lg text-sm font-medium text-center"
                         >
                           Ask GABE
