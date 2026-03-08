@@ -78,6 +78,7 @@ export default function ManualsPage() {
   const [selectedModel, setSelectedModel] = useState("All Models");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [manuals, setManuals] = useState<Manual[]>([]);
+  const [inferredMakeById, setInferredMakeById] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formState, setFormState] = useState({
@@ -93,9 +94,28 @@ export default function ManualsPage() {
     const load = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/manuals");
-        const data = (await res.json()) as { manuals: Manual[] };
+        const [manualsRes, sectionsRes] = await Promise.all([
+          fetch("/api/manuals"),
+          fetch("/api/manuals/sections"),
+        ]);
+        const data = (await manualsRes.json()) as { manuals: Manual[] };
+        const sectionsData = (await sectionsRes.json()) as { sections?: Array<{ manualId: string; title?: string | null; snippet?: string | null }> };
         const list = Array.isArray(data.manuals) ? data.manuals : [];
+
+        const inferred: Record<string, string> = {};
+        for (const section of sectionsData.sections ?? []) {
+          const text = `${section.title ?? ""} ${section.snippet ?? ""}`.toLowerCase();
+          if (!text) continue;
+          if (!inferred[section.manualId]) {
+            if (text.includes("majestic")) inferred[section.manualId] = "Majestic";
+            else if (text.includes("monessen")) inferred[section.manualId] = "Monessen";
+            else if (text.includes("heatilator")) inferred[section.manualId] = "Heatilator";
+            else if (text.includes("heat & glo") || text.includes("heatnglo") || text.includes("heat n glo") || text.includes("heat-glo") || text.includes("heatglo")) inferred[section.manualId] = "Heat & Glo";
+            else if (text.includes("quadra-fire") || text.includes("quadrafire")) inferred[section.manualId] = "Quadra-Fire";
+          }
+        }
+        setInferredMakeById(inferred);
+
         list.sort((a, b) => {
           const brandCmp = (a.brand || "").localeCompare(b.brand || "", undefined, { sensitivity: "base" });
           if (brandCmp !== 0) return brandCmp;
@@ -111,6 +131,8 @@ export default function ManualsPage() {
     void load();
   }, []);
 
+  const manualMake = (manual: Manual) => inferredMakeById[manual.id] ?? deriveMake(manual);
+
   const categories = useMemo(
     () => [
       "All",
@@ -122,18 +144,18 @@ export default function ManualsPage() {
   const brands = useMemo(
     () => [
       "All Makes",
-      ...Array.from(new Set(manuals.map((m) => deriveMake(m)).filter((b): b is string => Boolean(b)))).sort((a, b) => a.localeCompare(b)),
+      ...Array.from(new Set(manuals.map((m) => manualMake(m)).filter((b): b is string => Boolean(b)))).sort((a, b) => a.localeCompare(b)),
     ],
-    [manuals]
+    [manuals, inferredMakeById]
   );
 
   const models = useMemo(() => {
-    const source = manuals.filter((m) => selectedBrand === "All Makes" || deriveMake(m) === selectedBrand);
+    const source = manuals.filter((m) => selectedBrand === "All Makes" || manualMake(m) === selectedBrand);
     return [
       "All Models",
       ...Array.from(new Set(source.map((m) => deriveModel(m)).filter((m): m is string => Boolean(m)))).sort((a, b) => a.localeCompare(b)),
     ];
-  }, [manuals, selectedBrand]);
+  }, [manuals, selectedBrand, inferredMakeById]);
 
   useEffect(() => {
     if (selectedModel !== "All Models" && !models.includes(selectedModel)) {
@@ -147,22 +169,22 @@ export default function ManualsPage() {
         const q = normalize(searchQuery);
         const matchesSearch =
           !q ||
-          normalize(deriveMake(manual)).includes(q) ||
+          normalize(manualMake(manual)).includes(q) ||
           normalize(deriveModel(manual)).includes(q) ||
           normalize(manual.type).includes(q) ||
           normalize(manual.category).includes(q);
         const matchesCategory = selectedCategory === "All" || manual.category === selectedCategory;
-        const matchesBrand = selectedBrand === "All Makes" || deriveMake(manual) === selectedBrand;
+        const matchesBrand = selectedBrand === "All Makes" || manualMake(manual) === selectedBrand;
         const matchesModel = selectedModel === "All Models" || deriveModel(manual) === selectedModel;
         return matchesSearch && matchesCategory && matchesBrand && matchesModel;
       }),
-    [manuals, searchQuery, selectedCategory, selectedBrand, selectedModel]
+    [manuals, searchQuery, selectedCategory, selectedBrand, selectedModel, inferredMakeById]
   );
 
   const grouped = useMemo(() => {
     const map = new Map<string, Manual[]>();
     for (const manual of filteredManuals) {
-      const brand = deriveMake(manual) || "Unknown";
+      const brand = manualMake(manual) || "Unknown";
       if (!map.has(brand)) map.set(brand, []);
       map.get(brand)!.push(manual);
     }
@@ -308,7 +330,7 @@ export default function ManualsPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold leading-tight">{deriveModel(manual)}</h3>
                           <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
-                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200">{deriveMake(manual)}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200">{manualMake(manual)}</span>
                             {manual.type ? <span className="px-2 py-0.5 rounded-full bg-gray-700 text-gray-200">{manual.type}</span> : null}
                             <span className="text-gray-500">{manual.pages ? `${manual.pages} pages` : "pages n/a"}</span>
                           </div>
@@ -317,7 +339,7 @@ export default function ManualsPage() {
 
                       <div className="flex gap-2 mt-3">
                         <Link
-                          href={`/tech/gabe?manualId=${encodeURIComponent(manual.id)}&fireplace=${encodeURIComponent(`${deriveMake(manual)} ${deriveModel(manual)}`)}&manualTitle=${encodeURIComponent(`${deriveMake(manual)} ${deriveModel(manual)}`)}`}
+                          href={`/tech/gabe?manualId=${encodeURIComponent(manual.id)}&fireplace=${encodeURIComponent(`${manualMake(manual)} ${deriveModel(manual)}`)}&manualTitle=${encodeURIComponent(`${manualMake(manual)} ${deriveModel(manual)}`)}`}
                           className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 py-2 rounded-lg text-sm font-medium text-center"
                         >
                           Ask GABE
