@@ -253,14 +253,11 @@ export default function ManualsPage() {
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold">{manual.model || "Unknown Model"}</h3>
-                          <p className="text-sm text-gray-400">{manual.type || "Type n/a"}</p>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                            <span>Make: {manual.brand || "Unknown"}</span>
-                            <span>•</span>
-                            <span>Model: {manual.model || "n/a"}</span>
-                            <span>•</span>
-                            {manual.pages ? <span>{manual.pages} pages</span> : <span>Pages: n/a</span>}
+                          <h3 className="font-semibold leading-tight">{manual.model || "Unknown Model"}</h3>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200">{manual.brand || "Unknown make"}</span>
+                            {manual.type ? <span className="px-2 py-0.5 rounded-full bg-gray-700 text-gray-200">{manual.type}</span> : null}
+                            <span className="text-gray-500">{manual.pages ? `${manual.pages} pages` : "pages n/a"}</span>
                           </div>
                         </div>
                       </div>

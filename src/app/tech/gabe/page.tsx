@@ -171,6 +171,7 @@ function GABEInner() {
     ? { manualId, manualTitle }
     : undefined;
 
+  const [engineStatus, setEngineStatus] = useState<"checking" | "online" | "degraded">("checking");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -202,6 +203,26 @@ function GABEInner() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    let mounted = true;
+    const checkEngine = async () => {
+      try {
+        const res = await fetch("/api/gabe", { method: "GET" });
+        if (!mounted) return;
+        setEngineStatus(res.ok ? "online" : "degraded");
+      } catch {
+        if (!mounted) return;
+        setEngineStatus("degraded");
+      }
+    };
+    void checkEngine();
+    const timer = setInterval(checkEngine, 30000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const handleSend = async (overrideInput?: string) => {
     const text = overrideInput ?? input;
@@ -325,9 +346,12 @@ function GABEInner() {
               <p className="text-xs text-gray-400">Fireplace Expert AI</p>
             </div>
           </div>
+          <div className={`rounded-lg px-2 py-1 border text-xs ${engineStatus === "online" ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" : engineStatus === "degraded" ? "bg-red-500/20 border-red-500/40 text-red-300" : "bg-gray-500/20 border-gray-500/40 text-gray-300"}`}>
+            Engine: {engineStatus === "online" ? "Online" : engineStatus === "degraded" ? "Degraded" : "Checking"}
+          </div>
           {/* Job context badge */}
           {jobContext?.fireplace && (
-            <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg px-2 py-1 max-w-[120px]">
+            <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg px-2 py-1 max-w-[140px]">
               <p className="text-xs text-orange-400 truncate font-medium">{jobContext.fireplace}</p>
               <p className="text-xs text-gray-500 truncate">{jobContext.jobType}</p>
             </div>
