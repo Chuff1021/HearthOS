@@ -1,10 +1,8 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-// Phase 1 Clerk removal for critical path: no auth middleware at runtime.
-export default function proxy(_request: NextRequest) {
-  return NextResponse.next();
-}
+// Hotfix: keep Clerk middleware active so existing Clerk hooks/components
+// in app shell routes do not throw runtime auth() / client exceptions.
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
