@@ -20,7 +20,38 @@ function normalize(v?: string | null) {
 
 function deriveMake(manual: Manual) {
   const brand = (manual.brand || "").trim();
-  if (!brand || /^hht\b|hht-shared$/i.test(brand)) return "HHT";
+  const model = (manual.model || "").toLowerCase();
+
+  const fromModel = (pairs: Array<[RegExp, string]>) => {
+    for (const [re, name] of pairs) {
+      if (re.test(model)) return name;
+    }
+    return null;
+  };
+
+  // HHT parent-brand normalization -> child brands
+  if (!brand || /^hht\b|hht-shared$|hearth\s*&?\s*home/i.test(brand)) {
+    const hht = fromModel([
+      [/majestic/, "Majestic"],
+      [/monessen/, "Monessen"],
+      [/heatilator/, "Heatilator"],
+      [/heat\s*&?\s*glo|heatnglo|heat-glo|heatglo/, "Heat & Glo"],
+      [/quadra\s*-?\s*fire|quadrafire/, "Quadra-Fire"],
+      [/simplicity|pelpro/, "PelPro"],
+    ]);
+    return hht ?? "HHT";
+  }
+
+  // Travis parent-brand normalization -> child brands
+  if (/travis/i.test(brand)) {
+    const travis = fromModel([
+      [/fireplace\s*x|fireplacex|\bfpx\b/, "FireplaceX"],
+      [/lopi/, "Lopi"],
+      [/avalon/, "Avalon"],
+    ]);
+    return travis ?? "Travis Industries";
+  }
+
   return brand;
 }
 
