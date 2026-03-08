@@ -197,6 +197,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const isPipeOrVentingQuestion = /\b(pipe|vent|venting|diameter|liner|elbow|termination|clearance)\b/i.test(lastUserMessage ?? "");
+    if (!selectedManual?.manualId && isPipeOrVentingQuestion && lastUserMessage) {
+      const priorityFallback = await buildManualFallback(lastUserMessage);
+      if (priorityFallback) {
+        return NextResponse.json({ ...priorityFallback, backend: "manual-fallback-priority" });
+      }
+    }
+
     if (orchestratorUrl && lastUserMessage) {
       const orchestratorRes = await fetch(`${orchestratorUrl.replace(/\/$/, "")}/query`, {
         method: "POST",
