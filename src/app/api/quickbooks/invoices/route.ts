@@ -152,10 +152,10 @@ export async function POST(request: NextRequest) {
           DetailType: 'SalesItemLineDetail' as const,
           Description: li.partNumber ? `${li.description}\nPart: ${li.partNumber}` : li.description,
           SalesItemLineDetail: {
-            ItemRef: li.itemId ? {
-              value: li.itemId,
+            ItemRef: {
+              value: li.itemId || '',
               name: li.itemName || li.partNumber || li.description,
-            } : undefined,
+            },
             UnitPrice: li.unitPrice,
             Qty: li.qty,
           },
