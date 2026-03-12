@@ -166,13 +166,14 @@ export default function CustomersPage() {
       setSelectedCustomerProfile(null);
       return;
     }
+    const resolvedCustomerId: string = customerId;
 
     let cancelled = false;
 
     async function fetchCustomerProfile() {
       setLoadingProfile(true);
       try {
-        const res = await fetch(`/api/customers/profile?id=${encodeURIComponent(customerId)}`, {
+        const res = await fetch(`/api/customers/profile?id=${encodeURIComponent(resolvedCustomerId)}`, {
           cache: "no-store",
         });
         const data = await res.json();
