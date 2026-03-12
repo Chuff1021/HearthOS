@@ -71,6 +71,19 @@ function matchesSearchQuery(query: string, ...fields: Array<string | undefined>)
   });
 }
 
+function normalizeDateValue(value: string | undefined) {
+  if (!value) return "";
+  return value.split("T")[0];
+}
+
+function isWithinDateRange(value: string | undefined, from: string, to: string) {
+  const normalizedValue = normalizeDateValue(value);
+  if (!normalizedValue) return false;
+  if (from && normalizedValue < from) return false;
+  if (to && normalizedValue > to) return false;
+  return true;
+}
+
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
   sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
@@ -88,6 +101,10 @@ export default function InvoicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [metricFilter, setMetricFilter] = useState<"all" | "outstanding" | "overdue" | "paid" | "draft">("all");
+  const [dateField, setDateField] = useState<"issueDate" | "dueDate">("issueDate");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -341,7 +358,11 @@ export default function InvoicesPage() {
     reconcileSquarePayments();
   }, [invoices, squareSignals, fetchInvoices]);
 
-  const filteredInvoices = invoices.filter((inv) => {
+  const dateFilteredInvoices = invoices.filter((inv) =>
+    isWithinDateRange(dateField === "issueDate" ? inv.issueDate : inv.dueDate, dateFrom, dateTo),
+  );
+
+  const filteredInvoices = dateFilteredInvoices.filter((inv) => {
     const matchesSearch = matchesSearchQuery(
       searchQuery,
       inv.invoiceNumber,
@@ -350,7 +371,13 @@ export default function InvoicesPage() {
       inv.notes,
     );
     const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesMetric =
+      metricFilter === "all" ||
+      (metricFilter === "outstanding" && inv.balance > 0) ||
+      (metricFilter === "overdue" && inv.status === "overdue") ||
+      (metricFilter === "paid" && inv.status === "paid") ||
+      (metricFilter === "draft" && inv.status === "draft");
+    return matchesSearch && matchesStatus && matchesMetric;
   });
 
   useEffect(() => {
@@ -374,10 +401,25 @@ export default function InvoicesPage() {
     }
   }, [invoices, selectedInvoiceId, selectedCustomerId, selectedInvoice]);
 
-  const totalOutstanding = invoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);
-  const totalOverdue = invoices.filter((i) => i.status === "overdue").reduce((sum, i) => sum + i.balance, 0);
-  const paidTotal = invoices.filter((i) => i.status === "paid").reduce((sum, i) => sum + i.totalAmount, 0);
-  const draftCount = invoices.filter((i) => i.status === "draft").length;
+  useEffect(() => {
+    if (!filteredInvoices.length) {
+      setSelectedInvoice(null);
+      return;
+    }
+
+    if (!selectedInvoice || !filteredInvoices.some((invoice) => invoice.id === selectedInvoice.id)) {
+      setSelectedInvoice(filteredInvoices[0]);
+    }
+  }, [filteredInvoices, selectedInvoice]);
+
+  const totalOutstanding = dateFilteredInvoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);
+  const totalOverdue = dateFilteredInvoices.filter((i) => i.status === "overdue").reduce((sum, i) => sum + i.balance, 0);
+  const paidTotal = dateFilteredInvoices.filter((i) => i.status === "paid").reduce((sum, i) => sum + i.totalAmount, 0);
+  const draftCount = dateFilteredInvoices.filter((i) => i.status === "draft").length;
+
+  const toggleMetricFilter = (nextFilter: "all" | "outstanding" | "overdue" | "paid" | "draft") => {
+    setMetricFilter((current) => current === nextFilter ? "all" : nextFilter);
+  };
 
   const resetCreateForm = () => {
     setCreateForm({
@@ -728,15 +770,25 @@ export default function InvoicesPage() {
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           {[
-            { label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#2563EB" },
-            { label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#FF204E" },
-            { label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#98CD00" },
-            { label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
+            { key: "outstanding", label: "Total Outstanding", value: `$${totalOutstanding.toLocaleString()}`, color: "#2563EB" },
+            { key: "overdue", label: "Overdue", value: `$${totalOverdue.toLocaleString()}`, color: "#FF204E" },
+            { key: "paid", label: "Paid Total", value: `$${paidTotal.toLocaleString()}`, color: "#98CD00" },
+            { key: "draft", label: "Drafts", value: `${draftCount} invoices`, color: "#9ca3af" },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            <button
+              key={stat.label}
+              type="button"
+              onClick={() => toggleMetricFilter(stat.key as "outstanding" | "overdue" | "paid" | "draft")}
+              className="rounded-lg p-3 text-left transition-all"
+              style={{
+                background: metricFilter === stat.key ? "rgba(255,255,255,0.08)" : "var(--color-surface-2)",
+                border: metricFilter === stat.key ? `1px solid ${stat.color}` : "1px solid var(--color-border)",
+                boxShadow: metricFilter === stat.key ? `0 0 0 1px ${stat.color} inset` : "none",
+              }}
+            >
               <div className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}</div>
               <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{stat.label}</div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -770,6 +822,42 @@ export default function InvoicesPage() {
             <option value="paid">Paid</option>
             <option value="overdue">Overdue</option>
           </select>
+          <select
+            value={dateField}
+            onChange={(e) => setDateField(e.target.value as "issueDate" | "dueDate")}
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+          >
+            <option value="issueDate">Issue Date</option>
+            <option value="dueDate">Due Date</option>
+          </select>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setDateFrom("");
+              setDateTo("");
+              setMetricFilter("all");
+              setStatusFilter("all");
+            }}
+            className="px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+          >
+            Clear
+          </button>
         </div>
 
         {/* Content */}
