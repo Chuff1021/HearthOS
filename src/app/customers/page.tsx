@@ -29,12 +29,67 @@ interface Customer {
   updatedAt: string;
 }
 
+interface CustomerProfile {
+  customer: Customer;
+  history: {
+    invoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      customerId: string;
+      customerName: string;
+      jobTitle: string;
+      issueDate: string;
+      dueDate: string;
+      totalAmount: number;
+      balance: number;
+      status: "draft" | "sent" | "paid" | "overdue" | "void";
+    }>;
+    localInvoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      jobTitle: string;
+      issueDate: string;
+      totalAmount: number;
+      balance: number;
+      status: "draft" | "sent" | "paid" | "overdue" | "void";
+    }>;
+    payments: Array<{
+      id: string;
+      txnDate: string;
+      totalAmt: number;
+      unappliedAmt: number;
+      paymentMethod?: string;
+      linkedTxnIds: string[];
+    }>;
+    purchaseOrders: Array<{
+      id: string;
+      docNumber: string;
+      txnDate?: string;
+      vendorName?: string;
+      totalAmt: number;
+      memo?: string;
+    }>;
+  };
+  summary: {
+    quickbooksInvoiceCount: number;
+    quickbooksPaymentCount: number;
+    purchaseOrderCount: number;
+    localInvoiceCount: number;
+    totalRevenue: number;
+    outstandingBalance: number;
+    totalPaid: number;
+  };
+  source: "quickbooks" | "local";
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomerProfile, setSelectedCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -103,6 +158,48 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    if (!selectedCustomer?.id) {
+      setSelectedCustomerProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchCustomerProfile() {
+      setLoadingProfile(true);
+      try {
+        const res = await fetch(`/api/customers/profile?id=${encodeURIComponent(selectedCustomer.id)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          if (res.ok) {
+            setSelectedCustomerProfile(data);
+          } else {
+            setSelectedCustomerProfile(null);
+            setError(data.error || "Failed to load customer profile");
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedCustomerProfile(null);
+          setError("Failed to load customer profile");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingProfile(false);
+        }
+      }
+    }
+
+    fetchCustomerProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomer?.id]);
 
   const resetForm = () => {
     setForm({ firstName: "", lastName: "", companyName: "", email: "", phone: "", line1: "", city: "", state: "", zip: "", tags: "", notes: "" });
@@ -233,6 +330,9 @@ export default function CustomersPage() {
   };
 
   const filteredCustomers = customers;
+  const detailCustomer = selectedCustomerProfile?.customer || selectedCustomer;
+  const detailSummary = selectedCustomerProfile?.summary;
+  const detailHistory = selectedCustomerProfile?.history;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -413,41 +513,46 @@ export default function CustomersPage() {
               </div>
 
               <div className="p-6 space-y-6">
+                {loadingProfile && (
+                  <div className="rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
+                    Loading customer history...
+                  </div>
+                )}
                 {/* Customer Info */}
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
                     style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
                   >
-                    {selectedCustomer.displayName.charAt(0).toUpperCase()}
+                    {detailCustomer?.displayName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedCustomer.displayName}</h3>
-                    {selectedCustomer.companyName && (
-                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{selectedCustomer.companyName}</p>
+                    <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{detailCustomer?.displayName}</h3>
+                    {detailCustomer?.companyName && (
+                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{detailCustomer.companyName}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Contact Info */}
                 <div className="space-y-3">
-                  {selectedCustomer.email && (
+                  {detailCustomer?.email && (
                     <div className="flex items-center gap-3">
                       <span className="text-sm">📧</span>
-                      <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedCustomer.email}</span>
+                      <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{detailCustomer.email}</span>
                     </div>
                   )}
-                  {selectedCustomer.phone && (
+                  {detailCustomer?.phone && (
                     <div className="flex items-center gap-3">
                       <span className="text-sm">📱</span>
-                      <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedCustomer.phone}</span>
+                      <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{detailCustomer.phone}</span>
                     </div>
                   )}
-                  {selectedCustomer.address && (
+                  {detailCustomer?.address && (
                     <div className="flex items-center gap-3">
                       <span className="text-sm">📍</span>
                       <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>
-                        {selectedCustomer.address.line1}, {selectedCustomer.address.city}, {selectedCustomer.address.state} {selectedCustomer.address.zip}
+                        {detailCustomer.address.line1}, {detailCustomer.address.city}, {detailCustomer.address.state} {detailCustomer.address.zip}
                       </span>
                     </div>
                   )}
@@ -456,27 +561,44 @@ export default function CustomersPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                    <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{selectedCustomer.totalJobs}</div>
+                    <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailCustomer?.totalJobs || 0}</div>
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Jobs</div>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                    <div className="text-lg font-bold" style={{ color: "#98CD00" }}>${selectedCustomer.totalRevenue.toLocaleString()}</div>
+                    <div className="text-lg font-bold" style={{ color: "#98CD00" }}>${Number(detailSummary?.totalRevenue || detailCustomer?.totalRevenue || 0).toLocaleString()}</div>
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Total Revenue</div>
                   </div>
-                  {selectedCustomer.balance > 0 && (
+                  {Number(detailSummary?.outstandingBalance || detailCustomer?.balance || 0) > 0 && (
                     <div className="col-span-2 rounded-lg p-3" style={{ background: "rgba(255,32,78,0.08)", border: "1px solid rgba(255,32,78,0.2)" }}>
-                      <div className="text-lg font-bold" style={{ color: "#FF204E" }}>${selectedCustomer.balance.toLocaleString()}</div>
+                      <div className="text-lg font-bold" style={{ color: "#FF204E" }}>${Number(detailSummary?.outstandingBalance || detailCustomer?.balance || 0).toLocaleString()}</div>
                       <div className="text-xs" style={{ color: "#FF204E" }}>Outstanding Balance</div>
                     </div>
                   )}
                 </div>
 
+                {detailSummary && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.quickbooksInvoiceCount + detailSummary.localInvoiceCount}</div>
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Invoices</div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.quickbooksPaymentCount}</div>
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Payments</div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.purchaseOrderCount}</div>
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>POs</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Tags */}
-                {selectedCustomer.tags.length > 0 && (
+                {detailCustomer && detailCustomer.tags.length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>TAGS</h4>
                     <div className="flex flex-wrap gap-2">
-                      {selectedCustomer.tags.map((tag) => (
+                      {detailCustomer.tags.map((tag) => (
                         <span key={tag} className="text-xs px-2.5 py-1 rounded-md" style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)" }}>
                           {tag}
                         </span>
@@ -486,17 +608,106 @@ export default function CustomersPage() {
                 )}
 
                 {/* Notes */}
-                {selectedCustomer.notes && (
+                {detailCustomer?.notes && (
                   <div>
                     <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</h4>
-                    <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedCustomer.notes}</p>
+                    <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{detailCustomer.notes}</p>
                   </div>
+                )}
+
+                {detailHistory && (
+                  <>
+                    <div>
+                      <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>INVOICES</h4>
+                      <div className="space-y-2">
+                        {[...detailHistory.invoices, ...detailHistory.localInvoices].slice(0, 8).map((invoice) => (
+                          <Link
+                            key={`${invoice.id}-${invoice.invoiceNumber}`}
+                            href={`/invoices?id=${invoice.id}`}
+                            className="block rounded-lg p-3"
+                            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{invoice.invoiceNumber}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {new Date(invoice.issueDate).toLocaleDateString()}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount).toLocaleString()}</div>
+                                <div className="text-xs" style={{ color: Number(invoice.balance) > 0 ? "#FF204E" : "#98CD00" }}>
+                                  {invoice.status} • ${Number(invoice.balance).toLocaleString()} open
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                        {detailHistory.invoices.length + detailHistory.localInvoices.length === 0 && (
+                          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No invoices found for this customer.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PAYMENTS</h4>
+                      <div className="space-y-2">
+                        {detailHistory.payments.slice(0, 8).map((payment) => (
+                          <div key={payment.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{payment.paymentMethod || "QuickBooks payment"}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                  {new Date(payment.txnDate).toLocaleDateString()}
+                                  {payment.linkedTxnIds.length ? ` • ${payment.linkedTxnIds.length} linked invoices` : ""}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-semibold" style={{ color: "#98CD00" }}>${Number(payment.totalAmt).toLocaleString()}</div>
+                                {payment.unappliedAmt > 0 && (
+                                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>${Number(payment.unappliedAmt).toLocaleString()} unapplied</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {detailHistory.payments.length === 0 && (
+                          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No payments found for this customer.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PURCHASE ORDERS</h4>
+                      <div className="space-y-2">
+                        {detailHistory.purchaseOrders.slice(0, 8).map((purchaseOrder) => (
+                          <div key={purchaseOrder.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{purchaseOrder.docNumber}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                  {[purchaseOrder.vendorName, purchaseOrder.txnDate ? new Date(purchaseOrder.txnDate).toLocaleDateString() : undefined].filter(Boolean).join(" • ")}
+                                </div>
+                                {purchaseOrder.memo && (
+                                  <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{purchaseOrder.memo}</div>
+                                )}
+                              </div>
+                              <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(purchaseOrder.totalAmt).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {detailHistory.purchaseOrders.length === 0 && (
+                          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                            No linked purchase orders found. Existing QuickBooks POs appear here when they reference this customer in their memo or line details.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Actions */}
                 <div className="space-y-2">
                   <button
-                    onClick={() => openEditModal(selectedCustomer)}
+                    onClick={() => detailCustomer && openEditModal(detailCustomer)}
                     className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
                     style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
                   >

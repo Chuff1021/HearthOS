@@ -151,10 +151,62 @@ export class QuickBooksClient {
     return key ? (response.QueryResponse as Record<string, T[]>)[key] || [] : [];
   }
 
+  async queryPage<T>(query: string): Promise<{
+    rows: T[];
+    startPosition: number;
+    maxResults: number;
+    totalCount?: number;
+  }> {
+    const encodedQuery = encodeURIComponent(query);
+    const response = await this.request<QBQueryResponse<T>>(
+      'GET',
+      `/query?query=${encodedQuery}`
+    );
+
+    const key = Object.keys(response.QueryResponse).find(
+      (k) => k !== 'startPosition' && k !== 'maxResults' && k !== 'totalCount'
+    );
+
+    return {
+      rows: key ? (response.QueryResponse as Record<string, T[]>)[key] || [] : [],
+      startPosition: Number(response.QueryResponse.startPosition || 1),
+      maxResults: Number(response.QueryResponse.maxResults || 0),
+      totalCount:
+        typeof response.QueryResponse.totalCount === 'number'
+          ? response.QueryResponse.totalCount
+          : undefined,
+    };
+  }
+
+  private async queryAll<T>(baseQuery: string, pageSize = 1000): Promise<T[]> {
+    const rows: T[] = [];
+    let startPosition = 1;
+
+    for (;;) {
+      const page = await this.queryPage<T>(
+        `${baseQuery} STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`
+      );
+
+      rows.push(...page.rows);
+
+      if (!page.rows.length) break;
+      if (page.totalCount && rows.length >= page.totalCount) break;
+      if (page.rows.length < pageSize) break;
+
+      startPosition += pageSize;
+    }
+
+    return rows;
+  }
+
   // === CUSTOMERS ===
   
   async getCustomers(maxResults = 1000): Promise<QBCustomer[]> {
     return this.query<QBCustomer>(`SELECT * FROM Customer MAXRESULTS ${maxResults}`);
+  }
+
+  async getAllCustomers(pageSize = 1000): Promise<QBCustomer[]> {
+    return this.queryAll<QBCustomer>('SELECT * FROM Customer', pageSize);
   }
 
   async getCustomer(id: string): Promise<QBCustomer> {
@@ -255,6 +307,13 @@ export class QuickBooksClient {
     return this.query<QBInvoice>(`SELECT * FROM Invoice ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
   }
 
+  async getInvoicesForCustomer(customerId: string, pageSize = 500): Promise<QBInvoice[]> {
+    return this.queryAll<QBInvoice>(
+      `SELECT * FROM Invoice WHERE CustomerRef = '${customerId}' ORDERBY TxnDate DESC`,
+      pageSize
+    );
+  }
+
   async getInvoice(id: string): Promise<QBInvoice> {
     const response = await this.request<{ Invoice: QBInvoice }>(
       'GET',
@@ -296,6 +355,13 @@ export class QuickBooksClient {
 
   async getPayments(maxResults = 100): Promise<QBPayment[]> {
     return this.query<QBPayment>(`SELECT * FROM Payment ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
+  }
+
+  async getPaymentsForCustomer(customerId: string, pageSize = 500): Promise<QBPayment[]> {
+    return this.queryAll<QBPayment>(
+      `SELECT * FROM Payment WHERE CustomerRef = '${customerId}' ORDERBY TxnDate DESC`,
+      pageSize
+    );
   }
 
   async getPayment(id: string): Promise<QBPayment> {

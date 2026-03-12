@@ -78,7 +78,7 @@ export async function syncAllFromQuickBooks(client: QuickBooksClient): Promise<Q
   try {
     // Sync customers
     try {
-      customersCache = await client.getCustomers();
+      customersCache = await client.getAllCustomers();
       syncStatus.recordsSynced.customers = customersCache.length;
       addLog('customers', 'import', customersCache.length, 'success');
     } catch (err) {
@@ -133,7 +133,7 @@ export async function syncAllFromQuickBooks(client: QuickBooksClient): Promise<Q
 
 // Sync individual types
 export async function syncCustomers(client: QuickBooksClient): Promise<QBCustomer[]> {
-  customersCache = await client.getCustomers();
+  customersCache = await client.getAllCustomers();
   syncStatus.recordsSynced.customers = customersCache.length;
   addLog('customers', 'import', customersCache.length, 'success');
   return customersCache;

@@ -122,8 +122,8 @@ export async function GET(request: NextRequest) {
     try {
       // Pull fresh QB data directly and filter in-memory (more reliable than LIKE query edge cases)
       const [liveCustomers, liveInvoices] = await Promise.all([
-        client.getCustomers(200),
-        client.getInvoices(200),
+        client.getAllCustomers(),
+        client.getInvoices(500),
       ]);
 
       qbMatchedCustomers = liveCustomers
@@ -178,8 +178,8 @@ export async function GET(request: NextRequest) {
         refreshedClient = getClientFromTokens(newTokens.access_token, newTokens.refresh_token, realmId);
 
         const [liveCustomersRetry, liveInvoicesRetry] = await Promise.all([
-          refreshedClient.getCustomers(200),
-          refreshedClient.getInvoices(200),
+          refreshedClient.getAllCustomers(),
+          refreshedClient.getInvoices(500),
         ]);
 
         qbMatchedCustomers = liveCustomersRetry

@@ -119,9 +119,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const sync = searchParams.get('sync');
     const auth = await getQBAuthFromRequest(request);
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+
+    if (sync === 'true') {
+      try {
+        const customers = await syncCustomers(client);
+        return NextResponse.json({ success: true, synced: customers.length });
+      } catch (err) {
+        console.warn('Initial QB customer sync POST failed, trying refresh...', err);
+        const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+        client = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
+        const customers = await syncCustomers(client);
+        return NextResponse.json({ success: true, synced: customers.length, refreshed: true });
+      }
     }
 
     const body = await request.json();
@@ -144,8 +161,6 @@ export async function POST(request: NextRequest) {
         : undefined,
       Active: body.active !== false,
     };
-
-    let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
 
     try {
       const customer = await createCustomerInQuickBooks(client, qbCustomer);
