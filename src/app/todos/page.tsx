@@ -412,7 +412,13 @@ export default function TodosPage() {
                               <span>👤 {todo.relatedCustomerName}</span>
                             )}
                             {todo.relatedCustomerPhone && (
-                              <a href={`tel:${todo.relatedCustomerPhone}`} className="text-orange-300">📞 {todo.relatedCustomerPhone}</a>
+                              <a
+                                href={`tel:${todo.relatedCustomerPhone}`}
+                                className="font-medium transition-colors hover:text-orange-300"
+                                style={{ color: "#FDBA74" }}
+                              >
+                                📞 {todo.relatedCustomerPhone}
+                              </a>
                             )}
                             {todo.assignedToName && (
                               <span>👉 {todo.assignedToName}</span>
