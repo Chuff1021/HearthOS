@@ -160,7 +160,9 @@ export default function CustomersPage() {
   }, [fetchCustomers]);
 
   useEffect(() => {
-    if (!selectedCustomer?.id) {
+    const customerId = selectedCustomer?.id;
+
+    if (!customerId) {
       setSelectedCustomerProfile(null);
       return;
     }
@@ -170,7 +172,7 @@ export default function CustomersPage() {
     async function fetchCustomerProfile() {
       setLoadingProfile(true);
       try {
-        const res = await fetch(`/api/customers/profile?id=${encodeURIComponent(selectedCustomer.id)}`, {
+        const res = await fetch(`/api/customers/profile?id=${encodeURIComponent(customerId)}`, {
           cache: "no-store",
         });
         const data = await res.json();
