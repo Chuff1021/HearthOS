@@ -393,6 +393,14 @@ export class QuickBooksClient {
     return this.query<any>(`SELECT * FROM PurchaseOrder ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
   }
 
+  async getPurchaseOrder(id: string): Promise<any> {
+    const response = await this.request<{ PurchaseOrder: any }>(
+      'GET',
+      `/purchaseorder/${id}`
+    );
+    return response.PurchaseOrder;
+  }
+
   async createPurchaseOrder(purchaseOrder: any): Promise<any> {
     const response = await this.request<{ PurchaseOrder: any }>(
       'POST',

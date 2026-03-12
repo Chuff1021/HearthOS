@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -26,6 +27,7 @@ type Estimate = {
 type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string };
 
 export default function EstimatesPage() {
+  const searchParams = useSearchParams();
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -41,6 +43,9 @@ export default function EstimatesPage() {
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [convertingEstimateId, setConvertingEstimateId] = useState<string | null>(null);
   const [convertedMap, setConvertedMap] = useState<Record<string, string>>({});
+  const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+  const selectedEstimateId = searchParams.get("id");
+  const selectedCustomerId = searchParams.get("customer");
 
   async function loadAll() {
     setLoading(true);
@@ -95,6 +100,32 @@ export default function EstimatesPage() {
   }, [customerQuery]);
 
   const draftTotal = useMemo(() => draftLines.reduce((s, l) => s + l.total, 0), [draftLines]);
+  const filteredEstimates = useMemo(() => {
+    return estimates.filter((estimate) => !selectedCustomerId || estimate.CustomerRef?.value === selectedCustomerId);
+  }, [estimates, selectedCustomerId]);
+  const selectedEstimateLines = selectedEstimate?.Line || [];
+
+  useEffect(() => {
+    if (selectedEstimateId) {
+      const matchedEstimate = estimates.find((estimate) => estimate.Id === selectedEstimateId);
+      if (matchedEstimate) {
+        setSelectedEstimate(matchedEstimate);
+        return;
+      }
+    }
+
+    if (selectedCustomerId && !selectedEstimateId) {
+      const firstCustomerEstimate = estimates.find((estimate) => estimate.CustomerRef?.value === selectedCustomerId);
+      if (firstCustomerEstimate) {
+        setSelectedEstimate(firstCustomerEstimate);
+        return;
+      }
+    }
+
+    if (!selectedEstimateId && !selectedCustomerId && estimates.length && !selectedEstimate) {
+      setSelectedEstimate(estimates[0]);
+    }
+  }, [estimates, selectedEstimateId, selectedCustomerId, selectedEstimate]);
 
   function printEstimate(e: Estimate) {
     const w = window.open("", "_blank", "width=900,height=700");
@@ -319,7 +350,7 @@ export default function EstimatesPage() {
         </div>
 
         <main className="flex-1 overflow-y-auto p-5">
-          <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-5">
+          <div className="max-w-[1800px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-5">
             <div className="xl:col-span-2 rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <h2 className="font-semibold mb-3">AI Estimator</h2>
               {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
@@ -371,18 +402,27 @@ export default function EstimatesPage() {
               <h2 className="font-semibold mb-3">QuickBooks Estimates</h2>
               {loading ? <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p> : (
                 <div className="space-y-2 max-h-[680px] overflow-auto pr-1">
-                  {estimates.map((e) => (
-                    <div key={e.Id} className="p-3 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                  {filteredEstimates.map((e) => (
+                    <div
+                      key={e.Id}
+                      onClick={() => setSelectedEstimate(e)}
+                      className="w-full text-left p-3 rounded-lg cursor-pointer"
+                      style={{
+                        background: "var(--color-surface-3)",
+                        border: `1px solid ${selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.35)" : "var(--color-border)"}`,
+                        boxShadow: selectedEstimate?.Id === e.Id ? "0 0 0 1px rgba(37,99,235,0.15) inset" : "none",
+                      }}
+                    >
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.DocNumber || `Estimate ${e.Id}`}</div>
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
                       <div className="mt-2 grid grid-cols-5 gap-1">
-                        <button onClick={() => emailEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
-                        <button onClick={() => printEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
-                        <button onClick={() => downloadEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
-                        <button onClick={() => editEstimateQuick(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
-                        <button onClick={() => scheduleFromEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
+                        <button onClick={(event) => { event.stopPropagation(); emailEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
+                        <button onClick={(event) => { event.stopPropagation(); printEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
+                        <button onClick={(event) => { event.stopPropagation(); downloadEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
+                        <button onClick={(event) => { event.stopPropagation(); editEstimateQuick(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
+                        <button onClick={(event) => { event.stopPropagation(); scheduleFromEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
                       </div>
 
                       {convertedMap[e.Id] ? (
@@ -400,7 +440,7 @@ export default function EstimatesPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => convertEstimateToInvoice(e)}
+                          onClick={(event) => { event.stopPropagation(); convertEstimateToInvoice(e); }}
                           disabled={convertingEstimateId === e.Id}
                           className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
                           style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
@@ -410,6 +450,52 @@ export default function EstimatesPage() {
                       )}
                     </div>
                   ))}
+                  {filteredEstimates.length === 0 && (
+                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <h2 className="font-semibold mb-3">Estimate Details</h2>
+              {!selectedEstimate ? (
+                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select an estimate to review its lines and totals.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</div>
+                    <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedEstimate.CustomerRef?.name || "Customer"}</div>
+                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                      {[selectedEstimate.TxnDate, selectedEstimate.ExpirationDate ? `Expires ${selectedEstimate.ExpirationDate}` : undefined].filter(Boolean).join(" • ")}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {selectedEstimateLines.map((line, idx) => (
+                      <div key={`${selectedEstimate.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                          {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                          {Number(line.SalesItemLineDetail?.Qty || 1)} x ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
+                          ${Number(line.Amount || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                    {selectedEstimateLines.length === 0 && (
+                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimate lines found.</p>
+                    )}
+                  </div>
+
+                  <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total</span>
+                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(selectedEstimate.TotalAmt || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

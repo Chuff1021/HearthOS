@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -47,6 +48,7 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 };
 
 export default function InvoicesPage() {
+  const searchParams = useSearchParams();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,8 @@ export default function InvoicesPage() {
   const [syncing, setSyncing] = useState(false);
   const [squareSignals, setSquareSignals] = useState<Record<string, { status: string; amount: number; paymentDate: string }>>({});
   const [reconcilingSquare, setReconcilingSquare] = useState(false);
+  const selectedInvoiceId = searchParams.get("id");
+  const selectedCustomerId = searchParams.get("customer");
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -196,8 +200,26 @@ export default function InvoicesPage() {
       inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCustomer = !selectedCustomerId || inv.customerId === selectedCustomerId;
+    return matchesSearch && matchesStatus && matchesCustomer;
   });
+
+  useEffect(() => {
+    if (selectedInvoiceId) {
+      const matchedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId);
+      if (matchedInvoice) {
+        setSelectedInvoice(matchedInvoice);
+        return;
+      }
+    }
+
+    if (selectedCustomerId && !selectedInvoiceId) {
+      const firstCustomerInvoice = invoices.find((invoice) => invoice.customerId === selectedCustomerId);
+      if (firstCustomerInvoice) {
+        setSelectedInvoice(firstCustomerInvoice);
+      }
+    }
+  }, [invoices, selectedInvoiceId, selectedCustomerId]);
 
   const totalOutstanding = invoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);
   const totalOverdue = invoices.filter((i) => i.status === "overdue").reduce((sum, i) => sum + i.balance, 0);

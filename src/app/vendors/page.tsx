@@ -1,25 +1,47 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
 type Vendor = { Id: string; DisplayName: string; CompanyName?: string; PrimaryEmailAddr?: { Address?: string } };
 type Item = { Id: string; Name: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { value?: string; name?: string }; TotalAmt?: number };
+type PurchaseOrderDetail = PO & {
+  Memo?: string;
+  PrivateNote?: string;
+  ShipAddr?: { Line1?: string; City?: string; CountrySubDivisionCode?: string; PostalCode?: string };
+  Line?: Array<{
+    Id?: string;
+    Description?: string;
+    Amount?: number;
+    ItemBasedExpenseLineDetail?: {
+      Qty?: number;
+      UnitPrice?: number;
+      ItemRef?: { value?: string; name?: string };
+    };
+  }>;
+};
 
 export default function VendorsPage() {
+  const searchParams = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState("");
+  const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrderDetail | null>(null);
+  const [loadingPurchaseOrder, setLoadingPurchaseOrder] = useState(false);
 
   const [vendorQuery, setVendorQuery] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [memo, setMemo] = useState("");
   const [lines, setLines] = useState([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+  const purchaseOrderIdFromUrl = searchParams.get("purchaseOrderId");
+  const vendorIdFromUrl = searchParams.get("vendorId");
 
   async function loadAll() {
     setLoading(true);
@@ -42,7 +64,9 @@ export default function VendorsPage() {
       setItems(iData.items || []);
       setPurchaseOrders(pData.purchaseOrders || []);
 
-      if (!selectedVendorId && vData.vendors?.length) {
+      if (vendorIdFromUrl && vData.vendors?.some((vendor: Vendor) => vendor.Id === vendorIdFromUrl)) {
+        setSelectedVendorId(vendorIdFromUrl);
+      } else if (!selectedVendorId && vData.vendors?.length) {
         setSelectedVendorId(vData.vendors[0].Id);
       }
     } catch (e) {
@@ -78,6 +102,56 @@ export default function VendorsPage() {
     return lines.reduce((sum, l) => sum + Number(l.qty || 0) * Number(l.unitPrice || 0), 0);
   }, [lines]);
 
+  useEffect(() => {
+    if (purchaseOrderIdFromUrl) {
+      setSelectedPurchaseOrderId(purchaseOrderIdFromUrl);
+    }
+  }, [purchaseOrderIdFromUrl]);
+
+  useEffect(() => {
+    if (!selectedPurchaseOrderId) {
+      setSelectedPurchaseOrder(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPurchaseOrder() {
+      setLoadingPurchaseOrder(true);
+      try {
+        const res = await fetch(`/api/quickbooks/purchase-orders?id=${encodeURIComponent(selectedPurchaseOrderId)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          if (!res.ok) throw new Error(data.error || "Failed to load purchase order");
+          setSelectedPurchaseOrder(data.purchaseOrder || null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSelectedPurchaseOrder(null);
+          setError(e instanceof Error ? e.message : "Failed to load purchase order");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPurchaseOrder(false);
+        }
+      }
+    }
+
+    loadPurchaseOrder();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPurchaseOrderId]);
+
+  useEffect(() => {
+    if (selectedPurchaseOrder?.VendorRef?.value) {
+      setSelectedVendorId(selectedPurchaseOrder.VendorRef.value);
+    }
+  }, [selectedPurchaseOrder?.VendorRef?.value]);
+
   function updateLine(idx: number, patch: Partial<(typeof lines)[number]>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   }
@@ -110,6 +184,7 @@ export default function VendorsPage() {
 
       setMemo("");
       setLines([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+      setSelectedPurchaseOrderId(data.purchaseOrder?.Id || "");
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create purchase order");
@@ -133,7 +208,7 @@ export default function VendorsPage() {
         </div>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-5 gap-6">
             <div className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <h2 className="font-semibold mb-3">Vendor Search</h2>
               <input
@@ -212,14 +287,72 @@ export default function VendorsPage() {
               {loading ? <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p> : (
                 <div className="space-y-2 max-h-[620px] overflow-auto pr-1">
                   {vendorPOs.slice(0, 40).map((po) => (
-                    <div key={po.Id} className="p-3 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                    <button
+                      key={po.Id}
+                      onClick={() => setSelectedPurchaseOrderId(po.Id)}
+                      className="w-full text-left p-3 rounded-lg"
+                      style={{
+                        background: "var(--color-surface-3)",
+                        border: `1px solid ${selectedPurchaseOrderId === po.Id ? "rgba(37,99,235,0.35)" : "var(--color-border)"}`,
+                      }}
+                    >
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
                       <div className="text-sm font-semibold">{po.VendorRef?.name || "Vendor"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(po.TotalAmt || 0).toFixed(2)}</div>
-                    </div>
+                    </button>
                   ))}
                   {vendorPOs.length === 0 && <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No POs for this vendor yet.</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <h2 className="font-semibold mb-3">Purchase Order Detail</h2>
+              {loadingPurchaseOrder ? (
+                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading purchase order...</p>
+              ) : !selectedPurchaseOrder ? (
+                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select a purchase order to inspect the actual QuickBooks document.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPurchaseOrder.DocNumber || `PO ${selectedPurchaseOrder.Id}`}</div>
+                    <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedPurchaseOrder.VendorRef?.name || "Vendor"}</div>
+                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{selectedPurchaseOrder.TxnDate || "—"}</div>
+                  </div>
+
+                  {(selectedPurchaseOrder.Memo || selectedPurchaseOrder.PrivateNote) && (
+                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>Memo</div>
+                      <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedPurchaseOrder.Memo || selectedPurchaseOrder.PrivateNote}</div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {(selectedPurchaseOrder.Line || []).map((line, idx) => (
+                      <div key={`${selectedPurchaseOrder.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                          {line.Description || line.ItemBasedExpenseLineDetail?.ItemRef?.name || "PO line"}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                          {Number(line.ItemBasedExpenseLineDetail?.Qty || 1)} x ${Number(line.ItemBasedExpenseLineDetail?.UnitPrice || 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
+                          ${Number(line.Amount || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                    {(selectedPurchaseOrder.Line || []).length === 0 && (
+                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No purchase-order lines found.</p>
+                    )}
+                  </div>
+
+                  <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total</span>
+                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(selectedPurchaseOrder.TotalAmt || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

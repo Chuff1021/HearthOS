@@ -47,6 +47,14 @@ export async function GET(request: NextRequest) {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const purchaseOrder = await withRefresh(auth, (client) => client.getPurchaseOrder(id));
+      return NextResponse.json({ purchaseOrder });
+    }
+
     const purchaseOrders = (await withRefresh(auth, (client) => client.getPurchaseOrders(300))) as any[];
     return NextResponse.json({ purchaseOrders, total: purchaseOrders.length });
   } catch (err) {

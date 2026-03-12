@@ -72,6 +72,7 @@ interface CustomerProfile {
       id: string;
       docNumber: string;
       txnDate?: string;
+      vendorId?: string;
       vendorName?: string;
       totalAmt: number;
       memo?: string;
@@ -307,19 +308,6 @@ export default function CustomersPage() {
       setError("Failed to save customer");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDeleteCustomer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
-    try {
-      const res = await fetch(`/api/customers?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setSelectedCustomer(null);
-        fetchCustomers();
-      }
-    } catch {
-      setError("Failed to delete customer");
     }
   };
 
@@ -669,9 +657,9 @@ export default function CustomersPage() {
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>ESTIMATES</h4>
                       <div className="space-y-2">
                         {detailHistory.estimates.slice(0, 8).map((estimate) => (
-                          <a
+                          <Link
                             key={estimate.id}
-                            href="/estimates"
+                            href={`/estimates?id=${estimate.id}`}
                             className="block rounded-lg p-3"
                             style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                           >
@@ -684,7 +672,7 @@ export default function CustomersPage() {
                               </div>
                               <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmt).toLocaleString()}</div>
                             </div>
-                          </a>
+                          </Link>
                         ))}
                         {detailHistory.estimates.length === 0 && (
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</div>
@@ -724,7 +712,12 @@ export default function CustomersPage() {
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PURCHASE ORDERS</h4>
                       <div className="space-y-2">
                         {detailHistory.purchaseOrders.slice(0, 8).map((purchaseOrder) => (
-                          <div key={purchaseOrder.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                          <Link
+                            key={purchaseOrder.id}
+                            href={`/vendors?purchaseOrderId=${purchaseOrder.id}${purchaseOrder.vendorId ? `&vendorId=${purchaseOrder.vendorId}` : ""}`}
+                            className="block rounded-lg p-3"
+                            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                          >
                             <div className="flex items-center justify-between gap-2">
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{purchaseOrder.docNumber}</div>
@@ -737,7 +730,7 @@ export default function CustomersPage() {
                               </div>
                               <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(purchaseOrder.totalAmt).toLocaleString()}</div>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                         {detailHistory.purchaseOrders.length === 0 && (
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
@@ -766,13 +759,13 @@ export default function CustomersPage() {
                     >
                       View Invoices
                     </Link>
-                    <button
-                      onClick={() => handleDeleteCustomer(selectedCustomer.id)}
-                      className="px-4 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.2)" }}
+                    <Link
+                      href={`/estimates?customer=${selectedCustomer.id}`}
+                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-center"
+                      style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                     >
-                      Delete
-                    </button>
+                      View Estimates
+                    </Link>
                   </div>
                 </div>
               </div>

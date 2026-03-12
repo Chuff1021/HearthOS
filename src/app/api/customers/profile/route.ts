@@ -72,6 +72,7 @@ type CustomerProfile = {
       id: string;
       docNumber: string;
       txnDate?: string;
+      vendorId?: string;
       vendorName?: string;
       totalAmt: number;
       memo?: string;
@@ -247,6 +248,7 @@ export async function GET(request: NextRequest) {
             id: purchaseOrder.Id,
             docNumber: purchaseOrder.DocNumber || `PO ${purchaseOrder.Id}`,
             txnDate: purchaseOrder.TxnDate,
+            vendorId: purchaseOrder.VendorRef?.value,
             vendorName: purchaseOrder.VendorRef?.name,
             totalAmt: Number(purchaseOrder.TotalAmt || 0),
             memo: purchaseOrder.Memo || purchaseOrder.PrivateNote || purchaseOrder.CustomerMemo?.value,
