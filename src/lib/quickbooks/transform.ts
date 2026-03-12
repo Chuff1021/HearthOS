@@ -35,9 +35,13 @@ export function transformCustomer(qbCustomer: QBCustomer) {
  * Transform QuickBooks Invoice Line to UI format
  */
 function transformInvoiceLine(line: QBInvoiceLine, index: number) {
+  const itemName = line.SalesItemLineDetail?.ItemRef?.name;
   return {
     id: line.Id || `line-${index}`,
-    description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || 'Item',
+    description: line.Description || itemName || 'Item',
+    itemId: line.SalesItemLineDetail?.ItemRef?.value,
+    itemName,
+    partNumber: itemName,
     qty: line.SalesItemLineDetail?.Qty || 1,
     unitPrice: line.SalesItemLineDetail?.UnitPrice || (line.Amount || 0),
     total: line.Amount || 0,

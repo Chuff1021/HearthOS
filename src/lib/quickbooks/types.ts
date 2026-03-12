@@ -51,6 +51,7 @@ export interface QBItem {
   Id: string;
   Name: string;
   Description?: string;
+  Sku?: string;
   Type: 'Service' | 'Inventory' | 'NonInventory' | 'Category';
   UnitPrice?: number;
   PurchaseCost?: number;
@@ -122,6 +123,9 @@ export interface QBInvoice {
   EmailStatus?: 'NeedToSend' | 'NotSet' | 'EmailSent';
   BillEmail?: {
     Address: string;
+  };
+  CustomerMemo?: {
+    value?: string;
   };
   PrivateNote?: string;
   CreatedTime: string;

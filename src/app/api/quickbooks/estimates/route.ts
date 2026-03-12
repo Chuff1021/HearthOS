@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         Id: String(idx + 1),
         Amount: Number(line.amount || 0),
         DetailType: 'SalesItemLineDetail',
-        Description: line.description || undefined,
+        Description: line.partNumber ? `${line.description || ''}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
         SalesItemLineDetail: {
           ItemRef: line.itemId ? { value: line.itemId } : undefined,
           Qty: Number(line.qty || 1),

@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId');
     const outstanding = searchParams.get('outstanding');
     const sync = searchParams.get('sync');
+    const live = searchParams.get('live');
 
     // If sync requested, pull fresh data from QuickBooks
-    if (sync === 'true') {
+    if (sync === 'true' || live === 'true') {
       let accessToken = request.cookies.get('qb_access_token')?.value;
       let refreshToken = request.cookies.get('qb_refresh_token')?.value;
       let realmId = request.cookies.get('qb_realm_id')?.value;
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     
     if (isUIFormat) {
       // Transform UI format to QB format
-      const uiLineItems = (body.lineItems as Array<{description: string; qty: number; unitPrice: number; total: number}>);
+      const uiLineItems = (body.lineItems as Array<{description: string; itemId?: string; itemName?: string; partNumber?: string; qty: number; unitPrice: number; total: number}>);
       qbInvoice = {
         CustomerRef: {
           value: (body as any).customerId || '',
@@ -149,12 +150,12 @@ export async function POST(request: NextRequest) {
           LineNum: idx + 1,
           Amount: li.total,
           DetailType: 'SalesItemLineDetail' as const,
-          Description: li.description,
+          Description: li.partNumber ? `${li.description}\nPart: ${li.partNumber}` : li.description,
           SalesItemLineDetail: {
-            ItemRef: {
-              value: '',
-              name: li.description,
-            },
+            ItemRef: li.itemId ? {
+              value: li.itemId,
+              name: li.itemName || li.partNumber || li.description,
+            } : undefined,
             UnitPrice: li.unitPrice,
             Qty: li.qty,
           },

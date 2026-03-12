@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
 type Customer = { id: string; displayName: string };
-type Item = { Id: string; Name: string; UnitPrice?: number };
+type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type Estimate = {
   Id: string;
   DocNumber?: string;
@@ -26,8 +26,8 @@ type Estimate = {
   }>;
   TotalAmt?: number;
 };
-type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string };
-type EstimateLineDraft = { description: string; qty: number; unitPrice: number; amount: number; itemId?: string; itemName?: string };
+type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string; itemId?: string; itemName?: string; partNumber?: string };
+type EstimateLineDraft = { description: string; qty: number; unitPrice: number; amount: number; itemId?: string; itemName?: string; partNumber?: string };
 
 export default function EstimatesPage() {
   const searchParams = useSearchParams();
@@ -61,6 +61,10 @@ export default function EstimatesPage() {
   const selectedEstimateId = searchParams.get("id");
   const selectedCustomerFilterId = searchParams.get("customer");
 
+  function getItemPartNumber(item: Item | undefined) {
+    return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
+  }
+
   function mapEstimateLines(estimate: Estimate): EstimateLineDraft[] {
     return (estimate.Line || []).map((line) => ({
       description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "",
@@ -69,12 +73,14 @@ export default function EstimatesPage() {
       amount: Number(line.Amount || 0),
       itemId: line.SalesItemLineDetail?.ItemRef?.value,
       itemName: line.SalesItemLineDetail?.ItemRef?.name,
+      partNumber: line.SalesItemLineDetail?.ItemRef?.name,
     }));
   }
 
   function buildEstimateDocument(estimate: Estimate) {
     const lines = (estimate.Line || []).map((line) => ({
       description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line",
+      partNumber: line.SalesItemLineDetail?.ItemRef?.name || "",
       qty: Number(line.SalesItemLineDetail?.Qty || 1),
       unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
       amount: Number(line.Amount || 0),
@@ -125,7 +131,7 @@ export default function EstimatesPage() {
       <tbody>
         ${lines.map((line) => `
           <tr>
-            <td>${line.description}</td>
+            <td>${line.description}${line.partNumber ? `<div style="color:#6b7280;font-size:12px;margin-top:4px;">Part: ${line.partNumber}</div>` : ""}</td>
             <td>${line.qty}</td>
             <td>$${line.unitPrice.toFixed(2)}</td>
             <td>$${line.amount.toFixed(2)}</td>
@@ -306,7 +312,7 @@ export default function EstimatesPage() {
   function addEstimateLine() {
     setEstimateEditForm((prev) => ({
       ...prev,
-      lines: [...prev.lines, { description: "", qty: 1, unitPrice: 0, amount: 0 }],
+      lines: [...prev.lines, { description: "", qty: 1, unitPrice: 0, amount: 0, itemId: "", partNumber: "" }],
     }));
   }
 
@@ -335,7 +341,7 @@ export default function EstimatesPage() {
               Id: String(idx + 1),
               Amount: Number(line.amount || 0),
               DetailType: "SalesItemLineDetail",
-              Description: line.description || undefined,
+              Description: line.partNumber ? `${line.description || ""}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
               SalesItemLineDetail: {
                 ItemRef: line.itemId ? { value: line.itemId, name: line.itemName } : undefined,
                 Qty: Number(line.qty || 0),
@@ -384,6 +390,9 @@ export default function EstimatesPage() {
     if (!item) return;
     setDraftLines((prev) => prev.map((l, i) => i === idx ? {
       ...l,
+      itemId,
+      itemName: item.Name,
+      partNumber: getItemPartNumber(item),
       description: l.description || item.Name,
       unitPrice: Number(item.UnitPrice || l.unitPrice || 0),
       total: Number(l.qty || 1) * Number(item.UnitPrice || l.unitPrice || 0),
@@ -407,6 +416,9 @@ export default function EstimatesPage() {
     try {
       const lines = draftLines.map((l) => ({
         description: l.description,
+        itemId: l.itemId,
+        itemName: l.itemName,
+        partNumber: l.partNumber,
         qty: Number(l.qty || 0),
         unitPrice: Number(l.unitPrice || 0),
         amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
@@ -521,11 +533,16 @@ export default function EstimatesPage() {
         <main className="flex-1 overflow-y-auto p-5">
           <div className="max-w-[1800px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-5">
             <div className="xl:col-span-2 rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">AI Estimator</h2>
+              <h2 className="font-semibold mb-3">Estimate Builder</h2>
               {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
 
               <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Example: build me a bid on a 42 Apex wood fireplace with timberline face and 25 feet of pipe" className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-              <button onClick={generateFromAI} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)" }}>Generate Draft</button>
+              <div className="mt-3 flex gap-2">
+                <button onClick={generateFromAI} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)" }}>Generate Draft</button>
+                <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                  Add Manual Line
+                </button>
+              </div>
 
               <div className="mt-5">
                 <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
@@ -547,12 +564,14 @@ export default function EstimatesPage() {
                   <div key={idx} className="grid grid-cols-12 gap-2">
                     <select className="col-span-3 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} onChange={(e) => assignItemPricing(idx, e.target.value)}>
                       <option value="">Map Item (optional)</option>
-                      {items.map((it) => <option key={it.Id} value={it.Id}>{it.Name}</option>)}
+                      {items.map((it) => <option key={it.Id} value={it.Id}>{it.Name} · {getItemPartNumber(it)}</option>)}
                     </select>
-                    <input className="col-span-5 px-2 py-2 rounded-lg text-sm" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                    <input className="col-span-4 px-2 py-2 rounded-lg text-sm" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                    <input className="col-span-2 px-2 py-2 rounded-lg text-sm" value={line.partNumber || ""} placeholder="Part #" onChange={(e) => updateLine(idx, { partNumber: e.target.value })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                     <input type="number" className="col-span-1 px-2 py-2 rounded-lg text-sm" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input type="number" step="0.01" className="col-span-2 px-2 py-2 rounded-lg text-sm" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                    <input type="number" step="0.01" className="col-span-1 px-2 py-2 rounded-lg text-sm" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                     <div className="col-span-1 text-sm font-semibold flex items-center justify-end">${line.total.toFixed(0)}</div>
+                    <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="col-span-1 px-2 py-2 rounded-lg text-xs" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>✕</button>
                   </div>
                 ))}
               </div>
@@ -693,6 +712,7 @@ export default function EstimatesPage() {
                                 updateEstimateLine(idx, {
                                   itemId: event.target.value || undefined,
                                   itemName: item?.Name,
+                                  partNumber: getItemPartNumber(item),
                                   description: item?.Name || estimateEditForm.lines[idx]?.description || "",
                                   unitPrice: Number(item?.UnitPrice || estimateEditForm.lines[idx]?.unitPrice || 0),
                                 });
@@ -700,14 +720,21 @@ export default function EstimatesPage() {
                               className="w-full px-3 py-2 rounded-lg text-sm"
                               style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                             >
-                              <option value="">Map item (optional)</option>
-                              {items.map((item) => (
-                                <option key={item.Id} value={item.Id}>{item.Name}</option>
-                              ))}
-                            </select>
+                                <option value="">Map item (optional)</option>
+                                {items.map((item) => (
+                                  <option key={item.Id} value={item.Id}>{item.Name} · {getItemPartNumber(item)}</option>
+                                ))}
+                              </select>
                             <input
                               value={estimateEditForm.lines[idx]?.description || ""}
                               onChange={(event) => updateEstimateLine(idx, { description: event.target.value })}
+                              className="w-full px-3 py-2 rounded-lg text-sm"
+                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                            />
+                            <input
+                              value={estimateEditForm.lines[idx]?.partNumber || ""}
+                              onChange={(event) => updateEstimateLine(idx, { partNumber: event.target.value })}
+                              placeholder="Part number"
                               className="w-full px-3 py-2 rounded-lg text-sm"
                               style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                             />
@@ -742,6 +769,11 @@ export default function EstimatesPage() {
                             <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
                               {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
                             </div>
+                            {line.SalesItemLineDetail?.ItemRef?.name && (
+                              <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                Part: {line.SalesItemLineDetail.ItemRef.name}
+                              </div>
+                            )}
                             <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
                               {Number(line.SalesItemLineDetail?.Qty || 1)} x ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
                             </div>

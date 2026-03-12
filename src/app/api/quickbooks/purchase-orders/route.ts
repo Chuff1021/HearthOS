@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         Id: String(idx + 1),
         Amount: Number(line.amount || 0),
         DetailType: 'ItemBasedExpenseLineDetail',
-        Description: line.description || undefined,
+        Description: line.itemId && line.description ? line.description : line.description || undefined,
         ItemBasedExpenseLineDetail: {
           ItemRef: line.itemId ? { value: line.itemId } : undefined,
           Qty: Number(line.qty || 1),

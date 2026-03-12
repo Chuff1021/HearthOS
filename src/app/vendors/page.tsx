@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
 type Vendor = { Id: string; DisplayName: string; CompanyName?: string; PrimaryEmailAddr?: { Address?: string } };
-type Item = { Id: string; Name: string; UnitPrice?: number };
+type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { value?: string; name?: string }; TotalAmt?: number };
 type PurchaseOrderDetail = PO & {
   Memo?: string;
@@ -252,16 +252,16 @@ export default function VendorsPage() {
                         const item = items.find((it) => it.Id === e.target.value);
                         updateLine(idx, {
                           itemId: e.target.value,
-                          description: item?.Name || line.description,
+                          description: item ? `${item.Name}${getItemPartNumber(item) ? ` | Part: ${getItemPartNumber(item)}` : ""}` : line.description,
                           unitPrice: Number(item?.UnitPrice || line.unitPrice || 0),
                         });
                       }}
                       className="col-span-4 px-2 py-2 rounded-lg text-sm"
                       style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
                     >
-                      <option value="">Item</option>
-                      {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name}</option>)}
-                    </select>
+                        <option value="">Item</option>
+                        {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name} · {getItemPartNumber(i)}</option>)}
+                      </select>
                     <input value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} className="col-span-4 px-2 py-2 rounded-lg text-sm" placeholder="Description" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                     <input type="number" min={1} value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 1) })} className="col-span-1 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                     <input type="number" step="0.01" min={0} value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} className="col-span-2 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
@@ -362,3 +362,6 @@ export default function VendorsPage() {
     </div>
   );
 }
+  function getItemPartNumber(item: Item | undefined) {
+    return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
+  }

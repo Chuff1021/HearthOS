@@ -5,7 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
 type Vendor = { Id: string; DisplayName: string; CompanyName?: string };
-type Item = { Id: string; Name: string; Type?: string; UnitPrice?: number };
+type Item = { Id: string; Name: string; Type?: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { name?: string }; TotalAmt?: number };
 
 export default function PurchaseOrdersPage() {
@@ -19,6 +19,10 @@ export default function PurchaseOrdersPage() {
   const [vendorId, setVendorId] = useState("");
   const [memo, setMemo] = useState("");
   const [lines, setLines] = useState([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+
+  function getItemPartNumber(item: Item | undefined) {
+    return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -160,7 +164,7 @@ export default function PurchaseOrdersPage() {
                           const item = items.find((i) => i.Id === e.target.value);
                           updateLine(idx, {
                             itemId: e.target.value,
-                            description: item?.Name || line.description,
+                            description: item ? `${item.Name}${getItemPartNumber(item) ? ` | Part: ${getItemPartNumber(item)}` : ""}` : line.description,
                             unitPrice: Number(item?.UnitPrice || line.unitPrice || 0),
                           });
                         }}
@@ -168,7 +172,7 @@ export default function PurchaseOrdersPage() {
                         style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
                       >
                         <option value="">Item</option>
-                        {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name}</option>)}
+                        {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name} · {getItemPartNumber(i)}</option>)}
                       </select>
 
                       <input value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} placeholder="Description" className="col-span-4 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
