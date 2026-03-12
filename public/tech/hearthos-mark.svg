@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="mark-panel" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF7EA"/>
+      <stop offset="1" stop-color="#F2E0C6"/>
+    </linearGradient>
+    <linearGradient id="mark-flame" x1="18" y1="72" x2="94" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF6A00"/>
+      <stop offset="0.55" stop-color="#FFB000"/>
+      <stop offset="1" stop-color="#FFF1A6"/>
+    </linearGradient>
+    <linearGradient id="mark-ember" x1="42" y1="76" x2="69" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF5A00"/>
+      <stop offset="1" stop-color="#FFF4D8"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="112" height="112" rx="28" fill="url(#mark-panel)"/>
+  <path d="M10 28C32 37 50 38 72 31C90 25 102 21 114 18V4H10V28Z" fill="white" fill-opacity="0.42"/>
+  <path d="M12 63H24L33 52L40 77L47 38L55 62L66 30L80 64H98" stroke="url(#mark-flame)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M75 86C59 86 49 75 49 61C49 50 56 41 64 35C63 45 67 49 73 49C70 42 72 34 79 27C77 37 81 45 87 51C93 45 95 38 95 32C103 39 108 49 108 62C108 77 96 86 82 86H75Z" fill="url(#mark-flame)"/>
+  <path d="M77 86C77 78 77.2 69.7 77.2 62C85 62.3 89.5 68 89.5 75C89.5 82.5 85.1 88.5 78 88.5H77Z" fill="url(#mark-ember)"/>
+</svg>

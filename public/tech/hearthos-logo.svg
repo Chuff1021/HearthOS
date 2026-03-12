@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" fill="none">
+  <defs>
+    <linearGradient id="hearthos-panel" x1="28" y1="16" x2="148" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF7EA"/>
+      <stop offset="1" stop-color="#F2E0C6"/>
+    </linearGradient>
+    <linearGradient id="hearthos-flame" x1="28" y1="70" x2="118" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF6A00"/>
+      <stop offset="0.55" stop-color="#FFB000"/>
+      <stop offset="1" stop-color="#FFF1A6"/>
+    </linearGradient>
+    <linearGradient id="hearthos-ember" x1="44" y1="76" x2="80" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF5A00"/>
+      <stop offset="1" stop-color="#FFF4D8"/>
+    </linearGradient>
+    <filter id="hearthos-glow" x="0" y="8" width="150" height="106" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.98 0 1 0 0 0.42 0 0 1 0 0 0 0 0 1 0"/>
+    </filter>
+    <filter id="hearthos-text-glow" x="126" y="26" width="340" height="66" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.99 0 1 0 0 0.48 0 0 1 0 0.05 0 0 0 0.55 0"/>
+    </filter>
+  </defs>
+
+  <rect x="8" y="10" width="464" height="100" rx="30" fill="url(#hearthos-panel)"/>
+  <path d="M20 30C68 44 100 46 156 34C192 26 226 20 278 22C336 24 392 42 460 18V10H20V30Z" fill="white" fill-opacity="0.44"/>
+
+  <g transform="translate(28 22)">
+    <g filter="url(#hearthos-glow)">
+      <path d="M8 46H22L32 34L40 58L49 23L58 46L70 18L84 48H102" stroke="#FF9F2B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+      <path d="M82 62C65 62 54 50 54 36C54 25 61 15 70 9C69 19 73 24 79 24C76 17 78 8 86 1C84 11 88 20 94 26C100 20 103 13 102 7C111 14 117 25 117 37C117 53 104 62 89 62H82Z" fill="#FFC449"/>
+    </g>
+    <path d="M8 46H22L32 34L40 58L49 23L58 46L70 18L84 48H102" stroke="url(#hearthos-flame)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M82 62C65 62 54 50 54 36C54 25 61 15 70 9C69 19 73 24 79 24C76 17 78 8 86 1C84 11 88 20 94 26C100 20 103 13 102 7C111 14 117 25 117 37C117 53 104 62 89 62H82Z" fill="url(#hearthos-flame)"/>
+    <path d="M84 61.5C84 53.5 84.2 45.7 84.2 37.8C92.8 38.1 97.7 44.1 97.7 51.3C97.7 59 92.8 65.4 85.3 65.4H84Z" fill="url(#hearthos-ember)"/>
+  </g>
+
+  <g>
+    <text x="160" y="72" font-family="'Avenir Next', 'Montserrat', 'Segoe UI', Arial, sans-serif" font-size="54" font-weight="600" fill="#233041">Hearth</text>
+    <text x="356" y="72" font-family="'Avenir Next', 'Montserrat', 'Segoe UI', Arial, sans-serif" font-size="54" font-weight="500" fill="#233041">OS</text>
+    <g filter="url(#hearthos-text-glow)">
+      <text x="160" y="72" font-family="'Avenir Next', 'Montserrat', 'Segoe UI', Arial, sans-serif" font-size="54" font-weight="600" fill="#FF8A1D" fill-opacity="0.32">Hearth OS</text>
+    </g>
+  </g>
+</svg>
