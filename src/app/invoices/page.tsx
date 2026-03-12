@@ -50,6 +50,27 @@ interface Item {
   UnitPrice?: number;
 }
 
+function normalizeSearchValue(value: string | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchesSearchQuery(query: string, ...fields: Array<string | undefined>) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return true;
+
+  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  return fields.some((field) => {
+    const normalizedField = normalizeSearchValue(field);
+    if (!normalizedField) return false;
+    if (normalizedField.includes(normalizedQuery)) return true;
+    return queryTokens.every((token) => normalizedField.includes(token));
+  });
+}
+
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
   sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
@@ -196,7 +217,7 @@ export default function InvoicesPage() {
     setError(null);
     try {
       // Try QuickBooks endpoint first
-      const res = await fetch("/api/quickbooks/invoices?live=true");
+      const res = await fetch("/api/quickbooks/invoices?live=true", { cache: "no-store" });
       const data = await res.json();
       
       if (data.error) {
@@ -321,13 +342,15 @@ export default function InvoicesPage() {
   }, [invoices, squareSignals, fetchInvoices]);
 
   const filteredInvoices = invoices.filter((inv) => {
-    const matchesSearch =
-      inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = matchesSearchQuery(
+      searchQuery,
+      inv.invoiceNumber,
+      inv.customerName,
+      inv.jobTitle,
+      inv.notes,
+    );
     const matchesStatus = statusFilter === "all" || inv.status === statusFilter;
-    const matchesCustomer = !selectedCustomerId || inv.customerId === selectedCustomerId;
-    return matchesSearch && matchesStatus && matchesCustomer;
+    return matchesSearch && matchesStatus;
   });
 
   useEffect(() => {

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const outstanding = searchParams.get('outstanding');
     const sync = searchParams.get('sync');
     const live = searchParams.get('live');
+    let invoices = getCachedInvoices();
 
     // If sync requested, pull fresh data from QuickBooks
     if (sync === 'true' || live === 'true') {
@@ -42,26 +43,31 @@ export async function GET(request: NextRequest) {
       }
 
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
-      await syncInvoices(client);
+      invoices = await syncInvoices(client);
     }
 
     // Get outstanding invoices
     if (outstanding === 'true') {
-      const invoices = getOutstandingInvoices();
-      const transformed = transformInvoices(invoices);
-      const total = getTotalOutstanding();
+      const outstandingInvoices = (sync === 'true' || live === 'true')
+        ? invoices.filter((invoice) => Number(invoice.Balance || 0) > 0)
+        : getOutstandingInvoices();
+      const transformed = transformInvoices(outstandingInvoices);
+      const total = (sync === 'true' || live === 'true')
+        ? outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.Balance || 0), 0)
+        : getTotalOutstanding();
       return NextResponse.json({ invoices: transformed, totalOutstanding: total });
     }
 
     // Get invoices for specific customer
     if (customerId) {
-      const invoices = getInvoicesForCustomer(customerId);
-      const transformed = transformInvoices(invoices);
+      const customerInvoices = (sync === 'true' || live === 'true')
+        ? invoices.filter((invoice) => invoice.CustomerRef?.value === customerId)
+        : getInvoicesForCustomer(customerId);
+      const transformed = transformInvoices(customerInvoices);
       return NextResponse.json({ invoices: transformed, total: transformed.length });
     }
 
     // Return all cached invoices
-    const invoices = getCachedInvoices();
     const transformed = transformInvoices(invoices);
     return NextResponse.json({ invoices: transformed, total: transformed.length });
   } catch (err) {
