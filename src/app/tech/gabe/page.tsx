@@ -329,9 +329,12 @@ function GABEInner() {
       ];
 
   return (
-    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-32">
       {/* Header */}
-      <header className="ui-mobile-header p-4 sticky top-0 z-10 border-b">
+      <header
+        className="ui-mobile-header sticky top-0 z-10 border-b px-4 pb-4"
+        style={{ paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))" }}
+      >
         <div className="flex items-center gap-3">
           <Link href={jobId ? `/tech/job/${jobId}` : "/tech"} className="hover:text-orange-500" style={{ color: "var(--color-text-muted)" }}>
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -375,7 +378,7 @@ function GABEInner() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ color: "var(--color-text-primary)" }}>
         {selectedManual && (
-          <div className="sticky top-0 z-10 -mt-4 pt-4 pb-2" style={{ background: "var(--color-bg)" }}>
+          <div className="sticky z-10 -mt-4 pt-4 pb-2" style={{ top: "calc(env(safe-area-inset-top) + 76px)", background: "var(--color-bg)" }}>
             <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-blue-300 bg-blue-100 px-3 py-2 text-xs text-blue-900">
               <svg className="h-4 w-4 flex-shrink-0 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />

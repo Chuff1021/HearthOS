@@ -235,8 +235,11 @@ export default function ManualsPage() {
   };
 
   return (
-    <div className="ui-page-mobile flex flex-col min-h-screen pb-20">
-      <header className="ui-mobile-header p-4 sticky top-0 z-10">
+    <div className="ui-page-mobile flex flex-col min-h-screen pb-32">
+      <header
+        className="ui-mobile-header sticky top-0 z-10 px-4 pb-4"
+        style={{ paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))" }}
+      >
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg font-semibold">Manuals Library</h1>
@@ -264,7 +267,7 @@ export default function ManualsPage() {
         </div>
       </header>
 
-      <div className="ui-mobile-header border-b overflow-x-auto">
+      <div className="ui-mobile-header border-b overflow-x-auto" style={{ top: "calc(env(safe-area-inset-top) + 88px)" }}>
         <div className="px-4 py-2 space-y-2">
           <div className="flex gap-2">
             {categories.map((category) => (

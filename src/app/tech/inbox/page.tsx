@@ -54,8 +54,15 @@ export default function TechInboxPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-20" style={{ background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
-      <header className="p-4 sticky top-0 z-10" style={{ background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)' }}>
+    <div className="flex flex-col min-h-screen pb-32" style={{ background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+      <header
+        className="sticky top-0 z-10 px-4 pb-4"
+        style={{
+          paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))",
+          background: 'var(--color-surface-1)',
+          borderBottom: '1px solid var(--color-border)',
+        }}
+      >
         <h1 className="text-lg font-semibold">Tech Inbox</h1>
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{techName ? `${techName} · assigned to you` : 'Assigned to you'}</p>
       </header>

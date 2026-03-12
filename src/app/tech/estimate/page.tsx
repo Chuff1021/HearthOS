@@ -121,9 +121,12 @@ export default function EstimatePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-20">
+    <div className="flex flex-col min-h-screen pb-32">
       {/* Header */}
-      <header className="bg-[var(--color-surface-1)] p-4 sticky top-0 z-10">
+      <header
+        className="bg-[var(--color-surface-1)] sticky top-0 z-10 px-4 pb-4"
+        style={{ paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))" }}
+      >
         <div className="flex items-center gap-3">
           <Link href="/tech" aria-label="Back to Jobs" className="text-gray-400 hover:text-white">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
