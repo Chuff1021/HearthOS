@@ -44,6 +44,13 @@ interface CustomerProfile {
       balance: number;
       status: "draft" | "sent" | "paid" | "overdue" | "void";
     }>;
+    estimates: Array<{
+      id: string;
+      estimateNumber: string;
+      txnDate?: string;
+      expirationDate?: string;
+      totalAmt: number;
+    }>;
     localInvoices: Array<{
       id: string;
       invoiceNumber: string;
@@ -72,6 +79,7 @@ interface CustomerProfile {
   };
   summary: {
     quickbooksInvoiceCount: number;
+    quickbooksEstimateCount: number;
     quickbooksPaymentCount: number;
     purchaseOrderCount: number;
     localInvoiceCount: number;
@@ -586,13 +594,20 @@ export default function CustomersPage() {
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Invoices</div>
                     </div>
                     <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.quickbooksEstimateCount}</div>
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Estimates</div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                       <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.quickbooksPaymentCount}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Payments</div>
                     </div>
-                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.purchaseOrderCount}</div>
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>POs</div>
-                    </div>
+                  </div>
+                )}
+
+                {detailSummary && (
+                  <div className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                    <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{detailSummary.purchaseOrderCount}</div>
+                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Linked Purchase Orders</div>
                   </div>
                 )}
 
@@ -646,6 +661,33 @@ export default function CustomersPage() {
                         ))}
                         {detailHistory.invoices.length + detailHistory.localInvoices.length === 0 && (
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No invoices found for this customer.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>ESTIMATES</h4>
+                      <div className="space-y-2">
+                        {detailHistory.estimates.slice(0, 8).map((estimate) => (
+                          <a
+                            key={estimate.id}
+                            href="/estimates"
+                            className="block rounded-lg p-3"
+                            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{estimate.estimateNumber}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                  {[estimate.txnDate ? new Date(estimate.txnDate).toLocaleDateString() : undefined, estimate.expirationDate ? `expires ${new Date(estimate.expirationDate).toLocaleDateString()}` : undefined].filter(Boolean).join(" • ")}
+                                </div>
+                              </div>
+                              <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmt).toLocaleString()}</div>
+                            </div>
+                          </a>
+                        ))}
+                        {detailHistory.estimates.length === 0 && (
+                          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</div>
                         )}
                       </div>
                     </div>

@@ -78,7 +78,7 @@ export default function EstimatesPage() {
 
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`);
+        const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) throw new Error(data.error || "lookup failed");
@@ -292,6 +292,18 @@ export default function EstimatesPage() {
     }
   }
 
+  function scheduleFromEstimate(estimate: Estimate) {
+    const params = new URLSearchParams({
+      create: "1",
+      customerId: estimate.CustomerRef?.value || "",
+      customerName: estimate.CustomerRef?.name || "",
+      title: `Schedule from Estimate ${estimate.DocNumber || estimate.Id}`,
+      amount: String(Number(estimate.TotalAmt || 0)),
+      jobType: "installation",
+    });
+    window.location.href = `/jobs?${params.toString()}`;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
@@ -365,11 +377,12 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
-                      <div className="mt-2 grid grid-cols-4 gap-1">
+                      <div className="mt-2 grid grid-cols-5 gap-1">
                         <button onClick={() => emailEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
                         <button onClick={() => printEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
                         <button onClick={() => downloadEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
                         <button onClick={() => editEstimateQuick(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
+                        <button onClick={() => scheduleFromEstimate(e)} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
                       </div>
 
                       {convertedMap[e.Id] ? (

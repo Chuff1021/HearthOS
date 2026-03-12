@@ -94,15 +94,8 @@ export default function TodosPage() {
     }
     const t = setTimeout(async () => {
       try {
-        // Prefer QuickBooks-backed customer search when connected
-        let res = await fetch(`/api/quickbooks/customers?q=${encodeURIComponent(q)}`);
-        let data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          // Fallback to local customer store if QB is unavailable
-          res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
-          data = await res.json().catch(() => ({}));
-        }
+        const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
+        const data = await res.json().catch(() => ({}));
 
         setCustomerOptions((data.customers || []).map((c: any) => ({
           id: c.id,

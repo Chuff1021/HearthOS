@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -49,6 +50,7 @@ const jobTypeIcons: Record<string, string> = {
 };
 
 export default function JobsPage() {
+  const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [techs, setTechs] = useState<Tech[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,12 +58,13 @@ export default function JobsPage() {
   const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [customerQuery, setCustomerQuery] = useState("");
-  const [customerResults, setCustomerResults] = useState<{ id: string; name: string }[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
+    propertyAddress: "",
     jobType: "service",
     priority: "normal",
     scheduledDate: new Date().toISOString().split("T")[0],
@@ -96,12 +99,43 @@ export default function JobsPage() {
       return;
     }
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setCustomerResults((data.customers || []).map((c: any) => ({ id: c.id, name: c.displayName })));
+      setCustomerResults((data.customers || []).map((c: any) => ({
+        id: c.id,
+        name: c.displayName,
+        address: c.address ? [c.address.line1, [c.address.city, c.address.state].filter(Boolean).join(", "), c.address.zip].filter(Boolean).join(" ").trim() : "",
+      })));
     }, 250);
     return () => clearTimeout(t);
   }, [customerQuery, showCreateModal]);
+
+  useEffect(() => {
+    const prefillCustomerId = searchParams.get("customerId");
+    const prefillCustomerName = searchParams.get("customerName");
+    const prefillTitle = searchParams.get("title");
+    const prefillAddress = searchParams.get("address");
+    const prefillJobType = searchParams.get("jobType");
+    const shouldOpen = searchParams.get("create") === "1";
+
+    if (!shouldOpen) return;
+
+    setShowCreateModal(true);
+    if (prefillCustomerId || prefillCustomerName) {
+      setSelectedCustomer({
+        id: prefillCustomerId || "",
+        name: prefillCustomerName || "",
+        address: prefillAddress || "",
+      });
+      setCustomerQuery(prefillCustomerName || "");
+    }
+    setFormData((prev) => ({
+      ...prev,
+      title: prefillTitle || prev.title,
+      propertyAddress: prefillAddress || prev.propertyAddress,
+      jobType: (prefillJobType as any) || prev.jobType,
+    }));
+  }, [searchParams]);
 
   const filteredJobs = jobs.filter((job) => {
     const q = searchQuery.toLowerCase();
@@ -130,7 +164,7 @@ export default function JobsPage() {
           title: formData.title,
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          propertyAddress: "",
+          propertyAddress: formData.propertyAddress || selectedCustomer.address || "",
           jobType: formData.jobType,
           priority: formData.priority,
           scheduledDate: formData.scheduledDate,
@@ -143,7 +177,7 @@ export default function JobsPage() {
       });
       if (res.ok) {
         setShowCreateModal(false);
-        setFormData({ ...formData, title: "", notes: "", assignedTechs: [] });
+        setFormData({ ...formData, title: "", notes: "", assignedTechs: [], propertyAddress: "" });
         setSelectedCustomer(null);
         setCustomerQuery("");
         loadJobs();
@@ -207,8 +241,9 @@ export default function JobsPage() {
             <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}><h2 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>Create New Job</h2></div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <input placeholder="Search customers..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-              {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); }} className="w-full text-left px-3 py-2 text-sm">{c.name}</button>)}</div>}
+              {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || prev.propertyAddress })); }} className="w-full text-left px-3 py-2 text-sm">{c.name}</button>)}</div>}
               <input placeholder="Job title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+              <input placeholder="Property address" value={formData.propertyAddress} onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               <div className="grid grid-cols-2 gap-4">
                 <select value={formData.jobType} onChange={(e) => setFormData({ ...formData, jobType: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}><option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option></select>
                 <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>

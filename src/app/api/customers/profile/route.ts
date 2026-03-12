@@ -33,6 +33,13 @@ type CustomerProfile = {
   };
   history: {
     invoices: Array<ReturnType<typeof transformInvoice>>;
+    estimates: Array<{
+      id: string;
+      estimateNumber: string;
+      txnDate?: string;
+      expirationDate?: string;
+      totalAmt: number;
+    }>;
     localInvoices: Array<{
       id: string;
       invoiceNumber: string;
@@ -72,6 +79,7 @@ type CustomerProfile = {
   };
   summary: {
     quickbooksInvoiceCount: number;
+    quickbooksEstimateCount: number;
     quickbooksPaymentCount: number;
     purchaseOrderCount: number;
     localInvoiceCount: number;
@@ -214,15 +222,25 @@ export async function GET(request: NextRequest) {
     try {
       const profile = await withRefresh(request, async (client) => {
         const qbCustomer = await client.getCustomer(id);
-        const [qbInvoices, qbPayments, purchaseOrders] = await Promise.all([
+        const [qbInvoices, qbPayments, purchaseOrders, qbEstimates] = await Promise.all([
           client.getInvoicesForCustomer(qbCustomer.Id),
           client.getPaymentsForCustomer(qbCustomer.Id),
           client.getPurchaseOrders(500),
+          client.getEstimates(500),
         ]);
 
         const transformedCustomer = transformCustomer(qbCustomer);
         const transformedInvoices = qbInvoices.map(transformInvoice);
         const transformedPayments = qbPayments.map(transformPayment);
+        const transformedEstimates = qbEstimates
+          .filter((estimate: any) => estimate?.CustomerRef?.value === qbCustomer.Id)
+          .map((estimate: any) => ({
+            id: estimate.Id,
+            estimateNumber: estimate.DocNumber || estimate.Id,
+            txnDate: estimate.TxnDate,
+            expirationDate: estimate.ExpirationDate,
+            totalAmt: Number(estimate.TotalAmt || 0),
+          }));
         const relatedPurchaseOrders = purchaseOrders
           .filter((purchaseOrder: any) => matchPurchaseOrderToCustomer(purchaseOrder, qbCustomer))
           .map((purchaseOrder: any) => ({
@@ -250,12 +268,14 @@ export async function GET(request: NextRequest) {
           customer: mergedCustomer,
           history: {
             invoices: transformedInvoices,
+            estimates: transformedEstimates,
             localInvoices,
             payments: transformedPayments,
             purchaseOrders: relatedPurchaseOrders,
           },
           summary: {
             quickbooksInvoiceCount: transformedInvoices.length,
+            quickbooksEstimateCount: transformedEstimates.length,
             quickbooksPaymentCount: transformedPayments.length,
             purchaseOrderCount: relatedPurchaseOrders.length,
             localInvoiceCount: localInvoices.length,
@@ -289,10 +309,12 @@ export async function GET(request: NextRequest) {
           invoices: [],
           localInvoices,
           payments: [],
+          estimates: [],
           purchaseOrders: [],
         },
         summary: {
           quickbooksInvoiceCount: 0,
+          quickbooksEstimateCount: 0,
           quickbooksPaymentCount: 0,
           purchaseOrderCount: 0,
           localInvoiceCount: localInvoices.length,

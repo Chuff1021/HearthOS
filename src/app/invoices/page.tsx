@@ -395,6 +395,18 @@ export default function InvoicesPage() {
     window.location.href = `/payments?${q.toString()}`;
   };
 
+  const handleScheduleJob = (invoice: Invoice) => {
+    const q = new URLSearchParams({
+      create: "1",
+      customerId: invoice.customerId,
+      customerName: invoice.customerName,
+      title: invoice.jobTitle || `Schedule from Invoice ${invoice.invoiceNumber}`,
+      amount: String(invoice.totalAmount),
+      jobType: "installation",
+    });
+    window.location.href = `/jobs?${q.toString()}`;
+  };
+
   const handleSaveInvoiceEdits = async () => {
     if (!selectedInvoice) return;
     try {
@@ -834,6 +846,13 @@ export default function InvoicesPage() {
                       Download
                     </button>
                   </div>
+                  <button
+                    onClick={() => handleScheduleJob(selectedInvoice)}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
+                    style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}
+                  >
+                    Create & Schedule Job
+                  </button>
                   {selectedInvoice.balance > 0 && (
                     <button
                       onClick={() => handlePayNow(selectedInvoice)}
