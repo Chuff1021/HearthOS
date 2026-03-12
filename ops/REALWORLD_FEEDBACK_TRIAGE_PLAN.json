@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-03-06T23:28:00Z",
+  "classification": {
+    "catalog_issue": {
+      "definition": "manual exists but metadata/model mapping is wrong or incomplete",
+      "examples": ["wrong model mapped", "manual title mismatch"],
+      "owner": "catalog"
+    },
+    "source_coverage_gap": {
+      "definition": "no source/manual evidence exists for requested model/question",
+      "examples": ["missing manual", "missing parts section"],
+      "owner": "ingestion"
+    },
+    "retrieval_issue": {
+      "definition": "evidence exists but retrieval did not surface it",
+      "examples": ["irrelevant section returned", "zero candidates despite coverage"],
+      "owner": "retrieval"
+    },
+    "citation_issue": {
+      "definition": "answer present but citation missing/unclear/mismatched",
+      "examples": ["no cited page", "wrong cited manual"],
+      "owner": "validation+telemetry"
+    },
+    "wording_ux_issue": {
+      "definition": "response is technically safe but unclear for staff",
+      "examples": ["too verbose", "unclear next step"],
+      "owner": "product"
+    }
+  },
+  "prioritized_queue": [
+    {
+      "priority": 1,
+      "item": "Resolve any source_coverage_gap affecting active dealer workflows",
+      "trigger": "missing manual or missing part references in daily usage",
+      "owner": "ingestion",
+      "sla": "48h"
+    },
+    {
+      "priority": 2,
+      "item": "Fix retrieval_issue for repeated zero-candidate or wrong-section returns",
+      "trigger": ">=3 similar feedback events/week",
+      "owner": "retrieval",
+      "sla": "72h"
+    },
+    {
+      "priority": 3,
+      "item": "Fix citation_issue for any mismatch between selected and cited manual",
+      "trigger": "any trust-field mismatch",
+      "owner": "validation+telemetry",
+      "sla": "24h"
+    },
+    {
+      "priority": 4,
+      "item": "Address catalog_issue for model/alias confusion",
+      "trigger": "repeated model mismatch reports",
+      "owner": "catalog",
+      "sla": "72h"
+    },
+    {
+      "priority": 5,
+      "item": "Address wording_ux_issue from staff confusion hotspots",
+      "trigger": ">=5 unclear wording reports/week",
+      "owner": "product",
+      "sla": "weekly"
+    }
+  ]
+}

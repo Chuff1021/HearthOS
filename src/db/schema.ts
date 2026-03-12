@@ -161,6 +161,38 @@ export const manualSections = pgTable('manual_sections', {
   pageIdx: index('idx_manual_sections_page').on(table.pageStart),
 }));
 
+export const fireplaceManualRegistry = pgTable('fireplace_manual_registry', {
+  manualId: text('manual_id').primaryKey(),
+  manufacturer: text('manufacturer'),
+  brand: text('brand'),
+  model: text('model'),
+  normalizedModel: text('normalized_model'),
+  family: text('family'),
+  size: text('size'),
+  fuelType: text('fuel_type'),
+  applianceType: text('appliance_type'),
+  manualType: text('manual_type'),
+  language: text('language'),
+  revision: text('revision'),
+  publicationDate: date('publication_date'),
+  sourceUrl: text('source_url'),
+  localFilePath: text('local_file_path'),
+  checksum: text('checksum'),
+  aliases: jsonb('aliases').default([]),
+  chunkCollection: text('chunk_collection'),
+  chunkNamespace: text('chunk_namespace'),
+  supersedesManualId: text('supersedes_manual_id'),
+  supersededByManualId: text('superseded_by_manual_id'),
+  status: text('status').default('active').notNull(),
+  metadataConfidence: decimal('metadata_confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  mfgModelTypeIdx: index('idx_fmr_mfg_model_type').on(table.manufacturer, table.normalizedModel, table.manualType),
+  familySizeIdx: index('idx_fmr_family_size').on(table.family, table.size),
+  statusUpdatedIdx: index('idx_fmr_status_updated').on(table.status, table.updatedAt),
+}));
+
 // Jobs
 export const jobs = pgTable('jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -414,6 +446,64 @@ export const qbSyncStatus = pgTable('qb_sync_status', {
   typeIdx: uniqueIndex('idx_qb_sync_status_org_type').on(table.orgId, table.syncType),
 }));
 
+export const fireplaceTechnicalFacts = pgTable('fireplace_technical_facts', {
+  factId: text('fact_id').primaryKey(),
+  manualId: text('manual_id').notNull(),
+  manufacturer: text('manufacturer'),
+  model: text('model'),
+  normalizedModel: text('normalized_model'),
+  family: text('family'),
+  size: text('size'),
+  manualType: text('manual_type'),
+  factType: text('fact_type').notNull(),
+  factSubtype: text('fact_subtype'),
+  valueJson: jsonb('value_json').default({}).notNull(),
+  units: text('units'),
+  pageNumber: integer('page_number'),
+  sourceUrl: text('source_url'),
+  evidenceExcerpt: text('evidence_excerpt'),
+  confidence: decimal('confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  revision: text('revision'),
+  sourceKind: text('source_kind').default('prose').notNull(),
+  extractionConfidenceTier: text('extraction_confidence_tier').default('weak_pattern_match'),
+  sourceAuthority: text('source_authority').default('unknown'),
+  precedenceRank: integer('precedence_rank').default(0),
+  supersededFactIds: jsonb('superseded_fact_ids').default([]),
+  headingScope: text('heading_scope'),
+  provenanceDetail: text('provenance_detail').default('prose'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  manualFactIdx: index('idx_ftf_manual').on(table.manualId, table.factType),
+  modelFactIdx: index('idx_ftf_model').on(table.normalizedModel, table.factType),
+  pageIdx: index('idx_ftf_page').on(table.pageNumber),
+}));
+
+export const fireplaceExplodedPartsGraph = pgTable('fireplace_exploded_parts_graph', {
+  calloutId: text('callout_id').primaryKey(),
+  manualId: text('manual_id').notNull(),
+  model: text('model'),
+  normalizedModel: text('normalized_model'),
+  family: text('family'),
+  size: text('size'),
+  figurePageNumber: integer('figure_page_number'),
+  figureCaption: text('figure_caption'),
+  diagramType: text('diagram_type'),
+  calloutLabel: text('callout_label'),
+  partNumber: text('part_number'),
+  partName: text('part_name'),
+  compatibilityScope: text('compatibility_scope'),
+  sourceConfidence: decimal('source_confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  sourceMode: text('source_mode').default('native_text').notNull(),
+  ocrConfidence: decimal('ocr_confidence', { precision: 4, scale: 3 }),
+  sourceUrl: text('source_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  manualModelIdx: index('idx_fepg_manual_model').on(table.manualId, table.normalizedModel),
+  partIdx: index('idx_fepg_part').on(table.partNumber, table.partName),
+}));
+
 // Type exports for TypeScript
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
@@ -455,3 +545,241 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type QBSyncStatus = typeof qbSyncStatus.$inferSelect;
 export type NewQBSyncStatus = typeof qbSyncStatus.$inferInsert;
+export const gabeSourceRegistry = pgTable('gabe_source_registry', {
+  sourceId: text('source_id').primaryKey(),
+  sourceType: text('source_type').notNull(),
+  manufacturer: text('manufacturer'),
+  publisher: text('publisher'),
+  title: text('title').notNull(),
+  model: text('model'),
+  family: text('family'),
+  size: text('size'),
+  documentKind: text('document_kind'),
+  revision: text('revision'),
+  publicationDate: date('publication_date'),
+  effectiveDate: date('effective_date'),
+  jurisdictionScope: text('jurisdiction_scope'),
+  sourceUrl: text('source_url').notNull(),
+  checksum: text('checksum'),
+  ingestStatus: text('ingest_status').default('discovered').notNull(),
+  confidence: decimal('confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  supersedesSourceId: text('supersedes_source_id'),
+  supersededBySourceId: text('superseded_by_source_id'),
+  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+  nextRecheckAt: timestamp('next_recheck_at', { withTimezone: true }),
+  activationStatus: text('activation_status').default('pending_review').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  typeStatusIdx: index('idx_gsr_type_status').on(table.sourceType, table.ingestStatus, table.activationStatus),
+  modelFamilyIdx: index('idx_gsr_model_family').on(table.manufacturer, table.model, table.family),
+  recheckIdx: index('idx_gsr_recheck').on(table.nextRecheckAt),
+}));
+
+export const gabeSourceReviewQueue = pgTable('gabe_source_review_queue', {
+  queueId: text('queue_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  reason: text('reason').notNull(),
+  severity: text('severity').default('medium').notNull(),
+  status: text('status').default('open').notNull(),
+  assignedTo: text('assigned_to'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  statusIdx: index('idx_gsrq_status').on(table.status, table.severity),
+}));
+
+export const gabeJurisdictionRegistry = pgTable('gabe_jurisdiction_registry', {
+  jurisdictionId: text('jurisdiction_id').primaryKey(),
+  country: text('country'),
+  state: text('state'),
+  county: text('county'),
+  city: text('city'),
+  serviceArea: text('service_area'),
+  adoptedCodeFamily: text('adopted_code_family'),
+  adoptedCodeEdition: text('adopted_code_edition'),
+  effectiveDate: date('effective_date'),
+  referenceSourceId: text('reference_source_id'),
+  confidence: decimal('confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  lookupIdx: index('idx_gjr_lookup').on(table.country, table.state, table.county, table.city),
+}));
+
+export type FireplaceTechnicalFact = typeof fireplaceTechnicalFacts.$inferSelect;
+export type NewFireplaceTechnicalFact = typeof fireplaceTechnicalFacts.$inferInsert;
+export type FireplaceExplodedPart = typeof fireplaceExplodedPartsGraph.$inferSelect;
+export type NewFireplaceExplodedPart = typeof fireplaceExplodedPartsGraph.$inferInsert;
+export type GabeSourceRegistry = typeof gabeSourceRegistry.$inferSelect;
+export type NewGabeSourceRegistry = typeof gabeSourceRegistry.$inferInsert;
+export type GabeSourceReviewQueue = typeof gabeSourceReviewQueue.$inferSelect;
+export type NewGabeSourceReviewQueue = typeof gabeSourceReviewQueue.$inferInsert;
+export const gabeSourceWorkerJobs = pgTable('gabe_source_worker_jobs', {
+  jobId: text('job_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  jobType: text('job_type').notNull(),
+  status: text('status').default('queued').notNull(),
+  attempts: integer('attempts').default(0).notNull(),
+  maxAttempts: integer('max_attempts').default(5).notNull(),
+  lastError: text('last_error'),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+  payload: jsonb('payload').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  statusRetryIdx: index('idx_gswj_status_retry').on(table.status, table.nextRetryAt, table.updatedAt),
+}));
+
+export const gabeSourceChecksumSnapshots = pgTable('gabe_source_checksum_snapshots', {
+  snapshotId: text('snapshot_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  checksum: text('checksum'),
+  metadataHash: text('metadata_hash'),
+  observedAt: timestamp('observed_at', { withTimezone: true }).defaultNow().notNull(),
+  changedBinary: boolean('changed_binary').default(false).notNull(),
+  changedMetadata: boolean('changed_metadata').default(false).notNull(),
+  revisionHint: text('revision_hint'),
+  notes: text('notes'),
+}, (table) => ({
+  sourceObservedIdx: index('idx_gscs_source_observed').on(table.sourceId, table.observedAt),
+}));
+
+export const gabeSourceSupersessionEdges = pgTable('gabe_source_supersession_edges', {
+  edgeId: text('edge_id').primaryKey(),
+  fromSourceId: text('from_source_id').notNull(),
+  toSourceId: text('to_source_id').notNull(),
+  relation: text('relation').default('supersedes').notNull(),
+  confidence: decimal('confidence', { precision: 4, scale: 3 }).default('0').notNull(),
+  status: text('status').default('proposed').notNull(),
+  reason: text('reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  fromToIdx: index('idx_gsse_from_to').on(table.fromSourceId, table.toSourceId, table.status),
+}));
+
+export const gabeSourceActivationAudit = pgTable('gabe_source_activation_audit', {
+  eventId: text('event_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  eventType: text('event_type').notNull(),
+  actor: text('actor'),
+  action: text('action'),
+  reason: text('reason'),
+  details: jsonb('details').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  sourceCreatedIdx: index('idx_gsaa_source_created').on(table.sourceId, table.createdAt),
+}));
+
+export type GabeJurisdictionRegistry = typeof gabeJurisdictionRegistry.$inferSelect;
+export type NewGabeJurisdictionRegistry = typeof gabeJurisdictionRegistry.$inferInsert;
+export type GabeSourceWorkerJob = typeof gabeSourceWorkerJobs.$inferSelect;
+export type NewGabeSourceWorkerJob = typeof gabeSourceWorkerJobs.$inferInsert;
+export type GabeSourceChecksumSnapshot = typeof gabeSourceChecksumSnapshots.$inferSelect;
+export type NewGabeSourceChecksumSnapshot = typeof gabeSourceChecksumSnapshots.$inferInsert;
+export type GabeSourceSupersessionEdge = typeof gabeSourceSupersessionEdges.$inferSelect;
+export type NewGabeSourceSupersessionEdge = typeof gabeSourceSupersessionEdges.$inferInsert;
+export const gabeSourceDeadLetterJobs = pgTable('gabe_source_dead_letter_jobs', {
+  dlqId: text('dlq_id').primaryKey(),
+  jobId: text('job_id').notNull(),
+  sourceId: text('source_id').notNull(),
+  reason: text('reason'),
+  payload: jsonb('payload').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  createdIdx: index('idx_gsdl_created').on(table.createdAt),
+}));
+
+export const gabeSourceDiffSummaries = pgTable('gabe_source_diff_summaries', {
+  diffId: text('diff_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  snapshotFromId: text('snapshot_from_id'),
+  snapshotToId: text('snapshot_to_id'),
+  summaryJson: jsonb('summary_json').default({}).notNull(),
+  summaryText: text('summary_text'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  sourceCreatedIdx: index('idx_gsds_source_created').on(table.sourceId, table.createdAt),
+}));
+
+export const gabeSourceSignedActions = pgTable('gabe_source_signed_actions', {
+  signedActionId: text('signed_action_id').primaryKey(),
+  sourceId: text('source_id').notNull(),
+  actor: text('actor').notNull(),
+  actorRole: text('actor_role').notNull(),
+  action: text('action').notNull(),
+  payloadHash: text('payload_hash').notNull(),
+  signature: text('signature').notNull(),
+  verified: boolean('verified').default(false).notNull(),
+  details: jsonb('details').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  sourceCreatedIdx: index('idx_gssa_source_created').on(table.sourceId, table.createdAt),
+}));
+
+export type GabeSourceActivationAudit = typeof gabeSourceActivationAudit.$inferSelect;
+export type NewGabeSourceActivationAudit = typeof gabeSourceActivationAudit.$inferInsert;
+export type GabeSourceDeadLetterJob = typeof gabeSourceDeadLetterJobs.$inferSelect;
+export type NewGabeSourceDeadLetterJob = typeof gabeSourceDeadLetterJobs.$inferInsert;
+export type GabeSourceDiffSummary = typeof gabeSourceDiffSummaries.$inferSelect;
+export type NewGabeSourceDiffSummary = typeof gabeSourceDiffSummaries.$inferInsert;
+export const gabeFeedbackEvents = pgTable('gabe_feedback_events', {
+  feedbackId: text('feedback_id').primaryKey(),
+  question: text('question').notNull(),
+  answerExcerpt: text('answer_excerpt'),
+  manufacturer: text('manufacturer'),
+  model: text('model'),
+  intent: text('intent'),
+  confidence: decimal('confidence', { precision: 4, scale: 3 }),
+  outcome: text('outcome'),
+  adminNotes: text('admin_notes'),
+  promoteToRegression: boolean('promote_to_regression').default(false).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  outcomeCreatedIdx: index('idx_gfe_outcome_created').on(table.outcome, table.createdAt),
+}));
+
+export const gabeEvalRuns = pgTable('gabe_eval_runs', {
+  runId: text('run_id').primaryKey(),
+  suiteName: text('suite_name').notNull(),
+  scorecardJson: jsonb('scorecard_json').default({}).notNull(),
+  totalCases: integer('total_cases').default(0).notNull(),
+  passedCases: integer('passed_cases').default(0).notNull(),
+  environmentProfile: text('environment_profile'),
+  gitCommitSha: text('git_commit_sha'),
+  aggregateMetrics: jsonb('aggregate_metrics').default({}).notNull(),
+  perCategoryMetrics: jsonb('per_category_metrics').default({}).notNull(),
+  regressionFailures: integer('regression_failures').default(0).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  suiteCreatedIdx: index('idx_ger_suite_created').on(table.suiteName, table.createdAt),
+}));
+
+export const gabeEvalCaseResults = pgTable('gabe_eval_case_results', {
+  resultId: text('result_id').primaryKey(),
+  evalRunId: text('eval_run_id').notNull(),
+  caseId: text('case_id').notNull(),
+  query: text('query').notNull(),
+  actualResponseMetadata: jsonb('actual_response_metadata').default({}).notNull(),
+  pass: boolean('pass').default(false).notNull(),
+  failureReasons: jsonb('failure_reasons').default([]).notNull(),
+  citationPageOk: boolean('citation_page_ok'),
+  validatorResult: text('validator_result'),
+  answerStatus: text('answer_status'),
+  runtimeDurationMs: integer('runtime_duration_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  runCaseIdx: index('idx_gecr_run_case').on(table.evalRunId, table.caseId),
+}));
+
+export type GabeSourceSignedAction = typeof gabeSourceSignedActions.$inferSelect;
+export type NewGabeSourceSignedAction = typeof gabeSourceSignedActions.$inferInsert;
+export type GabeFeedbackEvent = typeof gabeFeedbackEvents.$inferSelect;
+export type NewGabeFeedbackEvent = typeof gabeFeedbackEvents.$inferInsert;
+export type GabeEvalRun = typeof gabeEvalRuns.$inferSelect;
+export type NewGabeEvalRun = typeof gabeEvalRuns.$inferInsert;
+export type GabeEvalCaseResult = typeof gabeEvalCaseResults.$inferSelect;
+export type NewGabeEvalCaseResult = typeof gabeEvalCaseResults.$inferInsert;

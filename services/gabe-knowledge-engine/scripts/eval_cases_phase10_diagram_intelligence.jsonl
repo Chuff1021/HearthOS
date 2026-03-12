@@ -1,0 +1,5 @@
+{"question":"framing dimensions for apex 42 from drawing","intent":"framing","expected_diagram_type":"framing_diagram","expected_evidence_source_mode":"diagram|hybrid","expected_answerable":true}
+{"question":"vent pipe route for novus 36 diagram","intent":"venting","expected_diagram_type":"venting_diagram|specification_table","expected_evidence_source_mode":"diagram|table|hybrid","expected_answerable":true}
+{"question":"wiring path for IFC receiver on apex","intent":"electrical","expected_diagram_type":"wiring_diagram","expected_answerable":true}
+{"question":"blower callout id from exploded view","intent":"replacement parts","expected_diagram_type":"exploded_parts_view","expected_answerable":true}
+{"question":"venting question with only weak prose while diagram exists","intent":"venting","expected_refusal":"diagram_evidence_expected_but_missing","expected_answerable":false}

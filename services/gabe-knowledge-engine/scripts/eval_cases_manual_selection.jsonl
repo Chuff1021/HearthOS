@@ -1,0 +1,20 @@
+{"question":"Framing dimensions for 42 Apex NexGen","expected_manufacturer":"travis","expected_model":"42 apex nexgen-hybrid","expected_manual_type":"installation","expected_answerable":true}
+{"question":"framing dimensions for apex 36","expected_manufacturer":"travis","expected_model":"36 elite nexgen-hybrid","expected_manual_type":"installation","expected_answerable":false,"expected_refusal":"ambiguous_model"}
+{"question":"vent clearance for Novus 36","expected_manufacturer":"heatilator","expected_model":"novus 36","expected_manual_type":"installation","expected_answerable":true}
+{"question":"vent clearance for Novus 42","expected_manufacturer":"heatilator","expected_model":"novus 42","expected_manual_type":"installation","expected_answerable":true}
+{"question":"can i use owners manual for framing dimensions","expected_manual_type":"installation","expected_answerable":false,"expected_refusal":"manual_type_mismatch"}
+{"question":"part number for blower on Lopi Answer NexGen","expected_manufacturer":"travis","expected_model":"answer nexgen-hybrid","expected_manual_type":"parts","expected_answerable":true}
+{"question":"wiring diagram for 42 apex","expected_manufacturer":"travis","expected_model":"42 apex nexgen-hybrid","expected_manual_type":"wiring","expected_answerable":true}
+{"question":"gas manifold pressure for 42 apex","expected_manufacturer":"travis","expected_model":"42 apex nexgen-hybrid","expected_manual_type":"installation","expected_answerable":true}
+{"question":"termination cap distance from window for majestic ruby","expected_manufacturer":"majestic","expected_manual_type":"installation","expected_answerable":true}
+{"question":"generic fireplace vent info","expected_answerable":false,"expected_refusal":"model_unresolved_install_critical"}
+{"question":"what color is best fireplace","expected_answerable":false,"expected_refusal":"out_of_scope"}
+{"question":"maintenance schedule for novus 36","expected_manufacturer":"heatilator","expected_model":"novus 36","expected_manual_type":"owner","expected_answerable":true}
+{"question":"brochure specs for apex 42","expected_manual_type":"brochure","expected_answerable":true}
+{"question":"clearances for apex family","expected_answerable":false,"expected_refusal":"ambiguous_model"}
+{"question":"electrical requirements for 36 elite nexgen","expected_manufacturer":"travis","expected_model":"36 elite nexgen-hybrid","expected_manual_type":"installation","expected_answerable":true}
+{"question":"replace thermocouple on answer nexgen","expected_manufacturer":"travis","expected_model":"answer nexgen-hybrid","expected_manual_type":"service","expected_answerable":true}
+{"question":"difference between novus 36 and 42 venting","expected_answerable":false,"expected_refusal":"conflicting_candidates"}
+{"question":"manual page for rough opening novus 36","expected_manufacturer":"heatilator","expected_model":"novus 36","expected_manual_type":"installation","expected_answerable":true}
+{"question":"is flyer enough for install steps apex 42","expected_answerable":false,"expected_refusal":"install_critical_disallowed_doc_type"}
+{"question":"owner manual startup steps novus 36","expected_manufacturer":"heatilator","expected_model":"novus 36","expected_manual_type":"owner","expected_answerable":true}

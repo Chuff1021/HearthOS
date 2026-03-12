@@ -30,7 +30,14 @@ const envSchema = z.object({
   MIN_EVIDENCE_CHUNKS: z.string().default("1"),
   MANUAL_SELECTION_MIN_MARGIN: z.string().default("0.01"),
   MANUALS_PATH: z.string().default("/var/lib/gabe/manuals"),
-  LOG_LEVEL: z.string().default("info")
+  LOG_LEVEL: z.string().default("info"),
+  RESOLVER_CONFIDENCE_MIN: z.string().default("0.6"),
+  REGISTRY_MATCH_CONFIDENCE_MIN: z.string().default("1.5"),
+  EXACT_MODEL_OVERRIDE: z.string().default("true"),
+  FAMILY_ONLY_FALLBACK_ALLOWED: z.string().default("false"),
+  INSTALL_INTENT_REQUIRES_INSTALL_MANUAL: z.string().default("true"),
+  MAX_MANUAL_CANDIDATES: z.string().default("6"),
+  INSTALL_STRICT_MANUAL_ID_ONLY: z.string().default("true")
 });
 
 export const env = envSchema.parse({
@@ -51,10 +58,24 @@ export const env = envSchema.parse({
   MIN_EVIDENCE_CHUNKS: process.env.MIN_EVIDENCE_CHUNKS,
   MANUAL_SELECTION_MIN_MARGIN: process.env.MANUAL_SELECTION_MIN_MARGIN,
   MANUALS_PATH: process.env.MANUALS_PATH,
-  LOG_LEVEL: process.env.LOG_LEVEL
+  LOG_LEVEL: process.env.LOG_LEVEL,
+  RESOLVER_CONFIDENCE_MIN: process.env.RESOLVER_CONFIDENCE_MIN,
+  REGISTRY_MATCH_CONFIDENCE_MIN: process.env.REGISTRY_MATCH_CONFIDENCE_MIN,
+  EXACT_MODEL_OVERRIDE: process.env.EXACT_MODEL_OVERRIDE,
+  FAMILY_ONLY_FALLBACK_ALLOWED: process.env.FAMILY_ONLY_FALLBACK_ALLOWED,
+  INSTALL_INTENT_REQUIRES_INSTALL_MANUAL: process.env.INSTALL_INTENT_REQUIRES_INSTALL_MANUAL,
+  MAX_MANUAL_CANDIDATES: process.env.MAX_MANUAL_CANDIDATES,
+  INSTALL_STRICT_MANUAL_ID_ONLY: process.env.INSTALL_STRICT_MANUAL_ID_ONLY
 });
 
 export const allowlistDomains = env.ALLOWLIST_DOMAINS.split(",").map((d) => d.trim()).filter(Boolean);
 export const similarityThreshold = Number(env.SIMILARITY_THRESHOLD);
 export const minEvidenceChunks = Number(env.MIN_EVIDENCE_CHUNKS);
 export const manualSelectionMinMargin = Number(env.MANUAL_SELECTION_MIN_MARGIN);
+export const resolverConfidenceMin = Number(env.RESOLVER_CONFIDENCE_MIN);
+export const registryMatchConfidenceMin = Number(env.REGISTRY_MATCH_CONFIDENCE_MIN);
+export const exactModelOverride = String(env.EXACT_MODEL_OVERRIDE).toLowerCase() === "true";
+export const familyOnlyFallbackAllowed = String(env.FAMILY_ONLY_FALLBACK_ALLOWED).toLowerCase() === "true";
+export const installIntentRequiresInstallManual = String(env.INSTALL_INTENT_REQUIRES_INSTALL_MANUAL).toLowerCase() === "true";
+export const maxManualCandidates = Number(env.MAX_MANUAL_CANDIDATES);
+export const installStrictManualIdOnly = String(env.INSTALL_STRICT_MANUAL_ID_ONLY).toLowerCase() === "true";

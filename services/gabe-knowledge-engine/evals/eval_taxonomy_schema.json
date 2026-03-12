@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GabeGoldEvalCase",
+  "type": "object",
+  "required": ["id", "question", "manufacturer", "model", "family", "size", "intent_type", "fact_category", "source_dependency", "expected_answer_status"],
+  "properties": {
+    "id": { "type": "string" },
+    "question": { "type": "string" },
+    "manufacturer": { "type": "string" },
+    "model": { "type": "string" },
+    "family": { "type": "string" },
+    "size": { "type": "string" },
+    "intent_type": { "type": "string" },
+    "fact_category": { "type": "string" },
+    "source_dependency": { "type": "string", "enum": ["manual", "table", "diagram", "parts", "code", "standard", "manual/table", "diagram/manual", "diagram/table", "parts/diagram", "code/standard", "wiring_diagram"] },
+    "expected_answer_status": { "type": "string", "enum": ["verified", "partial", "refused"] }
+  }
+}

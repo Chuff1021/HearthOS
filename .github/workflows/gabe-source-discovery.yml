@@ -1,0 +1,31 @@
+name: gabe-source-discovery
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  gabe-source-discovery:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run discover:sources > gabe_source_discovery_run.json
+      - run: npm run worker:source-once > gabe_source_worker_once.json || true
+      - run: |
+          curl -s http://127.0.0.1:4100/ops/source-governance/dashboard-expanded > gabe_source_dashboard_expanded.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gabe-source-discovery-artifacts
+          path: |
+            services/gabe-knowledge-engine/gabe_source_discovery_run.json
+            services/gabe-knowledge-engine/gabe_source_worker_once.json
+            services/gabe-knowledge-engine/gabe_source_dashboard_expanded.json

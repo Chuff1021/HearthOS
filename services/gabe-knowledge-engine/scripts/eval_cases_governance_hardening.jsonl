@@ -1,0 +1,6 @@
+{"case":"changed source detected by checksum snapshot","expected":"changed_binary_or_metadata=true"}
+{"case":"revision supersession linking high confidence","expected":"supersession_edge_status=accepted"}
+{"case":"ambiguous revision sent to review queue","expected":"activation_status=pending_review"}
+{"case":"reviewer approve activate deactivate flow","expected":"audit_events_present"}
+{"case":"code query uses jurisdiction adopted edition when known","expected":"adopted_code_used=true"}
+{"case":"code query fallback model code when jurisdiction unknown","expected":"model_code_fallback_used=true"}

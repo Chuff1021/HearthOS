@@ -1,0 +1,10 @@
+{"id":"reg-001","trap_type":"wrong_manual","question":"vent clearance for Novus 36 but answer from Novus 42"}
+{"id":"reg-002","trap_type":"wrong_diagram","question":"wiring answer from operation section"}
+{"id":"reg-003","trap_type":"weak_ocr","question":"ocr-only part callout without corroboration"}
+{"id":"reg-004","trap_type":"unresolved_conflict","question":"two manifold pressure values same revision"}
+{"id":"reg-005","trap_type":"wrong_manual","question":"Apex 42 framing answered from brochure"}
+{"id":"reg-006","trap_type":"wrong_diagram","question":"mantel clearance from generic illustration"}
+{"id":"reg-007","trap_type":"weak_ocr","question":"exploded view part number low confidence OCR"}
+{"id":"reg-008","trap_type":"unresolved_conflict","question":"service bulletin vs install manual mismatch"}
+{"id":"reg-009","trap_type":"wrong_manual","question":"Majestic model confused by family alias"}
+{"id":"reg-010","trap_type":"wrong_diagram","question":"venting answered from troubleshooting text"}

@@ -1,0 +1,5 @@
+{"question":"vent size for apex 42 from latest revision","intent":"venting","expects_table_fact":true,"expected_confidence_tier":"exact_table"}
+{"question":"clearance for apex 42 where brochure conflicts install manual","intent":"clearances","expected_authority":"installation>manual_brochure","expected_answerable":true}
+{"question":"service bulletin supersedes prior gas pressure","intent":"gas pressure","expected_resolution":"precedence_rank","expected_answerable":true}
+{"question":"conflicting revision values with no clear precedence","intent":"framing","expected_answerable":false,"expected_refusal":"fact_conflict_unresolved"}
+{"question":"owner manual value conflicts install value for venting","intent":"venting","expected_answerable":true,"expected_authority":"installation_over_owner"}

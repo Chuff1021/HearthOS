@@ -1,0 +1,4 @@
+{"question":"venting requirements for apex 42","intent":"venting","requires_manual_id":true,"expected_no_manual_id_behavior":"refused"}
+{"question":"framing dimensions for unknown model","intent":"framing","requires_manual_id":true,"expected_no_manual_id_behavior":"refused"}
+{"question":"clearances on owner manual text only","intent":"clearances","requires_install_manual":true,"expected_behavior":"refused"}
+{"question":"general maintenance tip for gas fireplace","intent":"maintenance","requires_manual_id":false,"legacy_fallback_allowed":true}

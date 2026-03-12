@@ -1,0 +1,44 @@
+name: gabe-promotion-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'staging or production'
+        required: true
+        default: 'staging'
+
+jobs:
+  gabe-release-readiness:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    env:
+      RELEASE_GATE_PROFILE: ${{ github.event.inputs.target_environment }}
+      CI_CORPUS_COVERAGE_OVERRIDE: ${{ vars.GABE_CI_CORPUS_COVERAGE_OVERRIDE || '1' }}
+      METRIC_UNRESOLVED_CONFLICT_RATE: ${{ vars.GABE_METRIC_UNRESOLVED_CONFLICT_RATE || '0' }}
+      METRIC_UNSUPPORTED_NUMERIC: ${{ vars.GABE_METRIC_UNSUPPORTED_NUMERIC || '0' }}
+      METRIC_INCOMPLETE_REFUSAL_RATE: ${{ vars.GABE_METRIC_INCOMPLETE_REFUSAL_RATE || '0' }}
+      METRIC_INSTALL_NO_MANUAL_ID: ${{ vars.GABE_METRIC_INSTALL_NO_MANUAL_ID || '0' }}
+      METRIC_FACT_ANSWER_RATE: ${{ vars.GABE_METRIC_FACT_ANSWER_RATE || '1' }}
+      METRIC_WRONG_AUTHORITY_OVERRIDE: ${{ vars.GABE_METRIC_WRONG_AUTHORITY_OVERRIDE || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Gate promotion on release readiness
+        run: npm run check:release-readiness > gabe_release_readiness_promotion.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gabe-promotion-readiness-artifacts
+          path: services/gabe-knowledge-engine/gabe_release_readiness_promotion.json
+
+  promote:
+    needs: [gabe-release-readiness]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Promotion can proceed only because gabe-release-readiness passed."

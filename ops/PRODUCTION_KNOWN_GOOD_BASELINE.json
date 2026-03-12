@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-03-06T23:20:28.562Z",
+  "deployment": "https://hearth-os.vercel.app",
+  "status": "known-good",
+  "manuals_total": 315,
+  "active_manuals": 310,
+  "manual_sections": 8638,
+  "qa": {
+    "tested": 10,
+    "passCount": 10,
+    "failCount": 0
+  }
+}

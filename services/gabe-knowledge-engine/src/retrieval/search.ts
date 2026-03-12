@@ -1,41 +1,92 @@
 import { qdrant } from "./qdrant";
 import { env } from "../config";
 import { RetrievedChunk } from "../types";
+import type { RegistryManual } from "../swarm/manualRegistry";
+
+export type ChunkScope = {
+  allowedManualIds?: string[];
+  allowedManualTypes?: string[];
+  preferredSectionTypes?: string[];
+};
 
 function mapHit(r: any, score: number): RetrievedChunk {
   const payload = r.payload as any;
   return {
+    manual_id: payload.manual_id,
     manual_title: payload.manual_title || payload.diagram_type || "diagram",
     manufacturer: payload.manufacturer || payload.brand || "",
+    brand: payload.brand || payload.manufacturer || "",
     model: payload.model,
+    normalized_model: payload.normalized_model,
+    family: payload.family,
+    size: payload.size,
     page_number: payload.page_number || payload.page || 0,
     source_url: payload.source_url || payload.manual_url || "",
     chunk_text: payload.chunk_text || payload.text || JSON.stringify(payload.structured_data || {}),
+    section_type: payload.section_type,
+    content_kind: payload.content_kind,
     section_title: payload.section_title || payload.section || payload.diagram_type,
-    doc_type: payload.doc_type || payload.diagram_type || "other",
+    revision: payload.revision,
+    language: payload.language,
+    figure_present: payload.figure_present,
+    figure_caption: payload.figure_caption,
+    heading_scope: payload.heading_scope,
+    page_image_ref: payload.page_image_ref,
+    diagram_type: payload.diagram_type,
+    figure_note_text: payload.figure_note_text,
+    callout_labels: payload.callout_labels,
+    ocr_used: payload.ocr_used,
+    ocr_confidence: payload.ocr_confidence,
+    ocr_source_mode: payload.ocr_source_mode,
+    doc_type: payload.doc_type || payload.manual_type || payload.diagram_type || "other",
     score,
     source_type: payload.source_type ?? "manual",
     section: payload.section
   } satisfies RetrievedChunk;
 }
 
-export async function searchManualChunks(vector: number[], limit = 5): Promise<RetrievedChunk[]> {
+function buildScopeFilter(scope?: ChunkScope, allowedManuals?: RegistryManual[]) {
+  const must: any[] = [];
+
+  const ids = scope?.allowedManualIds || [];
+  if (ids.length > 0) {
+    must.push({ should: ids.map((id) => ({ key: "manual_id", match: { value: id } })) });
+  } else if (allowedManuals && allowedManuals.length > 0) {
+    must.push({ should: allowedManuals.map((m) => ({ key: "manual_id", match: { value: m.manual_id } })) });
+  }
+
+  if (scope?.allowedManualTypes?.length) {
+    must.push({ should: scope.allowedManualTypes.map((t) => ({ key: "manual_type", match: { text: t } })) });
+  }
+
+  if (scope?.preferredSectionTypes?.length) {
+    must.push({ should: scope.preferredSectionTypes.map((t) => ({ key: "section_type", match: { text: t } })) });
+  }
+
+  return must.length ? { must } : undefined;
+}
+
+export async function searchManualChunks(vector: number[], limit = 5, allowedManuals?: RegistryManual[], scope?: ChunkScope): Promise<RetrievedChunk[]> {
   const res = await qdrant.search(env.QDRANT_COLLECTION, {
     vector,
     limit,
-    with_payload: true
-  });
+    with_payload: true,
+    filter: buildScopeFilter(scope, allowedManuals) as any,
+  } as any);
   return res.map((r: any) => mapHit(r, r.score));
 }
 
-export async function keywordSearchManualChunks(terms: string[], limit = 50): Promise<RetrievedChunk[]> {
+export async function keywordSearchManualChunks(terms: string[], limit = 50, allowedManuals?: RegistryManual[], scope?: ChunkScope): Promise<RetrievedChunk[]> {
   if (terms.length === 0) return [];
+  const textClause: any = { should: terms.map((term) => ({ key: "chunk_text", match: { text: term } })) };
+  const sf = buildScopeFilter(scope, allowedManuals) as any;
+  const filter = sf ? { must: [textClause, ...(sf.must || [])] } : textClause;
   const res = await qdrant.scroll(env.QDRANT_COLLECTION, {
     limit,
     with_payload: true,
     with_vector: false,
-    filter: { should: terms.map((term) => ({ key: "chunk_text", match: { text: term } })) }
-  });
+    filter,
+  } as any);
   return (res.points ?? []).map((r: any) => mapHit(r, 1));
 }
 

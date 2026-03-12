@@ -1,0 +1,176 @@
+name: gabe-safety-gates
+
+on:
+  pull_request:
+    paths:
+      - 'services/gabe-knowledge-engine/**'
+      - 'src/db/**'
+      - '.github/workflows/gabe-*.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/gabe-knowledge-engine/**'
+      - 'src/db/**'
+      - '.github/workflows/gabe-*.yml'
+  workflow_dispatch:
+    inputs:
+      release_gate_profile:
+        description: 'development|staging|production'
+        required: false
+        default: 'development'
+
+jobs:
+  gabe-install-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run build
+
+  gabe-db-migration-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate required migration files exist
+        run: |
+          test -f src/db/migrations/0001_fireplace_manual_registry.sql
+          test -f src/db/migrations/0002_fireplace_technical_facts.sql
+          test -f src/db/migrations/0003_fact_authority_conflicts.sql
+
+  gabe-phase-tests:
+    runs-on: ubuntu-latest
+    needs: [gabe-install-build]
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run test:phase5-facts
+      - run: npm run test:phase6-conflicts
+      - run: npm run test:phase7-gates
+      - run: npm run test:phase8-enforcement
+      - run: npm run test:phase10-diagrams
+      - run: npm run test:phase11-ocr-parts
+      - run: npm run test:governance-hardening
+      - run: npm run test:governance-ops-hardening
+      - run: npm run test:phase12-live-eval
+
+  gabe-corpus-completeness:
+    runs-on: ubuntu-latest
+    needs: [gabe-install-build]
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    env:
+      RELEASE_GATE_PROFILE: ${{ github.event.inputs.release_gate_profile || 'development' }}
+      CI_CORPUS_COVERAGE_OVERRIDE: ${{ vars.GABE_CI_CORPUS_COVERAGE_OVERRIDE || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run report:corpus > gabe_corpus_completeness.json
+      - run: npm run report:reingest > gabe_reingest_needed.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gabe-corpus-artifacts
+          path: |
+            services/gabe-knowledge-engine/gabe_corpus_completeness.json
+            services/gabe-knowledge-engine/gabe_reingest_needed.json
+
+  gabe-eval-gates:
+    runs-on: ubuntu-latest
+    needs: [gabe-phase-tests]
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    env:
+      EVAL_PHASE5_SCORE: ${{ vars.GABE_EVAL_PHASE5_SCORE || '1' }}
+      EVAL_PHASE6_SCORE: ${{ vars.GABE_EVAL_PHASE6_SCORE || '1' }}
+      EVAL_PHASE7_SCORE: ${{ vars.GABE_EVAL_PHASE7_SCORE || '1' }}
+      EVAL_PHASE8_SCORE: ${{ vars.GABE_EVAL_PHASE8_SCORE || '1' }}
+      EVAL_PHASE5_MIN: ${{ vars.GABE_EVAL_PHASE5_MIN || '0.7' }}
+      EVAL_PHASE6_MIN: ${{ vars.GABE_EVAL_PHASE6_MIN || '0.75' }}
+      EVAL_PHASE7_MIN: ${{ vars.GABE_EVAL_PHASE7_MIN || '0.8' }}
+      EVAL_PHASE8_MIN: ${{ vars.GABE_EVAL_PHASE8_MIN || '0.85' }}
+      RUN_LIVE_GOLD_EVAL: ${{ vars.GABE_RUN_LIVE_GOLD_EVAL || 'false' }}
+      GABE_BASE_URL: ${{ vars.GABE_BASE_URL || 'http://127.0.0.1:4100' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run check:eval-thresholds > gabe_eval_thresholds.json
+      - name: Run live gold eval (real stack)
+        if: env.RUN_LIVE_GOLD_EVAL == 'true'
+        run: npm run eval:gold-live > gabe_live_eval_runner.json
+      - name: Generate eval trends
+        run: npm run report:eval-trends > gabe_eval_trends_run.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gabe-eval-artifacts
+          path: |
+            services/gabe-knowledge-engine/gabe_eval_thresholds.json
+            services/gabe-knowledge-engine/gabe_live_eval_runner.json
+            services/gabe-knowledge-engine/gabe_eval_trends_run.json
+            services/gabe-knowledge-engine/evals/out/*
+
+  gabe-release-readiness:
+    runs-on: ubuntu-latest
+    needs: [gabe-corpus-completeness, gabe-eval-gates]
+    defaults:
+      run:
+        working-directory: services/gabe-knowledge-engine
+    env:
+      RELEASE_GATE_PROFILE: ${{ github.event.inputs.release_gate_profile || (github.ref == 'refs/heads/main' && 'staging' || 'development') }}
+      CI_CORPUS_COVERAGE_OVERRIDE: ${{ vars.GABE_CI_CORPUS_COVERAGE_OVERRIDE || '1' }}
+      METRIC_UNRESOLVED_CONFLICT_RATE: ${{ vars.GABE_METRIC_UNRESOLVED_CONFLICT_RATE || '0' }}
+      METRIC_UNSUPPORTED_NUMERIC: ${{ vars.GABE_METRIC_UNSUPPORTED_NUMERIC || '0' }}
+      METRIC_INCOMPLETE_REFUSAL_RATE: ${{ vars.GABE_METRIC_INCOMPLETE_REFUSAL_RATE || '0' }}
+      METRIC_INSTALL_NO_MANUAL_ID: ${{ vars.GABE_METRIC_INSTALL_NO_MANUAL_ID || '0' }}
+      METRIC_FACT_ANSWER_RATE: ${{ vars.GABE_METRIC_FACT_ANSWER_RATE || '1' }}
+      METRIC_WRONG_AUTHORITY_OVERRIDE: ${{ vars.GABE_METRIC_WRONG_AUTHORITY_OVERRIDE || '0' }}
+      METRIC_CRITICAL_EVAL_ACCURACY: ${{ vars.GABE_METRIC_CRITICAL_EVAL_ACCURACY || '1' }}
+      METRIC_REGRESSION_FAILURES: ${{ vars.GABE_METRIC_REGRESSION_FAILURES || '0' }}
+      RUN_LIVE_GOLD_EVAL: ${{ vars.GABE_RUN_LIVE_GOLD_EVAL || 'false' }}
+      GABE_BASE_URL: ${{ vars.GABE_BASE_URL || 'http://127.0.0.1:4100' }}
+      LIVE_EVAL_SUMMARY_PATH: /tmp/gabe_live_eval_summary.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Run live eval for gate metrics
+        if: env.RUN_LIVE_GOLD_EVAL == 'true'
+        run: npm run eval:gold-live > gabe_live_eval_release_gate.json
+      - name: Run release readiness gate
+        run: npm run check:release-readiness > gabe_release_readiness.json
+      - name: Human summary on failure context
+        if: always()
+        run: |
+          echo "If this gate fails:"
+          echo " - review failed_gate_names in gabe_release_readiness.json"
+          echo " - reingest incomplete manuals"
+          echo " - resolve unresolved fact conflicts"
+          echo " - improve eval scores to configured minimums"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gabe-release-readiness-artifacts
+          path: |
+            services/gabe-knowledge-engine/gabe_release_readiness.json
+            services/gabe-knowledge-engine/gabe_live_eval_release_gate.json
+            services/gabe-knowledge-engine/evals/out/*

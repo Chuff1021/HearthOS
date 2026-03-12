@@ -1,0 +1,106 @@
+{
+  "startedAt": "2026-03-06T20:06:20.298Z",
+  "source": {
+    "masked": "postgres://hearthos:***@127.0.0.1:55432/hearthos"
+  },
+  "target": {
+    "masked": "postgresql://neondb_owner:***@ep-tiny-dream-***.neon.tech/neondb"
+  },
+  "schemaMappingNotes": [
+    "source.manual_sections.page_number/content mapped to target.page_start/snippet; page_start = page_start || page_number || 1; snippet = snippet || content || title"
+  ],
+  "errors": [],
+  "sourceCounts": {
+    "manuals": 285,
+    "manualSections": 7407,
+    "brands": [
+      {
+        "brand": "Heat & Glo",
+        "count": 4
+      },
+      {
+        "brand": "Heatilator",
+        "count": 5
+      },
+      {
+        "brand": "HHT-shared",
+        "count": 131
+      },
+      {
+        "brand": "Travis Industries",
+        "count": 26
+      },
+      {
+        "brand": "UNASSIGNED",
+        "count": 119
+      }
+    ]
+  },
+  "targetBefore": {
+    "manuals": 31,
+    "manualSections": 1235,
+    "brands": [
+      {
+        "brand": "FPX",
+        "count": 10
+      },
+      {
+        "brand": "Lopi",
+        "count": 21
+      }
+    ]
+  },
+  "targetAfter": {
+    "manuals": 315,
+    "manualSections": 8642,
+    "brands": [
+      {
+        "brand": "FPX",
+        "count": 10
+      },
+      {
+        "brand": "HHT-shared",
+        "count": 131
+      },
+      {
+        "brand": "Heat & Glo",
+        "count": 4
+      },
+      {
+        "brand": "Heatilator",
+        "count": 5
+      },
+      {
+        "brand": "Lopi",
+        "count": 20
+      },
+      {
+        "brand": "Travis Industries",
+        "count": 26
+      },
+      {
+        "brand": "UNASSIGNED",
+        "count": 119
+      }
+    ]
+  },
+  "actions": {
+    "organizations": {
+      "ensured": true,
+      "id": "ed0129d0-1ebb-4cd9-ab9a-25e3415600b3",
+      "slug": "default"
+    },
+    "manuals": {
+      "inserted": 284,
+      "updated": 1,
+      "rejected": 0
+    },
+    "manualSections": {
+      "inserted": 7407,
+      "updated": 0,
+      "rejected": 0,
+      "duplicatesSkipped": 0
+    }
+  },
+  "completedAt": "2026-03-06T20:10:06.022Z"
+}

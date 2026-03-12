@@ -1,0 +1,5 @@
+{"question":"scanned exploded view callout item #A12 part number","intent":"replacement parts","expected":"parts_graph_match","expected_answerable":true}
+{"question":"lookup part number 250-01987 from exploded view","intent":"replacement parts","expected":"part_number_exact","expected_answerable":true}
+{"question":"blower assembly callout from scanned diagram","intent":"replacement parts","expected":"part_description","expected_answerable":true}
+{"question":"weak OCR only callout with no corroboration","intent":"replacement parts","expected_refusal":"weak_ocr_uncorroborated","expected_answerable":false}
+{"question":"part compatibility for wrong model manual","intent":"replacement parts","expected_refusal":"unsupported_part_match","expected_answerable":false}

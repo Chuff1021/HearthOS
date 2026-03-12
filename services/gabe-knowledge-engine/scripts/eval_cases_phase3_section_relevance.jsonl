@@ -1,0 +1,5 @@
+{"question":"what pipe does this use for venting on 42 apex","intent":"venting","should_reject_sections":["operation","maintenance"],"expected_section":"venting","expected_answerable":true}
+{"question":"framing dimensions for novus 36","intent":"framing","should_reject_sections":["warnings","generic_front_matter"],"expected_section":"framing","expected_answerable":true}
+{"question":"replacement blower part number for answer nexgen","intent":"replacement parts","should_reject_sections":["installation","clearances"],"expected_section":"parts","expected_answerable":true}
+{"question":"mantel clearance for apex 42","intent":"clearances","should_reject_manual_type":["owner"],"expected_section":"mantel_clearances","expected_answerable":true}
+{"question":"venting requirements for unknown fireplace","intent":"venting","expected_answerable":false,"expected_refusal":"model_unresolved_install_critical"}

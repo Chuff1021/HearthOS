@@ -138,82 +138,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const allManuals = await listManuals();
+    const modelContext = (jobContext?.fireplace || "").trim();
+    const modelManualCandidates = modelContext
+      ? allManuals.filter((m) => `${m.brand} ${m.model}`.toLowerCase().includes(modelContext.toLowerCase()) || m.model.toLowerCase().includes(modelContext.toLowerCase()))
+      : [];
+    const exactInstallManual = modelManualCandidates.find((m) => /install/i.test(String(m.type || ""))) || modelManualCandidates[0] || null;
+    const effectiveSelectedManual = selectedManual?.manualId
+      ? selectedManual
+      : exactInstallManual
+      ? { manualId: exactInstallManual.id, manualTitle: `${exactInstallManual.brand} ${exactInstallManual.model} (${exactInstallManual.type})` }
+      : selectedManual;
+
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
+    const contextualQuestion = [
+      lastUserMessage,
+      jobContext?.fireplace ? `Model context: ${jobContext.fireplace}` : null,
+      selectedManual?.manualTitle ? `Manual context: ${selectedManual.manualTitle}` : null,
+      exactInstallManual ? `Exact model constraint: Use ${exactInstallManual.brand} ${exactInstallManual.model} (${exactInstallManual.type}) from ${exactInstallManual.url}. Do not use nearby models.` : null,
+    ].filter(Boolean).join("\n");
     const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
     const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
 
-    // STRICT MANUAL GUARD:
-    // When a manual is selected, only answer from that exact manual.
-    if (selectedManual?.manualId && lastUserMessage) {
-      const allManuals = await listManuals();
-      const selectedManualRecord = allManuals.find((manual) => manual.id === selectedManual.manualId);
+    // Local manual-guard path removed; use orchestrator/engine pipeline only.
 
-      if (!selectedManualRecord) {
-        return NextResponse.json({
-          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
-          source_type: "none",
-          confidence: 0,
-          selected_manual_id: selectedManual.manualId,
-          selected_manual_title: selectedManual.manualTitle ?? null,
-          answered_from_selected_manual: false,
-          manual_title: selectedManual.manualTitle ?? null,
-          page_number: null,
-        });
-      }
 
-      const selectedSections = await listManualSections(selectedManual.manualId);
-      const bestSection = pickBestManualSection(lastUserMessage, selectedSections);
-
-      if (!bestSection) {
-        return NextResponse.json({
-          answer: `I could not verify this answer in the selected manual${selectedManual.manualTitle ? ` (${selectedManual.manualTitle})` : ""}.`,
-          source_type: "none",
-          confidence: 0,
-          selected_manual_id: selectedManual.manualId,
-          selected_manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
-          answered_from_selected_manual: false,
-          manual_title: selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`,
-          page_number: null,
-        });
-      }
-
-      const selectedManualTitle = selectedManual.manualTitle ?? `${selectedManualRecord.brand} ${selectedManualRecord.model}`;
-      const answer = buildStrictManualAnswer(lastUserMessage, bestSection);
-
-      return NextResponse.json({
-        answer,
-        source_type: "manual",
-        manual_title: selectedManualTitle,
-        page_number: bestSection.pageStart ?? null,
-        source_url: selectedManualRecord.url,
-        confidence: 72,
-        selected_manual_id: selectedManual.manualId,
-        selected_manual_title: selectedManualTitle,
-        answered_from_selected_manual: true,
-        cited_manual_title: selectedManualTitle,
-        cited_page_number: bestSection.pageStart ?? null,
-        backend: "manual-guard",
-      });
-    }
-
-    const isPipeOrVentingQuestion = /\b(pipe|vent|venting|diameter|liner|elbow|termination|clearance)\b/i.test(lastUserMessage ?? "");
-    if (!selectedManual?.manualId && isPipeOrVentingQuestion && lastUserMessage) {
-      const priorityFallback = await buildManualFallback(lastUserMessage);
-      if (priorityFallback) {
-        return NextResponse.json({ ...priorityFallback, backend: "manual-fallback-priority" });
-      }
-    }
+    // IMPORTANT: do not short-circuit to local manual fallback for vent/pipe intents.
+    // Always run the live engine/orchestrator pipeline first so manual-id gating,
+    // section routing, fact-first, and validator enforcement remain active.
 
     if (orchestratorUrl && lastUserMessage) {
       const orchestratorRes = await fetch(`${orchestratorUrl.replace(/\/$/, "")}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: lastUserMessage,
+          question: contextualQuestion || lastUserMessage,
           conversationId: jobId ?? techId ?? undefined,
-          selectedManualId: selectedManual?.manualId,
-          selectedManualTitle: selectedManual?.manualTitle,
+          selectedManualId: effectiveSelectedManual?.manualId,
+          selectedManualTitle: effectiveSelectedManual?.manualTitle,
           debug: process.env.GABE_DEBUG_MODE === "true",
         }),
       });
@@ -233,12 +196,7 @@ export async function POST(request: NextRequest) {
 
       const data = await orchestratorRes.json() as OrchestratorResponse;
 
-      if ((data.source_type === "none" || data.run.runOutcome === "refused_unverified") && lastUserMessage) {
-        const fallback = await buildManualFallback(lastUserMessage, selectedManual?.manualId);
-        if (fallback) {
-          return NextResponse.json({ ...fallback, backend: "manual-fallback" });
-        }
-      }
+      // Keep orchestrator/engine refusal behavior intact; no local manual fallback bypass.
 
       const assistantMessage = data.answer ?? "";
 
@@ -272,7 +230,7 @@ export async function POST(request: NextRequest) {
       const engineRes = await fetch(`${engineUrl.replace(/\/$/, "")}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: lastUserMessage }),
+        body: JSON.stringify({ question: contextualQuestion || lastUserMessage }),
       });
 
       if (!engineRes.ok) {
@@ -288,12 +246,8 @@ export async function POST(request: NextRequest) {
 
       const data = await engineRes.json();
 
-      if ((data?.source_type === "none" || data?.run_outcome === "refused_unverified") && lastUserMessage) {
-        const fallback = await buildManualFallback(lastUserMessage, selectedManual?.manualId);
-        if (fallback) {
-          return NextResponse.json({ ...fallback, backend: "manual-fallback" });
-        }
-      }
+      // Do not fallback to local manual snippet retrieval here.
+      // Return engine/orchestrator verdict directly so refusals stay safe.
 
       const assistantMessage = data?.answer ?? data?.message ?? "";
 
@@ -330,8 +284,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[GABE] GROQ_API_KEY present:", !!groqApiKey);
     console.log("[GABE] GROQ_MODEL:", modelOverride);
-
-    const allManuals = await listManuals();
 
     if (!groqApiKey) {
       const brandCounts = allManuals.reduce((acc, m) => {
@@ -428,8 +380,8 @@ Would you like help with a specific fireplace model or issue?`;
         })
       : [];
 
-    const selectedManualRecord = selectedManual?.manualId
-      ? allManuals.find((manual) => manual.id === selectedManual.manualId)
+    const selectedManualRecord = effectiveSelectedManual?.manualId
+      ? allManuals.find((manual) => manual.id === effectiveSelectedManual.manualId)
       : undefined;
     const prioritizedManuals = selectedManualRecord
       ? [selectedManualRecord]

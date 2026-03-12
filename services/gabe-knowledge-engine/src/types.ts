@@ -1,12 +1,31 @@
 export type ManualChunk = {
+  manual_id?: string;
   manual_title: string;
   manufacturer: string;
+  brand?: string;
   model: string;
+  normalized_model?: string;
+  family?: string;
+  size?: string;
   page_number: number;
   source_url: string;
   chunk_text: string;
+  section_type?: string;
+  content_kind?: string;
   section_title?: string;
-  doc_type?: "installation" | "owner" | "flyer" | "other";
+  revision?: string;
+  language?: string;
+  figure_present?: boolean;
+  figure_caption?: string;
+  heading_scope?: string;
+  page_image_ref?: string;
+  diagram_type?: string;
+  figure_note_text?: string;
+  callout_labels?: string[];
+  ocr_used?: boolean;
+  ocr_confidence?: number;
+  ocr_source_mode?: string;
+  doc_type?: "installation" | "owner" | "flyer" | "other" | "parts" | "service" | "wiring";
 };
 
 export type RetrievedChunk = ManualChunk & {

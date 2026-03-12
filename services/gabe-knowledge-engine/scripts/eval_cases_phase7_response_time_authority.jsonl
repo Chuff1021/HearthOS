@@ -1,0 +1,5 @@
+{"question":"selected fact contradicted by newer revision","intent":"gas pressure","expected_behavior":"blocked_at_response_time","expected_reason":"higher_authority_conflict"}
+{"question":"selected fact contradicted by installation manual over brochure","intent":"clearances","expected_behavior":"blocked_at_response_time","expected_reason":"higher_authority_conflict"}
+{"question":"superseded fact selected","intent":"venting","expected_behavior":"blocked_at_response_time","expected_reason":"selected_fact_is_superseded"}
+{"question":"unresolved conflict remains","intent":"framing","expected_behavior":"refused","expected_reason":"fact_conflict_unresolved"}
+{"question":"release gate fails when unresolved_conflict_rate too high","intent":"ops","expected_behavior":"release_not_ready"}

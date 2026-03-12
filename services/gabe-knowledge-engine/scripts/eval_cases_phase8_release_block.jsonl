@@ -1,0 +1,6 @@
+{"scenario":"strict startup block when gates fail","expected":"startup_blocked"}
+{"scenario":"startup allowed when gates pass","expected":"startup_ok"}
+{"scenario":"dev override enabled in development profile","expected":"startup_allowed_with_override"}
+{"scenario":"ci check returns nonzero on failed readiness","expected":"exit_code_nonzero"}
+{"scenario":"production profile stricter than staging and development","expected":"profile_strictness_verified"}
+{"scenario":"predeploy blocked by failed readiness","expected":"deploy_blocked"}

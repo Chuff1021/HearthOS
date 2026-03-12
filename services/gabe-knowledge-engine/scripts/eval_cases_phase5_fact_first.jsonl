@@ -1,0 +1,6 @@
+{"question":"What vent size is approved for Apex 42?","intent":"venting","expected_fact_type":"vent_system","expected_answerable":true}
+{"question":"Framing width/height for Novus 36","intent":"framing","expected_fact_type":"framing_dimensions","expected_answerable":true}
+{"question":"What is minimum mantel clearance for Apex 42","intent":"clearances","expected_fact_type":"clearance","expected_answerable":true}
+{"question":"Manifold pressure for LP on Novus 36","intent":"gas pressure","expected_fact_type":"gas_pressure","expected_answerable":true}
+{"question":"Electrical voltage requirement for Answer NexGen","intent":"electrical","expected_fact_type":"electrical","expected_answerable":true}
+{"question":"Give me vent specs for unknown model","intent":"venting","expected_answerable":false,"expected_refusal":"model_unresolved_install_critical"}

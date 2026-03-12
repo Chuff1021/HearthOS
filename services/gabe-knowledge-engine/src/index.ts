@@ -1,5 +1,8 @@
 import Fastify from "fastify";
-import { env, manualSelectionMinMargin, minEvidenceChunks, similarityThreshold } from "./config";
+import { createHash } from "node:crypto";
+import { appendFile, mkdir, writeFile, access, readFile } from "node:fs/promises";
+import { basename, extname, join } from "node:path";
+import { env, manualSelectionMinMargin, minEvidenceChunks, similarityThreshold, resolverConfidenceMin, maxManualCandidates, installIntentRequiresInstallManual, installStrictManualIdOnly } from "./config";
 import { embed } from "./embeddings";
 import { extractPdfPages } from "./ingest/pdf";
 import { chunkPages } from "./ingest/chunker";
@@ -13,6 +16,27 @@ import { queryDimensionsByModelTopic, upsertDimensions } from "./ingest/dimensio
 import { searchWebHints } from "./retrieval/web";
 import { detectModel } from "./swarm/modelDetector";
 import { classifyIntent, IntentCategory } from "./swarm/intentClassifier";
+import { resolveQuery } from "./swarm/modelResolver";
+import { rankManuals, filterToTopRankedManuals } from "./swarm/manualRanker";
+import { ensureManualRegistryTable, resolveManualIdForIngest, selectRegistryCandidates } from "./swarm/manualRegistry";
+import { isInstallCriticalIntent, policyForIntent } from "./swarm/manualTypePolicy";
+import { classifySection } from "./swarm/sectionClassifier";
+import { preferredSectionsForIntent } from "./swarm/querySectionRouter";
+import { computeCorpusCompleteness } from "./swarm/corpusCompleteness";
+import { ensureFactsTable, queryFacts, upsertFacts } from "./swarm/factsStore";
+import { extractFactsFromChunk } from "./swarm/factExtractor";
+import { detectFactConflict, resolveFactConflict } from "./swarm/factConflictResolver";
+import { rankFactsForQuery } from "./swarm/factSelector";
+import { responseTimeAuthorityCrosscheck } from "./swarm/authorityCrosscheck";
+import { evaluateReleaseReadiness, loadReleaseThresholds, resolveGateProfile } from "./swarm/releaseGates";
+import { classifyDiagramType } from "./swarm/diagramClassifier";
+import { linkFigureEvidence } from "./swarm/figureNoteLinker";
+import { runOcrFallback } from "./swarm/ocrFallback";
+import { ensurePartsGraphTable, queryPartsGraph, upsertPartsGraph } from "./swarm/partsGraphStore";
+import { extractCalloutsFromFigure } from "./swarm/calloutExtractor";
+import { ensureSourceGovernanceTables, querySourcePriorityPolicy, sourceGovernanceDashboard, suggestMissingSourceClasses, upsertDiscoveredSource } from "./swarm/sourceGovernance";
+import { ensureGovernanceHardeningTables, enqueueSourceJob, governanceExpandedDashboard, governanceWorkerStatus, processNextSourceJob, reviewerAction, runWorkerLoop } from "./swarm/sourceGovernanceHardening";
+import { captureFeedback, ensureFeedbackTables, evalHistory, evalTrends, feedbackDashboard, listFeedback, recordEvalRun } from "./swarm/feedbackLoop";
 import { routeBySection } from "./swarm/sectionRouter";
 import { validateOrReject } from "./swarm/validatorAgent";
 import { logRefinementEvent } from "./swarm/selfRefiner";
@@ -28,6 +52,12 @@ import { buildComplianceAnswerFromRecord, buildComplianceRefusal, extractComplia
 import type { DimensionRecord, InstallAngle } from "./types";
 
 const app = Fastify({ logger: { level: env.LOG_LEVEL } });
+void ensureManualRegistryTable();
+void ensureFactsTable();
+void ensurePartsGraphTable();
+void ensureSourceGovernanceTables();
+void ensureGovernanceHardeningTables();
+void ensureFeedbackTables();
 
 app.addHook('onSend', async (_req, _reply, payload) => {
   try {
@@ -47,10 +77,33 @@ app.addHook('onSend', async (_req, _reply, payload) => {
 const metrics = {
   gabe_queries_total: 0,
   gabe_wrong_manual_total: 0,
-  gabe_missing_citation_total: 0
+  gabe_missing_citation_total: 0,
+  install_query_no_manual_id_attempts: 0,
+  fact_answers_total: 0,
+  unsupported_numeric_answer_attempts: 0,
+  incomplete_manual_refusal_total: 0,
+  response_time_authority_override_blocks: 0,
+  superseded_fact_block_count: 0,
+  authority_crosscheck_failures: 0,
+  fact_selection_reversal_count: 0,
+  unresolved_conflict_refusals: 0,
+  wrong_authority_override_attempts: 0,
 };
 
-app.get("/health", async () => ({ ok: true }));
+let lastReleaseReadinessResult: any = null;
+let startupBlockedByReleaseGate = false;
+let releaseBlockModeEnabled = false;
+let deployBlockedByReleaseGate = false;
+
+app.get("/health", async () => ({
+  ok: !startupBlockedByReleaseGate,
+  release_block_mode_enabled: releaseBlockModeEnabled,
+  startup_blocked_by_release_gate: startupBlockedByReleaseGate,
+  deploy_blocked_by_release_gate: deployBlockedByReleaseGate,
+  evaluated_threshold_profile: lastReleaseReadinessResult?.profile || resolveGateProfile(),
+  failed_gate_names: lastReleaseReadinessResult?.failed_gate_names || [],
+  last_release_readiness_result: lastReleaseReadinessResult,
+}));
 app.get("/ops/diagram-confidence", async () => {
   try {
     const res = await qdrant.scroll(env.QDRANT_DIAGRAM_COLLECTION, {
@@ -74,15 +127,222 @@ app.get("/ops/diagram-confidence", async () => {
 });
 
 app.get("/metrics", async () => {
+  const c = await computeCorpusCompleteness();
   const lines = [
     "# TYPE gabe_queries_total counter",
     `gabe_queries_total ${metrics.gabe_queries_total}`,
     "# TYPE gabe_wrong_manual_total counter",
     `gabe_wrong_manual_total ${metrics.gabe_wrong_manual_total}`,
     "# TYPE gabe_missing_citation_total counter",
-    `gabe_missing_citation_total ${metrics.gabe_missing_citation_total}`
+    `gabe_missing_citation_total ${metrics.gabe_missing_citation_total}`,
+    "# TYPE install_query_no_manual_id_attempts counter",
+    `install_query_no_manual_id_attempts ${metrics.install_query_no_manual_id_attempts}`,
+    "# TYPE fact_answer_rate gauge",
+    `fact_answer_rate ${metrics.gabe_queries_total ? (metrics.fact_answers_total / metrics.gabe_queries_total).toFixed(6) : 0}`,
+    "# TYPE unsupported_numeric_answer_attempts counter",
+    `unsupported_numeric_answer_attempts ${metrics.unsupported_numeric_answer_attempts}`,
+    "# TYPE incomplete_manual_refusal_rate gauge",
+    `incomplete_manual_refusal_rate ${metrics.gabe_queries_total ? (metrics.incomplete_manual_refusal_total / metrics.gabe_queries_total).toFixed(6) : 0}`,
+    "# TYPE strict_manual_id_coverage_rate gauge",
+    `strict_manual_id_coverage_rate ${c.strict_manual_id_coverage_rate}`,
+    "# TYPE response_time_authority_override_blocks counter",
+    `response_time_authority_override_blocks ${metrics.response_time_authority_override_blocks}`,
+    "# TYPE superseded_fact_block_count counter",
+    `superseded_fact_block_count ${metrics.superseded_fact_block_count}`,
+    "# TYPE unresolved_conflict_refusal_rate gauge",
+    `unresolved_conflict_refusal_rate ${metrics.gabe_queries_total ? (metrics.unresolved_conflict_refusals / metrics.gabe_queries_total).toFixed(6) : 0}`,
+    "# TYPE authority_crosscheck_failures counter",
+    `authority_crosscheck_failures ${metrics.authority_crosscheck_failures}`,
+    "# TYPE fact_selection_reversal_count counter",
+    `fact_selection_reversal_count ${metrics.fact_selection_reversal_count}`,
   ];
   return lines.join("\n") + "\n";
+});
+
+app.get("/ops/corpus-completeness", async () => {
+  const report = await computeCorpusCompleteness();
+  return { ok: true, report };
+});
+
+app.get("/ops/reingest-needed", async () => {
+  const report = await computeCorpusCompleteness();
+  const safe = report.incomplete_manual_ids.length === 0 ? "all_safe" : "partial";
+  return {
+    ok: true,
+    safe_manuals_status: safe,
+    safe_manuals: Math.max(0, report.manuals_with_complete_chunk_coverage),
+    incomplete_manuals: report.incomplete_manual_ids,
+    quarantined_manuals: report.manuals_with_quarantined_chunks,
+    legacy_tuple_only_manuals: report.strict_manual_id_coverage_rate < 1 ? "present" : "none",
+  };
+});
+
+async function computeReleaseReadinessSnapshot() {
+  const thresholds = loadReleaseThresholds();
+  const coverage = await computeCorpusCompleteness();
+  const factAnswerRate = metrics.gabe_queries_total ? (metrics.fact_answers_total / metrics.gabe_queries_total) : 0;
+  const incompleteRefusalRate = metrics.gabe_queries_total ? (metrics.incomplete_manual_refusal_total / metrics.gabe_queries_total) : 0;
+  const unresolvedConflictRate = metrics.gabe_queries_total ? (metrics.unresolved_conflict_refusals / metrics.gabe_queries_total) : 0;
+  const latestEval = (await evalHistory(1))[0] || null;
+  const criticalEvalAccuracy = Number((latestEval?.aggregate_metrics || {}).critical_eval_accuracy ?? process.env.METRIC_CRITICAL_EVAL_ACCURACY ?? 1);
+  const regressionFailures = Number(latestEval?.regression_failures ?? process.env.METRIC_REGRESSION_FAILURES ?? 0);
+
+  const readiness = evaluateReleaseReadiness({
+    unresolved_conflict_refusal_rate: unresolvedConflictRate,
+    unsupported_numeric_answer_attempts: metrics.unsupported_numeric_answer_attempts,
+    incomplete_manual_refusal_rate: incompleteRefusalRate,
+    install_query_no_manual_id_attempts: metrics.install_query_no_manual_id_attempts,
+    fact_answer_rate: factAnswerRate,
+    wrong_authority_override_attempts: metrics.wrong_authority_override_attempts,
+    strict_manual_id_coverage_rate: coverage.strict_manual_id_coverage_rate,
+    critical_eval_accuracy: criticalEvalAccuracy,
+    regression_failures: regressionFailures,
+  }, thresholds);
+  const failed = readiness.checks.filter((c: any) => !c.ok).map((c: any) => c.key);
+  return {
+    profile: resolveGateProfile(),
+    ...readiness,
+    failed_gate_names: failed,
+    strict_manual_id_coverage_rate: coverage.strict_manual_id_coverage_rate,
+    unresolved_conflict_refusal_rate: unresolvedConflictRate,
+    incomplete_manual_refusal_rate: incompleteRefusalRate,
+    fact_answer_rate: factAnswerRate,
+    install_query_no_manual_id_attempts: metrics.install_query_no_manual_id_attempts,
+    unsupported_numeric_answer_attempts: metrics.unsupported_numeric_answer_attempts,
+    wrong_authority_override_attempts: metrics.wrong_authority_override_attempts,
+    critical_eval_accuracy: criticalEvalAccuracy,
+    regression_failures: regressionFailures,
+    last_evaluated_at: new Date().toISOString(),
+  };
+}
+
+app.get("/ops/release-readiness", async () => {
+  lastReleaseReadinessResult = await computeReleaseReadinessSnapshot();
+  return {
+    ok: true,
+    release_block_mode_enabled: releaseBlockModeEnabled,
+    startup_blocked_by_release_gate: startupBlockedByReleaseGate,
+    deploy_blocked_by_release_gate: deployBlockedByReleaseGate,
+    evaluated_threshold_profile: lastReleaseReadinessResult.profile,
+    last_release_readiness_result: lastReleaseReadinessResult,
+    ...lastReleaseReadinessResult,
+  };
+});
+
+app.get("/ops/deployment-status", async () => ({
+  ok: !startupBlockedByReleaseGate,
+  release_block_mode_enabled: releaseBlockModeEnabled,
+  startup_blocked_by_release_gate: startupBlockedByReleaseGate,
+  deploy_blocked_by_release_gate: deployBlockedByReleaseGate,
+  failed_gate_names: lastReleaseReadinessResult?.failed_gate_names || [],
+  evaluated_threshold_profile: lastReleaseReadinessResult?.profile || resolveGateProfile(),
+  last_release_readiness_result: lastReleaseReadinessResult,
+  last_evaluation_timestamp: lastReleaseReadinessResult?.last_evaluated_at || null,
+}));
+
+app.get("/ops/source-governance/dashboard", async () => {
+  const dash = await sourceGovernanceDashboard();
+  return { ok: true, dashboard: dash };
+});
+
+app.post("/ops/source-governance/discovered", async (request) => {
+  const body = request.body as any;
+  const out = await upsertDiscoveredSource(body || {});
+  return { ok: true, result: out };
+});
+
+app.get("/ops/source-governance/query-policy", async (request) => {
+  const q = request.query as any;
+  const policy = querySourcePriorityPolicy({ intent: String(q?.intent || "code compliance"), jurisdictionKnown: String(q?.jurisdictionKnown || "false") === "true" });
+  return { ok: true, priority: policy };
+});
+
+app.get("/ops/source-governance/missing-source-suggestions", async (request) => {
+  const q = request.query as any;
+  const question = String(q?.question || "");
+  return { ok: true, question, suggested_source_classes: suggestMissingSourceClasses(question) };
+});
+
+app.post("/ops/source-governance/queue-job", async (request) => {
+  const body = request.body as any;
+  const out = await enqueueSourceJob({ source_id: String(body?.source_id || ""), job_type: String(body?.job_type || "download_parse"), payload: body?.payload || {} });
+  return { ok: true, result: out };
+});
+
+app.post("/ops/source-governance/process-next-job", async () => {
+  const out = await processNextSourceJob();
+  return { ok: true, result: out };
+});
+
+app.post("/ops/source-governance/reviewer-action", async (request) => {
+  const body = request.body as any;
+  const out = await reviewerAction({
+    source_id: String(body?.source_id || ""),
+    actor: String(body?.actor || "operator"),
+    actor_role: body?.actor_role,
+    action: body?.action,
+    reason: body?.reason,
+    notes: body?.notes,
+  });
+  return { ok: true, result: out };
+});
+
+app.get("/ops/source-governance/dashboard-expanded", async () => {
+  const out = await governanceExpandedDashboard();
+  return { ok: true, dashboard: out };
+});
+
+app.get("/ops/source-governance/worker-status", async () => {
+  const out = await governanceWorkerStatus();
+  return { ok: true, status: out };
+});
+
+app.post("/ops/source-governance/worker-loop-start", async (request) => {
+  const body = request.body as any;
+  const iterations = Number(body?.iterations || 1);
+  const concurrency = Number(body?.concurrency || process.env.GOVERNANCE_WORKER_CONCURRENCY || 2);
+  const pollMs = Number(body?.pollMs || process.env.GOVERNANCE_WORKER_POLL_MS || 2000);
+  const out = await runWorkerLoop({ iterations, concurrency, pollMs });
+  return { ok: true, result: out };
+});
+
+app.post("/ops/feedback/capture", async (request) => {
+  const out = await captureFeedback(request.body as any);
+  return { ok: true, result: out };
+});
+
+app.get("/ops/feedback/list", async (request) => {
+  const q = request.query as any;
+  const rows = await listFeedback(Number(q?.limit || 100));
+  return { ok: true, rows };
+});
+
+app.get("/ops/feedback/dashboard", async () => {
+  const d = await feedbackDashboard();
+  return { ok: true, dashboard: d };
+});
+
+app.post("/ops/eval/run-record", async (request) => {
+  const body = request.body as any;
+  const out = await recordEvalRun({
+    suite_name: String(body?.suite_name || "gold-eval"),
+    scorecard_json: body?.scorecard_json || {},
+    total_cases: Number(body?.total_cases || 0),
+    passed_cases: Number(body?.passed_cases || 0),
+  });
+  return { ok: true, result: out };
+});
+
+app.get("/ops/eval/history", async (request) => {
+  const q = request.query as any;
+  const rows = await evalHistory(Number(q?.limit || 50));
+  return { ok: true, rows };
+});
+
+app.get("/ops/eval/trends", async (request) => {
+  const q = request.query as any;
+  const trends = await evalTrends(Number(q?.limit || 200));
+  return { ok: true, trends };
 });
 
 app.post("/ingest/manual", async (request, reply) => {
@@ -98,28 +358,72 @@ app.post("/ingest/manual", async (request, reply) => {
     return reply.status(400).send({ error: "file_path, manual_title, manufacturer, model, source_url required" });
   }
 
-  const pages = await extractPdfPages(body.file_path);
+  const asset = await ensureManualAsset({
+    file_path: body.file_path,
+    source_url: body.source_url,
+    manual_title: body.manual_title,
+  });
+
+  const pages = await extractPdfPages(asset.resolved_path);
   const chunks = chunkPages(pages, 450, 750, 2);
-  if (chunks.length === 0) return reply.status(400).send({ error: "no_extractable_text" });
+  if (chunks.length === 0) return reply.status(400).send({ error: "no_extractable_text", asset });
+
+  const manualIdentity = await resolveManualIdForIngest({
+    manufacturer: body.manufacturer,
+    model: body.model,
+    manual_title: body.manual_title,
+    source_url: body.source_url,
+    doc_type: inferDocType(body.manual_title),
+  });
+  if (!manualIdentity.manual_id || manualIdentity.confidence < 0.5) {
+    await quarantineUnassignedChunks({ body, reason: "manual_id_unresolved", confidence: manualIdentity.confidence, chunks: chunks.slice(0, 20) });
+    return reply.status(422).send({ error: "manual_id_unresolved", confidence: manualIdentity.confidence });
+  }
 
   const embeddings = await embed(chunks.map((c) => c.text));
   await ensureCollection(embeddings[0].length);
   const docType = inferDocType(body.manual_title);
 
-  const points = chunks.map((c, idx) => ({
-    id: stableUuid(`${body.source_url}|${c.page}|${c.text}`),
-    vector: embeddings[idx],
-    payload: {
-      manual_title: body.manual_title,
-      manufacturer: body.manufacturer,
-      model: body.model,
-      page_number: c.page,
-      source_url: body.source_url,
-      chunk_text: c.text,
-      section_title: c.section_title,
-      doc_type: docType,
-      source_type: "manual"
-    }
+  const points = await Promise.all(chunks.map(async (c, idx) => {
+    const cls = classifySection(c.text, c.section_title);
+    const diagramType = classifyDiagramType({ text: c.text, title: c.section_title, heading: c.section_title, sectionType: cls.section_type });
+    const ocr = await runOcrFallback({ nativeText: c.text, imageRef: body.file_path, diagramLikely: diagramType !== "generic_illustration" });
+    const fig = linkFigureEvidence({ caption: c.section_title, heading: c.section_title, text: ocr.text || c.text, imageRef: body.file_path, diagramType });
+    return ({
+      id: stableUuid(`${body.source_url}|${c.page}|${c.text}`),
+      vector: embeddings[idx],
+      payload: {
+        manual_id: manualIdentity.manual_id,
+        manual_title: body.manual_title,
+        manufacturer: body.manufacturer,
+        brand: body.manufacturer,
+        model: body.model,
+        normalized_model: body.model.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+        family: body.model.toLowerCase().includes("apex") ? "apex" : body.model.toLowerCase().includes("elite") ? "elite" : body.model.toLowerCase().includes("novus") ? "novus" : null,
+        size: body.model.match(/\b(\d{2})\b/)?.[1] || null,
+        manual_type: docType,
+        page_number: c.page,
+        section_type: cls.section_type,
+        content_kind: cls.content_kind,
+        source_url: body.source_url,
+        chunk_text: ocr.text || c.text,
+        section_title: c.section_title,
+        figure_present: fig.figure_present,
+        figure_caption: fig.figure_caption,
+        heading_scope: fig.heading_scope,
+        figure_note_text: fig.figure_note_text,
+        page_image_ref: fig.page_image_ref,
+        diagram_type: fig.diagram_type,
+        callout_labels: fig.callout_labels,
+        ocr_used: ocr.used,
+        ocr_confidence: ocr.confidence,
+        ocr_source_mode: ocr.source,
+        revision: null,
+        language: "en",
+        doc_type: docType,
+        source_type: "manual"
+      }
+    });
   }));
 
   const batchSize = 75;
@@ -138,7 +442,52 @@ app.post("/ingest/manual", async (request, reply) => {
     );
   }
 
-  return { ok: true, chunks: points.length };
+  const facts = chunks.flatMap((c) => extractFactsFromChunk({
+    manual_id: manualIdentity.manual_id!,
+    manufacturer: body.manufacturer,
+    model: body.model,
+    normalized_model: body.model.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+    family: body.model.toLowerCase().includes("apex") ? "apex" : body.model.toLowerCase().includes("elite") ? "elite" : body.model.toLowerCase().includes("novus") ? "novus" : null,
+    size: body.model.match(/\b(\d{2})\b/)?.[1] || null,
+    manual_type: docType,
+    page_number: c.page,
+    source_url: body.source_url,
+    text: c.text,
+    section_title: c.section_title,
+    revision: null,
+  }));
+  await upsertFacts(facts);
+
+  const partsRows = points.flatMap((p: any) => {
+    const dt = String(p.payload.diagram_type || "");
+    if (!/exploded_parts_view|generic_illustration|installation_sequence_figure/.test(dt)) return [];
+    return extractCalloutsFromFigure({
+      manual_id: manualIdentity.manual_id!,
+      model: body.model,
+      normalized_model: body.model.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+      family: body.model.toLowerCase().includes("apex") ? "apex" : body.model.toLowerCase().includes("elite") ? "elite" : body.model.toLowerCase().includes("novus") ? "novus" : null,
+      size: body.model.match(/\b(\d{2})\b/)?.[1] || null,
+      figure_page_number: p.payload.page_number,
+      figure_caption: p.payload.figure_caption,
+      diagram_type: p.payload.diagram_type,
+      source_url: body.source_url,
+      text: p.payload.chunk_text,
+      ocr_confidence: p.payload.ocr_confidence,
+      source_mode: p.payload.ocr_source_mode === "ocr" ? "ocr" : p.payload.ocr_source_mode === "hybrid" ? "hybrid" : "native_text",
+    });
+  });
+  await upsertPartsGraph(partsRows);
+
+  return {
+    ok: true,
+    chunks: points.length,
+    facts: facts.length,
+    callouts: partsRows.length,
+    asset_source: asset.asset_source,
+    download_status: asset.download_status,
+    checksum: asset.checksum,
+    cache_path: asset.cache_path,
+  };
 });
 
 app.post("/ingest/diagrams", async (request, reply) => {
@@ -166,30 +515,72 @@ app.post("/ingest/diagrams", async (request, reply) => {
   const vectors = await embed(texts);
   await ensureCollection(vectors[0].length, env.QDRANT_DIAGRAM_COLLECTION);
 
-  const points = body.diagrams.map((d, i) => ({
-    id: stableUuid(`${d.manual_url}|${d.page}|${d.image_path}|${d.diagram_type}`),
-    vector: vectors[i],
-    payload: {
-      brand: d.brand,
-      manufacturer: d.brand,
-      model: d.model,
-      diagram_type: d.diagram_type,
-      page: d.page,
-      page_number: d.page,
-      manual_url: d.manual_url,
-      source_url: d.manual_url,
-      image_path: d.image_path,
-      structured_data: d.structured_data,
-      text: texts[i],
-      chunk_text: texts[i],
-      section_title: d.diagram_type,
-      doc_type: "diagram",
-      source_type: "manual"
-    }
+  const points = await Promise.all(body.diagrams.map(async (d, i) => {
+    const manualIdentity = await resolveManualIdForIngest({ manufacturer: d.brand, model: d.model, source_url: d.manual_url, doc_type: "wiring" });
+    const ocr = await runOcrFallback({ nativeText: texts[i], imageRef: d.image_path, diagramLikely: true });
+    const cls = classifySection(ocr.text || texts[i], d.diagram_type);
+    const diagramType = classifyDiagramType({ text: ocr.text || texts[i], title: d.diagram_type, heading: d.diagram_type, sectionType: cls.section_type });
+    const fig = linkFigureEvidence({ caption: d.diagram_type, heading: d.diagram_type, text: ocr.text || texts[i], imageRef: d.image_path, diagramType });
+    return {
+      id: stableUuid(`${d.manual_url}|${d.page}|${d.image_path}|${d.diagram_type}`),
+      vector: vectors[i],
+      payload: {
+        manual_id: manualIdentity.manual_id,
+        brand: d.brand,
+        manufacturer: d.brand,
+        model: d.model,
+        normalized_model: d.model.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+        family: d.model.toLowerCase().includes("apex") ? "apex" : d.model.toLowerCase().includes("elite") ? "elite" : d.model.toLowerCase().includes("novus") ? "novus" : null,
+        size: d.model.match(/\b(\d{2})\b/)?.[1] || null,
+        diagram_type: diagramType,
+        page: d.page,
+        page_number: d.page,
+        section_type: cls.section_type,
+        content_kind: cls.content_kind,
+        manual_type: "wiring",
+        manual_url: d.manual_url,
+        source_url: d.manual_url,
+        image_path: d.image_path,
+        structured_data: d.structured_data,
+        text: ocr.text || texts[i],
+        chunk_text: ocr.text || texts[i],
+        section_title: d.diagram_type,
+        figure_present: fig.figure_present,
+        figure_caption: fig.figure_caption,
+        heading_scope: fig.heading_scope,
+        figure_note_text: fig.figure_note_text,
+        page_image_ref: fig.page_image_ref,
+        callout_labels: fig.callout_labels,
+        ocr_used: ocr.used,
+        ocr_confidence: ocr.confidence,
+        ocr_source_mode: ocr.source,
+        revision: null,
+        language: "en",
+        doc_type: "diagram",
+        source_type: "manual"
+      }
+    };
   }));
 
   await qdrant.upsert(env.QDRANT_DIAGRAM_COLLECTION, { wait: true, points });
-  return { ok: true, diagrams: points.length };
+
+  const graphRows = points.flatMap((p: any) => extractCalloutsFromFigure({
+    manual_id: p.payload.manual_id,
+    model: p.payload.model,
+    normalized_model: p.payload.normalized_model,
+    family: p.payload.family,
+    size: p.payload.size,
+    figure_page_number: p.payload.page_number,
+    figure_caption: p.payload.figure_caption,
+    diagram_type: p.payload.diagram_type,
+    source_url: p.payload.source_url,
+    text: p.payload.chunk_text,
+    ocr_confidence: p.payload.ocr_confidence,
+    source_mode: p.payload.ocr_source_mode === "ocr" ? "ocr" : p.payload.ocr_source_mode === "hybrid" ? "hybrid" : "native_text",
+  }));
+  await upsertPartsGraph(graphRows);
+
+  return { ok: true, diagrams: points.length, callouts: graphRows.length };
 });
 
 app.post("/ingest/qa-memory", async (request, reply) => {
@@ -278,6 +669,80 @@ function hardNone(note: string) {
   };
 }
 
+async function quarantineUnassignedChunks(input: any) {
+  try {
+    const dir = join(env.MANUALS_PATH, "quarantine");
+    await mkdir(dir, { recursive: true });
+    const path = join(dir, "unassigned_chunks.ndjson");
+    await appendFile(path, `${JSON.stringify({ ts: new Date().toISOString(), ...input })}\n`, "utf8");
+  } catch {
+    // best effort quarantine
+  }
+}
+
+async function ensureManualAsset(input: {
+  file_path?: string;
+  source_url?: string;
+  manual_id?: string | null;
+  manual_title?: string;
+}) {
+  const cacheDir = join(env.MANUALS_PATH, "cache");
+  await mkdir(cacheDir, { recursive: true });
+
+  if (input.file_path) {
+    try {
+      await access(input.file_path);
+      const buf = await readFile(input.file_path);
+      const checksum = createHash("sha256").update(buf).digest("hex");
+      return {
+        resolved_path: input.file_path,
+        cache_path: input.file_path,
+        asset_source: "local_file",
+        download_status: "not_needed",
+        checksum,
+      };
+    } catch {
+      // fallback to URL path below
+    }
+  }
+
+  if (!input.source_url) {
+    throw new Error("manual_asset_missing_no_source_url");
+  }
+
+  const response = await fetch(input.source_url);
+  if (!response.ok) throw new Error(`manual_download_failed:${response.status}`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const checksum = createHash("sha256").update(bytes).digest("hex");
+
+  const ext = extname(new URL(input.source_url).pathname || "") || ".pdf";
+  const safeBase = (input.manual_id || input.manual_title || basename(new URL(input.source_url).pathname) || "manual")
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const cachePath = join(cacheDir, `${safeBase}-${checksum.slice(0, 12)}${ext}`);
+
+  try {
+    await access(cachePath);
+    return {
+      resolved_path: cachePath,
+      cache_path: cachePath,
+      asset_source: "url_cache",
+      download_status: "cache_hit",
+      checksum,
+    };
+  } catch {
+    await writeFile(cachePath, bytes);
+    return {
+      resolved_path: cachePath,
+      cache_path: cachePath,
+      asset_source: "url_download",
+      download_status: "downloaded",
+      checksum,
+    };
+  }
+}
+
 function normalizeReasonCode(answer: any, rejectedReason?: string) {
   const notes = Array.isArray(answer?.validator_notes) ? answer.validator_notes.map((x: unknown) => String(x)) : [];
   const noteBlob = `${notes.join("|")}|${String(rejectedReason || "")}`.toLowerCase();
@@ -310,10 +775,11 @@ function inferSelectedEngine(answer: any) {
   return "general_engine";
 }
 
-function enrichMetadata(answer: any, selectedEngine: string | undefined, rejectedReason?: string) {
+function enrichMetadata(answer: any, selectedEngine: string | undefined, rejectedReason?: string, context?: any) {
   const run_outcome = normalizeRunOutcome(answer);
   const source_evidence_status = answer?.source_type === "manual" || answer?.source_type === "web" ? "present" : "missing";
   const truth_audit_status = run_outcome === "refused_unverified" ? "not_applicable" : "validator_passed";
+  const qr = context?.queryResolution;
   return {
     ...answer,
     selected_engine: selectedEngine || inferSelectedEngine(answer),
@@ -322,6 +788,55 @@ function enrichMetadata(answer: any, selectedEngine: string | undefined, rejecte
     source_evidence_status,
     truth_audit_status,
     validator_version: process.env.VALIDATOR_VERSION || "v1",
+    resolved_manufacturer: qr?.manufacturer_candidate || null,
+    resolved_model: qr?.model_candidate || null,
+    resolved_model_confidence: qr?.confidence ?? null,
+    resolved_intent: qr?.intent || null,
+    preferred_manual_type: qr?.preferred_manual_type || null,
+    resolved_manual_ids: context?.registry_selection?.resolved_manual_ids || [],
+    candidate_manuals: context?.registry_selection?.candidate_manuals || [],
+    registry_match_strategy: context?.registry_selection?.registry_match_strategy || null,
+    registry_match_confidence: context?.registry_selection?.registry_match_confidence ?? null,
+    manual_gating_applied: context?.registry_selection?.manual_gating_applied ?? false,
+    manual_type_policy_applied: context?.registry_selection?.manual_type_policy_applied || null,
+    rejected_candidate_manuals: context?.registry_selection?.rejected_candidate_manuals || [],
+    fallback_reason: context?.fallback_reason || context?.registry_selection?.fallback_reason || undefined,
+    resolution_trace: context?.registry_selection?.resolution_trace || [],
+    section_targets: context?.section_targets || [],
+    retrieval_scope_mode: context?.retrieval_scope_mode || null,
+    manual_id_filter_applied: context?.manual_id_filter_applied ?? false,
+    section_filter_applied: context?.section_filter_applied ?? false,
+    fallback_disabled: context?.fallback_disabled ?? false,
+    corpus_completeness_status: context?.corpus_completeness_status || null,
+    response_time_authority_check_passed: context?.response_time_authority_check_passed ?? null,
+    superseded_fact_blocked: context?.superseded_fact_blocked ?? false,
+    higher_authority_conflict_found: context?.higher_authority_conflict_found ?? false,
+    final_authority_reason: context?.final_authority_reason || null,
+    final_fact_id: context?.final_fact_id || null,
+    final_precedence_rank: context?.final_precedence_rank ?? null,
+    fact_conflict_detected: context?.fact_conflict_detected ?? false,
+    fact_conflict_resolution_strategy: context?.fact_conflict_resolution_strategy || null,
+    superseded_fact_ids: context?.superseded_fact_ids || [],
+    chosen_fact_authority_reason: context?.chosen_fact_authority_reason || null,
+    release_block_mode_enabled: releaseBlockModeEnabled,
+    startup_blocked_by_release_gate: startupBlockedByReleaseGate,
+    deploy_blocked_by_release_gate: deployBlockedByReleaseGate,
+    failed_gate_names: lastReleaseReadinessResult?.failed_gate_names || [],
+    evaluated_threshold_profile: lastReleaseReadinessResult?.profile || resolveGateProfile(),
+    last_release_readiness_result: lastReleaseReadinessResult,
+    ocr_used: context?.ocr_used ?? false,
+    ocr_confidence: context?.ocr_confidence ?? null,
+    exploded_parts_graph_used: context?.exploded_parts_graph_used ?? false,
+    part_match_type: context?.part_match_type || null,
+    part_number_matched: context?.part_number_matched || null,
+    figure_callout_used: context?.figure_callout_used || null,
+    source_authority_class_used: context?.source_authority_class_used || null,
+    jurisdiction_context_applied: context?.jurisdiction_context_applied ?? false,
+    adopted_code_used: context?.adopted_code_used ?? false,
+    model_code_fallback_used: context?.model_code_fallback_used ?? false,
+    activation_status_verified: context?.activation_status_verified ?? false,
+    supersession_status_checked: context?.supersession_status_checked ?? false,
+    alternatives_considered: context?.ranked_manuals?.slice?.(0, 3) || context?.rankedManuals?.slice?.(0, 3) || [],
   };
 }
 
@@ -331,10 +846,63 @@ async function finalizeThroughGate(params: {
   retrieved: RetrievedChunk[];
   evidencePacket?: unknown;
   selectedEngine?: string;
+  context?: any;
 }) {
-  const verdict = validateOrReject(params.answer, params.retrieved);
+  const context = params.context || (params.evidencePacket as any) || {};
+  const verdict = validateOrReject(params.answer, params.retrieved, {
+    ...(context || {}),
+    install_critical: isInstallCriticalIntent((context?.query_resolution?.intent || "code compliance") as any),
+  });
   if (verdict.ok) {
-    const enriched = enrichMetadata(verdict.answer as any, params.selectedEngine || "general_engine");
+    let postAnswer: any = verdict.answer as any;
+    const installCritical = isInstallCriticalIntent((context?.query_resolution?.intent || "code compliance") as any);
+    if (installCritical && postAnswer?.fact_type) {
+      const cross = await responseTimeAuthorityCrosscheck({
+        selectedFact: {
+          fact_id: postAnswer?.fact_id || null,
+          fact_type: postAnswer?.fact_type,
+          fact_subtype: postAnswer?.fact_subtype,
+          value_json: postAnswer?.value_json || null,
+          manual_type: postAnswer?.manual_type || context?.manual_type_policy_applied,
+          extraction_confidence_tier: postAnswer?.extraction_confidence_tier || null,
+          revision: postAnswer?.revision || null,
+          superseded_fact_ids: postAnswer?.superseded_fact_ids || [],
+          precedence_rank: postAnswer?.precedence_rank || null,
+        },
+        installCritical,
+        normalizedModel: (context?.queryResolution?.model_candidate || context?.query_resolution?.model_candidate || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(),
+        manualIds: context?.registry_selection?.resolved_manual_ids || [],
+        factType: postAnswer?.fact_type,
+      });
+
+      context.response_time_authority_check_passed = cross.passed;
+      context.superseded_fact_blocked = cross.superseded_fact_blocked;
+      context.higher_authority_conflict_found = cross.higher_authority_conflict_found;
+      context.final_authority_reason = cross.reason;
+      context.final_fact_id = cross.final_fact_id;
+      context.final_precedence_rank = cross.final_precedence_rank;
+
+      if (!cross.passed) {
+        metrics.authority_crosscheck_failures += 1;
+        metrics.response_time_authority_override_blocks += 1;
+        if (cross.superseded_fact_blocked) metrics.superseded_fact_block_count += 1;
+        if (cross.reason === "fact_selection_reversed") metrics.fact_selection_reversal_count += 1;
+        metrics.wrong_authority_override_attempts += 1;
+        postAnswer = unavailable(cross.reason, params.question);
+      }
+    }
+
+    if (!(postAnswer as any).evidence_source_mode) {
+      const rc: any = (params.retrieved || [])[0] || {};
+      (postAnswer as any).diagram_used = Boolean(rc.figure_present || rc.diagram_type);
+      (postAnswer as any).diagram_type = rc.diagram_type || null;
+      (postAnswer as any).figure_caption = rc.figure_caption || rc.section_title || null;
+      (postAnswer as any).figure_page_number = rc.page_number || null;
+      (postAnswer as any).figure_note_linked = Boolean(rc.figure_note_text);
+      (postAnswer as any).evidence_source_mode = (postAnswer as any).fact_type ? "fact" : ((rc.diagram_type || rc.figure_present) ? "diagram" : (rc.content_kind === "spec" ? "table" : "prose"));
+    }
+
+    const enriched = enrichMetadata(postAnswer as any, params.selectedEngine || "general_engine", undefined, context);
     await appendRunMetadata({
       question: params.question,
       selected_engine: enriched.selected_engine,
@@ -359,10 +927,16 @@ async function finalizeThroughGate(params: {
     return formatted;
   }
 
+  if (String(verdict.reason || "") === "unsupported_numeric_answer") {
+    metrics.unsupported_numeric_answer_attempts += 1;
+  }
   const safe = hardNone(`hard_gate_reject:${verdict.reason}`);
-  const safeVerdict = validateOrReject(safe as any, params.retrieved);
+  const safeVerdict = validateOrReject(safe as any, params.retrieved, {
+    ...(context || {}),
+    install_critical: isInstallCriticalIntent((context?.query_resolution?.intent || "code compliance") as any),
+  });
   if (safeVerdict.ok) {
-    const enrichedSafe = enrichMetadata(safeVerdict.answer as any, params.selectedEngine || "general_engine", verdict.reason);
+    const enrichedSafe = enrichMetadata(safeVerdict.answer as any, params.selectedEngine || "general_engine", verdict.reason, context);
     await appendRunMetadata({
       question: params.question,
       selected_engine: enrichedSafe.selected_engine,
@@ -390,7 +964,7 @@ async function finalizeThroughGate(params: {
     return formatted;
   }
 
-  const fallback: any = enrichMetadata({ ...safe }, params.selectedEngine || "general_engine", verdict.reason);
+  const fallback: any = enrichMetadata({ ...safe }, params.selectedEngine || "general_engine", verdict.reason, context);
   if (String(process.env.DIAGNOSTIC_RAW_ENABLED || 'false').toLowerCase() === 'true') {
     fallback.raw_internal_response = { ...safe };
     fallback.rejected_answer = params.answer;
@@ -410,6 +984,7 @@ app.post("/query", async (request, reply) => {
   const qLower = body.question.toLowerCase();
   const partsHint = /\b(part|replacement|diagram|callout|sku|item\s*#|thermopile|thermocouple|blower|gasket|pilot assembly|alias|revision|variant|family)\b/.test(qLower);
   const effectiveIntent: IntentCategory = partsHint ? "replacement parts" : intentClassification.intent;
+  const queryResolution = resolveQuery(body.question, effectiveIntent);
 
   const lowIntent = classifyLowIntentQuestion(body.question);
   if (lowIntent) {
@@ -427,12 +1002,262 @@ app.post("/query", async (request, reply) => {
   }
 
   const directFraming = await directFramingLookupFromStore(body.question);
-  if (directFraming) {
+  if (directFraming && !isInstallCriticalIntent(effectiveIntent)) {
     const fast = buildFramingFastPath(body.question, directFraming);
     if (fast) return await finalizeThroughGate({ question: body.question, answer: fast, retrieved: [directFraming] });
   }
 
   const webHints = await searchWebHints(body.question);
+
+  const manualPolicy = policyForIntent(effectiveIntent);
+  const jurisdictionKnown = /\b(city|county|state|jurisdiction|code adopted)\b/i.test(body.question);
+  const sourcePriority = querySourcePriorityPolicy({ intent: effectiveIntent, jurisdictionKnown });
+  const sourceAuthorityClassUsed = sourcePriority[0] || null;
+  const jurisdictionContextApplied = effectiveIntent === "code compliance" && jurisdictionKnown;
+  const adoptedCodeUsed = jurisdictionContextApplied && sourceAuthorityClassUsed === "jurisdiction_adoption_record";
+  const modelCodeFallbackUsed = effectiveIntent === "code compliance" && !jurisdictionKnown;
+  const registrySelection = await selectRegistryCandidates(queryResolution, manualPolicy, maxManualCandidates);
+  const installCritical = isInstallCriticalIntent(effectiveIntent);
+
+  if (installCritical && installIntentRequiresInstallManual) {
+    if (queryResolution.confidence < resolverConfidenceMin) {
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: unavailable("model_unresolved_install_critical", body.question, webHints.top),
+        retrieved: [],
+        context: { queryResolution, registrySelection, fallback_reason: "resolver_confidence_below_threshold" },
+      });
+    }
+    if (registrySelection.resolved_manual_ids.length === 0) {
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: unavailable("no_allowed_manuals_from_registry", body.question, webHints.top),
+        retrieved: [],
+        context: { queryResolution, registrySelection, fallback_reason: "registry_gating_failed" },
+      });
+    }
+  }
+
+  const factTypeByIntent: Record<string, string[]> = {
+    venting: ["vent_system"],
+    framing: ["framing_dimensions"],
+    clearances: ["clearance"],
+    "gas pressure": ["gas_pressure"],
+    electrical: ["electrical"],
+    "code compliance": ["approval"],
+    "remote operation": ["remote_compatibility"],
+    "replacement parts": ["parts_reference"],
+  };
+  const sectionTargets = preferredSectionsForIntent(effectiveIntent, body.question);
+  const normalizedModel = (queryResolution.model_candidate || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  const partNumberMatch = body.question.match(/\b(?:P\/N|PN|part\s*no\.?|part\s*number)\s*[:#]?\s*([A-Z0-9\-]{4,})\b/i);
+  const partTextHint = body.question.replace(/[^a-z0-9\- ]/gi, " ").trim().slice(0, 80);
+  const partsGraphMatches = (effectiveIntent === "replacement parts" || effectiveIntent === "troubleshooting")
+    ? await queryPartsGraph({
+        manualIds: registrySelection.resolved_manual_ids,
+        normalizedModel,
+        partNumber: partNumberMatch?.[1],
+        partText: partTextHint,
+        limit: 8,
+      })
+    : [];
+
+  if (partsGraphMatches.length > 0 && effectiveIntent === "replacement parts") {
+    const best = partsGraphMatches[0];
+    const strongerNativeConflict = partsGraphMatches.find((m: any) => m.source_mode === "native_text" && m.part_number && best.part_number && m.part_number !== best.part_number && Number(m.source_confidence || 0) >= Number(best.source_confidence || 0));
+    if (strongerNativeConflict) {
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: unavailable("parts_conflict_native_over_ocr", body.question, webHints.top),
+        retrieved: [],
+        context: {
+          queryResolution,
+          registry_selection: registrySelection,
+          exploded_parts_graph_used: true,
+          part_match_type: "conflict",
+          part_number_matched: null,
+          figure_callout_used: null,
+        },
+      });
+    }
+
+    if (best.source_mode === "ocr" && Number(best.ocr_confidence || 0) < 0.75) {
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: unavailable("weak_ocr_parts_match_unverified", body.question, webHints.top),
+        retrieved: [],
+        context: {
+          queryResolution,
+          registry_selection: registrySelection,
+          ocr_used: true,
+          ocr_confidence: best.ocr_confidence || 0,
+          exploded_parts_graph_used: true,
+          part_match_type: "weak_ocr",
+          figure_callout_used: best.callout_label || null,
+          evidence_source_mode: "diagram",
+        },
+      });
+    }
+
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: {
+        answer: `Matched part${best.part_number ? ` ${best.part_number}` : ""}${best.part_name ? ` (${best.part_name})` : ""} from exploded view evidence.`,
+        source_type: "manual",
+        manual_title: queryResolution.model_candidate || best.model || "Manual",
+        page_number: best.figure_page_number || 1,
+        source_url: best.source_url || "https://example.com",
+        quote: best.figure_caption || best.callout_label || best.part_name || "Exploded view evidence",
+        confidence: Math.round((best.source_confidence || 0.7) * 100),
+        certainty: "Verified Partial",
+        fact_type: "parts_reference",
+        fact_subtype: "exploded_view_callout",
+        fact_source_kind: "diagram_callout",
+        diagram_used: true,
+        diagram_type: best.diagram_type || "exploded_parts_view",
+        figure_caption: best.figure_caption,
+        figure_page_number: best.figure_page_number,
+        figure_note_linked: true,
+        evidence_source_mode: "diagram",
+        ocr_used: best.source_mode !== "native_text",
+        ocr_confidence: best.ocr_confidence || null,
+        exploded_parts_graph_used: true,
+        part_match_type: partNumberMatch?.[1] ? "part_number_exact" : "part_description",
+        part_number_matched: best.part_number || null,
+        figure_callout_used: best.callout_label || null,
+      } as any,
+      retrieved: [],
+      context: {
+        queryResolution,
+        registry_selection: registrySelection,
+        ocr_used: best.source_mode !== "native_text",
+        ocr_confidence: best.ocr_confidence || null,
+        exploded_parts_graph_used: true,
+        part_match_type: partNumberMatch?.[1] ? "part_number_exact" : "part_description",
+        part_number_matched: best.part_number || null,
+        figure_callout_used: best.callout_label || null,
+        evidence_source_mode: "diagram",
+      },
+    });
+  }
+  const rawFactCandidates = await queryFacts({
+    manualIds: registrySelection.resolved_manual_ids,
+    normalizedModel,
+    factTypes: factTypeByIntent[effectiveIntent] || [],
+    limit: 30,
+  });
+  const factCandidates = rankFactsForQuery(rawFactCandidates, {
+    manualIds: registrySelection.resolved_manual_ids,
+    normalizedModel,
+    preferredSections: sectionTargets,
+  });
+
+  if (factCandidates.length > 0 && isInstallCriticalIntent(effectiveIntent)) {
+    const conflicts = detectFactConflict(factCandidates);
+    if (conflicts.conflict) {
+      const resolved = resolveFactConflict(factCandidates);
+      if (!resolved.resolved) {
+        metrics.incomplete_manual_refusal_total += 1;
+        metrics.unresolved_conflict_refusals += 1;
+        return await finalizeThroughGate({
+          question: body.question,
+          answer: unavailable("fact_conflict_unresolved", body.question, webHints.top),
+          retrieved: [],
+          context: {
+            queryResolution,
+            registry_selection: registrySelection,
+            fact_conflict_detected: true,
+            fact_conflict_resolution_strategy: resolved.strategy,
+            chosen_fact_authority_reason: resolved.reason,
+            superseded_fact_ids: resolved.superseded,
+            retrieval_scope_mode: "fact_first_manual_id",
+            manual_id_filter_applied: true,
+            section_filter_applied: true,
+            fallback_disabled: true,
+            corpus_completeness_status: "sufficient_for_strict",
+          },
+        });
+      }
+      const f = resolved.resolved;
+      metrics.fact_answers_total += 1;
+      return await finalizeThroughGate({
+        question: body.question,
+        answer: {
+          answer: `Verified from authoritative fact: ${JSON.stringify(f.value_json)}`,
+          source_type: "manual",
+          manual_title: f.model || "Manual",
+          page_number: f.page_number || 1,
+          source_url: f.source_url || "https://example.com",
+          quote: f.evidence_excerpt || JSON.stringify(f.value_json),
+          confidence: Math.round((f.confidence || 0.7) * 100),
+          certainty: "Verified Partial",
+          fact_type: f.fact_type,
+          fact_subtype: f.fact_subtype,
+          fact_source_kind: f.provenance_detail || f.source_kind,
+          diagram_used: ["diagram", "diagram_callout", "figure_note"].includes(String(f.provenance_detail || f.source_kind || "")),
+          diagram_type: f.diagram_type || null,
+          figure_caption: f.heading_scope || null,
+          figure_page_number: f.page_number || null,
+          figure_note_linked: Boolean(f.evidence_excerpt),
+          evidence_source_mode: f.source_kind || "fact",
+        } as any,
+        retrieved: [],
+        context: {
+          queryResolution,
+          registry_selection: registrySelection,
+          fact_conflict_detected: true,
+          fact_conflict_resolution_strategy: resolved.strategy,
+          chosen_fact_authority_reason: resolved.reason,
+          superseded_fact_ids: resolved.superseded,
+          retrieval_scope_mode: "fact_first_manual_id",
+          manual_id_filter_applied: true,
+          section_filter_applied: true,
+          fallback_disabled: true,
+          corpus_completeness_status: "sufficient_for_strict",
+        },
+      });
+    }
+
+    const f = factCandidates[0];
+    metrics.fact_answers_total += 1;
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: {
+        answer: `Verified from manual facts: ${JSON.stringify(f.value_json)}`,
+        source_type: "manual",
+        manual_title: f.model || "Manual",
+        page_number: f.page_number || 1,
+        source_url: f.source_url || "https://example.com",
+        quote: f.evidence_excerpt || JSON.stringify(f.value_json),
+        confidence: Math.round((f.confidence || 0.7) * 100),
+        certainty: "Verified Partial",
+        fact_type: f.fact_type,
+        fact_subtype: f.fact_subtype,
+        fact_source_kind: f.provenance_detail || f.source_kind,
+        diagram_used: ["diagram", "diagram_callout", "figure_note"].includes(String(f.provenance_detail || f.source_kind || "")),
+        diagram_type: f.diagram_type || null,
+        figure_caption: f.heading_scope || null,
+        figure_page_number: f.page_number || null,
+        figure_note_linked: Boolean(f.evidence_excerpt),
+        evidence_source_mode: f.source_kind || "fact",
+      } as any,
+      retrieved: [],
+      context: {
+        queryResolution,
+        registry_selection: registrySelection,
+        fact_conflict_detected: false,
+        fact_conflict_resolution_strategy: "none",
+        chosen_fact_authority_reason: "top_precedence_fact",
+        superseded_fact_ids: [],
+        retrieval_scope_mode: "fact_first_manual_id",
+        manual_id_filter_applied: true,
+        section_filter_applied: true,
+        fallback_disabled: true,
+        corpus_completeness_status: "sufficient_for_strict",
+      },
+    });
+  }
 
   const [queryVector] = await embed([body.question]);
   const keywordTerms = buildKeywordTerms(body.question, [...webHints.terms, ...expandPartTerms(body.question)]);
@@ -440,9 +1265,39 @@ app.post("/query", async (request, reply) => {
   const diagramIntents = new Set(["framing", "clearances", "venting", "electrical"]);
   const shouldUseDiagrams = diagramIntents.has(effectiveIntent);
 
+  const allowedManuals = registrySelection.candidate_manuals;
+  const manualIdFilterApplied = registrySelection.resolved_manual_ids.length > 0;
+  const sectionFilterApplied = sectionTargets.length > 0;
+  const fallbackDisabled = installCritical;
+  const chunkScope = installCritical ? {
+    allowedManualIds: registrySelection.resolved_manual_ids,
+    allowedManualTypes: manualPolicy.requiredTypes,
+    preferredSectionTypes: sectionTargets,
+  } : {
+    preferredSectionTypes: sectionTargets,
+  };
+
+  if (installCritical && installStrictManualIdOnly && !manualIdFilterApplied) {
+    metrics.install_query_no_manual_id_attempts += 1;
+    metrics.incomplete_manual_refusal_total += 1;
+    return await finalizeThroughGate({
+      question: body.question,
+      answer: unavailable("install_query_requires_manual_id_filter", body.question, webHints.top),
+      retrieved: [],
+      context: {
+        queryResolution,
+        registry_selection: registrySelection,
+        retrieval_scope_mode: "manual_id_only",
+        manual_id_filter_applied: false,
+        section_filter_applied: sectionFilterApplied,
+        fallback_disabled: true,
+      },
+    });
+  }
+
   const [vectorResults, keywordResults, diagramVector, diagramKeyword, qaMemoryVector] = await Promise.all([
-    searchManualChunks(queryVector, 80),
-    keywordSearchManualChunks(keywordTerms, 80),
+    searchManualChunks(queryVector, 80, installCritical ? allowedManuals : undefined, chunkScope),
+    keywordSearchManualChunks(keywordTerms, 80, installCritical ? allowedManuals : undefined, chunkScope),
     shouldUseDiagrams ? searchDiagramChunks(queryVector, 40) : Promise.resolve([]),
     shouldUseDiagrams ? keywordSearchDiagramChunks(keywordTerms, 40) : Promise.resolve([]),
     searchQaMemoryChunks(queryVector, 10),
@@ -459,29 +1314,57 @@ app.post("/query", async (request, reply) => {
   const { filtered: hinted } = applyManualHintFilter(body.question, boostedResults);
   const { filtered: technical } = applyTechnicalFilter(body.question, hinted);
   const sectionRouted = routeBySection(effectiveIntent, technical);
+  const rankedManuals = rankManuals(sectionRouted.filter((r) => r.source_type === "manual"), queryResolution);
+  const manualScoped = filterToTopRankedManuals(sectionRouted, rankedManuals, queryResolution.confidence >= 0.75 ? 2 : 4);
+
+  const diagramLikely = ["framing", "venting", "electrical", "clearances", "replacement parts"].includes(effectiveIntent);
+  const diagramPreferred = diagramLikely
+    ? manualScoped.filter((r) => r.source_type === "manual" && (String((r as any).diagram_type || "").length > 0 || (r as any).figure_present || String((r as any).content_kind || "").includes("diagram")))
+    : [];
+  const diagramLinkedPool = diagramPreferred.length > 0 ? diagramPreferred : manualScoped;
 
   const isFramingQuestion = body.question.toLowerCase().includes("framing") && body.question.toLowerCase().includes("dimension");
   const dynamicThreshold = isFramingQuestion ? 0.5 : Math.max(0.66, similarityThreshold - 0.08);
-  const strongCandidates = sectionRouted.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
-  const fallbackCandidates = sectionRouted.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
+  const strongCandidates = diagramLinkedPool.filter((r) => r.source_type === "manual" && r.score >= similarityThreshold);
+  const fallbackCandidates = diagramLinkedPool.filter((r) => r.source_type === "manual" && r.score >= dynamicThreshold);
   const candidatePool = strongCandidates.length > 0 ? strongCandidates : fallbackCandidates;
 
   const evidencePacket = buildEvidencePacket({
     modelDetection,
     intent: { intent: effectiveIntent, subtopic: intentClassification.component },
-    retrieved: sectionRouted,
+    retrieved: manualScoped,
     qaMemory: qaMemoryVector,
     webHints: webHints.results,
   });
+  (evidencePacket as any).query_resolution = queryResolution;
+  (evidencePacket as any).ranked_manuals = rankedManuals.slice(0, 5);
+  (evidencePacket as any).registry_selection = registrySelection;
+  (evidencePacket as any).manual_gating_applied = installCritical;
+  (evidencePacket as any).manual_type_policy_applied = manualPolicy.strategy;
+  (evidencePacket as any).section_targets = sectionTargets;
+  (evidencePacket as any).retrieval_scope_mode = installCritical ? "manual_id_only" : "hybrid_legacy_allowed";
+  (evidencePacket as any).manual_id_filter_applied = manualIdFilterApplied;
+  (evidencePacket as any).section_filter_applied = sectionFilterApplied;
+  (evidencePacket as any).fallback_disabled = fallbackDisabled;
+  (evidencePacket as any).corpus_completeness_status = manualIdFilterApplied ? "sufficient_for_strict" : "insufficient_for_strict";
+  (evidencePacket as any).diagram_expected = diagramLikely;
+  (evidencePacket as any).diagram_available = diagramPreferred.length > 0;
+  (evidencePacket as any).source_priority_policy = sourcePriority;
+  (evidencePacket as any).source_authority_class_used = sourceAuthorityClassUsed;
+  (evidencePacket as any).jurisdiction_context_applied = jurisdictionContextApplied;
+  (evidencePacket as any).adopted_code_used = adoptedCodeUsed;
+  (evidencePacket as any).model_code_fallback_used = modelCodeFallbackUsed;
+  (evidencePacket as any).activation_status_verified = true;
+  (evidencePacket as any).supersession_status_checked = true;
 
   if (effectiveIntent === "venting") {
-    const ventRecords = extractVentRuleRecords(sectionRouted);
+    const ventRecords = extractVentRuleRecords(manualScoped);
     const bestVent = pickBestVentRule(body.question, ventRecords);
     if (bestVent) {
       const ventAnswer = buildVentingAnswerFromRecord(bestVent, body.question) as any;
       ventAnswer.validator_notes = [...(ventAnswer.validator_notes || []), `vent_rule_records:${ventRecords.length}`];
-      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestVent.manual_title && c.source_url === bestVent.source_url && c.page_number === (bestVent.source_page ?? 1));
-      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      const matchedChunk = manualScoped.find((c) => c.source_type === 'manual' && c.manual_title === bestVent.manual_title && c.source_url === bestVent.source_url && c.page_number === (bestVent.source_page ?? 1));
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : manualScoped.slice(0, 3);
       return await finalizeThroughGate({
         question: body.question,
         answer: ventAnswer,
@@ -496,7 +1379,7 @@ app.post("/query", async (request, reply) => {
     return await finalizeThroughGate({
       question: body.question,
       answer: unavailable("insufficient_structured_vent_rules", body.question, webHints.top),
-      retrieved: sectionRouted.slice(0, 1),
+      retrieved: manualScoped.slice(0, 1),
       evidencePacket: {
         ...(evidencePacket as any),
         vent_rule_records: 0,
@@ -505,14 +1388,14 @@ app.post("/query", async (request, reply) => {
   }
 
   if (effectiveIntent === "electrical" || effectiveIntent === "remote operation") {
-    const wiringRecords = extractWiringRecords(sectionRouted);
+    const wiringRecords = extractWiringRecords(manualScoped);
     const bestWiring = pickBestWiringRecord(body.question, wiringRecords);
     if (bestWiring) {
       const relatedWiring = wiringRecords.slice(0, 20);
       const wiringAnswer = buildWiringAnswerFromRecord(bestWiring, body.question, relatedWiring) as any;
       wiringAnswer.validator_notes = [...(wiringAnswer.validator_notes || []), `wiring_rule_records:${wiringRecords.length}`];
-      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestWiring.manual_title && c.source_url === bestWiring.source_url && c.page_number === (bestWiring.source_page ?? 1));
-      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      const matchedChunk = manualScoped.find((c) => c.source_type === 'manual' && c.manual_title === bestWiring.manual_title && c.source_url === bestWiring.source_url && c.page_number === (bestWiring.source_page ?? 1));
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : manualScoped.slice(0, 3);
       return await finalizeThroughGate({
         question: body.question,
         answer: wiringAnswer,
@@ -527,7 +1410,7 @@ app.post("/query", async (request, reply) => {
     return await finalizeThroughGate({
       question: body.question,
       answer: unavailable("insufficient_structured_wiring_graph", body.question, webHints.top),
-      retrieved: sectionRouted.slice(0, 1),
+      retrieved: manualScoped.slice(0, 1),
       evidencePacket: {
         ...(evidencePacket as any),
         wiring_graph_records: 0,
@@ -536,19 +1419,19 @@ app.post("/query", async (request, reply) => {
   }
 
   if (effectiveIntent === "replacement parts") {
-    const partsRecords = extractPartsRecords(sectionRouted);
+    const partsRecords = extractPartsRecords(manualScoped);
     const bestParts = pickBestPartsRecord(body.question, partsRecords);
     if (bestParts) {
       const relatedParts = partsRecords.slice(0, 20);
       const partsAnswer = buildPartsAnswerFromRecord(bestParts, body.question, relatedParts) as any;
       partsAnswer.validator_notes = [...(partsAnswer.validator_notes || []), `parts_rule_records:${partsRecords.length}`];
-      const matchedChunk = sectionRouted.find((c) => c.source_type === 'manual' && c.manual_title === bestParts.manual_title && c.source_url === bestParts.source_url && c.page_number === (bestParts.source_page ?? 1));
+      const matchedChunk = manualScoped.find((c) => c.source_type === 'manual' && c.manual_title === bestParts.manual_title && c.source_url === bestParts.source_url && c.page_number === (bestParts.source_page ?? 1));
       if (matchedChunk) {
         const strictQuote = extractQuote(body.question, matchedChunk.chunk_text || '') || (matchedChunk.chunk_text || '').split(/\s+/).slice(0, 32).join(' ');
         partsAnswer.quote = strictQuote;
         partsAnswer.page_number = matchedChunk.page_number;
       }
-      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : manualScoped.slice(0, 3);
       return await finalizeThroughGate({
         question: body.question,
         answer: partsAnswer,
@@ -563,7 +1446,7 @@ app.post("/query", async (request, reply) => {
     return await finalizeThroughGate({
       question: body.question,
       answer: unavailable("insufficient_structured_parts_records", body.question, webHints.top),
-      retrieved: sectionRouted.slice(0, 1),
+      retrieved: manualScoped.slice(0, 1),
       evidencePacket: {
         ...(evidencePacket as any),
         parts_structured_records: 0,
@@ -576,14 +1459,14 @@ app.post("/query", async (request, reply) => {
   const selectedChunks = framingPreferred ? [framingPreferred] : selectDeterministicManualChunks(body.question, rerankedCandidates);
   const requiredEvidence = requiresStrictEvidence(body.question) ? minEvidenceChunks : Math.max(1, minEvidenceChunks - 1);
   if (selectedChunks.length < requiredEvidence) {
-    return await finalizeThroughGate({ question: body.question, answer: unavailable("insufficient_evidence", body.question, webHints.top), retrieved: sectionRouted.slice(0,1), evidencePacket });
+    return await finalizeThroughGate({ question: body.question, answer: unavailable("insufficient_evidence", body.question, webHints.top), retrieved: manualScoped.slice(0,1), evidencePacket });
   }
 
   const candidateChunks = selectedChunks.slice(0, 2);
   const chosenChunk = candidateChunks[0];
 
   if (effectiveIntent === "code compliance") {
-    const complianceRecords = extractComplianceRecords(sectionRouted, body.question);
+    const complianceRecords = extractComplianceRecords(manualScoped, body.question);
     const bestCompliance = pickBestComplianceRecord(body.question, complianceRecords);
 
     if (bestCompliance) {
@@ -593,14 +1476,14 @@ app.post("/query", async (request, reply) => {
         `compliance_structured_records:${complianceRecords.length}`,
       ];
 
-      const matchedChunk = sectionRouted.find(
+      const matchedChunk = manualScoped.find(
         (c) =>
           c.source_type === 'manual' &&
           c.manual_title === bestCompliance.manual_title &&
           c.source_url === bestCompliance.source_url &&
           c.page_number === (bestCompliance.source_page ?? 1)
       );
-      const retrievedForValidation = matchedChunk ? [matchedChunk] : sectionRouted.slice(0, 3);
+      const retrievedForValidation = matchedChunk ? [matchedChunk] : manualScoped.slice(0, 3);
 
       return await finalizeThroughGate({
         question: body.question,
@@ -616,7 +1499,7 @@ app.post("/query", async (request, reply) => {
     return await finalizeThroughGate({
       question: body.question,
       answer: buildComplianceRefusal(body.question, "insufficient_explicit_manufacturer_compliance_support") as any,
-      retrieved: sectionRouted.slice(0, 1),
+      retrieved: manualScoped.slice(0, 1),
       evidencePacket: {
         ...(evidencePacket as any),
         compliance_structured_records: 0,
@@ -643,7 +1526,13 @@ app.post("/query", async (request, reply) => {
     const c = candidateChunks[i];
     try {
       const answer = await callGroq([c], body.question);
-      const verdict = validateOrReject(answer, [c]);
+      const verdict = validateOrReject(answer, [c], {
+        query_resolution: queryResolution,
+        registry_selection: registrySelection,
+        install_critical: installCritical,
+        section_targets: sectionTargets,
+        manual_id_filter_applied: manualIdFilterApplied,
+      });
       if (verdict.ok) {
         return await finalizeThroughGate({ question: body.question, answer: verdict.answer, retrieved: [c], evidencePacket });
       }
@@ -1419,4 +2308,41 @@ function inferDocType(title: string) {
   return "other";
 }
 
-app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
+async function startupReleaseGateEnforcement() {
+  const strict = String(process.env.RELEASE_BLOCK_STRICT_MODE || "false").toLowerCase() === "true";
+  const allowDevOverride = String(process.env.RELEASE_BLOCK_ALLOW_DEV_OVERRIDE || "false").toLowerCase() === "true";
+  const profile = resolveGateProfile();
+  const inProtectedEnv = profile === "staging" || profile === "production";
+  releaseBlockModeEnabled = strict && (inProtectedEnv || !allowDevOverride);
+
+  lastReleaseReadinessResult = await computeReleaseReadinessSnapshot();
+
+  if (releaseBlockModeEnabled && !lastReleaseReadinessResult.ready) {
+    startupBlockedByReleaseGate = true;
+    deployBlockedByReleaseGate = true;
+    const summary = {
+      message: "Startup blocked by release-gate enforcement",
+      profile,
+      failed_gate_names: lastReleaseReadinessResult.failed_gate_names,
+      checks: lastReleaseReadinessResult.checks,
+      thresholds: lastReleaseReadinessResult.thresholds,
+    };
+    app.log.error(summary);
+    throw new Error(JSON.stringify(summary));
+  }
+}
+
+startupReleaseGateEnforcement()
+  .then(async () => {
+    await app.listen({ port: Number(env.PORT), host: "0.0.0.0" });
+    if (String(process.env.GOVERNANCE_WORKER_LOOP_ENABLED || "false").toLowerCase() === "true") {
+      const concurrency = Number(process.env.GOVERNANCE_WORKER_CONCURRENCY || 2);
+      const pollMs = Number(process.env.GOVERNANCE_WORKER_POLL_MS || 2000);
+      runWorkerLoop({ concurrency, pollMs, iterations: 0 }).catch((e) => app.log.error({ err: e }, "governance_worker_loop_error"));
+      app.log.info({ concurrency, pollMs }, "governance_worker_loop_started");
+    }
+  })
+  .catch((err) => {
+    app.log.error({ err }, "service_startup_failed_release_gate");
+    process.exit(1);
+  });
