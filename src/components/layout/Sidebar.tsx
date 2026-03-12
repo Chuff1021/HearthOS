@@ -308,11 +308,11 @@ export default function Sidebar() {
                     collapsed ? "justify-center" : ""
                   }`}
                   style={{
-                    background: isActive ? "rgba(59,130,246,0.12)" : "transparent",
+                    background: isActive ? "rgba(59,130,246,0.09)" : "transparent",
                     color: isActive ? "#BFDBFE" : "var(--color-text-secondary)",
                     fontWeight: isActive ? "600" : "400",
-                    border: isActive ? "1px solid rgba(96,165,250,0.28)" : "1px solid transparent",
-                    boxShadow: isActive ? "inset 3px 0 0 #60A5FA" : "none",
+                    border: isActive ? "1px solid rgba(96,165,250,0.18)" : "1px solid transparent",
+                    boxShadow: isActive ? "inset 2px 0 0 rgba(96,165,250,0.9)" : "none",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
@@ -340,17 +340,7 @@ export default function Sidebar() {
                   </span>
                   {!collapsed && (
                     <>
-                      <span
-                        className="flex-1 text-[13px]"
-                        style={{
-                          color: isActive ? "#E5F0FF" : "var(--color-text-primary)",
-                          fontWeight: isActive ? 650 : 500,
-                          letterSpacing: "0.01em",
-                          textShadow: isActive ? "0 1px 0 rgba(15,23,42,0.2)" : "0 1px 0 rgba(15,23,42,0.14)",
-                        }}
-                      >
-                        {item.label}
-                      </span>
+                      <span className="flex-1 text-[13px]">{item.label}</span>
                       {item.badge && (
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
@@ -386,8 +376,10 @@ export default function Sidebar() {
               collapsed ? "justify-center" : ""
             }`}
             style={{
-              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(152,205,0,0.15)" : "transparent",
+              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(152,205,0,0.11)" : "transparent",
               color: hydrated && pathname === "/integrations/quickbooks" ? "#98CD00" : "var(--color-text-secondary)",
+              border: hydrated && pathname === "/integrations/quickbooks" ? "1px solid rgba(152,205,0,0.2)" : "1px solid transparent",
+              boxShadow: hydrated && pathname === "/integrations/quickbooks" ? "inset 2px 0 0 rgba(152,205,0,0.9)" : "none",
             }}
             onMouseEnter={(e) => {
               if (!(hydrated && pathname === "/integrations/quickbooks")) {
@@ -411,17 +403,7 @@ export default function Sidebar() {
             </span>
             {!collapsed && (
               <>
-                <span
-                  className="flex-1 text-[13px]"
-                  style={{
-                    color: hydrated && pathname === "/integrations/quickbooks" ? "#EAF7BF" : "var(--color-text-primary)",
-                    fontWeight: hydrated && pathname === "/integrations/quickbooks" ? 650 : 500,
-                    letterSpacing: "0.01em",
-                    textShadow: "0 1px 0 rgba(15,23,42,0.14)",
-                  }}
-                >
-                  QuickBooks
-                </span>
+                <span className="flex-1 text-[13px]">QuickBooks</span>
                 <span
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                   style={{ background: "rgba(152,205,0,0.2)", color: "#98CD00" }}
