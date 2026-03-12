@@ -340,7 +340,17 @@ export default function Sidebar() {
                   </span>
                   {!collapsed && (
                     <>
-                      <span className="flex-1 text-[13px]">{item.label}</span>
+                      <span
+                        className="flex-1 text-[13px]"
+                        style={{
+                          color: isActive ? "#E5F0FF" : "var(--color-text-primary)",
+                          fontWeight: isActive ? 650 : 500,
+                          letterSpacing: "0.01em",
+                          textShadow: isActive ? "0 1px 0 rgba(15,23,42,0.2)" : "0 1px 0 rgba(15,23,42,0.14)",
+                        }}
+                      >
+                        {item.label}
+                      </span>
                       {item.badge && (
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
@@ -401,7 +411,17 @@ export default function Sidebar() {
             </span>
             {!collapsed && (
               <>
-                <span className="flex-1 text-[13px]">QuickBooks</span>
+                <span
+                  className="flex-1 text-[13px]"
+                  style={{
+                    color: hydrated && pathname === "/integrations/quickbooks" ? "#EAF7BF" : "var(--color-text-primary)",
+                    fontWeight: hydrated && pathname === "/integrations/quickbooks" ? 650 : 500,
+                    letterSpacing: "0.01em",
+                    textShadow: "0 1px 0 rgba(15,23,42,0.14)",
+                  }}
+                >
+                  QuickBooks
+                </span>
                 <span
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                   style={{ background: "rgba(152,205,0,0.2)", color: "#98CD00" }}
