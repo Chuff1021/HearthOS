@@ -12,6 +12,8 @@ type Estimate = {
   DocNumber?: string;
   TxnDate?: string;
   ExpirationDate?: string;
+  PrivateNote?: string;
+  BillEmail?: { Address?: string };
   CustomerRef?: { value?: string; name?: string };
   Line?: Array<{
     Amount?: number;
@@ -25,6 +27,7 @@ type Estimate = {
   TotalAmt?: number;
 };
 type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string };
+type EstimateLineDraft = { description: string; qty: number; unitPrice: number; amount: number; itemId?: string; itemName?: string };
 
 export default function EstimatesPage() {
   const searchParams = useSearchParams();
@@ -44,8 +47,99 @@ export default function EstimatesPage() {
   const [convertingEstimateId, setConvertingEstimateId] = useState<string | null>(null);
   const [convertedMap, setConvertedMap] = useState<Record<string, string>>({});
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
+  const [savingEstimateEdits, setSavingEstimateEdits] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailEstimateId, setEmailEstimateId] = useState<string | null>(null);
+  const [emailTo, setEmailTo] = useState("");
+  const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
+  const [estimateEditForm, setEstimateEditForm] = useState({
+    expirationDate: "",
+    privateNote: "",
+    lines: [] as EstimateLineDraft[],
+  });
   const selectedEstimateId = searchParams.get("id");
   const selectedCustomerFilterId = searchParams.get("customer");
+
+  function mapEstimateLines(estimate: Estimate): EstimateLineDraft[] {
+    return (estimate.Line || []).map((line) => ({
+      description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "",
+      qty: Number(line.SalesItemLineDetail?.Qty || 1),
+      unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
+      amount: Number(line.Amount || 0),
+      itemId: line.SalesItemLineDetail?.ItemRef?.value,
+      itemName: line.SalesItemLineDetail?.ItemRef?.name,
+    }));
+  }
+
+  function buildEstimateDocument(estimate: Estimate) {
+    const lines = (estimate.Line || []).map((line) => ({
+      description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line",
+      qty: Number(line.SalesItemLineDetail?.Qty || 1),
+      unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
+      amount: Number(line.Amount || 0),
+    }));
+
+    return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${estimate.DocNumber || estimate.Id}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; color: #111827; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+      .eyebrow { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+      h1 { margin: 6px 0 0; font-size: 30px; }
+      .meta { color: #4b5563; font-size: 14px; line-height: 1.6; }
+      table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; }
+      th:last-child, td:last-child { text-align: right; }
+      .totals { width: 320px; margin-left: auto; margin-top: 24px; }
+      .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
+      .total { font-weight: 700; font-size: 18px; border-top: 2px solid #111827; margin-top: 8px; padding-top: 10px; }
+      .note { margin-top: 28px; padding: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; }
+      @media print { body { margin: 24px; } }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <div class="eyebrow">Estimate</div>
+        <h1>${estimate.DocNumber || estimate.Id}</h1>
+      </div>
+      <div class="meta">
+        <div><strong>Customer:</strong> ${estimate.CustomerRef?.name || "Customer"}</div>
+        <div><strong>Date:</strong> ${estimate.TxnDate || "—"}</div>
+        <div><strong>Expires:</strong> ${estimate.ExpirationDate || "—"}</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lines.map((line) => `
+          <tr>
+            <td>${line.description}</td>
+            <td>${line.qty}</td>
+            <td>$${line.unitPrice.toFixed(2)}</td>
+            <td>$${line.amount.toFixed(2)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="total"><span>Total</span><span>$${Number(estimate.TotalAmt || 0).toFixed(2)}</span></div>
+    </div>
+    ${estimate.PrivateNote ? `<div class="note"><strong>Notes</strong><div style="margin-top:8px;">${estimate.PrivateNote}</div></div>` : ""}
+  </body>
+</html>`;
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -122,6 +216,14 @@ export default function EstimatesPage() {
       }
     }
 
+    if (selectedEstimate) {
+      const refreshedEstimate = estimates.find((estimate) => estimate.Id === selectedEstimate.Id);
+      if (refreshedEstimate && refreshedEstimate !== selectedEstimate) {
+        setSelectedEstimate(refreshedEstimate);
+        return;
+      }
+    }
+
     if (!selectedEstimateId && !selectedCustomerFilterId && estimates.length && !selectedEstimate) {
       setSelectedEstimate(estimates[0]);
     }
@@ -130,60 +232,127 @@ export default function EstimatesPage() {
   function printEstimate(e: Estimate) {
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) return;
-    w.document.write(`<html><head><title>${e.DocNumber || e.Id}</title></head><body><h2>Estimate ${e.DocNumber || e.Id}</h2><p>Customer: ${e.CustomerRef?.name || ""}</p><p>Date: ${e.TxnDate || ""}</p><p>Total: $${Number(e.TotalAmt || 0).toFixed(2)}</p></body></html>`);
+    w.document.write(buildEstimateDocument(e));
     w.document.close();
     w.focus();
     w.print();
   }
 
   function downloadEstimate(e: Estimate) {
-    const data = JSON.stringify(e, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
+    const blob = new Blob([buildEstimateDocument(e)], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${e.DocNumber || e.Id}-estimate.json`;
+    a.download = `${e.DocNumber || e.Id}-estimate.html`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  async function emailEstimate(e: Estimate) {
-    const email = window.prompt("Send estimate to email (leave blank to use QuickBooks default):", "") || undefined;
+  function openEmailDialog(e: Estimate) {
+    setEmailEstimateId(e.Id);
+    setEmailTo(e.BillEmail?.Address || "");
+    setEmailDialogOpen(true);
+  }
+
+  async function emailEstimate() {
+    if (!emailEstimateId) return;
+    setSendingEstimateEmail(true);
+    setError(null);
     try {
       const res = await fetch("/api/quickbooks/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", id: e.Id, email }),
+        body: JSON.stringify({ action: "send", id: emailEstimateId, email: emailTo.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to email estimate");
-      alert("Estimate emailed successfully.");
+      setEmailDialogOpen(false);
+      setEmailEstimateId(null);
+      setEmailTo("");
+      await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to email estimate");
+    } finally {
+      setSendingEstimateEmail(false);
     }
   }
 
-  async function editEstimateQuick(e: Estimate) {
-    const nextExpiration = window.prompt("Expiration date (YYYY-MM-DD)", e.ExpirationDate || "") || e.ExpirationDate;
-    const nextNote = window.prompt("Estimate note", "") || undefined;
+  function beginEditEstimate(e: Estimate) {
+    setSelectedEstimate(e);
+    setEditingEstimateId(e.Id);
+    setEstimateEditForm({
+      expirationDate: e.ExpirationDate || "",
+      privateNote: e.PrivateNote || "",
+      lines: mapEstimateLines(e),
+    });
+  }
+
+  function updateEstimateLine(idx: number, patch: Partial<EstimateLineDraft>) {
+    setEstimateEditForm((prev) => ({
+      ...prev,
+      lines: prev.lines.map((line, lineIdx) => {
+        if (lineIdx !== idx) return line;
+        const merged = { ...line, ...patch };
+        return {
+          ...merged,
+          qty: Number(merged.qty || 0),
+          unitPrice: Number(merged.unitPrice || 0),
+          amount: Number(merged.qty || 0) * Number(merged.unitPrice || 0),
+        };
+      }),
+    }));
+  }
+
+  function addEstimateLine() {
+    setEstimateEditForm((prev) => ({
+      ...prev,
+      lines: [...prev.lines, { description: "", qty: 1, unitPrice: 0, amount: 0 }],
+    }));
+  }
+
+  function removeEstimateLine(idx: number) {
+    setEstimateEditForm((prev) => ({
+      ...prev,
+      lines: prev.lines.length <= 1 ? prev.lines : prev.lines.filter((_, lineIdx) => lineIdx !== idx),
+    }));
+  }
+
+  async function saveEstimateEdits() {
+    if (!selectedEstimate) return;
+    setSavingEstimateEdits(true);
+    setError(null);
     try {
       const res = await fetch("/api/quickbooks/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "update",
-          id: e.Id,
+          id: selectedEstimate.Id,
           updates: {
-            ExpirationDate: nextExpiration || undefined,
-            PrivateNote: nextNote,
+            ExpirationDate: estimateEditForm.expirationDate || undefined,
+            PrivateNote: estimateEditForm.privateNote || undefined,
+            Line: estimateEditForm.lines.map((line, idx) => ({
+              Id: String(idx + 1),
+              Amount: Number(line.amount || 0),
+              DetailType: "SalesItemLineDetail",
+              Description: line.description || undefined,
+              SalesItemLineDetail: {
+                ItemRef: line.itemId ? { value: line.itemId, name: line.itemName } : undefined,
+                Qty: Number(line.qty || 0),
+                UnitPrice: Number(line.unitPrice || 0),
+              },
+            })),
           },
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update estimate");
+      setEditingEstimateId(null);
       await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update estimate");
+    } finally {
+      setSavingEstimateEdits(false);
     }
   }
 
@@ -418,10 +587,10 @@ export default function EstimatesPage() {
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
                       <div className="mt-2 grid grid-cols-5 gap-1">
-                        <button onClick={(event) => { event.stopPropagation(); emailEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
+                        <button onClick={(event) => { event.stopPropagation(); openEmailDialog(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
                         <button onClick={(event) => { event.stopPropagation(); printEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
                         <button onClick={(event) => { event.stopPropagation(); downloadEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
-                        <button onClick={(event) => { event.stopPropagation(); editEstimateQuick(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
+                        <button onClick={(event) => { event.stopPropagation(); beginEditEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
                         <button onClick={(event) => { event.stopPropagation(); scheduleFromEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
                       </div>
 
@@ -463,37 +632,159 @@ export default function EstimatesPage() {
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select an estimate to review its lines and totals.</p>
               ) : (
                 <div className="space-y-4">
-                  <div>
-                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</div>
-                    <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedEstimate.CustomerRef?.name || "Customer"}</div>
-                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                      {[selectedEstimate.TxnDate, selectedEstimate.ExpirationDate ? `Expires ${selectedEstimate.ExpirationDate}` : undefined].filter(Boolean).join(" • ")}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</div>
+                      <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedEstimate.CustomerRef?.name || "Customer"}</div>
+                      <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                        {[selectedEstimate.TxnDate, selectedEstimate.ExpirationDate ? `Expires ${selectedEstimate.ExpirationDate}` : undefined].filter(Boolean).join(" • ")}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {editingEstimateId === selectedEstimate.Id ? (
+                        <>
+                          <button onClick={saveEstimateEdits} disabled={savingEstimateEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB", opacity: savingEstimateEdits ? 0.7 : 1 }}>
+                            {savingEstimateEdits ? "Saving..." : "Save"}
+                          </button>
+                          <button onClick={() => setEditingEstimateId(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                          Edit
+                        </button>
+                      )}
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => openEmailDialog(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Email</button>
+                    <button onClick={() => printEstimate(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Print</button>
+                    <button onClick={() => downloadEstimate(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Download</button>
+                  </div>
+
+                  <div>
+                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</div>
+                    {editingEstimateId === selectedEstimate.Id ? (
+                      <input
+                        type="date"
+                        value={estimateEditForm.expirationDate}
+                        onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, expirationDate: event.target.value }))}
+                        className="mt-2 w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                      />
+                    ) : (
+                      selectedEstimate.ExpirationDate && (
+                        <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>Expires {selectedEstimate.ExpirationDate}</div>
+                      )
+                    )}
+                  </div>
+
                   <div className="space-y-2">
-                    {selectedEstimateLines.map((line, idx) => (
+                    {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines : selectedEstimateLines).map((line: any, idx) => (
                       <div key={`${selectedEstimate.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                          {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
-                        </div>
-                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                          {Number(line.SalesItemLineDetail?.Qty || 1)} x ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
-                        </div>
-                        <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
-                          ${Number(line.Amount || 0).toFixed(2)}
-                        </div>
+                        {editingEstimateId === selectedEstimate.Id ? (
+                          <div className="space-y-2">
+                            <select
+                              value={estimateEditForm.lines[idx]?.itemId || ""}
+                              onChange={(event) => {
+                                const item = items.find((entry) => entry.Id === event.target.value);
+                                updateEstimateLine(idx, {
+                                  itemId: event.target.value || undefined,
+                                  itemName: item?.Name,
+                                  description: item?.Name || estimateEditForm.lines[idx]?.description || "",
+                                  unitPrice: Number(item?.UnitPrice || estimateEditForm.lines[idx]?.unitPrice || 0),
+                                });
+                              }}
+                              className="w-full px-3 py-2 rounded-lg text-sm"
+                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                            >
+                              <option value="">Map item (optional)</option>
+                              {items.map((item) => (
+                                <option key={item.Id} value={item.Id}>{item.Name}</option>
+                              ))}
+                            </select>
+                            <input
+                              value={estimateEditForm.lines[idx]?.description || ""}
+                              onChange={(event) => updateEstimateLine(idx, { description: event.target.value })}
+                              className="w-full px-3 py-2 rounded-lg text-sm"
+                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                            />
+                            <div className="grid grid-cols-3 gap-2">
+                              <input
+                                type="number"
+                                min={0}
+                                value={estimateEditForm.lines[idx]?.qty || 0}
+                                onChange={(event) => updateEstimateLine(idx, { qty: Number(event.target.value || 0) })}
+                                className="px-3 py-2 rounded-lg text-sm"
+                                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={estimateEditForm.lines[idx]?.unitPrice || 0}
+                                onChange={(event) => updateEstimateLine(idx, { unitPrice: Number(event.target.value || 0) })}
+                                className="px-3 py-2 rounded-lg text-sm"
+                                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                              />
+                              <button onClick={() => removeEstimateLine(idx)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
+                                Remove
+                              </button>
+                            </div>
+                            <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                              ${Number(estimateEditForm.lines[idx]?.amount || 0).toFixed(2)}
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                              {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                            </div>
+                            <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                              {Number(line.SalesItemLineDetail?.Qty || 1)} x ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
+                            </div>
+                            <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
+                              ${Number(line.Amount || 0).toFixed(2)}
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
-                    {selectedEstimateLines.length === 0 && (
+                    {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines.length : selectedEstimateLines.length) === 0 && (
                       <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimate lines found.</p>
+                    )}
+                    {editingEstimateId === selectedEstimate.Id && (
+                      <button onClick={addEstimateLine} className="w-full px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                        Add Line
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
+                    {editingEstimateId === selectedEstimate.Id ? (
+                      <textarea
+                        rows={4}
+                        value={estimateEditForm.privateNote}
+                        onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, privateNote: event.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                      />
+                    ) : (
+                      <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedEstimate.PrivateNote || "No notes on this estimate."}</div>
                     )}
                   </div>
 
                   <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total</span>
-                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(selectedEstimate.TotalAmt || 0).toFixed(2)}</span>
+                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                        ${Number(editingEstimateId === selectedEstimate.Id
+                          ? estimateEditForm.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+                          : selectedEstimate.TotalAmt || 0).toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -502,6 +793,42 @@ export default function EstimatesPage() {
           </div>
         </main>
       </div>
+
+      {emailDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEmailDialogOpen(false)} />
+          <div className="relative w-full max-w-md rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Email Estimate</h2>
+            <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+              This sends the estimate through QuickBooks using the selected customer email or the address you enter here.
+            </p>
+            <input
+              value={emailTo}
+              onChange={(event) => setEmailTo(event.target.value)}
+              placeholder="customer@email.com"
+              className="mt-4 w-full px-3 py-2 rounded-lg text-sm"
+              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={emailEstimate}
+                disabled={sendingEstimateEmail}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white"
+                style={{ background: "#2563EB", opacity: sendingEstimateEmail ? 0.7 : 1 }}
+              >
+                {sendingEstimateEmail ? "Sending..." : "Send from QuickBooks"}
+              </button>
+              <button
+                onClick={() => setEmailDialogOpen(false)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium"
+                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
