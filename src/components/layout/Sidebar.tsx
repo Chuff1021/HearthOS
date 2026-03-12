@@ -308,11 +308,11 @@ export default function Sidebar() {
                     collapsed ? "justify-center" : ""
                   }`}
                   style={{
-                    background: isActive ? "rgba(59,130,246,0.09)" : "transparent",
+                    background: isActive ? "rgba(59,130,246,0.065)" : "transparent",
                     color: isActive ? "#BFDBFE" : "var(--color-text-secondary)",
                     fontWeight: isActive ? "600" : "400",
-                    border: isActive ? "1px solid rgba(96,165,250,0.18)" : "1px solid transparent",
-                    boxShadow: isActive ? "inset 2px 0 0 rgba(96,165,250,0.9)" : "none",
+                    border: isActive ? "1px solid rgba(96,165,250,0.13)" : "1px solid transparent",
+                    boxShadow: isActive ? "inset 2px 0 0 rgba(96,165,250,0.72)" : "none",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
@@ -376,10 +376,10 @@ export default function Sidebar() {
               collapsed ? "justify-center" : ""
             }`}
             style={{
-              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(152,205,0,0.11)" : "transparent",
+              background: hydrated && pathname === "/integrations/quickbooks" ? "rgba(152,205,0,0.08)" : "transparent",
               color: hydrated && pathname === "/integrations/quickbooks" ? "#98CD00" : "var(--color-text-secondary)",
-              border: hydrated && pathname === "/integrations/quickbooks" ? "1px solid rgba(152,205,0,0.2)" : "1px solid transparent",
-              boxShadow: hydrated && pathname === "/integrations/quickbooks" ? "inset 2px 0 0 rgba(152,205,0,0.9)" : "none",
+              border: hydrated && pathname === "/integrations/quickbooks" ? "1px solid rgba(152,205,0,0.15)" : "1px solid transparent",
+              boxShadow: hydrated && pathname === "/integrations/quickbooks" ? "inset 2px 0 0 rgba(152,205,0,0.72)" : "none",
             }}
             onMouseEnter={(e) => {
               if (!(hydrated && pathname === "/integrations/quickbooks")) {
