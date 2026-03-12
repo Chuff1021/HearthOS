@@ -30,6 +30,19 @@ function normalizeSearchValue(value: string | undefined): string {
     .trim();
 }
 
+function matchesSearchQuery(query: string, field: string | undefined): boolean {
+  const normalizedField = normalizeSearchValue(field);
+  const normalizedQuery = normalizeSearchValue(query);
+
+  if (!normalizedQuery) return true;
+  if (normalizedField.includes(normalizedQuery)) return true;
+
+  const queryTokens = normalizedQuery.split(' ').filter(Boolean);
+  if (!queryTokens.length) return true;
+
+  return queryTokens.every((token) => normalizedField.includes(token));
+}
+
 export function getSyncStatus(): QBSyncStatus {
   return { ...syncStatus };
 }
@@ -194,7 +207,6 @@ export async function createCustomerInQuickBooks(
 
 // Search helpers
 export function searchCustomers(query: string): QBCustomer[] {
-  const normalizedQuery = normalizeSearchValue(query);
   return customersCache.filter(
     (c) => {
       const fields = [
@@ -204,7 +216,7 @@ export function searchCustomers(query: string): QBCustomer[] {
         c.PrimaryPhone?.FreeFormNumber,
       ];
 
-      return fields.some((field) => normalizeSearchValue(field).includes(normalizedQuery));
+      return fields.some((field) => matchesSearchQuery(query, field));
     }
   );
 }

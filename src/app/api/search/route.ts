@@ -20,6 +20,14 @@ function normalizeSearchValue(value: string | undefined) {
     .trim();
 }
 
+function matchesSearchQuery(query: string, field: string | undefined) {
+  const normalizedField = normalizeSearchValue(field);
+  if (!query) return true;
+  if (normalizedField.includes(query)) return true;
+  const queryTokens = query.split(" ").filter(Boolean);
+  return queryTokens.every((token) => normalizedField.includes(token));
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") || "";
@@ -135,12 +143,12 @@ export async function GET(request: NextRequest) {
         client.getInvoices(500),
       ]);
 
-      qbMatchedCustomers = liveCustomers
+        qbMatchedCustomers = liveCustomers
         .filter((c) =>
-          normalizeSearchValue(c.DisplayName).includes(query) ||
-          normalizeSearchValue(c.CompanyName).includes(query) ||
-          normalizeSearchValue(c.PrimaryEmailAddr?.Address).includes(query) ||
-          normalizeSearchValue(c.PrimaryPhone?.FreeFormNumber).includes(query)
+          matchesSearchQuery(query, c.DisplayName) ||
+          matchesSearchQuery(query, c.CompanyName) ||
+          matchesSearchQuery(query, c.PrimaryEmailAddr?.Address) ||
+          matchesSearchQuery(query, c.PrimaryPhone?.FreeFormNumber)
         )
         .slice(0, 8)
         .map((c) => ({
@@ -193,10 +201,10 @@ export async function GET(request: NextRequest) {
 
         qbMatchedCustomers = liveCustomersRetry
           .filter((c) =>
-            normalizeSearchValue(c.DisplayName).includes(query) ||
-            normalizeSearchValue(c.CompanyName).includes(query) ||
-            normalizeSearchValue(c.PrimaryEmailAddr?.Address).includes(query) ||
-            normalizeSearchValue(c.PrimaryPhone?.FreeFormNumber).includes(query)
+            matchesSearchQuery(query, c.DisplayName) ||
+            matchesSearchQuery(query, c.CompanyName) ||
+            matchesSearchQuery(query, c.PrimaryEmailAddr?.Address) ||
+            matchesSearchQuery(query, c.PrimaryPhone?.FreeFormNumber)
           )
           .slice(0, 8)
           .map((c) => ({

@@ -70,6 +70,19 @@ function normalizeSearchValue(value: string | undefined): string {
     .trim();
 }
 
+function matchesSearchQuery(query: string, field: string | undefined): boolean {
+  const normalizedField = normalizeSearchValue(field);
+  const normalizedQuery = normalizeSearchValue(query);
+
+  if (!normalizedQuery) return true;
+  if (normalizedField.includes(normalizedQuery)) return true;
+
+  const queryTokens = normalizedQuery.split(' ').filter(Boolean);
+  if (!queryTokens.length) return true;
+
+  return queryTokens.every((token) => normalizedField.includes(token));
+}
+
 function loadStore(): Store {
   const store = readJsonFile<Store>(FILE, {
     customers: [],
@@ -98,13 +111,12 @@ export function getCustomerById(id: string): Customer | undefined {
 }
 
 export function searchCustomersLocal(query: string): Customer[] {
-  const q = normalizeSearchValue(query);
   return getCustomers().filter(
     (c) =>
-      normalizeSearchValue(c.displayName).includes(q) ||
-      normalizeSearchValue(c.email).includes(q) ||
-      normalizeSearchValue(c.phone).includes(q) ||
-      normalizeSearchValue(c.companyName).includes(q)
+      matchesSearchQuery(query, c.displayName) ||
+      matchesSearchQuery(query, c.email) ||
+      matchesSearchQuery(query, c.phone) ||
+      matchesSearchQuery(query, c.companyName)
   );
 }
 
