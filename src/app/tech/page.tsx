@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useUser } from "@clerk/nextjs";
 import { CLERK_ENABLED } from "@/lib/auth";
 import TechBottomNav from "@/components/tech/TechBottomNav";
@@ -90,14 +89,7 @@ function TechAppContent({ displayName }: { displayName: string }) {
       >
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <Image
-              src="/tech/hearthos-logo.svg"
-              alt="HearthOS"
-              width={172}
-              height={32}
-              priority
-              className="h-8 w-auto"
-            />
+            <h1 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>HearthOS</h1>
             <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Tech Dashboard · {displayName}</p>
           </div>
           <div className="flex items-center gap-3">
