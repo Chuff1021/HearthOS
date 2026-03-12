@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import TechBottomNav from "@/components/tech/TechBottomNav";
 
 type Manual = {
   id: string;
@@ -400,14 +401,7 @@ export default function ManualsPage() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 ui-mobile-header border-t z-20">
-        <div className="max-w-md mx-auto flex justify-around py-3">
-          <Link href="/tech" className="flex flex-col items-center  hover:text-white transition-colors"><span className="text-xs mt-1">Jobs</span></Link>
-          <Link href="/tech/manuals" className="flex flex-col items-center text-orange-400"><span className="text-xs mt-1">Manuals</span></Link>
-          <Link href="/tech/gabe" className="flex flex-col items-center  hover:text-white transition-colors"><span className="text-xs mt-1">GABE</span></Link>
-          <Link href="/tech/profile" className="flex flex-col items-center  hover:text-white transition-colors"><span className="text-xs mt-1">Profile</span></Link>
-        </div>
-      </nav>
+      <TechBottomNav active="manuals" />
     </div>
   );
 }
