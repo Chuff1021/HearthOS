@@ -12,9 +12,18 @@ import {
   syncInvoices,
 } from "@/lib/quickbooks";
 
+function normalizeSearchValue(value: string | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("q")?.toLowerCase() || "";
+  const rawQuery = searchParams.get("q") || "";
+  const query = normalizeSearchValue(rawQuery);
 
   if (!query || query.length < 2) {
     return NextResponse.json({ customers: [], jobs: [], invoices: [] });
@@ -128,10 +137,10 @@ export async function GET(request: NextRequest) {
 
       qbMatchedCustomers = liveCustomers
         .filter((c) =>
-          c.DisplayName?.toLowerCase().includes(query) ||
-          c.CompanyName?.toLowerCase().includes(query) ||
-          c.PrimaryEmailAddr?.Address?.toLowerCase().includes(query) ||
-          c.PrimaryPhone?.FreeFormNumber?.includes(query)
+          normalizeSearchValue(c.DisplayName).includes(query) ||
+          normalizeSearchValue(c.CompanyName).includes(query) ||
+          normalizeSearchValue(c.PrimaryEmailAddr?.Address).includes(query) ||
+          normalizeSearchValue(c.PrimaryPhone?.FreeFormNumber).includes(query)
         )
         .slice(0, 8)
         .map((c) => ({
@@ -184,10 +193,10 @@ export async function GET(request: NextRequest) {
 
         qbMatchedCustomers = liveCustomersRetry
           .filter((c) =>
-            c.DisplayName?.toLowerCase().includes(query) ||
-            c.CompanyName?.toLowerCase().includes(query) ||
-            c.PrimaryEmailAddr?.Address?.toLowerCase().includes(query) ||
-            c.PrimaryPhone?.FreeFormNumber?.includes(query)
+            normalizeSearchValue(c.DisplayName).includes(query) ||
+            normalizeSearchValue(c.CompanyName).includes(query) ||
+            normalizeSearchValue(c.PrimaryEmailAddr?.Address).includes(query) ||
+            normalizeSearchValue(c.PrimaryPhone?.FreeFormNumber).includes(query)
           )
           .slice(0, 8)
           .map((c) => ({

@@ -22,6 +22,14 @@ let paymentsCache: QBPayment[] = [];
 // Sync logs (in production, use database)
 const syncLogs: QBSyncLog[] = [];
 
+function normalizeSearchValue(value: string | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function getSyncStatus(): QBSyncStatus {
   return { ...syncStatus };
 }
@@ -186,13 +194,18 @@ export async function createCustomerInQuickBooks(
 
 // Search helpers
 export function searchCustomers(query: string): QBCustomer[] {
-  const lowerQuery = query.toLowerCase();
+  const normalizedQuery = normalizeSearchValue(query);
   return customersCache.filter(
-    (c) =>
-      c.DisplayName.toLowerCase().includes(lowerQuery) ||
-      c.CompanyName?.toLowerCase().includes(lowerQuery) ||
-      c.PrimaryEmailAddr?.Address.toLowerCase().includes(lowerQuery) ||
-      c.PrimaryPhone?.FreeFormNumber.includes(query)
+    (c) => {
+      const fields = [
+        c.DisplayName,
+        c.CompanyName,
+        c.PrimaryEmailAddr?.Address,
+        c.PrimaryPhone?.FreeFormNumber,
+      ];
+
+      return fields.some((field) => normalizeSearchValue(field).includes(normalizedQuery));
+    }
   );
 }
 

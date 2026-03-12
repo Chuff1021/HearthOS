@@ -62,6 +62,14 @@ type Store = {
 
 const FILE = 'core-data-store.json';
 
+function normalizeSearchValue(value: string | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function loadStore(): Store {
   const store = readJsonFile<Store>(FILE, {
     customers: [],
@@ -90,13 +98,13 @@ export function getCustomerById(id: string): Customer | undefined {
 }
 
 export function searchCustomersLocal(query: string): Customer[] {
-  const q = query.toLowerCase();
+  const q = normalizeSearchValue(query);
   return getCustomers().filter(
     (c) =>
-      c.displayName.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.phone?.includes(query) ||
-      c.companyName?.toLowerCase().includes(q)
+      normalizeSearchValue(c.displayName).includes(q) ||
+      normalizeSearchValue(c.email).includes(q) ||
+      normalizeSearchValue(c.phone).includes(q) ||
+      normalizeSearchValue(c.companyName).includes(q)
   );
 }
 
