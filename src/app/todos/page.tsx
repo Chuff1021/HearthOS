@@ -193,20 +193,69 @@ export default function TodosPage() {
 
   function getPriorityColor(priority: TodoPriority) {
     switch (priority) {
-      case "urgent": return "bg-red-500/20 text-red-400";
-      case "high": return "bg-orange-500/20 text-orange-400";
-      case "medium": return "bg-orange-500/20 text-orange-300";
-      case "low": return "bg-blue-500/20 text-blue-400";
+      case "urgent": return "bg-red-950 text-red-200 border border-red-700/70";
+      case "high": return "bg-amber-950 text-amber-200 border border-amber-700/70";
+      case "medium": return "bg-orange-950 text-orange-200 border border-orange-700/70";
+      case "low": return "bg-sky-950 text-sky-200 border border-sky-700/70";
     }
   }
 
   function getStatusColor(status: TodoStatus) {
     switch (status) {
-      case "completed": return "bg-green-500/20 text-green-400";
-      case "in_progress": return "bg-blue-500/20 text-blue-400";
-      case "pending": return "bg-orange-500/20 text-orange-300";
-      case "cancelled": return "bg-slate-500/20 text-slate-300";
-      default: return "bg-slate-500/20 text-slate-300";
+      case "completed": return "bg-emerald-950 text-emerald-200 border border-emerald-700/70";
+      case "in_progress": return "bg-blue-950 text-blue-200 border border-blue-700/70";
+      case "pending": return "bg-orange-950 text-orange-200 border border-orange-700/70";
+      case "cancelled": return "bg-slate-800 text-slate-200 border border-slate-600/70";
+      default: return "bg-slate-800 text-slate-200 border border-slate-600/70";
+    }
+  }
+
+  function getFilterCardStyle(card: "all" | "pending" | "in_progress" | "completed" | "overdue" | "dueToday", active: boolean) {
+    const base = {
+      background: "var(--color-surface-1)",
+      border: "1px solid var(--color-border)",
+      boxShadow: "none",
+    };
+
+    if (!active) return base;
+
+    switch (card) {
+      case "all":
+        return {
+          background: "linear-gradient(180deg, rgba(255,120,40,0.18), rgba(255,120,40,0.08))",
+          border: "1px solid rgba(255,120,40,0.5)",
+          boxShadow: "0 0 0 1px rgba(255,120,40,0.35) inset, 0 14px 30px rgba(255,120,40,0.14)",
+        };
+      case "pending":
+        return {
+          background: "linear-gradient(180deg, rgba(255,106,0,0.2), rgba(255,106,0,0.08))",
+          border: "1px solid rgba(255,106,0,0.5)",
+          boxShadow: "0 0 0 1px rgba(255,106,0,0.35) inset, 0 14px 30px rgba(255,106,0,0.14)",
+        };
+      case "in_progress":
+        return {
+          background: "linear-gradient(180deg, rgba(37,99,235,0.22), rgba(37,99,235,0.08))",
+          border: "1px solid rgba(59,130,246,0.5)",
+          boxShadow: "0 0 0 1px rgba(59,130,246,0.35) inset, 0 14px 30px rgba(37,99,235,0.14)",
+        };
+      case "completed":
+        return {
+          background: "linear-gradient(180deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08))",
+          border: "1px solid rgba(74,222,128,0.5)",
+          boxShadow: "0 0 0 1px rgba(74,222,128,0.35) inset, 0 14px 30px rgba(34,197,94,0.14)",
+        };
+      case "overdue":
+        return {
+          background: "linear-gradient(180deg, rgba(255,32,78,0.22), rgba(255,32,78,0.08))",
+          border: "1px solid rgba(255,77,121,0.52)",
+          boxShadow: "0 0 0 1px rgba(255,77,121,0.35) inset, 0 14px 30px rgba(255,32,78,0.14)",
+        };
+      case "dueToday":
+        return {
+          background: "linear-gradient(180deg, rgba(245,158,11,0.2), rgba(245,158,11,0.08))",
+          border: "1px solid rgba(251,191,36,0.5)",
+          boxShadow: "0 0 0 1px rgba(251,191,36,0.35) inset, 0 14px 30px rgba(245,158,11,0.14)",
+        };
     }
   }
 
@@ -245,45 +294,45 @@ export default function TodosPage() {
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
               <button
                 onClick={() => setFilter("all")}
-                className={`p-4 rounded-xl text-left transition-all ${filter === "all" ? "ring-2 ring-orange-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
+                style={getFilterCardStyle("all", filter === "all")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>All</p>
                 <p className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>{stats.total}</p>
               </button>
               <button
                 onClick={() => setFilter("pending")}
-                className={`p-4 rounded-xl text-left transition-all ${filter === "pending" ? "ring-2 ring-orange-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
+                style={getFilterCardStyle("pending", filter === "pending")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
                 <p className="text-2xl font-bold" style={{ color: "#FF4400" }}>{stats.pending}</p>
               </button>
               <button
                 onClick={() => setFilter("in_progress")}
-                className={`p-4 rounded-xl text-left transition-all ${filter === "in_progress" ? "ring-2 ring-orange-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
+                style={getFilterCardStyle("in_progress", filter === "in_progress")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
                 <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>{stats.inProgress}</p>
               </button>
               <button
                 onClick={() => setFilter("completed")}
-                className={`p-4 rounded-xl text-left transition-all ${filter === "completed" ? "ring-2 ring-orange-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
+                style={getFilterCardStyle("completed", filter === "completed")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
                 <p className="text-2xl font-bold" style={{ color: "#98CD00" }}>{stats.completed}</p>
               </button>
               <button
                 onClick={() => setFilter("overdue")}
-                className={`p-4 rounded-xl text-left transition-all ${filter === "overdue" ? "ring-2 ring-orange-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
+                style={getFilterCardStyle("overdue", filter === "overdue")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
                 <p className="text-2xl font-bold" style={{ color: "#FF204E" }}>{stats.overdue}</p>
               </button>
-              <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+              <div className="p-4 rounded-xl" style={getFilterCardStyle("dueToday", false)}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
                 <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>{stats.dueToday}</p>
               </div>
