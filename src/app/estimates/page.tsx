@@ -45,7 +45,7 @@ export default function EstimatesPage() {
   const [convertedMap, setConvertedMap] = useState<Record<string, string>>({});
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
   const selectedEstimateId = searchParams.get("id");
-  const selectedCustomerId = searchParams.get("customer");
+  const selectedCustomerFilterId = searchParams.get("customer");
 
   async function loadAll() {
     setLoading(true);
@@ -101,8 +101,8 @@ export default function EstimatesPage() {
 
   const draftTotal = useMemo(() => draftLines.reduce((s, l) => s + l.total, 0), [draftLines]);
   const filteredEstimates = useMemo(() => {
-    return estimates.filter((estimate) => !selectedCustomerId || estimate.CustomerRef?.value === selectedCustomerId);
-  }, [estimates, selectedCustomerId]);
+    return estimates.filter((estimate) => !selectedCustomerFilterId || estimate.CustomerRef?.value === selectedCustomerFilterId);
+  }, [estimates, selectedCustomerFilterId]);
   const selectedEstimateLines = selectedEstimate?.Line || [];
 
   useEffect(() => {
@@ -114,18 +114,18 @@ export default function EstimatesPage() {
       }
     }
 
-    if (selectedCustomerId && !selectedEstimateId) {
-      const firstCustomerEstimate = estimates.find((estimate) => estimate.CustomerRef?.value === selectedCustomerId);
+    if (selectedCustomerFilterId && !selectedEstimateId) {
+      const firstCustomerEstimate = estimates.find((estimate) => estimate.CustomerRef?.value === selectedCustomerFilterId);
       if (firstCustomerEstimate) {
         setSelectedEstimate(firstCustomerEstimate);
         return;
       }
     }
 
-    if (!selectedEstimateId && !selectedCustomerId && estimates.length && !selectedEstimate) {
+    if (!selectedEstimateId && !selectedCustomerFilterId && estimates.length && !selectedEstimate) {
       setSelectedEstimate(estimates[0]);
     }
-  }, [estimates, selectedEstimateId, selectedCustomerId, selectedEstimate]);
+  }, [estimates, selectedEstimateId, selectedCustomerFilterId, selectedEstimate]);
 
   function printEstimate(e: Estimate) {
     const w = window.open("", "_blank", "width=900,height=700");
