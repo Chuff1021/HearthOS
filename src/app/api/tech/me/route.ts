@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getJobs } from "@/app/api/jobs/route";
-import { getLatestLocationsByTech } from "@/lib/tech-location-store";
+import { getLatestLocationsByTech, getMileageSummary } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
-import { readJsonFile } from "@/lib/persist-json";
-
-type TimeEntry = {
-  id: string;
-  techId: string;
-  techName?: string;
-  clockInAt: string;
-  clockOutAt?: string;
-  totalMinutes?: number;
-  status: "open" | "closed";
-  createdAt: string;
-  updatedAt: string;
-};
+import { getOpenTimeEntry } from "@/lib/time-entry-store";
 
 function normalize(value: string | undefined | null) {
   return String(value || "").trim().toLowerCase();
@@ -105,10 +93,7 @@ export async function GET(request: NextRequest) {
       });
 
     const todaysJobs = jobs.filter((job) => job.scheduledDate === today);
-    const openEntry =
-      readJsonFile<TimeEntry[]>("time-entries.json", [])
-        .filter((entry) => entry.status === "open")
-        .find((entry) => entry.techId === effectiveTech.id || entry.techId === user.id) || null;
+    const openEntry = await getOpenTimeEntry([effectiveTech.id, user.id]);
 
     const latestLocation =
       latestLocations.find((entry) => entry.techId === effectiveTech.id) ||
@@ -118,6 +103,7 @@ export async function GET(request: NextRequest) {
 
     const completedToday = todaysJobs.filter((job) => job.status === "completed").length;
     const activeJob = jobs.find((job) => job.status === "in_progress") || null;
+    const mileage = await getMileageSummary(effectiveTech.id);
 
     return NextResponse.json({
       tech: effectiveTech,
@@ -135,6 +121,9 @@ export async function GET(request: NextRequest) {
         jobsToday: todaysJobs.length,
         jobsCompletedToday: completedToday,
         upcomingJobs: jobs.filter((job) => job.status === "scheduled").length,
+        milesToday: mileage.dayMiles,
+        milesWeek: mileage.weekMiles,
+        milesMonth: mileage.monthMiles,
       },
       linked: !!tech,
     });

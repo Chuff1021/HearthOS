@@ -33,6 +33,7 @@ export default function ProfilePage() {
     milesDriven: 0,
     clockIn: "--",
   });
+  const [isClockedIn, setIsClockedIn] = useState(false);
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
@@ -47,7 +48,8 @@ export default function ProfilePage() {
   const [isTracking, setIsTracking] = useState(true);
 
   // Derived state
-  const currentLocation = gpsEnabled && isTracking ? locationLabel : null;
+  const effectiveTracking = gpsEnabled && isTracking && isClockedIn;
+  const currentLocation = effectiveTracking ? locationLabel : null;
 
   async function ensureTechProfile(forceCreate = false) {
     try {
@@ -173,24 +175,33 @@ export default function ProfilePage() {
         setTodayStats({
           jobsCompleted: data.stats?.jobsCompletedToday ?? 0,
           hoursWorked: `${hours}h ${String(minutes).padStart(2, "0")}m`,
-          milesDriven: 0,
+          milesDriven: Number(data.stats?.milesToday ?? 0),
           clockIn: openClock
             ? openClock.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
             : "--",
         });
+        setIsClockedIn(Boolean(data.clockEntry));
       } catch {
         // no-op
       }
     }
 
-    loadProfileStats();
+    const refresh = () => {
+      void loadProfileStats();
+    };
+
+    refresh();
+    window.addEventListener("hearth-tech-clock-changed", refresh as EventListener);
+    const intervalId = window.setInterval(refresh, 60000);
     return () => {
       cancelled = true;
+      window.removeEventListener("hearth-tech-clock-changed", refresh as EventListener);
+      window.clearInterval(intervalId);
     };
   }, [isLoaded]);
 
   useEffect(() => {
-    if (!gpsEnabled || !isTracking) {
+    if (!gpsEnabled || !isTracking || !isClockedIn) {
       if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchRef.current);
         watchRef.current = null;
@@ -252,7 +263,7 @@ export default function ProfilePage() {
         watchRef.current = null;
       }
     };
-  }, [gpsEnabled, isTracking, techId, user?.id, userName]);
+  }, [gpsEnabled, isTracking, isClockedIn, techId, user?.id, userName]);
 
   async function requestLocationPermission() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -368,8 +379,8 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">GPS Tracking</h3>
             <div className={`flex items-center gap-1 text-xs ${isTracking ? "text-green-400" : "text-gray-500"}`}>
-              <div className={`w-2 h-2 rounded-full ${isTracking ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></div>
-              {isTracking ? "Active" : "Inactive"}
+              <div className={`w-2 h-2 rounded-full ${effectiveTracking ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></div>
+              {effectiveTracking ? "Active" : "Inactive"}
             </div>
           </div>
           
@@ -404,6 +415,9 @@ export default function ProfilePage() {
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               GPS State: {gpsState} {lastGpsPingAt ? `· Last Ping: ${new Date(lastGpsPingAt).toLocaleTimeString()}` : ''}
             </div>
+            <div className="text-xs" style={{ color: isClockedIn ? "#15803D" : "var(--color-text-muted)" }}>
+              Shift: {isClockedIn ? "Clocked in" : "Clocked out"}
+            </div>
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               Tracking As: {techId || user?.id || 'unresolved'}
             </div>
@@ -434,7 +448,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Live Tracking</p>
-                <p className="text-xs text-gray-400">Share location with dispatch</p>
+                <p className="text-xs text-gray-400">Only runs while clocked in</p>
               </div>
               <button
                 onClick={() => setIsTracking(!isTracking)}

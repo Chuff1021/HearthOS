@@ -42,6 +42,7 @@ type TechSession = {
     jobsToday: number;
     jobsCompletedToday: number;
     upcomingJobs: number;
+    milesToday?: number;
   };
 };
 
@@ -92,6 +93,15 @@ export default function TechApp() {
 
   useEffect(() => {
     loadSession();
+    const refresh = () => {
+      void loadSession();
+    };
+    window.addEventListener("hearth-tech-clock-changed", refresh as EventListener);
+    const intervalId = window.setInterval(refresh, 60000);
+    return () => {
+      window.removeEventListener("hearth-tech-clock-changed", refresh as EventListener);
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const upcomingJobs = useMemo(
@@ -113,6 +123,7 @@ export default function TechApp() {
         }),
       });
       if (!res.ok) throw new Error("Failed to update time entry");
+      window.dispatchEvent(new Event("hearth-tech-clock-changed"));
       await loadSession();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update time entry");
@@ -214,6 +225,20 @@ export default function TechApp() {
               <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{stat.label} Jobs</p>
             </div>
           ))}
+        </div>
+
+        <div className="rounded-2xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Miles Today</p>
+              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                Saved from live GPS pings while clocked in
+              </p>
+            </div>
+            <div className="text-2xl font-bold" style={{ color: "#C2410C" }}>
+              {(session?.stats.milesToday ?? 0).toFixed(1)}
+            </div>
+          </div>
         </div>
 
         <div>

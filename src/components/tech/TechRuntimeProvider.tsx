@@ -21,6 +21,7 @@ export default function TechRuntimeProvider() {
   const watchRef = useRef<number | null>(null);
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [isTracking, setIsTracking] = useState(true);
+  const [clockedIn, setClockedIn] = useState(false);
 
   useEffect(() => {
     const syncFlags = () => {
@@ -39,8 +40,38 @@ export default function TechRuntimeProvider() {
 
   useEffect(() => {
     if (!CLERK_ENABLED || !isLoaded) return;
+
+    let cancelled = false;
+
+    async function loadClockState() {
+      try {
+        const res = await fetch("/api/tech/me", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = await res.json().catch(() => null);
+        if (!cancelled) setClockedIn(Boolean(data?.clockEntry));
+      } catch {
+        if (!cancelled) setClockedIn(false);
+      }
+    }
+
+    const refresh = () => {
+      void loadClockState();
+    };
+
+    refresh();
+    window.addEventListener("hearth-tech-clock-changed", refresh as EventListener);
+    const intervalId = window.setInterval(refresh, 60000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("hearth-tech-clock-changed", refresh as EventListener);
+      window.clearInterval(intervalId);
+    };
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (!CLERK_ENABLED || !isLoaded) return;
     if (pathname === "/tech/profile") return;
-    if (!gpsEnabled || !isTracking) return;
+    if (!gpsEnabled || !isTracking || !clockedIn) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
 
     let cancelled = false;
@@ -94,7 +125,7 @@ export default function TechRuntimeProvider() {
         watchRef.current = null;
       }
     };
-  }, [gpsEnabled, isLoaded, isTracking, pathname]);
+  }, [clockedIn, gpsEnabled, isLoaded, isTracking, pathname]);
 
   return null;
 }
