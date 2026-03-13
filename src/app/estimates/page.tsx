@@ -550,7 +550,7 @@ export default function EstimatesPage() {
       amount: String(Number(estimate.TotalAmt || 0)),
       jobType: "installation",
     });
-    window.location.href = `/jobs?${params.toString()}`;
+    window.location.href = `/schedule?${params.toString()}`;
   }
 
   return (

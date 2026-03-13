@@ -695,7 +695,7 @@ export default function InvoicesPage() {
       amount: String(invoice.totalAmount),
       jobType: "installation",
     });
-    window.location.href = `/jobs?${q.toString()}`;
+    window.location.href = `/schedule?${q.toString()}`;
   };
 
   const handleSaveInvoiceEdits = async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
@@ -99,6 +100,7 @@ function addMinutes(time: string, minutesToAdd: number) {
 }
 
 export default function SchedulePage() {
+  const searchParams = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("master");
   const [techs, setTechs] = useState<Tech[]>([]);
@@ -168,6 +170,31 @@ export default function SchedulePage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return;
+
+    const customerId = searchParams.get("customerId") || "";
+    const customerName = searchParams.get("customerName") || "";
+    const address = searchParams.get("address") || "";
+    const title = searchParams.get("title") || "";
+    const jobType = searchParams.get("jobType") || "installation";
+    const scheduledDate = searchParams.get("scheduledDate") || isoDate(new Date());
+
+    setShowCreate(true);
+    setSelectedCustomer(customerId || customerName ? { id: customerId, name: customerName, address } : null);
+    setCustomerQuery("");
+    setCurrentDate(new Date(`${scheduledDate}T00:00:00`));
+    setForm((prev) => ({
+      ...prev,
+      title: title || prev.title,
+      jobType,
+      customerId,
+      customerName,
+      propertyAddress: address || prev.propertyAddress,
+      scheduledDate,
+    }));
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
