@@ -145,6 +145,7 @@ export default function CustomersPage() {
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState<CustomerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<CustomerDocumentSelection | null>(null);
+  const [selectedDocumentNonce, setSelectedDocumentNonce] = useState(0);
   const [documentPreview, setDocumentPreview] = useState<InvoicePreview | EstimatePreview | null>(null);
   const [loadingDocumentPreview, setLoadingDocumentPreview] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -310,7 +311,7 @@ export default function CustomersPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDocument]);
+  }, [selectedDocument, selectedDocumentNonce]);
 
   const resetForm = () => {
     setForm({ firstName: "", lastName: "", companyName: "", email: "", phone: "", line1: "", city: "", state: "", zip: "", tags: "", notes: "" });
@@ -447,12 +448,14 @@ export default function CustomersPage() {
   function openInvoicePreview(id: string, source: "quickbooks" | "local") {
     setDocumentPreview(null);
     setLoadingDocumentPreview(true);
+    setSelectedDocumentNonce((value) => value + 1);
     setSelectedDocument({ type: "invoice", id, source });
   }
 
   function openEstimatePreview(id: string) {
     setDocumentPreview(null);
     setLoadingDocumentPreview(true);
+    setSelectedDocumentNonce((value) => value + 1);
     setSelectedDocument({ type: "estimate", id, source: "quickbooks" });
   }
 
@@ -697,11 +700,11 @@ export default function CustomersPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Issue Date</div>
-                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.issueDate).toLocaleDateString()}</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{formatDisplayDate(activeInvoicePreview.issueDate)}</div>
                         </div>
                         <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Due Date</div>
-                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.dueDate).toLocaleDateString()}</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{formatDisplayDate(activeInvoicePreview.dueDate)}</div>
                         </div>
                       </div>
                       {(activeInvoicePreview.paymentMethod || activeInvoicePreview.paymentDate) && (
@@ -709,7 +712,7 @@ export default function CustomersPage() {
                           <div className="text-xs font-semibold" style={{ color: "#98CD00" }}>PAYMENT</div>
                           <div className="text-sm mt-1" style={{ color: "var(--color-text-primary)" }}>
                             {activeInvoicePreview.paymentMethod || "Paid"}
-                            {activeInvoicePreview.paymentDate ? ` on ${new Date(activeInvoicePreview.paymentDate).toLocaleDateString()}` : ""}
+                            {activeInvoicePreview.paymentDate ? ` on ${formatDisplayDate(activeInvoicePreview.paymentDate)}` : ""}
                           </div>
                         </div>
                       )}
@@ -758,18 +761,18 @@ export default function CustomersPage() {
                             ${Number(activeEstimatePreview.TotalAmt || 0).toLocaleString()}
                           </div>
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-                            {activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "No date"}
+                            {activeEstimatePreview.TxnDate ? formatDisplayDate(activeEstimatePreview.TxnDate) : "No date"}
                           </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Estimate Date</div>
-                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "—"}</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.TxnDate ? formatDisplayDate(activeEstimatePreview.TxnDate) : "—"}</div>
                         </div>
                         <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Expires</div>
-                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.ExpirationDate ? new Date(activeEstimatePreview.ExpirationDate).toLocaleDateString() : "—"}</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.ExpirationDate ? formatDisplayDate(activeEstimatePreview.ExpirationDate) : "—"}</div>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -942,6 +945,9 @@ export default function CustomersPage() {
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>INVOICES</h4>
                       <div className="space-y-2">
                         {detailHistory.invoices.slice(0, 8).map((invoice) => (
+                          (() => {
+                            const payment = detailHistory.payments.find((entry) => entry.linkedTxnIds.includes(invoice.id));
+                            return (
                           <button
                             key={`${invoice.id}-${invoice.invoiceNumber}`}
                             onClick={() => openInvoicePreview(invoice.id, "quickbooks")}
@@ -951,16 +957,20 @@ export default function CustomersPage() {
                             <div className="flex items-center justify-between gap-2">
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{invoice.invoiceNumber}</div>
-                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {new Date(invoice.issueDate).toLocaleDateString()}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {formatDisplayDate(invoice.issueDate)}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount).toLocaleString()}</div>
                                 <div className="text-xs" style={{ color: Number(invoice.balance) > 0 ? "#FF204E" : "#98CD00" }}>
-                                  {invoice.status} • ${Number(invoice.balance).toLocaleString()} open
+                                  {invoice.status}
+                                  {payment?.paymentMethod ? ` • ${payment.paymentMethod}` : ""}
+                                  {` • $${Number(invoice.balance).toLocaleString()} open`}
                                 </div>
                               </div>
                             </div>
                           </button>
+                            );
+                          })()
                         ))}
                         {detailHistory.localInvoices.slice(0, 8).map((invoice) => (
                           <button
@@ -972,7 +982,7 @@ export default function CustomersPage() {
                             <div className="flex items-center justify-between gap-2">
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{invoice.invoiceNumber}</div>
-                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {new Date(invoice.issueDate).toLocaleDateString()} • local</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {formatDisplayDate(invoice.issueDate)} • local</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount).toLocaleString()}</div>
@@ -1003,7 +1013,7 @@ export default function CustomersPage() {
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{estimate.estimateNumber}</div>
                                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                                  {[estimate.txnDate ? new Date(estimate.txnDate).toLocaleDateString() : undefined, estimate.expirationDate ? `expires ${new Date(estimate.expirationDate).toLocaleDateString()}` : undefined].filter(Boolean).join(" • ")}
+                                  {[estimate.txnDate ? formatDisplayDate(estimate.txnDate) : undefined, estimate.expirationDate ? `expires ${formatDisplayDate(estimate.expirationDate)}` : undefined].filter(Boolean).join(" • ")}
                                 </div>
                               </div>
                               <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmt).toLocaleString()}</div>
@@ -1025,7 +1035,7 @@ export default function CustomersPage() {
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{payment.paymentMethod || "QuickBooks payment"}</div>
                                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                                  {new Date(payment.txnDate).toLocaleDateString()}
+                                  {formatDisplayDate(payment.txnDate)}
                                   {payment.linkedTxnIds.length ? ` • ${payment.linkedTxnIds.length} linked invoices` : ""}
                                 </div>
                               </div>
@@ -1058,7 +1068,7 @@ export default function CustomersPage() {
                               <div>
                                 <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{purchaseOrder.docNumber}</div>
                                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                                  {[purchaseOrder.vendorName, purchaseOrder.txnDate ? new Date(purchaseOrder.txnDate).toLocaleDateString() : undefined].filter(Boolean).join(" • ")}
+                                  {[purchaseOrder.vendorName, purchaseOrder.txnDate ? formatDisplayDate(purchaseOrder.txnDate) : undefined].filter(Boolean).join(" • ")}
                                 </div>
                                 {purchaseOrder.memo && (
                                   <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{purchaseOrder.memo}</div>
@@ -1293,3 +1303,9 @@ export default function CustomersPage() {
     </div>
   );
 }
+  function formatDisplayDate(value?: string) {
+    if (!value) return "—";
+    const [year, month, day] = value.split("T")[0].split("-").map(Number);
+    if (!year || !month || !day) return value;
+    return new Date(year, month - 1, day).toLocaleDateString();
+  }
