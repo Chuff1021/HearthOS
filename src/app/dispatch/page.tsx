@@ -29,6 +29,12 @@ type UnassignedJob = {
   priority: string;
 };
 
+type MileageSummary = {
+  dayMiles: number;
+  weekMiles: number;
+  monthMiles: number;
+};
+
 export default function DispatchPage() {
   const [techs, setTechs] = useState<Tech[]>([]);
   const [unassignedJobs, setUnassignedJobs] = useState<UnassignedJob[]>([]);
@@ -39,6 +45,8 @@ export default function DispatchPage() {
   const [selectedRouteEtaMin, setSelectedRouteEtaMin] = useState<number | null>(null);
   const [selectedOffRouteMiles, setSelectedOffRouteMiles] = useState<number | null>(null);
   const [mapReadyTick, setMapReadyTick] = useState(0);
+  const [mileage, setMileage] = useState<MileageSummary | null>(null);
+  const [loadingMileage, setLoadingMileage] = useState(false);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
@@ -52,6 +60,8 @@ export default function DispatchPage() {
   const routeLineRef = useRef<any>(null);
   const geocodeCacheRef = useRef<Map<string, [number, number]>>(new Map());
   const hasAutoFitRef = useRef(false);
+  const autoFollowRef = useRef(true);
+  const previousSelectedTechIdRef = useRef<string>("");
 
   function cleanTechName(name: string) {
     return (name || '').replace(/\bservice\s*tech(?:nician)?\b/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -168,6 +178,9 @@ export default function DispatchPage() {
       }
 
       mapRef.current = { map, L };
+      map.on('dragstart zoomstart movestart', () => {
+        autoFollowRef.current = false;
+      });
       setMapReadyTick((n) => n + 1);
     }
 
@@ -262,10 +275,49 @@ export default function DispatchPage() {
   }, [liveTechs, selectedTechId, mapReadyTick]);
 
   useEffect(() => {
+    if (!selectedTechId) return;
+    if (previousSelectedTechIdRef.current !== selectedTechId) {
+      autoFollowRef.current = true;
+      previousSelectedTechIdRef.current = selectedTechId;
+    }
+  }, [selectedTechId]);
+
+  useEffect(() => {
     const ctx = mapRef.current;
-    if (!ctx || !selectedTech?.location) return;
+    if (!ctx || !selectedTech?.location || !autoFollowRef.current) return;
     ctx.map.flyTo([selectedTech.location.lat, selectedTech.location.lng], Math.max(ctx.map.getZoom(), 13), { duration: 0.4 });
-  }, [selectedTechId, selectedTech?.location]);
+    autoFollowRef.current = false;
+  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMileage() {
+      if (!selectedTechId) {
+        setMileage(null);
+        return;
+      }
+      try {
+        setLoadingMileage(true);
+        const res = await fetch(`/api/tech/locations?techId=${encodeURIComponent(selectedTechId)}&summary=true&limit=1`, {
+          cache: 'no-store',
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          setMileage(data.mileage || { dayMiles: 0, weekMiles: 0, monthMiles: 0 });
+        }
+      } catch {
+        if (!cancelled) setMileage(null);
+      } finally {
+        if (!cancelled) setLoadingMileage(false);
+      }
+    }
+
+    loadMileage();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTechId]);
 
   useEffect(() => {
     const ctx = mapRef.current;
@@ -343,7 +395,9 @@ export default function DispatchPage() {
   function centerOnSelectedTech() {
     const ctx = mapRef.current;
     if (!ctx || !selectedTech?.location) return;
+    autoFollowRef.current = true;
     ctx.map.flyTo([selectedTech.location.lat, selectedTech.location.lng], Math.max(ctx.map.getZoom(), 14), { duration: 0.35 });
+    autoFollowRef.current = false;
   }
 
   return (
@@ -457,6 +511,33 @@ export default function DispatchPage() {
                   </div>
                 )) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
               </div>
+            </div>
+
+            <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
+              <h3 className="font-semibold mb-2">Mileage Tracking</h3>
+              <div className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+                {selectedTech ? `Estimated travel for ${displayTechName(selectedTech)}` : 'Select a tech to view mileage'}
+              </div>
+              {loadingMileage ? (
+                <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading mileage...</div>
+              ) : mileage ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg p-3" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Today</div>
+                    <div className="mt-1 text-lg font-semibold">{mileage.dayMiles.toFixed(1)} mi</div>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>7 Days</div>
+                    <div className="mt-1 text-lg font-semibold">{mileage.weekMiles.toFixed(1)} mi</div>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>30 Days</div>
+                    <div className="mt-1 text-lg font-semibold">{mileage.monthMiles.toFixed(1)} mi</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>No mileage data yet.</div>
+              )}
             </div>
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>

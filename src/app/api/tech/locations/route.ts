@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-import { addLocationPoint, getLatestLocationsByTech, getLocationHistory } from '@/lib/tech-location-store';
+import { addLocationPoint, getLatestLocationsByTech, getLocationHistory, getMileageSummary } from '@/lib/tech-location-store';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const techId = searchParams.get('techId');
   const limit = Number(searchParams.get('limit') || 100);
+  const includeSummary = searchParams.get('summary') === 'true';
 
   if (techId) {
     const history = await getLocationHistory(techId, limit);
-    return NextResponse.json({ history, total: history.length });
+    const mileage = includeSummary ? await getMileageSummary(techId) : undefined;
+    return NextResponse.json({ history, total: history.length, mileage });
   }
 
   const latest = await getLatestLocationsByTech();
