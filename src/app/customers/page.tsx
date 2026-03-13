@@ -101,6 +101,8 @@ type InvoicePreview = {
   totalAmount: number;
   balance: number;
   notes?: string;
+  paymentMethod?: string;
+  paymentDate?: string;
   lineItems: Array<{
     id: string;
     description: string;
@@ -429,14 +431,28 @@ export default function CustomersPage() {
   const detailCustomer = selectedCustomerProfile?.customer || selectedCustomer;
   const detailSummary = selectedCustomerProfile?.summary;
   const detailHistory = selectedCustomerProfile?.history;
-  const activeInvoicePreview = selectedDocument?.type === "invoice" ? (documentPreview as InvoicePreview | null) : null;
+  const rawActiveInvoicePreview = selectedDocument?.type === "invoice" ? (documentPreview as InvoicePreview | null) : null;
   const activeEstimatePreview = selectedDocument?.type === "estimate" ? (documentPreview as EstimatePreview | null) : null;
+  const linkedPayment = selectedDocument?.type === "invoice" && selectedDocument.source === "quickbooks"
+    ? detailHistory?.payments.find((payment) => payment.linkedTxnIds.includes(selectedDocument.id))
+    : undefined;
+  const activeInvoicePreview = rawActiveInvoicePreview
+    ? {
+        ...rawActiveInvoicePreview,
+        paymentMethod: linkedPayment?.paymentMethod,
+        paymentDate: linkedPayment?.txnDate,
+      }
+    : null;
 
   function openInvoicePreview(id: string, source: "quickbooks" | "local") {
+    setDocumentPreview(null);
+    setLoadingDocumentPreview(true);
     setSelectedDocument({ type: "invoice", id, source });
   }
 
   function openEstimatePreview(id: string) {
+    setDocumentPreview(null);
+    setLoadingDocumentPreview(true);
     setSelectedDocument({ type: "estimate", id, source: "quickbooks" });
   }
 
@@ -502,7 +518,7 @@ export default function CustomersPage() {
         {/* Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Customer List */}
-          <div className="w-[420px] flex-shrink-0 overflow-y-auto p-6" style={{ borderRight: "1px solid var(--color-border)" }}>
+          <div className="w-[360px] flex-shrink-0 overflow-y-auto p-5" style={{ borderRight: "1px solid var(--color-border)" }}>
             {error && (
               <div
                 className="rounded-lg px-4 py-3 text-sm mb-4"
@@ -630,7 +646,7 @@ export default function CustomersPage() {
               )}
 
               {(selectedDocument || loadingDocumentPreview) && (
-                <div className="space-y-4">
+                <div key={selectedDocument ? `${selectedDocument.type}-${selectedDocument.id}-${selectedDocument.source}` : "loading"} className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
@@ -688,6 +704,15 @@ export default function CustomersPage() {
                           <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.dueDate).toLocaleDateString()}</div>
                         </div>
                       </div>
+                      {(activeInvoicePreview.paymentMethod || activeInvoicePreview.paymentDate) && (
+                        <div className="rounded-lg p-3" style={{ background: "rgba(152,205,0,0.08)", border: "1px solid rgba(152,205,0,0.25)" }}>
+                          <div className="text-xs font-semibold" style={{ color: "#98CD00" }}>PAYMENT</div>
+                          <div className="text-sm mt-1" style={{ color: "var(--color-text-primary)" }}>
+                            {activeInvoicePreview.paymentMethod || "Paid"}
+                            {activeInvoicePreview.paymentDate ? ` on ${new Date(activeInvoicePreview.paymentDate).toLocaleDateString()}` : ""}
+                          </div>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         {activeInvoicePreview.lineItems.map((line) => (
                           <div key={line.id} className="rounded-lg p-4" style={{ background: "var(--color-surface-1)" }}>
@@ -789,7 +814,7 @@ export default function CustomersPage() {
           {/* Customer Detail Panel */}
           {selectedCustomer && (
             <div
-              className="w-[560px] flex-shrink-0 overflow-y-auto border-l"
+              className="w-[420px] flex-shrink-0 overflow-y-auto border-l"
               style={{ background: "var(--color-surface-1)", borderColor: "var(--color-border)" }}
             >
               <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>

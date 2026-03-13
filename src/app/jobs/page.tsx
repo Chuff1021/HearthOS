@@ -400,10 +400,14 @@ export default function JobsPage() {
     : null;
 
   function openRelatedInvoice(id: string, source: "quickbooks" | "local") {
+    setRelatedDocumentPreview(null);
+    setLoadingRelatedDocument(true);
     setSelectedRelatedDocument({ type: "invoice", id, source });
   }
 
   function openRelatedEstimate(id: string) {
+    setRelatedDocumentPreview(null);
+    setLoadingRelatedDocument(true);
     setSelectedRelatedDocument({ type: "estimate", id, source: "quickbooks" });
   }
 
@@ -669,7 +673,7 @@ export default function JobsPage() {
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Related Documents</div>
                 {(selectedRelatedDocument || loadingRelatedDocument) && (
-                  <div className="mb-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                  <div key={selectedRelatedDocument ? `${selectedRelatedDocument.type}-${selectedRelatedDocument.id}-${selectedRelatedDocument.source}` : "loading"} className="mb-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>

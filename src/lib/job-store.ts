@@ -42,8 +42,10 @@ export interface Job {
     id: string;
     type?: string;
     label?: string;
+    caption?: string;
     timestamp?: string;
     uri?: string;
+    checklistItemId?: string;
   }>;
 }
 

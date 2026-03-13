@@ -77,6 +77,38 @@ interface MaterialUsed {
   total: number;
 }
 
+type ChecklistPhotoTarget = {
+  id: number;
+  task: string;
+};
+
+async function compressImage(file: File, maxDimension = 1600, quality = 0.8): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.onload = () => resolve(img);
+    img.src = dataUrl;
+  });
+
+  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return dataUrl;
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
@@ -93,6 +125,7 @@ export default function JobDetailPage() {
   const [actionMsg, setActionMsg] = useState("");
   const [loadingJob, setLoadingJob] = useState(true);
   const [job, setJob] = useState<any>(emptyJobData);
+  const [pendingChecklistPhoto, setPendingChecklistPhoto] = useState<ChecklistPhotoTarget | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
 
@@ -160,41 +193,46 @@ export default function JobDetailPage() {
   const progress = Math.round((completedCount / checklist.length) * 100);
 
   const handlePhotoCapture = () => {
+    setPendingChecklistPhoto(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleChecklistPhotoCapture = (item: ChecklistPhotoTarget) => {
+    setPendingChecklistPhoto(item);
     fileInputRef.current?.click();
   };
 
   const handlePhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const latestRes = await fetch(`/api/jobs?id=${jobId}`, { cache: "no-store" });
-        const latestData = await latestRes.json();
-        const latestJob = latestData.jobs?.[0];
-        const photo = {
-          id: `photo-${Date.now()}`,
-          type: "progress",
-          label: file.name,
-          caption: file.name,
-          timestamp: new Date().toISOString(),
-          uri: String(reader.result),
-        };
-        const existingPhotos = Array.isArray(latestJob?.photos) ? latestJob.photos : (job.photos || []);
-        const nextPhotos = [...existingPhotos, photo].filter((entry, index, arr) => {
-          const signature = `${entry.uri || ""}:${entry.timestamp || ""}:${entry.label || entry.caption || ""}`;
-          return arr.findIndex((candidate) => `${candidate.uri || ""}:${candidate.timestamp || ""}:${candidate.label || candidate.caption || ""}` === signature) === index;
-        });
-        setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
-        await persistJobUpdates({ photos: nextPhotos });
-        setActionMsg("Photo saved to this job.");
-      } catch {
-        setActionMsg("Photo save failed. Try again.");
-      } finally {
-        event.target.value = "";
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const latestRes = await fetch(`/api/jobs?id=${jobId}`, { cache: "no-store" });
+      const latestData = await latestRes.json();
+      const latestJob = latestData.jobs?.[0];
+      const compressedUri = await compressImage(file);
+      const photo = {
+        id: `photo-${Date.now()}`,
+        type: pendingChecklistPhoto ? "checklist" : "progress",
+        label: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
+        caption: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
+        timestamp: new Date().toISOString(),
+        uri: compressedUri,
+        checklistItemId: pendingChecklistPhoto ? String(pendingChecklistPhoto.id) : undefined,
+      };
+      const existingPhotos = Array.isArray(latestJob?.photos) ? latestJob.photos : (job.photos || []);
+      const nextPhotos = [...existingPhotos, photo].filter((entry, index, arr) => {
+        const signature = `${entry.uri || ""}:${entry.timestamp || ""}:${entry.label || entry.caption || ""}:${entry.checklistItemId || ""}`;
+        return arr.findIndex((candidate) => `${candidate.uri || ""}:${candidate.timestamp || ""}:${candidate.label || candidate.caption || ""}:${candidate.checklistItemId || ""}` === signature) === index;
+      });
+      setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
+      await persistJobUpdates({ photos: nextPhotos });
+      setActionMsg(pendingChecklistPhoto ? `Photo saved for checklist item: ${pendingChecklistPhoto.task}` : "Photo saved to this job.");
+    } catch {
+      setActionMsg("Photo save failed. Try again.");
+    } finally {
+      setPendingChecklistPhoto(null);
+      event.target.value = "";
+    }
   };
 
   const filteredMaterials = materialCatalog.filter((m) => {
@@ -433,6 +471,9 @@ export default function JobDetailPage() {
             {/* Checklist Items */}
             <div className="space-y-2">
               {checklist.map((item) => (
+                (() => {
+                  const checklistPhotos = (job.photos || []).filter((photo: any) => String(photo.checklistItemId || "") === String(item.id));
+                  return (
                 <div
                   key={item.id}
                   className={`bg-[var(--color-surface-1)] rounded-xl p-4 border ${
@@ -459,20 +500,27 @@ export default function JobDetailPage() {
                         {item.task}
                       </p>
                       {item.photo && (
-                        <button
-                          onClick={handlePhotoCapture}
-                          className="mt-2 flex items-center gap-1 text-xs text-blue-600"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Photo Required
-                        </button>
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleChecklistPhotoCapture({ id: item.id, task: item.task })}
+                            className="flex items-center gap-1 text-xs text-blue-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            {checklistPhotos.length ? `Add Photo (${checklistPhotos.length})` : "Photo Required"}
+                          </button>
+                          {checklistPhotos.length > 0 && (
+                            <span className="text-xs text-green-500">{checklistPhotos.length} saved</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
 
