@@ -659,10 +659,22 @@ export default function InvoicesPage() {
   };
 
   const handleScheduleJob = (invoice: Invoice) => {
+    const customer = customers.find((entry) => entry.id === invoice.customerId) as (Customer & { address?: { line1?: string; city?: string; state?: string; zip?: string } }) | undefined;
+    const customerAddress = customer?.address
+      ? [
+          customer.address.line1,
+          [customer.address.city, customer.address.state].filter(Boolean).join(", "),
+          customer.address.zip,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim()
+      : "";
     const q = new URLSearchParams({
       create: "1",
       customerId: invoice.customerId,
       customerName: invoice.customerName,
+      address: customerAddress,
       title: invoice.jobTitle || `Schedule from Invoice ${invoice.invoiceNumber}`,
       amount: String(invoice.totalAmount),
       jobType: "installation",

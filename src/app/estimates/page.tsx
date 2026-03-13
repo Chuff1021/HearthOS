@@ -14,6 +14,18 @@ type Estimate = {
   ExpirationDate?: string;
   PrivateNote?: string;
   BillEmail?: { Address?: string };
+  BillAddr?: {
+    Line1?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  ShipAddr?: {
+    Line1?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
   CustomerRef?: { value?: string; name?: string };
   Line?: Array<{
     Amount?: number;
@@ -505,10 +517,24 @@ export default function EstimatesPage() {
   }
 
   function scheduleFromEstimate(estimate: Estimate) {
+    const estimateAddress = [
+      estimate.ShipAddr?.Line1 || estimate.BillAddr?.Line1,
+      [
+        estimate.ShipAddr?.City || estimate.BillAddr?.City,
+        estimate.ShipAddr?.CountrySubDivisionCode || estimate.BillAddr?.CountrySubDivisionCode,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      estimate.ShipAddr?.PostalCode || estimate.BillAddr?.PostalCode,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     const params = new URLSearchParams({
       create: "1",
       customerId: estimate.CustomerRef?.value || "",
       customerName: estimate.CustomerRef?.name || "",
+      address: estimateAddress,
       title: `Schedule from Estimate ${estimate.DocNumber || estimate.Id}`,
       amount: String(Number(estimate.TotalAmt || 0)),
       jobType: "installation",

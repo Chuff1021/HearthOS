@@ -127,7 +127,7 @@ export default function JobsPage() {
         name: prefillCustomerName || "",
         address: prefillAddress || "",
       });
-      setCustomerQuery(prefillCustomerName || "");
+      setCustomerQuery("");
     }
     setFormData((prev) => ({
       ...prev,
