@@ -21,6 +21,7 @@ const emptyJobData = {
   estimates: [],
   invoices: [],
   photos: [],
+  checklistItems: {},
 };
 
 const inspectionChecklist = [
@@ -113,8 +114,10 @@ export default function JobDetailPage() {
             type: found.title || prev.type,
             scheduled: `${found.scheduledDate} ${found.scheduledTimeStart}`,
             notes: found.notes || prev.notes,
-            photos: prev.photos || [],
+            photos: found.photos || prev.photos || [],
+            checklistItems: found.checklistItems || {},
           }));
+          setChecklistItems(found.checklistItems || {});
         }
       } finally {
         setLoadingJob(false);
@@ -123,8 +126,15 @@ export default function JobDetailPage() {
     if (jobId) loadJob();
   }, [jobId]);
 
-  const handleCheckItem = (id: number) => {
-    setChecklistItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  const handleCheckItem = async (id: number) => {
+    const nextChecklistItems = { ...checklistItems, [id]: !checklistItems[id] };
+    setChecklistItems(nextChecklistItems);
+    setJob((prev: any) => ({ ...prev, checklistItems: nextChecklistItems }));
+    await fetch('/api/jobs', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: jobId, checklistItems: nextChecklistItems }),
+    });
   };
 
   const completedCount = Object.values(checklistItems).filter(Boolean).length;

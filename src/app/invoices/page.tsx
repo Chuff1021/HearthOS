@@ -694,6 +694,8 @@ export default function InvoicesPage() {
       title: buildInvoiceScheduleTitle(invoice),
       amount: String(invoice.totalAmount),
       jobType: "installation",
+      linkedInvoiceId: invoice.id,
+      linkedDocumentNumber: invoice.invoiceNumber,
     });
     window.location.href = `/schedule?${q.toString()}`;
   };

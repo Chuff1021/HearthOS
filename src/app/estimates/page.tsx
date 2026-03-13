@@ -549,6 +549,8 @@ export default function EstimatesPage() {
       title: buildEstimateScheduleTitle(estimate),
       amount: String(Number(estimate.TotalAmt || 0)),
       jobType: "installation",
+      linkedEstimateId: estimate.Id,
+      linkedDocumentNumber: estimate.DocNumber || estimate.Id,
     });
     window.location.href = `/schedule?${params.toString()}`;
   }

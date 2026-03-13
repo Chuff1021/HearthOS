@@ -13,6 +13,9 @@ type Job = {
   customerId: string;
   customerName: string;
   propertyAddress: string;
+  linkedInvoiceId?: string;
+  linkedEstimateId?: string;
+  linkedDocumentNumber?: string;
   fireplaceUnit?: { brand: string; model: string; nickname?: string };
   jobType: string;
   status: string;
@@ -23,9 +26,25 @@ type Job = {
   assignedTechs: Array<{ id: string; name: string; color: string }>;
   totalAmount: number;
   notes?: string;
+  photos?: Array<{ id: string; label?: string; timestamp?: string; uri?: string }>;
+  checklistItems?: Record<string, boolean>;
 };
 
 type Tech = { id: string; name: string; color: string };
+type RelatedDoc = {
+  id: string;
+  invoiceNumber?: string;
+  estimateNumber?: string;
+  issueDate?: string;
+  dueDate?: string;
+  txnDate?: string;
+  expirationDate?: string;
+  status?: string;
+  totalAmount: number;
+  balance?: number;
+  linked?: boolean;
+  jobTitle?: string;
+};
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
@@ -77,6 +96,31 @@ function formatTimeLabel(value: string) {
   return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
+function checklistTemplateForJobType(jobType: string) {
+  if (jobType === "inspection" || jobType === "cleaning" || jobType === "service") {
+    return [
+      { id: "1", task: "Visual inspection of unit exterior" },
+      { id: "2", task: "Check pilot light and ignition" },
+      { id: "3", task: "Inspect gas lines for leaks" },
+      { id: "4", task: "Clean glass and interior" },
+      { id: "5", task: "Check venting system" },
+      { id: "6", task: "Test thermostat/remote" },
+      { id: "7", task: "Verify proper combustion" },
+      { id: "8", task: "Final photo of completed work" },
+    ];
+  }
+
+  return [
+    { id: "1", task: "Verify unit matches order" },
+    { id: "2", task: "Install gas line connection" },
+    { id: "3", task: "Install venting system" },
+    { id: "4", task: "Connect electrical" },
+    { id: "5", task: "Test all functions" },
+    { id: "6", task: "Customer walkthrough" },
+    { id: "7", task: "Final installation photo" },
+  ];
+}
+
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -89,6 +133,11 @@ export default function JobsPage() {
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobContext, setJobContext] = useState<{
+    localInvoices: RelatedDoc[];
+    quickbooksInvoices: RelatedDoc[];
+    quickbooksEstimates: RelatedDoc[];
+  } | null>(null);
   const [editingJob, setEditingJob] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -184,6 +233,17 @@ export default function JobsPage() {
     const nextSelectedJob = jobs.find((job) => job.id === selectedJob.id) || null;
     setSelectedJob(nextSelectedJob);
   }, [jobs, selectedJob]);
+
+  useEffect(() => {
+    if (!selectedJob) {
+      setJobContext(null);
+      return;
+    }
+    fetch(`/api/jobs/context?id=${encodeURIComponent(selectedJob.id)}`)
+      .then((res) => res.json())
+      .then((data) => setJobContext(data.related || { localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }))
+      .catch(() => setJobContext({ localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }));
+  }, [selectedJob]);
 
   useEffect(() => {
     if (!selectedJob) {
@@ -473,6 +533,75 @@ export default function JobsPage() {
                 <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>
                   {selectedJob.assignedTechs.length ? selectedJob.assignedTechs.map((tech) => tech.name).join(", ") : "Unassigned"}
                 </div>
+              </div>
+              <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Related Documents</div>
+                <div className="space-y-2">
+                  {(jobContext?.quickbooksInvoices || []).map((invoice) => (
+                    <div key={`qbi-${invoice.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Invoice {invoice.invoiceNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.txnDate || invoice.issueDate || ""}{invoice.linked ? " · linked" : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
+                    </div>
+                  ))}
+                  {(jobContext?.quickbooksEstimates || []).map((estimate) => (
+                    <div key={`qbe-${estimate.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimate {estimate.estimateNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{estimate.txnDate || estimate.expirationDate || ""}{estimate.linked ? " · linked" : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmount || 0).toFixed(2)}</div>
+                    </div>
+                  ))}
+                  {(jobContext?.localInvoices || []).map((invoice) => (
+                    <div key={`local-${invoice.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Local Invoice {invoice.invoiceNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.issueDate || ""}{invoice.jobTitle ? ` · ${invoice.jobTitle}` : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
+                    </div>
+                  ))}
+                  {!jobContext?.quickbooksInvoices?.length && !jobContext?.quickbooksEstimates?.length && !jobContext?.localInvoices?.length && (
+                    <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No related invoice or estimate found yet.</div>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Tech Checklist</div>
+                <div className="space-y-2">
+                  {checklistTemplateForJobType(selectedJob.jobType).map((item) => {
+                    const done = Boolean(selectedJob.checklistItems?.[item.id]);
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: done ? "rgba(152,205,0,0.18)" : "var(--color-surface-3)", color: done ? "#98CD00" : "var(--color-text-muted)" }}>
+                          {done ? "✓" : ""}
+                        </div>
+                        <div className="text-sm" style={{ color: done ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{item.task}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Tech Notes</div>
+                <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{selectedJob.notes || "No tech notes yet."}</div>
+              </div>
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Photos</div>
+                {selectedJob.photos?.length ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedJob.photos.map((photo) => (
+                      <a key={photo.id} href={photo.uri} target="_blank" rel="noreferrer" className="rounded-lg overflow-hidden block" style={{ background: "var(--color-surface-1)" }}>
+                        <div className="aspect-square" style={{ backgroundImage: `url(${photo.uri})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No photos uploaded yet.</div>
+                )}
               </div>
             </div>
             )}

@@ -138,6 +138,9 @@ export default function SchedulePage() {
     customerId: "",
     customerName: "",
     propertyAddress: "",
+    linkedInvoiceId: "",
+    linkedEstimateId: "",
+    linkedDocumentNumber: "",
     notes: "",
     scheduledDate: "",
     scheduledTimeStart: "09:00",
@@ -188,6 +191,9 @@ export default function SchedulePage() {
     const title = searchParams.get("title") || "";
     const jobType = searchParams.get("jobType") || "installation";
     const scheduledDate = searchParams.get("scheduledDate") || isoDate(new Date());
+    const linkedInvoiceId = searchParams.get("linkedInvoiceId") || "";
+    const linkedEstimateId = searchParams.get("linkedEstimateId") || "";
+    const linkedDocumentNumber = searchParams.get("linkedDocumentNumber") || "";
 
     setShowCreate(true);
     setSelectedCustomer(customerId || customerName ? { id: customerId, name: customerName, address } : null);
@@ -201,6 +207,9 @@ export default function SchedulePage() {
       customerName,
       propertyAddress: address || prev.propertyAddress,
       scheduledDate,
+      linkedInvoiceId,
+      linkedEstimateId,
+      linkedDocumentNumber,
     }));
   }, [searchParams]);
 
@@ -390,6 +399,9 @@ export default function SchedulePage() {
           customerId: selectedCustomer?.id || form.customerId || undefined,
           customerName,
           propertyAddress: form.propertyAddress,
+          linkedInvoiceId: form.linkedInvoiceId || undefined,
+          linkedEstimateId: form.linkedEstimateId || undefined,
+          linkedDocumentNumber: form.linkedDocumentNumber || undefined,
           notes: form.notes || undefined,
           scheduledDate: form.scheduledDate,
           scheduledTimeStart: form.scheduledTimeStart,
@@ -418,6 +430,9 @@ export default function SchedulePage() {
         customerId: "",
         customerName: "",
         propertyAddress: "",
+        linkedInvoiceId: "",
+        linkedEstimateId: "",
+        linkedDocumentNumber: "",
         notes: "",
         scheduledDate: isoDate(new Date()),
         scheduledTimeStart: "09:00",

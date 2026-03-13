@@ -12,6 +12,9 @@ export interface Job {
   customerId: string;
   customerName: string;
   propertyAddress: string;
+  linkedInvoiceId?: string;
+  linkedEstimateId?: string;
+  linkedDocumentNumber?: string;
   fireplaceUnit?: {
     brand: string;
     model: string;
@@ -31,6 +34,7 @@ export interface Job {
   }>;
   totalAmount: number;
   notes?: string;
+  checklistItems?: Record<string, boolean>;
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -167,6 +171,9 @@ function normalizeJob(raw: any): Job {
     customerId: String(raw.customerId ?? payload?.customerId ?? ""),
     customerName: String(raw.customerName ?? payload?.customerName ?? ""),
     propertyAddress: String(raw.propertyAddress ?? payload?.propertyAddress ?? ""),
+    linkedInvoiceId: raw.linkedInvoiceId ?? payload?.linkedInvoiceId ?? undefined,
+    linkedEstimateId: raw.linkedEstimateId ?? payload?.linkedEstimateId ?? undefined,
+    linkedDocumentNumber: raw.linkedDocumentNumber ?? payload?.linkedDocumentNumber ?? undefined,
     fireplaceUnit: raw.fireplaceUnit || payload?.fireplaceUnit || undefined,
     jobType: (raw.jobType ?? payload?.jobType ?? "service") as JobType,
     status: (rawStatus || "scheduled") as JobStatus,
@@ -177,6 +184,12 @@ function normalizeJob(raw: any): Job {
     assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : Array.isArray(payload?.assignedTechs) ? payload.assignedTechs : [],
     totalAmount: Number(raw.totalAmount ?? payload?.totalAmount ?? 0),
     notes: raw.notes || payload?.notes ? String(raw.notes ?? payload?.notes) : undefined,
+    checklistItems:
+      raw.checklistItems && typeof raw.checklistItems === "object"
+        ? raw.checklistItems
+        : payload?.checklistItems && typeof payload.checklistItems === "object"
+          ? payload.checklistItems
+          : undefined,
     completedAt: raw.completedAt || payload?.completedAt ? String(raw.completedAt ?? payload?.completedAt) : undefined,
     createdAt: String(raw.createdAt ?? raw?.created_at ?? payload?.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? raw?.updated_at ?? payload?.updatedAt ?? new Date().toISOString()),
@@ -262,6 +275,9 @@ export async function createJobRecord(data: Partial<Job>): Promise<Job> {
     customerId: data.customerId || "",
     customerName: data.customerName || "",
     propertyAddress: data.propertyAddress || "",
+    linkedInvoiceId: data.linkedInvoiceId,
+    linkedEstimateId: data.linkedEstimateId,
+    linkedDocumentNumber: data.linkedDocumentNumber,
     fireplaceUnit: data.fireplaceUnit,
     jobType: data.jobType || "service",
     status: data.status || "scheduled",
@@ -272,6 +288,7 @@ export async function createJobRecord(data: Partial<Job>): Promise<Job> {
     assignedTechs: data.assignedTechs || [],
     totalAmount: data.totalAmount || 0,
     notes: data.notes,
+    checklistItems: data.checklistItems,
     photos: data.photos || [],
     createdAt: now,
     updatedAt: now,

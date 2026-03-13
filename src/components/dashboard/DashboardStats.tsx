@@ -13,6 +13,11 @@ interface DashboardData {
     overdueCount: number;
     totalRevenue: number;
     totalInvoices: number;
+    jobsToday: number;
+    jobsCompletedToday: number;
+    jobsRemainingToday: number;
+    activeTechs: number;
+    totalTechs: number;
   };
 }
 
@@ -31,9 +36,9 @@ export default function DashboardStats() {
   const stats = [
     {
       label: "Jobs Today",
-      value: "8",
-      sub: "3 completed · 5 remaining",
-      trend: "+2 vs yesterday",
+      value: s ? String(s.jobsToday) : "...",
+      sub: s ? `${s.jobsCompletedToday} completed · ${s.jobsRemainingToday} remaining` : "Loading...",
+      trend: s ? `${s.activeTechs} active techs` : "",
       trendUp: true,
       accentColor: "#2563EB",
       accentBg: "rgba(37,99,235,0.12)",
@@ -75,9 +80,9 @@ export default function DashboardStats() {
     },
     {
       label: "Active Techs",
-      value: "4 / 6",
-      sub: "2 on jobs · 2 en route",
-      trend: "All on schedule",
+      value: s ? `${s.activeTechs} / ${s.totalTechs}` : "...",
+      sub: s ? `${s.jobsToday} jobs scheduled today` : "Loading...",
+      trend: "Live dispatch",
       trendUp: true,
       accentColor: "#2563EB",
       accentBg: "rgba(37,99,235,0.12)",
