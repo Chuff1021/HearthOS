@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import TimeSelect from "@/components/scheduling/TimeSelect";
 
 type ViewMode = "master" | "tech";
 
@@ -85,6 +86,14 @@ function toHHMM(hourFloat: number) {
   const h = Math.floor(hourFloat);
   const m = Math.round((hourFloat - h) * 60);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function addMinutes(time: string, minutesToAdd: number) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = Math.min((hours * 60) + minutes + minutesToAdd, 23 * 60 + 45);
+  const nextHours = Math.floor(total / 60);
+  const nextMinutes = total % 60;
+  return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
 }
 
 export default function SchedulePage() {
@@ -683,13 +692,26 @@ export default function SchedulePage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <input type="time" value={form.scheduledTimeStart} onChange={(e) => setForm({ ...form, scheduledTimeStart: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeStart ? "#FF204E" : "var(--color-border)"}` }} />
+                  <TimeSelect value={form.scheduledTimeStart} onChange={(value) => setForm({ ...form, scheduledTimeStart: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeStart ? "#FF204E" : "var(--color-border)"}` }} />
                   {formErrors.scheduledTimeStart && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeStart}</p>}
                 </div>
                 <div>
-                  <input type="time" value={form.scheduledTimeEnd} onChange={(e) => setForm({ ...form, scheduledTimeEnd: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeEnd ? "#FF204E" : "var(--color-border)"}` }} />
+                  <TimeSelect value={form.scheduledTimeEnd} onChange={(value) => setForm({ ...form, scheduledTimeEnd: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeEnd ? "#FF204E" : "var(--color-border)"}` }} />
                   {formErrors.scheduledTimeEnd && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeEnd}</p>}
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Duration</span>
+                {[60, 120, 180].map((minutes) => (
+                  <button
+                    key={minutes}
+                    onClick={() => setForm({ ...form, scheduledTimeEnd: addMinutes(form.scheduledTimeStart, minutes) })}
+                    className="px-2.5 py-1 rounded-md text-xs font-semibold"
+                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                  >
+                    {minutes === 60 ? "1 hr" : minutes === 120 ? "2 hr" : "3 hr"}
+                  </button>
+                ))}
               </div>
             </div>
             <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" }}>

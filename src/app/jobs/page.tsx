@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import TimeSelect from "@/components/scheduling/TimeSelect";
 
 type Job = {
   id: string;
@@ -48,6 +49,14 @@ const jobTypeIcons: Record<string, string> = {
   repair: "⚡",
   estimate: "📋",
 };
+
+function addMinutes(time: string, minutesToAdd: number) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const total = Math.min((hours * 60) + minutes + minutesToAdd, 23 * 60 + 45);
+  const nextHours = Math.floor(total / 60);
+  const nextMinutes = total % 60;
+  return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+}
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -250,8 +259,21 @@ export default function JobsPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <input type="date" value={formData.scheduledDate} onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <input type="time" value={formData.scheduledTimeStart} onChange={(e) => setFormData({ ...formData, scheduledTimeStart: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <input type="time" value={formData.scheduledTimeEnd} onChange={(e) => setFormData({ ...formData, scheduledTimeEnd: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <TimeSelect value={formData.scheduledTimeStart} onChange={(value) => setFormData({ ...formData, scheduledTimeStart: value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <TimeSelect value={formData.scheduledTimeEnd} onChange={(value) => setFormData({ ...formData, scheduledTimeEnd: value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Duration</span>
+                {[60, 120, 180].map((minutes) => (
+                  <button
+                    key={minutes}
+                    onClick={() => setFormData({ ...formData, scheduledTimeEnd: addMinutes(formData.scheduledTimeStart, minutes) })}
+                    className="px-2.5 py-1 rounded-md text-xs font-semibold"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                  >
+                    {minutes === 60 ? "1 hr" : minutes === 120 ? "2 hr" : "3 hr"}
+                  </button>
+                ))}
               </div>
               <div className="flex flex-wrap gap-2">{techs.map((t) => (
                 <label key={t.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
