@@ -184,6 +184,7 @@ export default function JobsPage() {
   const [selectedRelatedDocument, setSelectedRelatedDocument] = useState<SelectedRelatedDocument | null>(null);
   const [relatedDocumentPreview, setRelatedDocumentPreview] = useState<RelatedInvoicePreview | RelatedEstimatePreview | null>(null);
   const [loadingRelatedDocument, setLoadingRelatedDocument] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [editingJob, setEditingJob] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -410,6 +411,9 @@ export default function JobsPage() {
     setLoadingRelatedDocument(true);
     setSelectedRelatedDocument({ type: "estimate", id, source: "quickbooks" });
   }
+
+  const selectedJobPhotos = selectedJob?.photos || [];
+  const activeLightboxPhoto = lightboxIndex === null ? null : selectedJobPhotos[lightboxIndex] || null;
 
   async function handleCreateJob() {
     if (!selectedCustomer || !formData.title) return;
@@ -861,18 +865,19 @@ export default function JobsPage() {
                         </div>
                         {linkedPhotos.length > 0 && (
                           <div className="mt-3 grid grid-cols-4 gap-2">
-                            {linkedPhotos.map((photo) => (
-                              <a
+                            {linkedPhotos.map((photo) => {
+                              const globalIndex = selectedJobPhotos.findIndex((entry) => entry.id === photo.id);
+                              return (
+                              <button
                                 key={photo.id}
-                                href={photo.uri}
-                                target="_blank"
-                                rel="noreferrer"
+                                onClick={() => setLightboxIndex(globalIndex >= 0 ? globalIndex : 0)}
                                 className="rounded-lg overflow-hidden block"
                                 style={{ background: "var(--color-surface-2)" }}
                               >
                                 <div className="aspect-square" style={{ backgroundImage: `url(${photo.uri})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                              </a>
-                            ))}
+                              </button>
+                            );
+                            })}
                           </div>
                         )}
                       </div>
@@ -888,10 +893,10 @@ export default function JobsPage() {
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Photos</div>
                 {selectedJob.photos?.length ? (
                   <div className="grid grid-cols-3 gap-2">
-                    {selectedJob.photos.map((photo) => (
-                      <a key={photo.id} href={photo.uri} target="_blank" rel="noreferrer" className="rounded-lg overflow-hidden block" style={{ background: "var(--color-surface-1)" }}>
+                    {selectedJob.photos.map((photo, index) => (
+                      <button key={photo.id} onClick={() => setLightboxIndex(index)} className="rounded-lg overflow-hidden block" style={{ background: "var(--color-surface-1)" }}>
                         <div className="aspect-square" style={{ backgroundImage: `url(${photo.uri})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -905,6 +910,44 @@ export default function JobsPage() {
               <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
                 Delete Job
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedJob && activeLightboxPhoto && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setLightboxIndex(null)} />
+          <div className="relative w-full max-w-4xl rounded-2xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{activeLightboxPhoto.label || "Job photo"}</div>
+                <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                  {lightboxIndex! + 1} of {selectedJobPhotos.length}
+                </div>
+              </div>
+              <button onClick={() => setLightboxIndex(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+            </div>
+            <div className="relative flex items-center justify-center bg-black" style={{ minHeight: "60vh" }}>
+              <img src={activeLightboxPhoto.uri} alt={activeLightboxPhoto.label || "Job photo"} className="max-h-[70vh] w-auto max-w-full object-contain" />
+              {selectedJobPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev === null ? 0 : (prev - 1 + selectedJobPhotos.length) % selectedJobPhotos.length))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 px-3 py-2 rounded-full"
+                    style={{ background: "rgba(15,23,42,0.65)", color: "#fff" }}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev === null ? 0 : (prev + 1) % selectedJobPhotos.length))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 rounded-full"
+                    style={{ background: "rgba(15,23,42,0.65)", color: "#fff" }}
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

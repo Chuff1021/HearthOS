@@ -126,6 +126,7 @@ export default function JobDetailPage() {
   const [loadingJob, setLoadingJob] = useState(true);
   const [job, setJob] = useState<any>(emptyJobData);
   const [pendingChecklistPhoto, setPendingChecklistPhoto] = useState<ChecklistPhotoTarget | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
 
@@ -283,6 +284,7 @@ export default function JobDetailPage() {
   const materialsTotal = materialsUsed.reduce((sum, m) => sum + m.total, 0);
   const laborRate = 89; // base labor
   const invoiceTotal = materialsTotal + laborRate;
+  const activePhoto = lightboxIndex === null ? null : (job.photos || [])[lightboxIndex] || null;
 
   const handleSaveInvoiceDraft = () => {
     const draft = { jobId, customer: job.customer, date: new Date().toISOString(), materialsUsed, laborRate, total: invoiceTotal };
@@ -647,8 +649,8 @@ export default function JobDetailPage() {
 
             {/* Photo Gallery */}
             <div className="grid grid-cols-3 gap-2">
-              {(job.photos || []).map((photo: any) => (
-                <div key={photo.id} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
+              {(job.photos || []).map((photo: any, index: number) => (
+                <button key={photo.id} onClick={() => setLightboxIndex(index)} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
                   {photo.uri ? (
                     // Use the saved data URI directly so the uploaded field photo renders immediately.
                     <img src={photo.uri} alt={photo.label || photo.caption || "Job photo"} className="absolute inset-0 h-full w-full object-cover" />
@@ -662,7 +664,7 @@ export default function JobDetailPage() {
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
                     <p className="text-xs truncate">{photo.label || photo.caption || "Job photo"}</p>
                   </div>
-                </div>
+                </button>
               ))}
               {/* Empty slots */}
               {[...Array(Math.max(0, 6 - job.photos.length))].map((_, i) => (
@@ -978,6 +980,40 @@ export default function JobDetailPage() {
             >
               Save Note
             </button>
+          </div>
+        </div>
+      )}
+
+      {activePhoto && (
+        <div className="fixed inset-0 bg-black/85 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0" onClick={() => setLightboxIndex(null)} />
+          <div className="relative w-full max-w-3xl rounded-2xl overflow-hidden bg-black">
+            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-black/55">
+              <div>
+                <div className="text-sm font-semibold">{activePhoto.label || activePhoto.caption || "Job photo"}</div>
+                <div className="text-xs text-white/70">{lightboxIndex! + 1} of {(job.photos || []).length}</div>
+              </div>
+              <button onClick={() => setLightboxIndex(null)} className="text-sm text-white/80">Close</button>
+            </div>
+            <div className="relative flex items-center justify-center min-h-[60vh]">
+              <img src={activePhoto.uri} alt={activePhoto.label || activePhoto.caption || "Job photo"} className="max-h-[75vh] w-auto max-w-full object-contain" />
+              {(job.photos || []).length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev === null ? 0 : (prev - 1 + (job.photos || []).length) % (job.photos || []).length))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 px-3 py-2 rounded-full bg-black/55"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev === null ? 0 : (prev + 1) % (job.photos || []).length))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 rounded-full bg-black/55"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
