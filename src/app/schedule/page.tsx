@@ -43,6 +43,8 @@ interface CustomerLookup {
   };
 }
 
+type SelectedCustomer = { id: string; name: string; address?: string } | null;
+
 const JOB_TYPE_OPTIONS = [
   "Service Call",
   "Gas Service",
@@ -113,13 +115,16 @@ export default function SchedulePage() {
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<CustomerLookup[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer>(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({
-    jobType: "Service Call",
+    title: "",
+    jobType: "service",
+    priority: "normal",
     customerId: "",
     customerName: "",
     propertyAddress: "",
@@ -127,7 +132,7 @@ export default function SchedulePage() {
     scheduledDate: "",
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "10:00",
-    techId: "",
+    assignedTechs: [] as string[],
   });
 
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
@@ -238,26 +243,33 @@ export default function SchedulePage() {
   }
 
   function applyCustomer(c: CustomerLookup) {
+    const address = customerAddressLine(c);
+    setSelectedCustomer({
+      id: c.id,
+      name: c.displayName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
+      address,
+    });
     setForm((f) => ({
       ...f,
       customerId: c.id,
       customerName: c.displayName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
-      propertyAddress: customerAddressLine(c) || f.propertyAddress,
+      propertyAddress: address || f.propertyAddress,
     }));
-    setCustomerQuery(c.displayName || "");
+    setCustomerQuery("");
     setCustomerResults([]);
     setFormErrors((prev) => ({ ...prev, customerName: "", propertyAddress: "" }));
   }
 
   function validateForm() {
     const errs: Record<string, string> = {};
+    if (!form.title.trim()) errs.title = "Job title is required";
     if (!form.jobType.trim()) errs.jobType = "Job type is required";
     if (!form.customerName.trim()) errs.customerName = "Customer is required";
     if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
     if (!form.scheduledTimeStart) errs.scheduledTimeStart = "Start time is required";
     if (!form.scheduledTimeEnd) errs.scheduledTimeEnd = "End time is required";
-    if (!form.techId) errs.techId = "Assign a technician";
+    if (!form.assignedTechs.length) errs.assignedTechs = "Assign at least one technician";
     if (form.scheduledTimeStart && form.scheduledTimeEnd && form.scheduledTimeEnd <= form.scheduledTimeStart) {
       errs.scheduledTimeEnd = "End time must be after start time";
     }
@@ -329,13 +341,16 @@ export default function SchedulePage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const tech = techs.find((t) => t.id === form.techId);
+      const assignedTechs = techs
+        .filter((t) => form.assignedTechs.includes(t.id))
+        .map((t) => ({ id: t.id, name: t.name, color: t.color }));
       const res = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: form.jobType,
-          jobType: "service",
+          title: form.title,
+          jobType: form.jobType,
+          priority: form.priority,
           customerId: form.customerId || undefined,
           customerName: form.customerName,
           propertyAddress: form.propertyAddress,
@@ -343,7 +358,7 @@ export default function SchedulePage() {
           scheduledDate: form.scheduledDate,
           scheduledTimeStart: form.scheduledTimeStart,
           scheduledTimeEnd: form.scheduledTimeEnd,
-          assignedTechs: tech ? [{ id: tech.id, name: tech.name, color: tech.color }] : [],
+          assignedTechs,
         }),
       });
 
@@ -357,10 +372,13 @@ export default function SchedulePage() {
       setCurrentDate(new Date(form.scheduledDate + "T00:00:00"));
 
       setShowCreate(false);
+      setSelectedCustomer(null);
       setCustomerQuery("");
       setCustomerResults([]);
       setForm({
-        jobType: "Service Call",
+        title: "",
+        jobType: "service",
+        priority: "normal",
         customerId: "",
         customerName: "",
         propertyAddress: "",
@@ -368,7 +386,7 @@ export default function SchedulePage() {
         scheduledDate: isoDate(new Date()),
         scheduledTimeStart: "09:00",
         scheduledTimeEnd: "10:00",
-        techId: techs[0]?.id || "",
+        assignedTechs: [],
       });
       await loadData();
     } finally {
@@ -426,10 +444,9 @@ export default function SchedulePage() {
       setForm((f) => ({
         ...f,
         scheduledDate: isoDate(new Date()),
-        techId: f.techId || techs[0]?.id || "",
       }));
     }
-  }, [showCreate, form.scheduledDate, form.techId, techs]);
+  }, [showCreate, form.scheduledDate]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -452,9 +469,9 @@ export default function SchedulePage() {
             <button
               onClick={() => setShowCreate(true)}
               className="px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))", color: "white" }}
+              style={{ background: "#2563EB", color: "white" }}
             >
-              + Add Job
+              New Job
             </button>
           </div>
         </div>
@@ -616,26 +633,19 @@ export default function SchedulePage() {
                 </div>
               )}
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Job Type</label>
-                <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
-                  {JOB_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
-              </div>
-
-              <div>
                 <input
-                  placeholder="Lookup customer (QuickBooks)"
-                  value={customerQuery}
-                  onChange={(e) => setCustomerQuery(e.target.value)}
+                  placeholder="Search customers..."
+                  value={selectedCustomer?.name || customerQuery}
+                  onChange={(e) => {
+                    setSelectedCustomer(null);
+                    setCustomerQuery(e.target.value);
+                  }}
                   className="w-full px-3 py-2 rounded-lg"
                   style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
                 />
                 {customerLoading && <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Looking up customers...</p>}
                 {customerLookupError && <p className="text-xs mt-1" style={{ color: "#FF4400" }}>{customerLookupError}</p>}
-                {customerResults.length > 0 && (
+                {customerResults.length > 0 && !selectedCustomer && (
                   <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     {customerResults.slice(0, 6).map((c) => (
                       <button
@@ -668,14 +678,35 @@ export default function SchedulePage() {
               </div>
 
               <div>
-                <input placeholder="Customer name" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.customerName ? "#FF204E" : "var(--color-border)"}` }} />
-                {formErrors.customerName && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.customerName}</p>}
+                <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.title ? "#FF204E" : "var(--color-border)"}` }} />
+                {formErrors.title && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.title}</p>}
               </div>
               <div>
                 <input placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.propertyAddress ? "#FF204E" : "var(--color-border)"}` }} />
                 {formErrors.propertyAddress && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.propertyAddress}</p>}
               </div>
-              <textarea placeholder="Notes for tech (access, parts, scope, etc.)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
+                    <option value="installation">Installation</option>
+                    <option value="service">Service</option>
+                    <option value="inspection">Inspection</option>
+                    <option value="cleaning">Cleaning</option>
+                    <option value="repair">Repair</option>
+                    <option value="estimate">Estimate</option>
+                  </select>
+                  {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
+                </div>
+                <div>
+                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -683,11 +714,7 @@ export default function SchedulePage() {
                   {formErrors.scheduledDate && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledDate}</p>}
                 </div>
                 <div>
-                  <select value={form.techId} onChange={(e) => setForm({ ...form, techId: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.techId ? "#FF204E" : "var(--color-border)"}` }}>
-                    <option value="">Assign tech</option>
-                    {techs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  {formErrors.techId && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.techId}</p>}
+                  <textarea placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={1} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -713,9 +740,31 @@ export default function SchedulePage() {
                   </button>
                 ))}
               </div>
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  {techs.map((t) => (
+                    <label key={t.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <input
+                        type="checkbox"
+                        checked={form.assignedTechs.includes(t.id)}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            assignedTechs: e.target.checked
+                              ? [...form.assignedTechs, t.id]
+                              : form.assignedTechs.filter((id) => id !== t.id),
+                          })
+                        }
+                      />
+                      <span className="text-sm">{t.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {formErrors.assignedTechs && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.assignedTechs}</p>}
+              </div>
             </div>
-            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" }}>
-              {saving ? "Saving..." : "Add to Schedule"}
+            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "#2563EB" }}>
+              {saving ? "Saving..." : "Create Job"}
             </button>
           </div>
         </div>
