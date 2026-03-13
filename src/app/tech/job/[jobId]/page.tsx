@@ -351,23 +351,6 @@ export default function JobDetailPage() {
               </div>
             </div>
 
-            {/* Ask GABE about this job */}
-            <Link
-              href={`/tech/gabe?jobId=${job.id}&fireplace=${encodeURIComponent(job.fireplace)}&jobType=${encodeURIComponent(job.type)}`}
-              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-blue-600/40 rounded-xl p-4"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-lg">🔥</span>
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">Ask GABE about this job</p>
-                <p className="text-xs text-gray-400">GABE knows you&apos;re working on a {job.fireplace}</p>
-              </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-
             {/* Notes Card */}
             <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-2">Job Notes</h3>

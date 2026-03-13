@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { isClerkConfigured } from "@/lib/auth";
+import TechAuthGate from "@/components/tech/TechAuthGate";
 import TechPwaProvider from "@/components/tech/TechPwaProvider";
+import TechRuntimeProvider from "@/components/tech/TechRuntimeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -34,11 +37,20 @@ export default function TechLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const clerkEnabled = isClerkConfigured();
+
   return (
     <div className={`${inter.className} min-h-screen`} style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
       <div className="max-w-md mx-auto min-h-screen flex flex-col">
         <TechPwaProvider />
-        {children}
+        {clerkEnabled ? (
+          <TechAuthGate>
+            <TechRuntimeProvider />
+            {children}
+          </TechAuthGate>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );

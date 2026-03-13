@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
+const GPS_ENABLED_KEY = "hearth-tech-gps-enabled";
+const GPS_TRACKING_KEY = "hearth-tech-is-tracking";
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -24,6 +27,12 @@ export default function ProfilePage() {
   const [techLinkStatus, setTechLinkStatus] = useState<string>("");
   const [linkedTechName, setLinkedTechName] = useState<string>("");
   const [linkedTechEmail, setLinkedTechEmail] = useState<string>("");
+  const [todayStats, setTodayStats] = useState({
+    jobsCompleted: 0,
+    hoursWorked: "0h 00m",
+    milesDriven: 0,
+    clockIn: "--",
+  });
   const watchRef = useRef<number | null>(null);
 
   const handleSignOut = async () => {
@@ -133,9 +142,52 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedGpsEnabled = window.localStorage.getItem(GPS_ENABLED_KEY);
+    const savedTracking = window.localStorage.getItem(GPS_TRACKING_KEY);
+    if (savedGpsEnabled !== null) setGpsEnabled(savedGpsEnabled === "true");
+    if (savedTracking !== null) setIsTracking(savedTracking === "true");
+  }, []);
+
+  useEffect(() => {
     ensureTechProfile(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user?.firstName, user?.fullName, user?.id, user?.unsafeMetadata, user?.primaryEmailAddress?.emailAddress]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+
+    async function loadProfileStats() {
+      try {
+        const res = await fetch("/api/tech/me", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data || cancelled) return;
+
+        const openClock = data.clockEntry?.clockInAt ? new Date(data.clockEntry.clockInAt) : null;
+        const totalMinutes = openClock ? Math.max(0, Math.round((Date.now() - openClock.getTime()) / 60000)) : 0;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        setTodayStats({
+          jobsCompleted: data.stats?.jobsCompletedToday ?? 0,
+          hoursWorked: `${hours}h ${String(minutes).padStart(2, "0")}m`,
+          milesDriven: 0,
+          clockIn: openClock
+            ? openClock.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+            : "--",
+        });
+      } catch {
+        // no-op
+      }
+    }
+
+    loadProfileStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
 
   useEffect(() => {
     if (!gpsEnabled || !isTracking) {
@@ -251,13 +303,17 @@ export default function ProfilePage() {
     }
   }
 
-  // User info from Clerk or defaults
-  const todayStats = {
-    jobsCompleted: 2,
-    hoursWorked: "5h 32m",
-    milesDriven: 47,
-    clockIn: "7:45 AM",
-  };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(GPS_ENABLED_KEY, String(gpsEnabled));
+    window.dispatchEvent(new Event("hearth-tech-gps-toggle"));
+  }, [gpsEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(GPS_TRACKING_KEY, String(isTracking));
+    window.dispatchEvent(new Event("hearth-tech-gps-toggle"));
+  }, [isTracking]);
 
   return (
     <div className="flex flex-col min-h-screen pb-32">
