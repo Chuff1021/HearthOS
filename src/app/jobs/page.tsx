@@ -294,6 +294,26 @@ export default function JobsPage() {
   }, [selectedJob]);
 
   useEffect(() => {
+    if (!selectedJob || !jobContext) return;
+    if (selectedRelatedDocument) return;
+
+    const linkedInvoice = jobContext.quickbooksInvoices.find((doc) => doc.linked) || jobContext.localInvoices[0];
+    if (linkedInvoice) {
+      setSelectedRelatedDocument({
+        type: "invoice",
+        source: jobContext.quickbooksInvoices.some((doc) => doc.id === linkedInvoice.id) ? "quickbooks" : "local",
+        id: linkedInvoice.id,
+      });
+      return;
+    }
+
+    const linkedEstimate = jobContext.quickbooksEstimates.find((doc) => doc.linked) || jobContext.quickbooksEstimates[0];
+    if (linkedEstimate) {
+      setSelectedRelatedDocument({ type: "estimate", source: "quickbooks", id: linkedEstimate.id });
+    }
+  }, [jobContext, selectedJob, selectedRelatedDocument]);
+
+  useEffect(() => {
     if (!selectedRelatedDocument) {
       setRelatedDocumentPreview(null);
       return;
@@ -648,58 +668,16 @@ export default function JobsPage() {
               </div>
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Related Documents</div>
-                <div className="space-y-2">
-                  {(jobContext?.quickbooksInvoices || []).map((invoice) => (
-                    <button
-                      key={`qbi-${invoice.id}`}
-                      onClick={() => openRelatedInvoice(invoice.id, "quickbooks")}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
-                      style={{ background: "var(--color-surface-1)" }}
-                    >
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Invoice {invoice.invoiceNumber}</div>
-                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.txnDate || invoice.issueDate || ""}{invoice.linked ? " · linked" : ""}</div>
-                      </div>
-                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
-                    </button>
-                  ))}
-                  {(jobContext?.quickbooksEstimates || []).map((estimate) => (
-                    <button
-                      key={`qbe-${estimate.id}`}
-                      onClick={() => openRelatedEstimate(estimate.id)}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
-                      style={{ background: "var(--color-surface-1)" }}
-                    >
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimate {estimate.estimateNumber}</div>
-                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{estimate.txnDate || estimate.expirationDate || ""}{estimate.linked ? " · linked" : ""}</div>
-                      </div>
-                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmount || 0).toFixed(2)}</div>
-                    </button>
-                  ))}
-                  {(jobContext?.localInvoices || []).map((invoice) => (
-                    <button
-                      key={`local-${invoice.id}`}
-                      onClick={() => openRelatedInvoice(invoice.id, "local")}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
-                      style={{ background: "var(--color-surface-1)" }}
-                    >
-                      <div>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Local Invoice {invoice.invoiceNumber}</div>
-                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.issueDate || ""}{invoice.jobTitle ? ` · ${invoice.jobTitle}` : ""}</div>
-                      </div>
-                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
-                    </button>
-                  ))}
-                  {!jobContext?.quickbooksInvoices?.length && !jobContext?.quickbooksEstimates?.length && !jobContext?.localInvoices?.length && (
-                    <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No related invoice or estimate found yet.</div>
-                  )}
-                </div>
                 {(selectedRelatedDocument || loadingRelatedDocument) && (
-                  <div className="mt-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                  <div className="mb-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                     <div className="flex items-center justify-between gap-3">
-                      <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>
-                        {selectedRelatedDocument?.type === "estimate" ? "Estimate Preview" : "Invoice Preview"}
+                      <div>
+                        <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>
+                          {selectedRelatedDocument?.type === "estimate" ? "Estimate Preview" : "Invoice Preview"}
+                        </div>
+                        <div className="text-sm mt-1 font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                          Tap any related document below to switch the preview.
+                        </div>
                       </div>
                       {selectedRelatedDocument && (
                         <button
@@ -805,6 +783,62 @@ export default function JobsPage() {
                     )}
                   </div>
                 )}
+                <div className="space-y-2">
+                  {(jobContext?.quickbooksInvoices || []).map((invoice) => (
+                    <button
+                      key={`qbi-${invoice.id}`}
+                      onClick={() => openRelatedInvoice(invoice.id, "quickbooks")}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{
+                        background: selectedRelatedDocument?.type === "invoice" && selectedRelatedDocument.id === invoice.id ? "rgba(29,78,216,0.12)" : "var(--color-surface-1)",
+                        border: selectedRelatedDocument?.type === "invoice" && selectedRelatedDocument.id === invoice.id ? "1px solid rgba(29,78,216,0.25)" : "1px solid transparent",
+                      }}
+                    >
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Invoice {invoice.invoiceNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.txnDate || invoice.issueDate || ""}{invoice.linked ? " · linked" : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
+                    </button>
+                  ))}
+                  {(jobContext?.quickbooksEstimates || []).map((estimate) => (
+                    <button
+                      key={`qbe-${estimate.id}`}
+                      onClick={() => openRelatedEstimate(estimate.id)}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{
+                        background: selectedRelatedDocument?.type === "estimate" && selectedRelatedDocument.id === estimate.id ? "rgba(29,78,216,0.12)" : "var(--color-surface-1)",
+                        border: selectedRelatedDocument?.type === "estimate" && selectedRelatedDocument.id === estimate.id ? "1px solid rgba(29,78,216,0.25)" : "1px solid transparent",
+                      }}
+                    >
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimate {estimate.estimateNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{estimate.txnDate || estimate.expirationDate || ""}{estimate.linked ? " · linked" : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmount || 0).toFixed(2)}</div>
+                    </button>
+                  ))}
+                  {(jobContext?.localInvoices || []).map((invoice) => (
+                    <button
+                      key={`local-${invoice.id}`}
+                      onClick={() => openRelatedInvoice(invoice.id, "local")}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{
+                        background: selectedRelatedDocument?.type === "invoice" && selectedRelatedDocument.id === invoice.id ? "rgba(29,78,216,0.12)" : "var(--color-surface-1)",
+                        border: selectedRelatedDocument?.type === "invoice" && selectedRelatedDocument.id === invoice.id ? "1px solid rgba(29,78,216,0.25)" : "1px solid transparent",
+                      }}
+                    >
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Local Invoice {invoice.invoiceNumber}</div>
+                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.issueDate || ""}{invoice.jobTitle ? ` · ${invoice.jobTitle}` : ""}</div>
+                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
+                    </button>
+                  ))}
+                  {!jobContext?.quickbooksInvoices?.length && !jobContext?.quickbooksEstimates?.length && !jobContext?.localInvoices?.length && (
+                    <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No related invoice or estimate found yet.</div>
+                  )}
+                </div>
               </div>
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Tech Checklist</div>

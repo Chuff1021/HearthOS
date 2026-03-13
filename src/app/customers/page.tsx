@@ -502,7 +502,7 @@ export default function CustomersPage() {
         {/* Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Customer List */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="w-[420px] flex-shrink-0 overflow-y-auto p-6" style={{ borderRight: "1px solid var(--color-border)" }}>
             {error && (
               <div
                 className="rounded-lg px-4 py-3 text-sm mb-4"
@@ -601,6 +601,189 @@ export default function CustomersPage() {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6" style={{ background: "var(--color-surface-1)" }}>
+            <div className="rounded-xl p-5 min-h-full" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              {!selectedCustomer && (
+                <div className="h-full flex items-center justify-center text-center">
+                  <div>
+                    <div className="text-4xl mb-3">📄</div>
+                    <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Select a customer to review documents</div>
+                    <div className="text-sm mt-2" style={{ color: "var(--color-text-muted)" }}>
+                      Invoice and estimate previews will appear here without leaving the customer page.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedCustomer && !selectedDocument && (
+                <div className="h-full flex items-center justify-center text-center">
+                  <div>
+                    <div className="text-4xl mb-3">🧾</div>
+                    <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Choose an invoice or estimate</div>
+                    <div className="text-sm mt-2" style={{ color: "var(--color-text-muted)" }}>
+                      Click a document in the customer panel and the full preview will load here.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(selectedDocument || loadingDocumentPreview) && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+                        {selectedDocument?.type === "estimate" ? "ESTIMATE PREVIEW" : "INVOICE PREVIEW"}
+                      </div>
+                      <div className="text-lg font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>
+                        {selectedDocument?.type === "estimate" ? "Customer Estimate" : "Customer Invoice"}
+                      </div>
+                    </div>
+                    {selectedDocument && (
+                      <button
+                        onClick={() => {
+                          setSelectedDocument(null);
+                          setDocumentPreview(null);
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm font-medium"
+                        style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                      >
+                        Clear Preview
+                      </button>
+                    )}
+                  </div>
+
+                  {loadingDocumentPreview && (
+                    <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading document preview...</div>
+                  )}
+
+                  {!loadingDocumentPreview && activeInvoicePreview && (
+                    <>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            Invoice {activeInvoicePreview.invoiceNumber}
+                          </div>
+                          <div className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+                            {activeInvoicePreview.customerName}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            ${Number(activeInvoicePreview.totalAmount || 0).toLocaleString()}
+                          </div>
+                          <div className="text-sm" style={{ color: Number(activeInvoicePreview.balance || 0) > 0 ? "#FF204E" : "#98CD00" }}>
+                            {activeInvoicePreview.status} • ${Number(activeInvoicePreview.balance || 0).toLocaleString()} open
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Issue Date</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.issueDate).toLocaleDateString()}</div>
+                        </div>
+                        <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Due Date</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.dueDate).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {activeInvoicePreview.lineItems.map((line) => (
+                          <div key={line.id} className="rounded-lg p-4" style={{ background: "var(--color-surface-1)" }}>
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{line.description}</div>
+                                {line.partNumber && (
+                                  <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Part: {line.partNumber}</div>
+                                )}
+                                <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                  {line.qty} × ${Number(line.unitPrice || 0).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                ${Number(line.total || 0).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {activeInvoicePreview.notes && (
+                        <div className="rounded-lg p-4" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
+                          <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeInvoicePreview.notes}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {!loadingDocumentPreview && activeEstimatePreview && (
+                    <>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            Estimate {activeEstimatePreview.DocNumber || activeEstimatePreview.Id}
+                          </div>
+                          <div className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+                            {activeEstimatePreview.CustomerRef?.name || detailCustomer?.displayName}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            ${Number(activeEstimatePreview.TotalAmt || 0).toLocaleString()}
+                          </div>
+                          <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                            {activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "No date"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Estimate Date</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "—"}</div>
+                        </div>
+                        <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Expires</div>
+                          <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.ExpirationDate ? new Date(activeEstimatePreview.ExpirationDate).toLocaleDateString() : "—"}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {(activeEstimatePreview.Line || []).map((line, index) => {
+                          const qty = Number(line.SalesItemLineDetail?.Qty || 1);
+                          const unitPrice = Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0);
+                          return (
+                            <div key={`${activeEstimatePreview.Id}-line-${index}`} className="rounded-lg p-4" style={{ background: "var(--color-surface-1)" }}>
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                    {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                                  </div>
+                                  {line.SalesItemLineDetail?.ItemRef?.name && (
+                                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Part: {line.SalesItemLineDetail.ItemRef.name}</div>
+                                  )}
+                                  <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                    {qty} × ${unitPrice.toLocaleString()}
+                                  </div>
+                                </div>
+                                <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                  ${Number(line.Amount || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {activeEstimatePreview.PrivateNote && (
+                        <div className="rounded-lg p-4" style={{ background: "var(--color-surface-1)" }}>
+                          <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
+                          <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeEstimatePreview.PrivateNote}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Customer Detail Panel */}
@@ -807,161 +990,6 @@ export default function CustomersPage() {
                         )}
                       </div>
                     </div>
-
-                    {(selectedDocument || loadingDocumentPreview) && (
-                      <div>
-                        <div className="flex items-center justify-between gap-3 mb-2">
-                          <h4 className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
-                            {selectedDocument?.type === "estimate" ? "ESTIMATE PREVIEW" : "INVOICE PREVIEW"}
-                          </h4>
-                          {selectedDocument && (
-                            <button
-                              onClick={() => {
-                                setSelectedDocument(null);
-                                setDocumentPreview(null);
-                              }}
-                              className="text-xs font-medium"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
-                        <div className="rounded-xl p-4 space-y-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                          {loadingDocumentPreview && (
-                            <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-                              Loading document preview...
-                            </div>
-                          )}
-
-                          {!loadingDocumentPreview && activeInvoicePreview && (
-                            <>
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                                    Invoice {activeInvoicePreview.invoiceNumber}
-                                  </div>
-                                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-                                    {activeInvoicePreview.customerName} • {new Date(activeInvoicePreview.issueDate).toLocaleDateString()}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                                    ${Number(activeInvoicePreview.totalAmount || 0).toLocaleString()}
-                                  </div>
-                                  <div className="text-xs" style={{ color: Number(activeInvoicePreview.balance || 0) > 0 ? "#FF204E" : "#98CD00" }}>
-                                    {activeInvoicePreview.status} • ${Number(activeInvoicePreview.balance || 0).toLocaleString()} open
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div style={{ color: "var(--color-text-muted)" }}>Issue Date</div>
-                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.issueDate).toLocaleDateString()}</div>
-                                </div>
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div style={{ color: "var(--color-text-muted)" }}>Due Date</div>
-                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.dueDate).toLocaleDateString()}</div>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                {activeInvoicePreview.lineItems.map((line) => (
-                                  <div key={line.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div>
-                                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{line.description}</div>
-                                        {line.partNumber && (
-                                          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Part: {line.partNumber}</div>
-                                        )}
-                                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                                          {line.qty} × ${Number(line.unitPrice || 0).toLocaleString()}
-                                        </div>
-                                      </div>
-                                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                                        ${Number(line.total || 0).toLocaleString()}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {activeInvoicePreview.notes && (
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
-                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeInvoicePreview.notes}</div>
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {!loadingDocumentPreview && activeEstimatePreview && (
-                            <>
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                                    Estimate {activeEstimatePreview.DocNumber || activeEstimatePreview.Id}
-                                  </div>
-                                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-                                    {activeEstimatePreview.CustomerRef?.name || detailCustomer?.displayName}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                                    ${Number(activeEstimatePreview.TotalAmt || 0).toLocaleString()}
-                                  </div>
-                                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                                    {activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "No date"}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div style={{ color: "var(--color-text-muted)" }}>Estimate Date</div>
-                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "—"}</div>
-                                </div>
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div style={{ color: "var(--color-text-muted)" }}>Expires</div>
-                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.ExpirationDate ? new Date(activeEstimatePreview.ExpirationDate).toLocaleDateString() : "—"}</div>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                {(activeEstimatePreview.Line || []).map((line, index) => {
-                                  const qty = Number(line.SalesItemLineDetail?.Qty || 1);
-                                  const unitPrice = Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0);
-                                  return (
-                                    <div key={`${activeEstimatePreview.Id}-line-${index}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                          <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                                            {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
-                                          </div>
-                                          {line.SalesItemLineDetail?.ItemRef?.name && (
-                                            <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                                              Part: {line.SalesItemLineDetail.ItemRef.name}
-                                            </div>
-                                          )}
-                                          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                                            {qty} × ${unitPrice.toLocaleString()}
-                                          </div>
-                                        </div>
-                                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                                          ${Number(line.Amount || 0).toLocaleString()}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              {activeEstimatePreview.PrivateNote && (
-                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
-                                  <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
-                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeEstimatePreview.PrivateNote}</div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PAYMENTS</h4>
