@@ -296,7 +296,6 @@ export default function SchedulePage() {
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
     if (!form.scheduledTimeStart) errs.scheduledTimeStart = "Start time is required";
     if (!form.scheduledTimeEnd) errs.scheduledTimeEnd = "End time is required";
-    if (!form.assignedTechs.length) errs.assignedTechs = "Assign at least one technician";
     if (form.scheduledTimeStart && form.scheduledTimeEnd && form.scheduledTimeEnd <= form.scheduledTimeStart) {
       errs.scheduledTimeEnd = "End time must be after start time";
     }
