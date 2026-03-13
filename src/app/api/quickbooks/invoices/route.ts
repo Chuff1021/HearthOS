@@ -49,7 +49,28 @@ export async function GET(request: NextRequest) {
     }
 
     if (id) {
-      const invoice = invoices.find((entry) => entry.Id === id || entry.DocNumber === id);
+      let invoice = invoices.find((entry) => entry.Id === id || entry.DocNumber === id);
+      if (!invoice) {
+        let accessToken = request.cookies.get('qb_access_token')?.value;
+        let refreshToken = request.cookies.get('qb_refresh_token')?.value;
+        let realmId = request.cookies.get('qb_realm_id')?.value;
+
+        if (!accessToken || !refreshToken || !realmId) {
+          const org = await getOrCreateDefaultOrg();
+          accessToken = org.qbAccessToken || undefined;
+          refreshToken = org.qbRefreshToken || undefined;
+          realmId = org.qbRealmId || undefined;
+        }
+
+        if (accessToken && refreshToken && realmId) {
+          const client = getClientFromTokens(accessToken, refreshToken, realmId);
+          try {
+            invoice = await client.getInvoice(id);
+          } catch {
+            invoice = undefined;
+          }
+        }
+      }
       if (!invoice) {
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
       }

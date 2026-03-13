@@ -192,12 +192,20 @@ function matchPurchaseOrderToCustomer(purchaseOrder: any, customer: QBCustomer) 
 }
 
 function transformPayment(payment: QBPayment) {
+  const rawPaymentMethod = payment.PaymentMethodRef?.name || "";
+  const normalizedPaymentMethod = /cash/i.test(rawPaymentMethod)
+    ? "Cash"
+    : /check/i.test(rawPaymentMethod)
+      ? "Check"
+      : /(visa|mastercard|amex|american express|discover|credit|card)/i.test(rawPaymentMethod)
+        ? "Credit Card"
+        : rawPaymentMethod || undefined;
   return {
     id: payment.Id,
     txnDate: payment.TxnDate,
     totalAmt: Number(payment.TotalAmt || 0),
     unappliedAmt: Number(payment.UnappliedAmt || 0),
-    paymentMethod: payment.PaymentMethodRef?.name,
+    paymentMethod: normalizedPaymentMethod,
     linkedTxnIds: Array.isArray(payment.Line)
       ? payment.Line.flatMap((line) =>
           Array.isArray(line.LinkedTxn) ? line.LinkedTxn.map((txn) => txn.TxnId) : [line.LinkedTxn?.TxnId].filter(Boolean)

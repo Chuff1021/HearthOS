@@ -586,7 +586,7 @@ export default function JobsPage() {
       {selectedJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedJob(null)} />
-          <div className="relative w-full max-w-xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+          <div className="relative w-full max-w-xl rounded-xl overflow-hidden max-h-[90vh] flex flex-col" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-6 py-4 flex items-start justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
               <div>
                 <div className="flex items-center gap-2">
@@ -611,6 +611,7 @@ export default function JobsPage() {
                 <button onClick={() => setSelectedJob(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
               </div>
             </div>
+            <div className="overflow-y-auto flex-1">
             {editingJob ? (
               <div className="p-6 space-y-4">
                 <input value={editForm.title} onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
@@ -849,12 +850,31 @@ export default function JobsPage() {
                 <div className="space-y-2">
                   {checklistTemplateForJobType(selectedJob.jobType).map((item) => {
                     const done = Boolean(selectedJob.checklistItems?.[item.id]);
+                    const linkedPhotos = (selectedJob.photos || []).filter((photo) => String((photo as any).checklistItemId || "") === item.id);
                     return (
-                      <div key={item.id} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: done ? "rgba(152,205,0,0.18)" : "var(--color-surface-3)", color: done ? "#98CD00" : "var(--color-text-muted)" }}>
-                          {done ? "✓" : ""}
+                      <div key={item.id} className="rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: done ? "rgba(152,205,0,0.18)" : "var(--color-surface-3)", color: done ? "#98CD00" : "var(--color-text-muted)" }}>
+                            {done ? "✓" : ""}
+                          </div>
+                          <div className="text-sm" style={{ color: done ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{item.task}</div>
                         </div>
-                        <div className="text-sm" style={{ color: done ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{item.task}</div>
+                        {linkedPhotos.length > 0 && (
+                          <div className="mt-3 grid grid-cols-4 gap-2">
+                            {linkedPhotos.map((photo) => (
+                              <a
+                                key={photo.id}
+                                href={photo.uri}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-lg overflow-hidden block"
+                                style={{ background: "var(--color-surface-2)" }}
+                              >
+                                <div className="aspect-square" style={{ backgroundImage: `url(${photo.uri})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -880,7 +900,8 @@ export default function JobsPage() {
               </div>
             </div>
             )}
-            <div className="px-6 pb-6 flex justify-end">
+            </div>
+            <div className="px-6 py-4 flex justify-end border-t" style={{ borderColor: "var(--color-border)" }}>
               <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
                 Delete Job
               </button>

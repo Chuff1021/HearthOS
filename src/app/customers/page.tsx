@@ -944,7 +944,7 @@ export default function CustomersPage() {
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>INVOICES</h4>
                       <div className="space-y-2">
-                        {detailHistory.invoices.slice(0, 8).map((invoice) => (
+                        {detailHistory.invoices.map((invoice) => (
                           (() => {
                             const payment = detailHistory.payments.find((entry) => entry.linkedTxnIds.includes(invoice.id));
                             return (
@@ -972,7 +972,7 @@ export default function CustomersPage() {
                             );
                           })()
                         ))}
-                        {detailHistory.localInvoices.slice(0, 8).map((invoice) => (
+                        {detailHistory.localInvoices.map((invoice) => (
                           <button
                             key={`local-${invoice.id}-${invoice.invoiceNumber}`}
                             onClick={() => openInvoicePreview(invoice.id, "local")}
@@ -1002,7 +1002,7 @@ export default function CustomersPage() {
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>ESTIMATES</h4>
                       <div className="space-y-2">
-                        {detailHistory.estimates.slice(0, 8).map((estimate) => (
+                        {detailHistory.estimates.map((estimate) => (
                           <button
                             key={estimate.id}
                             onClick={() => openEstimatePreview(estimate.id)}
@@ -1029,7 +1029,7 @@ export default function CustomersPage() {
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PAYMENTS</h4>
                       <div className="space-y-2">
-                        {detailHistory.payments.slice(0, 8).map((payment) => (
+                        {detailHistory.payments.map((payment) => (
                           <div key={payment.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                             <div className="flex items-center justify-between gap-2">
                               <div>
@@ -1057,7 +1057,7 @@ export default function CustomersPage() {
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PURCHASE ORDERS</h4>
                       <div className="space-y-2">
-                        {detailHistory.purchaseOrders.slice(0, 8).map((purchaseOrder) => (
+                        {detailHistory.purchaseOrders.map((purchaseOrder) => (
                           <Link
                             key={purchaseOrder.id}
                             href={`/vendors?purchaseOrderId=${purchaseOrder.id}${purchaseOrder.vendorId ? `&vendorId=${purchaseOrder.vendorId}` : ""}`}
