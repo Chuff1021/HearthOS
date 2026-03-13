@@ -53,7 +53,16 @@ export async function GET(request: NextRequest) {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
     const estimates = (await withRefresh(auth, (client) => client.getEstimates(300))) as any[];
+    if (id) {
+      const estimate = estimates.find((entry) => entry.Id === id || entry.DocNumber === id);
+      if (!estimate) {
+        return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
+      }
+      return NextResponse.json({ estimate });
+    }
     return NextResponse.json({ estimates, total: estimates.length });
   } catch (err) {
     console.error('Failed to fetch QB estimates:', err);

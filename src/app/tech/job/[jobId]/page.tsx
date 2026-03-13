@@ -126,15 +126,34 @@ export default function JobDetailPage() {
     if (jobId) loadJob();
   }, [jobId]);
 
+  async function persistJobUpdates(updates: Record<string, unknown>) {
+    const res = await fetch('/api/jobs', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: jobId, ...updates }),
+    });
+    if (!res.ok) {
+      throw new Error('Failed to save job');
+    }
+    const data = await res.json();
+    if (data.job) {
+      setJob((prev: any) => ({ ...prev, ...data.job }));
+      if (data.job.checklistItems) {
+        setChecklistItems(data.job.checklistItems);
+      }
+    }
+    return data.job;
+  }
+
   const handleCheckItem = async (id: number) => {
     const nextChecklistItems = { ...checklistItems, [id]: !checklistItems[id] };
     setChecklistItems(nextChecklistItems);
     setJob((prev: any) => ({ ...prev, checklistItems: nextChecklistItems }));
-    await fetch('/api/jobs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: jobId, checklistItems: nextChecklistItems }),
-    });
+    try {
+      await persistJobUpdates({ checklistItems: nextChecklistItems });
+    } catch {
+      setActionMsg("Checklist save failed. Try again.");
+    }
   };
 
   const completedCount = Object.values(checklistItems).filter(Boolean).length;
@@ -149,21 +168,31 @@ export default function JobDetailPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async () => {
-      const photo = {
-        id: `photo-${Date.now()}`,
-        type: "progress",
-        label: file.name,
-        timestamp: new Date().toISOString(),
-        uri: String(reader.result),
-      };
-      const nextPhotos = [...(job.photos || []), photo];
-      setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
-      setActionMsg("Photo saved to job record.");
-      await fetch('/api/jobs', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: jobId, photos: nextPhotos }),
-      });
+      try {
+        const latestRes = await fetch(`/api/jobs?id=${jobId}`, { cache: "no-store" });
+        const latestData = await latestRes.json();
+        const latestJob = latestData.jobs?.[0];
+        const photo = {
+          id: `photo-${Date.now()}`,
+          type: "progress",
+          label: file.name,
+          caption: file.name,
+          timestamp: new Date().toISOString(),
+          uri: String(reader.result),
+        };
+        const existingPhotos = Array.isArray(latestJob?.photos) ? latestJob.photos : (job.photos || []);
+        const nextPhotos = [...existingPhotos, photo].filter((entry, index, arr) => {
+          const signature = `${entry.uri || ""}:${entry.timestamp || ""}:${entry.label || entry.caption || ""}`;
+          return arr.findIndex((candidate) => `${candidate.uri || ""}:${candidate.timestamp || ""}:${candidate.label || candidate.caption || ""}` === signature) === index;
+        });
+        setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
+        await persistJobUpdates({ photos: nextPhotos });
+        setActionMsg("Photo saved to this job.");
+      } catch {
+        setActionMsg("Photo save failed. Try again.");
+      } finally {
+        event.target.value = "";
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -566,13 +595,18 @@ export default function JobDetailPage() {
             <div className="grid grid-cols-3 gap-2">
               {(job.photos || []).map((photo: any) => (
                 <div key={photo.id} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-600">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
+                  {photo.uri ? (
+                    // Use the saved data URI directly so the uploaded field photo renders immediately.
+                    <img src={photo.uri} alt={photo.label || photo.caption || "Job photo"} className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-600">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
-                    <p className="text-xs truncate">{photo.caption}</p>
+                    <p className="text-xs truncate">{photo.label || photo.caption || "Job photo"}</p>
                   </div>
                 </div>
               ))}

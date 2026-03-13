@@ -91,6 +91,49 @@ interface CustomerProfile {
   source: "quickbooks" | "local";
 }
 
+type InvoicePreview = {
+  id: string;
+  invoiceNumber: string;
+  customerName: string;
+  issueDate: string;
+  dueDate: string;
+  status: string;
+  totalAmount: number;
+  balance: number;
+  notes?: string;
+  lineItems: Array<{
+    id: string;
+    description: string;
+    partNumber?: string;
+    qty: number;
+    unitPrice: number;
+    total: number;
+  }>;
+};
+
+type EstimatePreview = {
+  Id: string;
+  DocNumber?: string;
+  CustomerRef?: { name?: string };
+  TxnDate?: string;
+  ExpirationDate?: string;
+  PrivateNote?: string;
+  TotalAmt?: number;
+  Line?: Array<{
+    Amount?: number;
+    Description?: string;
+    SalesItemLineDetail?: {
+      Qty?: number;
+      UnitPrice?: number;
+      ItemRef?: { name?: string };
+    };
+  }>;
+};
+
+type CustomerDocumentSelection =
+  | { type: "invoice"; source: "quickbooks" | "local"; id: string }
+  | { type: "estimate"; source: "quickbooks"; id: string };
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +142,9 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedCustomerProfile, setSelectedCustomerProfile] = useState<CustomerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<CustomerDocumentSelection | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<InvoicePreview | EstimatePreview | null>(null);
+  const [loadingDocumentPreview, setLoadingDocumentPreview] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -173,6 +219,8 @@ export default function CustomersPage() {
 
     if (!customerId) {
       setSelectedCustomerProfile(null);
+      setSelectedDocument(null);
+      setDocumentPreview(null);
       return;
     }
     const resolvedCustomerId: string = customerId;
@@ -212,6 +260,55 @@ export default function CustomersPage() {
       cancelled = true;
     };
   }, [selectedCustomer?.id]);
+
+  useEffect(() => {
+    if (!selectedDocument) {
+      setDocumentPreview(null);
+      return;
+    }
+    const activeDocument = selectedDocument;
+
+    let cancelled = false;
+
+    async function loadDocumentPreview() {
+      setLoadingDocumentPreview(true);
+      try {
+        if (activeDocument.type === "invoice") {
+          const endpoint = activeDocument.source === "local"
+            ? `/api/invoices?id=${encodeURIComponent(activeDocument.id)}`
+            : `/api/quickbooks/invoices?id=${encodeURIComponent(activeDocument.id)}&live=true`;
+          const res = await fetch(endpoint, { cache: "no-store" });
+          const data = await res.json();
+          if (!cancelled) {
+            setDocumentPreview(res.ok ? (data.invoice || null) : null);
+          }
+          return;
+        }
+
+        const res = await fetch(`/api/quickbooks/estimates?id=${encodeURIComponent(activeDocument.id)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          setDocumentPreview(res.ok ? (data.estimate || null) : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setDocumentPreview(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingDocumentPreview(false);
+        }
+      }
+    }
+
+    loadDocumentPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDocument]);
 
   const resetForm = () => {
     setForm({ firstName: "", lastName: "", companyName: "", email: "", phone: "", line1: "", city: "", state: "", zip: "", tags: "", notes: "" });
@@ -332,6 +429,16 @@ export default function CustomersPage() {
   const detailCustomer = selectedCustomerProfile?.customer || selectedCustomer;
   const detailSummary = selectedCustomerProfile?.summary;
   const detailHistory = selectedCustomerProfile?.history;
+  const activeInvoicePreview = selectedDocument?.type === "invoice" ? (documentPreview as InvoicePreview | null) : null;
+  const activeEstimatePreview = selectedDocument?.type === "estimate" ? (documentPreview as EstimatePreview | null) : null;
+
+  function openInvoicePreview(id: string, source: "quickbooks" | "local") {
+    setSelectedDocument({ type: "invoice", id, source });
+  }
+
+  function openEstimatePreview(id: string) {
+    setSelectedDocument({ type: "estimate", id, source: "quickbooks" });
+  }
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -499,7 +606,7 @@ export default function CustomersPage() {
           {/* Customer Detail Panel */}
           {selectedCustomer && (
             <div
-              className="w-[400px] flex-shrink-0 overflow-y-auto border-l"
+              className="w-[560px] flex-shrink-0 overflow-y-auto border-l"
               style={{ background: "var(--color-surface-1)", borderColor: "var(--color-border)" }}
             >
               <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -626,11 +733,11 @@ export default function CustomersPage() {
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>INVOICES</h4>
                       <div className="space-y-2">
-                        {[...detailHistory.invoices, ...detailHistory.localInvoices].slice(0, 8).map((invoice) => (
-                          <Link
+                        {detailHistory.invoices.slice(0, 8).map((invoice) => (
+                          <button
                             key={`${invoice.id}-${invoice.invoiceNumber}`}
-                            href={`/invoices?id=${invoice.id}`}
-                            className="block rounded-lg p-3"
+                            onClick={() => openInvoicePreview(invoice.id, "quickbooks")}
+                            className="block w-full rounded-lg p-3 text-left"
                             style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -645,7 +752,28 @@ export default function CustomersPage() {
                                 </div>
                               </div>
                             </div>
-                          </Link>
+                          </button>
+                        ))}
+                        {detailHistory.localInvoices.slice(0, 8).map((invoice) => (
+                          <button
+                            key={`local-${invoice.id}-${invoice.invoiceNumber}`}
+                            onClick={() => openInvoicePreview(invoice.id, "local")}
+                            className="block w-full rounded-lg p-3 text-left"
+                            style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{invoice.invoiceNumber}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.jobTitle} • {new Date(invoice.issueDate).toLocaleDateString()} • local</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount).toLocaleString()}</div>
+                                <div className="text-xs" style={{ color: Number(invoice.balance) > 0 ? "#FF204E" : "#98CD00" }}>
+                                  {invoice.status} • ${Number(invoice.balance).toLocaleString()} open
+                                </div>
+                              </div>
+                            </div>
+                          </button>
                         ))}
                         {detailHistory.invoices.length + detailHistory.localInvoices.length === 0 && (
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No invoices found for this customer.</div>
@@ -657,10 +785,10 @@ export default function CustomersPage() {
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>ESTIMATES</h4>
                       <div className="space-y-2">
                         {detailHistory.estimates.slice(0, 8).map((estimate) => (
-                          <Link
+                          <button
                             key={estimate.id}
-                            href={`/estimates?id=${estimate.id}`}
-                            className="block rounded-lg p-3"
+                            onClick={() => openEstimatePreview(estimate.id)}
+                            className="block w-full rounded-lg p-3 text-left"
                             style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -672,13 +800,168 @@ export default function CustomersPage() {
                               </div>
                               <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmt).toLocaleString()}</div>
                             </div>
-                          </Link>
+                          </button>
                         ))}
                         {detailHistory.estimates.length === 0 && (
                           <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</div>
                         )}
                       </div>
                     </div>
+
+                    {(selectedDocument || loadingDocumentPreview) && (
+                      <div>
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <h4 className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+                            {selectedDocument?.type === "estimate" ? "ESTIMATE PREVIEW" : "INVOICE PREVIEW"}
+                          </h4>
+                          {selectedDocument && (
+                            <button
+                              onClick={() => {
+                                setSelectedDocument(null);
+                                setDocumentPreview(null);
+                              }}
+                              className="text-xs font-medium"
+                              style={{ color: "var(--color-text-muted)" }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="rounded-xl p-4 space-y-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                          {loadingDocumentPreview && (
+                            <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                              Loading document preview...
+                            </div>
+                          )}
+
+                          {!loadingDocumentPreview && activeInvoicePreview && (
+                            <>
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                                    Invoice {activeInvoicePreview.invoiceNumber}
+                                  </div>
+                                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                                    {activeInvoicePreview.customerName} • {new Date(activeInvoicePreview.issueDate).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                                    ${Number(activeInvoicePreview.totalAmount || 0).toLocaleString()}
+                                  </div>
+                                  <div className="text-xs" style={{ color: Number(activeInvoicePreview.balance || 0) > 0 ? "#FF204E" : "#98CD00" }}>
+                                    {activeInvoicePreview.status} • ${Number(activeInvoicePreview.balance || 0).toLocaleString()} open
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div style={{ color: "var(--color-text-muted)" }}>Issue Date</div>
+                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.issueDate).toLocaleDateString()}</div>
+                                </div>
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div style={{ color: "var(--color-text-muted)" }}>Due Date</div>
+                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{new Date(activeInvoicePreview.dueDate).toLocaleDateString()}</div>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                {activeInvoicePreview.lineItems.map((line) => (
+                                  <div key={line.id} className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div>
+                                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{line.description}</div>
+                                        {line.partNumber && (
+                                          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Part: {line.partNumber}</div>
+                                        )}
+                                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                          {line.qty} × ${Number(line.unitPrice || 0).toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                        ${Number(line.total || 0).toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {activeInvoicePreview.notes && (
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
+                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeInvoicePreview.notes}</div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {!loadingDocumentPreview && activeEstimatePreview && (
+                            <>
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                                    Estimate {activeEstimatePreview.DocNumber || activeEstimatePreview.Id}
+                                  </div>
+                                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                                    {activeEstimatePreview.CustomerRef?.name || detailCustomer?.displayName}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                                    ${Number(activeEstimatePreview.TotalAmt || 0).toLocaleString()}
+                                  </div>
+                                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                    {activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "No date"}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div style={{ color: "var(--color-text-muted)" }}>Estimate Date</div>
+                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.TxnDate ? new Date(activeEstimatePreview.TxnDate).toLocaleDateString() : "—"}</div>
+                                </div>
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div style={{ color: "var(--color-text-muted)" }}>Expires</div>
+                                  <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{activeEstimatePreview.ExpirationDate ? new Date(activeEstimatePreview.ExpirationDate).toLocaleDateString() : "—"}</div>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                {(activeEstimatePreview.Line || []).map((line, index) => {
+                                  const qty = Number(line.SalesItemLineDetail?.Qty || 1);
+                                  const unitPrice = Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0);
+                                  return (
+                                    <div key={`${activeEstimatePreview.Id}-line-${index}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                            {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                                          </div>
+                                          {line.SalesItemLineDetail?.ItemRef?.name && (
+                                            <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                              Part: {line.SalesItemLineDetail.ItemRef.name}
+                                            </div>
+                                          )}
+                                          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                            {qty} × ${unitPrice.toLocaleString()}
+                                          </div>
+                                        </div>
+                                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                          ${Number(line.Amount || 0).toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {activeEstimatePreview.PrivateNote && (
+                                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-1)" }}>
+                                  <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
+                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>{activeEstimatePreview.PrivateNote}</div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <h4 className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>PAYMENTS</h4>
@@ -752,20 +1035,33 @@ export default function CustomersPage() {
                     Edit Customer
                   </button>
                   <div className="flex gap-2">
-                    <Link
-                      href={`/invoices?customer=${selectedCustomer.id}`}
+                    <button
+                      onClick={() => {
+                        const nextInvoice = detailHistory?.invoices[0];
+                        const nextLocalInvoice = detailHistory?.localInvoices[0];
+                        if (nextInvoice) {
+                          openInvoicePreview(nextInvoice.id, "quickbooks");
+                        } else if (nextLocalInvoice) {
+                          openInvoicePreview(nextLocalInvoice.id, "local");
+                        }
+                      }}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-center"
                       style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                     >
                       View Invoices
-                    </Link>
-                    <Link
-                      href={`/estimates?customer=${selectedCustomer.id}`}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const nextEstimate = detailHistory?.estimates[0];
+                        if (nextEstimate) {
+                          openEstimatePreview(nextEstimate.id);
+                        }
+                      }}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-center"
                       style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                     >
                       View Estimates
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>

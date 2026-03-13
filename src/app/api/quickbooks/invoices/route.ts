@@ -17,6 +17,7 @@ import { addAuditLog } from '@/lib/audit-log-store';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
     const customerId = searchParams.get('customerId');
     const outstanding = searchParams.get('outstanding');
     const sync = searchParams.get('sync');
@@ -45,6 +46,14 @@ export async function GET(request: NextRequest) {
 
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
       invoices = await syncInvoices(client);
+    }
+
+    if (id) {
+      const invoice = invoices.find((entry) => entry.Id === id || entry.DocNumber === id);
+      if (!invoice) {
+        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+      }
+      return NextResponse.json({ invoice: transformInvoice(invoice) });
     }
 
     // Get outstanding invoices

@@ -46,6 +46,49 @@ type RelatedDoc = {
   jobTitle?: string;
 };
 
+type RelatedInvoicePreview = {
+  id: string;
+  invoiceNumber: string;
+  customerName: string;
+  issueDate: string;
+  dueDate: string;
+  status: string;
+  totalAmount: number;
+  balance: number;
+  notes?: string;
+  lineItems: Array<{
+    id: string;
+    description: string;
+    partNumber?: string;
+    qty: number;
+    unitPrice: number;
+    total: number;
+  }>;
+};
+
+type RelatedEstimatePreview = {
+  Id: string;
+  DocNumber?: string;
+  CustomerRef?: { name?: string };
+  TxnDate?: string;
+  ExpirationDate?: string;
+  PrivateNote?: string;
+  TotalAmt?: number;
+  Line?: Array<{
+    Amount?: number;
+    Description?: string;
+    SalesItemLineDetail?: {
+      Qty?: number;
+      UnitPrice?: number;
+      ItemRef?: { name?: string };
+    };
+  }>;
+};
+
+type SelectedRelatedDocument =
+  | { type: "invoice"; source: "quickbooks" | "local"; id: string }
+  | { type: "estimate"; source: "quickbooks"; id: string };
+
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
   in_progress: { bg: "rgba(255,68,0,0.12)", text: "#FF4400", border: "rgba(255,68,0,0.25)" },
@@ -138,6 +181,9 @@ export default function JobsPage() {
     quickbooksInvoices: RelatedDoc[];
     quickbooksEstimates: RelatedDoc[];
   } | null>(null);
+  const [selectedRelatedDocument, setSelectedRelatedDocument] = useState<SelectedRelatedDocument | null>(null);
+  const [relatedDocumentPreview, setRelatedDocumentPreview] = useState<RelatedInvoicePreview | RelatedEstimatePreview | null>(null);
+  const [loadingRelatedDocument, setLoadingRelatedDocument] = useState(false);
   const [editingJob, setEditingJob] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -237,6 +283,8 @@ export default function JobsPage() {
   useEffect(() => {
     if (!selectedJob) {
       setJobContext(null);
+      setSelectedRelatedDocument(null);
+      setRelatedDocumentPreview(null);
       return;
     }
     fetch(`/api/jobs/context?id=${encodeURIComponent(selectedJob.id)}`)
@@ -244,6 +292,55 @@ export default function JobsPage() {
       .then((data) => setJobContext(data.related || { localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }))
       .catch(() => setJobContext({ localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }));
   }, [selectedJob]);
+
+  useEffect(() => {
+    if (!selectedRelatedDocument) {
+      setRelatedDocumentPreview(null);
+      return;
+    }
+    const activeDocument = selectedRelatedDocument;
+
+    let cancelled = false;
+
+    async function loadRelatedDocument() {
+      setLoadingRelatedDocument(true);
+      try {
+        if (activeDocument.type === "invoice") {
+          const endpoint = activeDocument.source === "local"
+            ? `/api/invoices?id=${encodeURIComponent(activeDocument.id)}`
+            : `/api/quickbooks/invoices?id=${encodeURIComponent(activeDocument.id)}&live=true`;
+          const res = await fetch(endpoint, { cache: "no-store" });
+          const data = await res.json();
+          if (!cancelled) {
+            setRelatedDocumentPreview(res.ok ? (data.invoice || null) : null);
+          }
+          return;
+        }
+
+        const res = await fetch(`/api/quickbooks/estimates?id=${encodeURIComponent(activeDocument.id)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!cancelled) {
+          setRelatedDocumentPreview(res.ok ? (data.estimate || null) : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setRelatedDocumentPreview(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingRelatedDocument(false);
+        }
+      }
+    }
+
+    loadRelatedDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRelatedDocument]);
 
   useEffect(() => {
     if (!selectedJob) {
@@ -274,6 +371,21 @@ export default function JobsPage() {
     const matchesJobType = jobTypeFilter === "all" || job.jobType === jobTypeFilter;
     return matchesSearch && matchesStatus && matchesJobType;
   });
+
+  const activeRelatedInvoice = selectedRelatedDocument?.type === "invoice"
+    ? (relatedDocumentPreview as RelatedInvoicePreview | null)
+    : null;
+  const activeRelatedEstimate = selectedRelatedDocument?.type === "estimate"
+    ? (relatedDocumentPreview as RelatedEstimatePreview | null)
+    : null;
+
+  function openRelatedInvoice(id: string, source: "quickbooks" | "local") {
+    setSelectedRelatedDocument({ type: "invoice", id, source });
+  }
+
+  function openRelatedEstimate(id: string) {
+    setSelectedRelatedDocument({ type: "estimate", id, source: "quickbooks" });
+  }
 
   async function handleCreateJob() {
     if (!selectedCustomer || !formData.title) return;
@@ -538,36 +650,161 @@ export default function JobsPage() {
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Related Documents</div>
                 <div className="space-y-2">
                   {(jobContext?.quickbooksInvoices || []).map((invoice) => (
-                    <div key={`qbi-${invoice.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                    <button
+                      key={`qbi-${invoice.id}`}
+                      onClick={() => openRelatedInvoice(invoice.id, "quickbooks")}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{ background: "var(--color-surface-1)" }}
+                    >
                       <div>
                         <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Invoice {invoice.invoiceNumber}</div>
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.txnDate || invoice.issueDate || ""}{invoice.linked ? " · linked" : ""}</div>
                       </div>
                       <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
-                    </div>
+                    </button>
                   ))}
                   {(jobContext?.quickbooksEstimates || []).map((estimate) => (
-                    <div key={`qbe-${estimate.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                    <button
+                      key={`qbe-${estimate.id}`}
+                      onClick={() => openRelatedEstimate(estimate.id)}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{ background: "var(--color-surface-1)" }}
+                    >
                       <div>
                         <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimate {estimate.estimateNumber}</div>
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{estimate.txnDate || estimate.expirationDate || ""}{estimate.linked ? " · linked" : ""}</div>
                       </div>
                       <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(estimate.totalAmount || 0).toFixed(2)}</div>
-                    </div>
+                    </button>
                   ))}
                   {(jobContext?.localInvoices || []).map((invoice) => (
-                    <div key={`local-${invoice.id}`} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
+                    <button
+                      key={`local-${invoice.id}`}
+                      onClick={() => openRelatedInvoice(invoice.id, "local")}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                      style={{ background: "var(--color-surface-1)" }}
+                    >
                       <div>
                         <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Local Invoice {invoice.invoiceNumber}</div>
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{invoice.issueDate || ""}{invoice.jobTitle ? ` · ${invoice.jobTitle}` : ""}</div>
                       </div>
                       <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
-                    </div>
+                    </button>
                   ))}
                   {!jobContext?.quickbooksInvoices?.length && !jobContext?.quickbooksEstimates?.length && !jobContext?.localInvoices?.length && (
                     <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No related invoice or estimate found yet.</div>
                   )}
                 </div>
+                {(selectedRelatedDocument || loadingRelatedDocument) && (
+                  <div className="mt-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>
+                        {selectedRelatedDocument?.type === "estimate" ? "Estimate Preview" : "Invoice Preview"}
+                      </div>
+                      {selectedRelatedDocument && (
+                        <button
+                          onClick={() => {
+                            setSelectedRelatedDocument(null);
+                            setRelatedDocumentPreview(null);
+                          }}
+                          className="text-xs font-medium"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {loadingRelatedDocument && (
+                      <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading document preview...</div>
+                    )}
+                    {!loadingRelatedDocument && activeRelatedInvoice && (
+                      <>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Invoice {activeRelatedInvoice.invoiceNumber}</div>
+                            <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                              {activeRelatedInvoice.customerName} • {activeRelatedInvoice.issueDate}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(activeRelatedInvoice.totalAmount || 0).toFixed(2)}</div>
+                            <div className="text-xs" style={{ color: Number(activeRelatedInvoice.balance || 0) > 0 ? "#FF204E" : "#98CD00" }}>
+                              {activeRelatedInvoice.status} • ${Number(activeRelatedInvoice.balance || 0).toFixed(2)} open
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {activeRelatedInvoice.lineItems.map((line) => (
+                            <div key={line.id} className="rounded-lg px-3 py-2" style={{ background: "var(--color-surface-2)" }}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{line.description}</div>
+                                  {line.partNumber && (
+                                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Part: {line.partNumber}</div>
+                                  )}
+                                  <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                    {line.qty} × ${Number(line.unitPrice || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(line.total || 0).toFixed(2)}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {activeRelatedInvoice.notes && (
+                          <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>
+                            {activeRelatedInvoice.notes}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!loadingRelatedDocument && activeRelatedEstimate && (
+                      <>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Estimate {activeRelatedEstimate.DocNumber || activeRelatedEstimate.Id}</div>
+                            <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                              {activeRelatedEstimate.CustomerRef?.name || selectedJob.customerName}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(activeRelatedEstimate.TotalAmt || 0).toFixed(2)}</div>
+                            <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                              {activeRelatedEstimate.TxnDate || activeRelatedEstimate.ExpirationDate || ""}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {(activeRelatedEstimate.Line || []).map((line, index) => (
+                            <div key={`${activeRelatedEstimate.Id}-line-${index}`} className="rounded-lg px-3 py-2" style={{ background: "var(--color-surface-2)" }}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                                    {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                                  </div>
+                                  {line.SalesItemLineDetail?.ItemRef?.name && (
+                                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                      Part: {line.SalesItemLineDetail.ItemRef.name}
+                                    </div>
+                                  )}
+                                  <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                    {Number(line.SalesItemLineDetail?.Qty || 1)} × ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(line.Amount || 0).toFixed(2)}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {activeRelatedEstimate.PrivateNote && (
+                          <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>
+                            {activeRelatedEstimate.PrivateNote}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Tech Checklist</div>
