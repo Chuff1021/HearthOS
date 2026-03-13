@@ -42,6 +42,12 @@ function methodLabel(method: SquarePayment["method"]) {
   }
 }
 
+function isOpaqueReference(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return normalized.length > 16 || /^[a-f0-9-]{16,}$/i.test(normalized);
+}
+
 export default function TechPaymentsPage() {
   const searchParams = useSearchParams();
   const cardContainerRef = useRef<HTMLDivElement | null>(null);
@@ -67,6 +73,7 @@ export default function TechPaymentsPage() {
   const squareAppId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "";
   const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
   const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
+  const visibleReference = !isOpaqueReference(form.invoiceNumber) ? form.invoiceNumber.trim() : "";
 
   useEffect(() => {
     setForm((prev) => ({
@@ -341,14 +348,14 @@ export default function TechPaymentsPage() {
             className="w-full px-3 py-3 rounded-xl"
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
-          <input
-            type="text"
-            placeholder="Invoice or job number"
-            value={form.invoiceNumber}
-            onChange={(e) => setForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))}
-            className="w-full px-3 py-3 rounded-xl"
-            style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
-          />
+          {visibleReference ? (
+            <div
+              className="px-3 py-3 rounded-xl text-sm"
+              style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}
+            >
+              Reference: <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{visibleReference}</span>
+            </div>
+          ) : null}
           <input
             type="email"
             placeholder="Customer email"
@@ -467,7 +474,7 @@ export default function TechPaymentsPage() {
                         {payment.customerName || "Square Customer"}
                       </div>
                       <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                        {payment.invoiceNumber || "Square Order"} • {methodLabel(payment.method)} • {formatDateTime(payment.paymentDate)}
+                        {(isOpaqueReference(payment.invoiceNumber) ? "Linked Job Payment" : payment.invoiceNumber || "Square Order")} • {methodLabel(payment.method)} • {formatDateTime(payment.paymentDate)}
                       </div>
                     </div>
                     <div className="text-right">
