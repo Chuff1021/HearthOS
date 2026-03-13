@@ -210,7 +210,7 @@ export default function SchedulePage() {
 
   const visibleJobs = useMemo(() => {
     if (viewMode === "master") {
-      return weekJobs.filter((j) => j.assignedTechs.some((t) => selectedTechIds.includes(t.id)));
+      return weekJobs.filter((j) => !j.assignedTechs.length || j.assignedTechs.some((t) => selectedTechIds.includes(t.id)));
     }
     if (!focusTechId) return [];
     return weekJobs.filter((j) => j.assignedTechs.some((t) => t.id === focusTechId));

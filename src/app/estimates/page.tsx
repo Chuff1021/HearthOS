@@ -41,6 +41,17 @@ type Estimate = {
 type DraftLine = { description: string; qty: number; unitPrice: number; total: number; source?: string; itemId?: string; itemName?: string; partNumber?: string };
 type EstimateLineDraft = { description: string; qty: number; unitPrice: number; amount: number; itemId?: string; itemName?: string; partNumber?: string };
 
+function buildEstimateScheduleTitle(estimate: Estimate) {
+  const firstLine = (estimate.Line || [])
+    .map((line) => (line.Description || line.SalesItemLineDetail?.ItemRef?.name || "").trim())
+    .find(Boolean);
+  if (firstLine) {
+    return `${estimate.CustomerRef?.name || "Customer"} - ${firstLine}`;
+  }
+
+  return `${estimate.CustomerRef?.name || "Customer"} - Estimate ${estimate.DocNumber || estimate.Id}`;
+}
+
 export default function EstimatesPage() {
   const searchParams = useSearchParams();
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -535,7 +546,7 @@ export default function EstimatesPage() {
       customerId: estimate.CustomerRef?.value || "",
       customerName: estimate.CustomerRef?.name || "",
       address: estimateAddress,
-      title: `Schedule from Estimate ${estimate.DocNumber || estimate.Id}`,
+      title: buildEstimateScheduleTitle(estimate),
       amount: String(Number(estimate.TotalAmt || 0)),
       jobType: "installation",
     });

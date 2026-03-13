@@ -69,6 +69,7 @@ export default function JobsPage() {
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -146,6 +147,12 @@ export default function JobsPage() {
     }));
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!selectedJob) return;
+    const nextSelectedJob = jobs.find((job) => job.id === selectedJob.id) || null;
+    setSelectedJob(nextSelectedJob);
+  }, [jobs, selectedJob]);
+
   const filteredJobs = jobs.filter((job) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q ||
@@ -221,7 +228,7 @@ export default function JobsPage() {
 
         <div className="flex-1 overflow-y-auto p-6"><div className="space-y-3">
           {filteredJobs.map((job) => (
-            <div key={job.id} className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            <button key={job.id} onClick={() => setSelectedJob(job)} className="w-full rounded-xl p-4 text-left" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{jobTypeIcons[job.jobType] || "📋"}</div>
@@ -238,7 +245,7 @@ export default function JobsPage() {
                 </div>
                 <div className="text-right"><div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>${Number(job.totalAmount || 0).toFixed(2)}</div></div>
               </div>
-            </div>
+            </button>
           ))}
         </div></div>
       </div>
@@ -285,6 +292,47 @@ export default function JobsPage() {
             <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Cancel</button>
               <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedJob(null)} />
+          <div className="relative w-full max-w-xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="px-6 py-4 flex items-start justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>{selectedJob.jobNumber}</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: statusColors[selectedJob.status]?.bg, color: statusColors[selectedJob.status]?.text, border: `1px solid ${statusColors[selectedJob.status]?.border}` }}>{selectedJob.status.replace("_", " ").toUpperCase()}</span>
+                </div>
+                <h2 className="font-bold text-lg mt-2" style={{ color: "var(--color-text-primary)" }}>{selectedJob.title}</h2>
+              </div>
+              <button onClick={() => setSelectedJob(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Customer</div>
+                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.customerName}</div>
+                <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{selectedJob.propertyAddress || "No property address"}</div>
+              </div>
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Schedule</div>
+                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.scheduledDate || "No date set"}</div>
+                <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{selectedJob.scheduledTimeStart} - {selectedJob.scheduledTimeEnd}</div>
+              </div>
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Type</div>
+                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.jobType}</div>
+                <div className="text-sm mt-2" style={{ color: priorityColors[selectedJob.priority]?.text || "var(--color-text-secondary)" }}>{selectedJob.priority.toUpperCase()} priority</div>
+              </div>
+              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Assigned Techs</div>
+                <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>
+                  {selectedJob.assignedTechs.length ? selectedJob.assignedTechs.map((tech) => tech.name).join(", ") : "Unassigned"}
+                </div>
+              </div>
             </div>
           </div>
         </div>

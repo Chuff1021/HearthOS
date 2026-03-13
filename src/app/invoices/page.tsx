@@ -95,6 +95,22 @@ function recalcLineItem(item: InvoiceLineItem): InvoiceLineItem {
   };
 }
 
+function buildInvoiceScheduleTitle(invoice: Invoice) {
+  const existingTitle = (invoice.jobTitle || "").trim();
+  if (existingTitle && existingTitle.toLowerCase() !== "new job") {
+    return existingTitle;
+  }
+
+  const firstLine = invoice.lineItems
+    .map((line) => line.description.trim())
+    .find(Boolean);
+  if (firstLine) {
+    return `${invoice.customerName} - ${firstLine}`;
+  }
+
+  return `${invoice.customerName} - Invoice ${invoice.invoiceNumber}`;
+}
+
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
   sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
@@ -675,7 +691,7 @@ export default function InvoicesPage() {
       customerId: invoice.customerId,
       customerName: invoice.customerName,
       address: customerAddress,
-      title: invoice.jobTitle || `Schedule from Invoice ${invoice.invoiceNumber}`,
+      title: buildInvoiceScheduleTitle(invoice),
       amount: String(invoice.totalAmount),
       jobType: "installation",
     });
