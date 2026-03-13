@@ -142,6 +142,24 @@ function normalizeJob(raw: any): Job {
   const rawScheduledDate = raw?.scheduledDate ?? raw?.scheduled_date ?? payload?.scheduledDate;
   const rawScheduledTimeStart = raw?.scheduledTimeStart ?? raw?.scheduled_time_start ?? payload?.scheduledTimeStart;
   const rawStatus = raw?.status ?? payload?.status;
+  const normalizedDate = typeof rawScheduledDate === "string"
+    ? rawScheduledDate.includes("T")
+      ? rawScheduledDate.split("T")[0]
+      : rawScheduledDate
+    : rawScheduledDate instanceof Date
+      ? rawScheduledDate.toISOString().split("T")[0]
+      : "";
+  const normalizedStartTime = typeof rawScheduledTimeStart === "string"
+    ? rawScheduledTimeStart.slice(0, 5)
+    : rawScheduledTimeStart instanceof Date
+      ? rawScheduledTimeStart.toISOString().slice(11, 16)
+      : "09:00";
+  const rawScheduledTimeEnd = raw?.scheduledTimeEnd ?? payload?.scheduledTimeEnd;
+  const normalizedEndTime = typeof rawScheduledTimeEnd === "string"
+    ? rawScheduledTimeEnd.slice(0, 5)
+    : rawScheduledTimeEnd instanceof Date
+      ? rawScheduledTimeEnd.toISOString().slice(11, 16)
+      : "10:00";
   return {
     id: String(rawId || ""),
     jobNumber: String(rawJobNumber || ""),
@@ -153,9 +171,9 @@ function normalizeJob(raw: any): Job {
     jobType: (raw.jobType ?? payload?.jobType ?? "service") as JobType,
     status: (rawStatus || "scheduled") as JobStatus,
     priority: (raw.priority || "normal") as JobPriority,
-    scheduledDate: String(rawScheduledDate || ""),
-    scheduledTimeStart: String(rawScheduledTimeStart || "09:00"),
-    scheduledTimeEnd: String(raw.scheduledTimeEnd ?? payload?.scheduledTimeEnd ?? "10:00"),
+    scheduledDate: normalizedDate,
+    scheduledTimeStart: normalizedStartTime,
+    scheduledTimeEnd: normalizedEndTime,
     assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : Array.isArray(payload?.assignedTechs) ? payload.assignedTechs : [],
     totalAmount: Number(raw.totalAmount ?? payload?.totalAmount ?? 0),
     notes: raw.notes || payload?.notes ? String(raw.notes ?? payload?.notes) : undefined,
