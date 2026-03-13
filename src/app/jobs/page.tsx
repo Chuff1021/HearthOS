@@ -22,6 +22,7 @@ type Job = {
   scheduledTimeEnd: string;
   assignedTechs: Array<{ id: string; name: string; color: string }>;
   totalAmount: number;
+  notes?: string;
 };
 
 type Tech = { id: string; name: string; color: string };
@@ -66,6 +67,16 @@ function buildPrefillTitle(prefillTitle: string | null, customerName: string | n
   return cleanedCustomer ? `${cleanedCustomer} - ${cleanedType}` : "New Job";
 }
 
+function formatTimeLabel(value: string) {
+  const [hoursRaw, minutesRaw] = value.split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw || 0);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return value;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const normalizedHours = hours % 12 || 12;
+  return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -78,7 +89,20 @@ export default function JobsPage() {
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [editingJob, setEditingJob] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    propertyAddress: "",
+    jobType: "service",
+    priority: "normal",
+    scheduledDate: "",
+    scheduledTimeStart: "09:00",
+    scheduledTimeEnd: "10:00",
+    notes: "",
+    assignedTechs: [] as string[],
+  });
   const [creating, setCreating] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -161,6 +185,24 @@ export default function JobsPage() {
     setSelectedJob(nextSelectedJob);
   }, [jobs, selectedJob]);
 
+  useEffect(() => {
+    if (!selectedJob) {
+      setEditingJob(false);
+      return;
+    }
+    setEditForm({
+      title: selectedJob.title,
+      propertyAddress: selectedJob.propertyAddress || "",
+      jobType: selectedJob.jobType || "service",
+      priority: selectedJob.priority || "normal",
+      scheduledDate: selectedJob.scheduledDate || new Date().toISOString().split("T")[0],
+      scheduledTimeStart: selectedJob.scheduledTimeStart || "09:00",
+      scheduledTimeEnd: selectedJob.scheduledTimeEnd || "10:00",
+      notes: selectedJob.notes || "",
+      assignedTechs: selectedJob.assignedTechs.map((tech) => tech.id),
+    });
+  }, [selectedJob]);
+
   const filteredJobs = jobs.filter((job) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q ||
@@ -218,6 +260,37 @@ export default function JobsPage() {
     if (!res.ok) return;
     setSelectedJob(null);
     await loadJobs();
+  }
+
+  async function handleSaveJobEdits() {
+    if (!selectedJob) return;
+    setSavingEdit(true);
+    try {
+      const assignedTechs = techs
+        .filter((tech) => editForm.assignedTechs.includes(tech.id))
+        .map((tech) => ({ id: tech.id, name: tech.name, color: tech.color }));
+      const res = await fetch("/api/jobs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedJob.id,
+          title: editForm.title,
+          propertyAddress: editForm.propertyAddress,
+          jobType: editForm.jobType,
+          priority: editForm.priority,
+          scheduledDate: editForm.scheduledDate,
+          scheduledTimeStart: editForm.scheduledTimeStart,
+          scheduledTimeEnd: editForm.scheduledTimeEnd,
+          notes: editForm.notes,
+          assignedTechs,
+        }),
+      });
+      if (!res.ok) return;
+      setEditingJob(false);
+      await loadJobs();
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   return (
@@ -326,8 +399,59 @@ export default function JobsPage() {
                 </div>
                 <h2 className="font-bold text-lg mt-2" style={{ color: "var(--color-text-primary)" }}>{selectedJob.title}</h2>
               </div>
-              <button onClick={() => setSelectedJob(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+              <div className="flex items-center gap-2">
+                {editingJob ? (
+                  <>
+                    <button onClick={() => setEditingJob(false)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Cancel</button>
+                    <button onClick={handleSaveJobEdits} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>
+                      {savingEdit ? "Saving..." : "Save"}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setEditingJob(true)} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>
+                    Edit
+                  </button>
+                )}
+                <button onClick={() => setSelectedJob(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+              </div>
             </div>
+            {editingJob ? (
+              <div className="p-6 space-y-4">
+                <input value={editForm.title} onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <input value={editForm.propertyAddress} onChange={(e) => setEditForm((prev) => ({ ...prev, propertyAddress: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <div className="grid grid-cols-2 gap-4">
+                  <select value={editForm.jobType} onChange={(e) => setEditForm((prev) => ({ ...prev, jobType: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                    <option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
+                  </select>
+                  <select value={editForm.priority} onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                    <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <input type="date" value={editForm.scheduledDate} onChange={(e) => setEditForm((prev) => ({ ...prev, scheduledDate: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  <TimeSelect value={editForm.scheduledTimeStart} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeStart: value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  <TimeSelect value={editForm.scheduledTimeEnd} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeEnd: value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <textarea value={editForm.notes} onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <div className="flex flex-wrap gap-2">
+                  {techs.map((tech) => (
+                    <label key={tech.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.assignedTechs.includes(tech.id)}
+                        onChange={(e) => setEditForm((prev) => ({
+                          ...prev,
+                          assignedTechs: e.target.checked
+                            ? [...prev.assignedTechs, tech.id]
+                            : prev.assignedTechs.filter((id) => id !== tech.id),
+                        }))}
+                      />
+                      <span className="text-sm">{tech.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Customer</div>
@@ -337,7 +461,7 @@ export default function JobsPage() {
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Schedule</div>
                 <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.scheduledDate || "No date set"}</div>
-                <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{selectedJob.scheduledTimeStart} - {selectedJob.scheduledTimeEnd}</div>
+                <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{formatTimeLabel(selectedJob.scheduledTimeStart)} - {formatTimeLabel(selectedJob.scheduledTimeEnd)}</div>
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Type</div>
@@ -351,6 +475,7 @@ export default function JobsPage() {
                 </div>
               </div>
             </div>
+            )}
             <div className="px-6 pb-6 flex justify-end">
               <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
                 Delete Job
