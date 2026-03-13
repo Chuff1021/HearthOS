@@ -240,21 +240,35 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const hardDelete = searchParams.get('hard') === 'true';
     if (!id) return NextResponse.json({ error: 'Tech ID required' }, { status: 400 });
 
     const dbCtx = await getDbCtx();
     if (dbCtx) {
-      await dbCtx.db.update(dbCtx.users).set({ isActive: false, updatedAt: new Date() }).where(dbCtx.eq(dbCtx.users.id, id));
+      if (hardDelete) {
+        await dbCtx.db.delete(dbCtx.users).where(dbCtx.eq(dbCtx.users.id, id));
+      } else {
+        await dbCtx.db.update(dbCtx.users).set({ isActive: false, updatedAt: new Date() }).where(dbCtx.eq(dbCtx.users.id, id));
+      }
 
-      // Mirror deactivation to file cache
+      // Mirror deletion/deactivation to file cache
       const cache = loadStore();
       const idx = cache.techs.findIndex((t) => t.id === id);
       if (idx >= 0) {
-        cache.techs[idx] = { ...cache.techs[idx], active: false };
+        if (hardDelete) {
+          cache.techs.splice(idx, 1);
+        } else {
+          cache.techs[idx] = { ...cache.techs[idx], active: false };
+        }
         saveStore(cache);
       }
 
-      appendMemoryEvent({ entity: 'tech', action: 'delete', entityId: id, summary: `Tech deactivated: ${id}` });
+      appendMemoryEvent({
+        entity: 'tech',
+        action: 'delete',
+        entityId: id,
+        summary: hardDelete ? `Tech hard-deleted: ${id}` : `Tech deactivated: ${id}`,
+      });
       return NextResponse.json({ success: true });
     }
 
