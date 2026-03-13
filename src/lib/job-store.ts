@@ -47,10 +47,21 @@ const JOBS_FILE = "jobs.json";
 let sqlClient: ReturnType<typeof postgres> | null = null;
 let initPromise: Promise<void> | null = null;
 
+function getDatabaseUrl() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    null
+  );
+}
+
 function getSql() {
-  if (!process.env.DATABASE_URL) return null;
+  const databaseUrl = getDatabaseUrl();
+  if (!databaseUrl) return null;
   if (!sqlClient) {
-    sqlClient = postgres(process.env.DATABASE_URL, {
+    sqlClient = postgres(databaseUrl, {
       max: 3,
       idle_timeout: 20,
       connect_timeout: 10,
