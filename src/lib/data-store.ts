@@ -53,6 +53,36 @@ export interface Invoice {
   updatedAt: string;
 }
 
+function recalculateInvoice(invoice: Invoice): Invoice {
+  const lineItems = (invoice.lineItems || []).map((line) => {
+    const qty = Number(line.qty || 0);
+    const unitPrice = Number(line.unitPrice || 0);
+    return {
+      ...line,
+      qty,
+      unitPrice,
+      total: qty * unitPrice,
+    };
+  });
+
+  const subtotal = lineItems.reduce((sum, line) => sum + line.total, 0);
+  const taxRate = Number(invoice.taxRate || 0);
+  const taxAmount = subtotal * (taxRate / 100);
+  const totalAmount = subtotal + taxAmount;
+  const alreadyPaid = Math.max(0, Number(invoice.totalAmount || 0) - Number(invoice.balance || 0));
+  const balance = invoice.status === 'paid' ? 0 : Math.max(0, totalAmount - alreadyPaid);
+
+  return {
+    ...invoice,
+    lineItems,
+    subtotal,
+    taxRate,
+    taxAmount,
+    totalAmount,
+    balance,
+  };
+}
+
 type Store = {
   customers: Customer[];
   invoices: Invoice[];
@@ -168,13 +198,13 @@ export function getInvoicesForCustomer(customerId: string): Invoice[] {
 
 export function createInvoice(data: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>): Invoice {
   const store = loadStore();
-  const invoice: Invoice = {
+  const invoice: Invoice = recalculateInvoice({
     ...data,
     id: `inv-${String(store.invoices.length + 1).padStart(3, '0')}`,
     invoiceNumber: `INV-${new Date().getFullYear()}-${String(store.nextInvoiceNum++).padStart(4, '0')}`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  };
+  });
   store.invoices.unshift(invoice);
   saveStore(store);
   return invoice;
@@ -184,7 +214,7 @@ export function updateInvoice(id: string, data: Partial<Invoice>): Invoice | nul
   const store = loadStore();
   const idx = store.invoices.findIndex((i) => i.id === id);
   if (idx === -1) return null;
-  store.invoices[idx] = { ...store.invoices[idx], ...data, updatedAt: new Date().toISOString() };
+  store.invoices[idx] = recalculateInvoice({ ...store.invoices[idx], ...data, updatedAt: new Date().toISOString() });
   saveStore(store);
   return store.invoices[idx];
 }

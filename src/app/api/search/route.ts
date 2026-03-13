@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     }));
 
   // Search local jobs
-  const jobs = getJobsFromApi();
+  const jobs = await getJobsFromApi();
   const matchedJobs = jobs
     .filter(
       (j) =>

@@ -84,6 +84,17 @@ function isWithinDateRange(value: string | undefined, from: string, to: string) 
   return true;
 }
 
+function recalcLineItem(item: InvoiceLineItem): InvoiceLineItem {
+  const qty = Math.max(0, Number(item.qty || 0));
+  const unitPrice = Math.max(0, Number(item.unitPrice || 0));
+  return {
+    ...item,
+    qty,
+    unitPrice,
+    total: qty * unitPrice,
+  };
+}
+
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   draft: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
   sent: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
@@ -412,6 +423,14 @@ export default function InvoicesPage() {
     }
   }, [filteredInvoices, selectedInvoice]);
 
+  useEffect(() => {
+    if (!selectedInvoice) return;
+    const refreshed = invoices.find((invoice) => invoice.id === selectedInvoice.id);
+    if (refreshed) {
+      setSelectedInvoice(refreshed);
+    }
+  }, [invoices, selectedInvoice?.id]);
+
   const totalOutstanding = dateFilteredInvoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);
   const totalOverdue = dateFilteredInvoices.filter((i) => i.status === "overdue").reduce((sum, i) => sum + i.balance, 0);
   const paidTotal = dateFilteredInvoices.filter((i) => i.status === "paid").reduce((sum, i) => sum + i.totalAmount, 0);
@@ -653,17 +672,26 @@ export default function InvoicesPage() {
 
   const handleSaveInvoiceEdits = async () => {
     if (!selectedInvoice) return;
+    const normalizedLines = selectedInvoice.lineItems
+      .map(recalcLineItem)
+      .filter((line) => line.description.trim().length > 0);
+
+    if (!normalizedLines.length) {
+      setError("At least one invoice line item is required");
+      return;
+    }
+
     try {
       const payload = {
         id: selectedInvoice.id,
         updates: {
           DueDate: selectedInvoice.dueDate,
           PrivateNote: selectedInvoice.notes || undefined,
-          Line: selectedInvoice.lineItems.map((li, idx) => ({
+          Line: normalizedLines.map((li, idx) => ({
             LineNum: idx + 1,
             Amount: li.qty * li.unitPrice,
             DetailType: "SalesItemLineDetail",
-            Description: li.description,
+            Description: li.partNumber ? `${li.description}\nPart: ${li.partNumber}` : li.description,
             SalesItemLineDetail: {
               ItemRef: li.itemId ? { value: li.itemId, name: li.itemName || li.partNumber || li.description } : undefined,
               Qty: li.qty,
@@ -680,22 +708,31 @@ export default function InvoicesPage() {
       });
 
       if (!qbRes.ok) {
-        await fetch("/api/invoices", {
+        const localRes = await fetch("/api/invoices", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: selectedInvoice.id,
             dueDate: selectedInvoice.dueDate,
             notes: selectedInvoice.notes,
-            lineItems: selectedInvoice.lineItems,
+            lineItems: normalizedLines,
           }),
         });
+        if (!localRes.ok) {
+          const localData = await localRes.json().catch(() => ({}));
+          throw new Error(localData.error || "Failed to update invoice");
+        }
+      } else {
+        const qbData = await qbRes.json().catch(() => ({}));
+        if (qbData?.invoice) {
+          setSelectedInvoice(qbData.invoice);
+        }
       }
 
       setEditMode(false);
-      fetchInvoices();
-    } catch {
-      setError("Failed to save invoice edits");
+      await fetchInvoices();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save invoice edits");
     }
   };
 
@@ -710,15 +747,9 @@ export default function InvoicesPage() {
   const handleSyncWithQuickBooks = async () => {
     setSyncing(true);
     try {
-      const res = await fetch("/api/quickbooks/invoices?sync=true", { method: "POST" });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        fetchInvoices();
-      }
-    } catch {
-      setError("Failed to sync with QuickBooks");
+      await fetchInvoices();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sync with QuickBooks");
     } finally {
       setSyncing(false);
     }
@@ -1007,7 +1038,26 @@ export default function InvoicesPage() {
 
                 {/* Line Items */}
                 <div>
-                  <h4 className="font-semibold text-sm mb-3" style={{ color: "var(--color-text-primary)" }}>Line Items</h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>Line Items</h4>
+                    {editMode ? (
+                      <button
+                        onClick={() =>
+                          setSelectedInvoice({
+                            ...selectedInvoice,
+                            lineItems: [
+                              ...selectedInvoice.lineItems,
+                              { id: `line-${Date.now()}`, description: "", itemId: "", qty: 1, unitPrice: 0, total: 0, partNumber: "" },
+                            ],
+                          })
+                        }
+                        className="text-xs font-semibold px-2 py-1 rounded-md"
+                        style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB" }}
+                      >
+                        Add Line
+                      </button>
+                    ) : null}
+                  </div>
                   <div className="space-y-2">
                     {selectedInvoice.lineItems.map((item, idx) => (
                       <div key={idx} className="flex items-start justify-between py-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -1088,6 +1138,16 @@ export default function InvoicesPage() {
                                   className="w-24 px-1 py-0.5 rounded"
                                   style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                                 />
+                                <button
+                                  onClick={() => {
+                                    const lineItems = selectedInvoice.lineItems.filter((_, lineIdx) => lineIdx !== idx);
+                                    setSelectedInvoice({ ...selectedInvoice, lineItems });
+                                  }}
+                                  className="ml-auto px-2 py-1 rounded text-[11px] font-semibold"
+                                  style={{ background: "rgba(255,68,0,0.12)", color: "#C2410C" }}
+                                >
+                                  Remove
+                                </button>
                               </div>
                             </div>
                           ) : (

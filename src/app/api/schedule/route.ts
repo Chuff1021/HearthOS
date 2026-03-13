@@ -22,8 +22,9 @@ export interface Tech {
   active: boolean;
 }
 
-function toScheduleJobs(): ScheduleJob[] {
-  return getJobs().flatMap((j) => {
+async function toScheduleJobs(): Promise<ScheduleJob[]> {
+  const jobs = await getJobs();
+  return jobs.flatMap((j) => {
     const startHour = Number((j.scheduledTimeStart || '09:00').split(':')[0] || 9);
     const endHour = Number((j.scheduledTimeEnd || '10:00').split(':')[0] || startHour + 1);
     const duration = Math.max(1, endHour - startHour);
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const techId = searchParams.get('techId');
 
-    let jobs = toScheduleJobs();
+    let jobs = await toScheduleJobs();
     if (techId) jobs = jobs.filter((j) => j.techId === techId);
 
     const technicians: Tech[] = getTechs().map((t) => ({

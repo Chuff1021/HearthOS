@@ -79,7 +79,7 @@ export interface QBInvoiceLine {
   LineNum?: number;
   Description?: string;
   Amount: number;
-  DetailType: 'SalesItemLineDetail' | 'DescriptionOnly';
+  DetailType: 'SalesItemLineDetail' | 'DescriptionOnly' | 'SubTotalLineDetail' | 'GroupLineDetail' | string;
   SalesItemLineDetail?: {
     ItemRef: {
       value: string;
@@ -91,6 +91,7 @@ export interface QBInvoiceLine {
       value: string;
     };
   };
+  SubTotalLineDetail?: Record<string, never>;
 }
 
 export interface QBInvoice {

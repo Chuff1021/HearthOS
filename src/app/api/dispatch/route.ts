@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import { getJobs } from "@/app/api/jobs/route";
+import { updateJobRecord } from "@/lib/job-store";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
 
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     const techs = [...baseTechs, ...unmappedLive];
 
-    const jobs = getJobs();
+    const jobs = await getJobs();
     const today = new Date().toISOString().split("T")[0];
 
     const unassignedJobs = jobs
@@ -150,7 +151,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "action=assign, techId, jobId are required" }, { status: 400 });
     }
 
-    const jobs = getJobs();
+    const jobs = await getJobs();
     const techs = await getTechDirectory();
     const tech = techs.find((t) => t.id === techId);
     const idx = jobs.findIndex((j) => j.id === jobId);
@@ -159,13 +160,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Job or tech not found" }, { status: 404 });
     }
 
-    jobs[idx] = {
-      ...jobs[idx],
+    const updated = await updateJobRecord(jobId, {
       assignedTechs: [{ id: tech.id, name: tech.name, color: tech.color }],
       updatedAt: new Date().toISOString(),
-    };
+    });
 
-    return NextResponse.json({ success: true, job: jobs[idx] });
+    return NextResponse.json({ success: true, job: updated });
   } catch (err) {
     console.error("Failed to update dispatch assignment:", err);
     return NextResponse.json({ error: "Failed to update dispatch assignment" }, { status: 500 });

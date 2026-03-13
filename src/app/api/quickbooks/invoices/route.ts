@@ -6,7 +6,8 @@ import {
   getTotalOutstanding,
   syncInvoices,
   createInvoiceInQuickBooks,
-  getClientFromTokens 
+  getClientFromTokens,
+  getSyncStatus,
 } from '@/lib/quickbooks/sync';
 import { transformInvoices, transformInvoice } from '@/lib/quickbooks/transform';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -101,6 +102,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    if ((body as any).action === 'sync') {
+      const client = getClientFromTokens(accessToken, refreshToken, realmId);
+      const fresh = await syncInvoices(client);
+      return NextResponse.json({
+        success: true,
+        invoices: transformInvoices(fresh),
+        total: fresh.length,
+        syncStatus: getSyncStatus(),
+      });
+    }
+
     if ((body as any).action === 'send') {
       if (!(body as any).id) {
         return NextResponse.json({ error: 'id is required to send invoice' }, { status: 400 });
@@ -125,6 +137,7 @@ export async function POST(request: NextRequest) {
       }
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
       const updated = await client.updateInvoice((body as any).id, (body as any).updates || {});
+      await syncInvoices(client);
       addAuditLog({
         entityType: 'invoice',
         entityId: (body as any).id,

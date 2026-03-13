@@ -48,11 +48,16 @@ function transformInvoiceLine(line: QBInvoiceLine, index: number) {
   };
 }
 
+function isEditableInvoiceLine(line: QBInvoiceLine) {
+  return line.DetailType === "SalesItemLineDetail" || line.DetailType === "DescriptionOnly";
+}
+
 /**
  * Transform QuickBooks Invoice to UI format
  */
 export function transformInvoice(qbInvoice: QBInvoice) {
-  const lineItems = qbInvoice.Line.map((line, index) => transformInvoiceLine(line, index));
+  const editableLines = (qbInvoice.Line || []).filter(isEditableInvoiceLine);
+  const lineItems = editableLines.map((line, index) => transformInvoiceLine(line, index));
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   
   // Calculate tax (QuickBooks may or may not have TxnTaxDetail)

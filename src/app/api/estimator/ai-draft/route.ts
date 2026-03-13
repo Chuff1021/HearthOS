@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     lines.push(line('Install Labor - Helper', 12, 85));
 
     // Pull historical signal (same family jobs)
-    const jobs = getJobs();
+    const jobs = await getJobs();
     const similar = jobs.filter((j) =>
       j.title.toLowerCase().includes('installation') ||
       j.title.toLowerCase().includes('fireplace') ||

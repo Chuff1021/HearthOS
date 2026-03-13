@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    const jobs = getJobs()
+    const jobs = (await getJobs())
       .filter((job) =>
         isAssignedToTech(
           job,
