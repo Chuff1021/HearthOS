@@ -12,6 +12,7 @@ type UiPayment = {
   status: 'completed' | 'pending' | 'failed' | 'refunded';
   paymentDate: string;
   transactionId?: string;
+  receiptUrl?: string;
   notes?: string;
 };
 
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
       status: mapStatus(p.status),
       paymentDate: p.updatedAt || p.createdAt,
       transactionId: p.id,
+      receiptUrl: p.receiptUrl,
       notes: 'From Square webhook cache',
     }));
 
@@ -128,6 +130,7 @@ export async function GET(request: NextRequest) {
         status: mapStatus(p?.status, refunded),
         paymentDate: p?.updated_at || p?.created_at || new Date().toISOString(),
         transactionId: p.id,
+        receiptUrl: p?.receipt_url,
         notes: p?.note,
       };
     });

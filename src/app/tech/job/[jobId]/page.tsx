@@ -435,7 +435,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setShowEstimateModal(true)}
                 className="bg-gradient-to-r from-blue-600 to-blue-700 py-3 rounded-xl text-sm font-medium"
@@ -448,6 +448,12 @@ export default function JobDetailPage() {
               >
                 Add Note
               </button>
+              <Link
+                href={`/tech/payments?customer=${encodeURIComponent(job.customer || "")}&invoice=${encodeURIComponent(job.id || "")}`}
+                className="bg-gradient-to-r from-orange-500 to-amber-500 py-3 rounded-xl text-sm font-medium text-center"
+              >
+                Take Payment
+              </Link>
             </div>
           </div>
         )}
