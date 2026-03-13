@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
@@ -44,11 +44,17 @@ function methodLabel(method: SquarePayment["method"]) {
 
 export default function TechPaymentsPage() {
   const searchParams = useSearchParams();
+  const cardContainerRef = useRef<HTMLDivElement | null>(null);
+  const cardInstanceRef = useRef<any>(null);
   const [payments, setPayments] = useState<SquarePayment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [chargingCard, setChargingCard] = useState(false);
+  const [squareReady, setSquareReady] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [form, setForm] = useState({
     amount: "",
     customerName: "",
@@ -57,6 +63,10 @@ export default function TechPaymentsPage() {
     buyerPhone: "",
     note: "",
   });
+
+  const squareAppId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "";
+  const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
+  const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
 
   useEffect(() => {
     setForm((prev) => ({
@@ -87,6 +97,59 @@ export default function TechPaymentsPage() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (!squareAppId || !squareLocationId || !cardContainerRef.current) return;
+
+    let cancelled = false;
+    const scriptId = "square-web-payments-sdk";
+    const scriptSrc =
+      squareEnv === "sandbox"
+        ? "https://sandbox.web.squarecdn.com/v1/square.js"
+        : "https://web.squarecdn.com/v1/square.js";
+
+    async function mountCard() {
+      try {
+        const squareWindow = window as any;
+        if (!squareWindow.Square) return;
+        const payments = squareWindow.Square.payments(squareAppId, squareLocationId);
+        const card = await payments.card();
+        if (cancelled) return;
+        await card.attach(cardContainerRef.current);
+        cardInstanceRef.current = card;
+        setSquareReady(true);
+      } catch {
+        if (!cancelled) {
+          setError("Failed to load Square card form.");
+          setSquareReady(false);
+        }
+      }
+    }
+
+    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (existing) {
+      void mountCard();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = scriptSrc;
+    script.async = true;
+    script.onload = () => {
+      void mountCard();
+    };
+    script.onerror = () => {
+      if (!cancelled) setError("Failed to load Square Web Payments SDK.");
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [squareAppId, squareLocationId, squareEnv]);
+
   const completedToday = useMemo(
     () => payments.filter((payment) => payment.status === "completed").reduce((sum, payment) => sum + payment.amount, 0),
     [payments]
@@ -95,6 +158,8 @@ export default function TechPaymentsPage() {
   async function createCheckout() {
     setError("");
     setCheckoutUrl("");
+    setReceiptUrl("");
+    setSuccessMessage("");
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Enter an amount greater than 0.");
@@ -125,6 +190,52 @@ export default function TechPaymentsPage() {
       setError(err instanceof Error ? err.message : "Failed to create Square checkout link");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function chargeCard() {
+    setError("");
+    setCheckoutUrl("");
+    setReceiptUrl("");
+    setSuccessMessage("");
+    const amount = Number(form.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter an amount greater than 0.");
+      return;
+    }
+    if (!cardInstanceRef.current) {
+      setError("Square card form is not ready yet.");
+      return;
+    }
+    try {
+      setChargingCard(true);
+      const tokenResult = await cardInstanceRef.current.tokenize();
+      if (tokenResult.status !== "OK") {
+        throw new Error("Card details are incomplete or invalid.");
+      }
+      const res = await fetch("/api/square/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          sourceId: tokenResult.token,
+          customerName: form.customerName || "Customer",
+          invoiceNumber: form.invoiceNumber || undefined,
+          buyerEmail: form.buyerEmail || undefined,
+          note: form.note || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to charge card");
+      }
+      setReceiptUrl(data.receiptUrl || "");
+      setSuccessMessage("Square payment captured.");
+      await loadPayments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to charge card");
+    } finally {
+      setChargingCard(false);
     }
   }
 
@@ -209,7 +320,7 @@ export default function TechPaymentsPage() {
           <div>
             <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Take a payment</div>
             <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-              This opens Square-hosted checkout on the tech’s phone. After the link is created, you can send it by text or email.
+              Enter the customer card with Square’s secure card form, or create a hosted payment link if you prefer to text/email it.
             </div>
           </div>
           <input
@@ -262,6 +373,22 @@ export default function TechPaymentsPage() {
             className="w-full px-3 py-3 rounded-xl resize-none"
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
+          <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Card entry</div>
+            <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              The tech can enter card number, expiration, CVV, and billing ZIP directly here using Square’s secure form.
+            </div>
+            <div ref={cardContainerRef} className="min-h-[96px] rounded-xl p-3" style={{ background: "#fff" }} />
+            <button
+              onClick={chargeCard}
+              disabled={chargingCard || !squareReady}
+              className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-60"
+              style={{ background: "#C2410C", color: "#fff" }}
+            >
+              {chargingCard ? "Processing Card..." : squareReady ? "Charge Card" : "Loading Card Form..."}
+            </button>
+          </div>
+
           <button
             onClick={createCheckout}
             disabled={creating}
@@ -270,6 +397,12 @@ export default function TechPaymentsPage() {
           >
             {creating ? "Creating Square link..." : "Create Square Payment Link"}
           </button>
+
+          {successMessage ? (
+            <div className="rounded-2xl p-4 text-sm" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.22)", color: "#15803D" }}>
+              {successMessage}
+            </div>
+          ) : null}
 
           {checkoutUrl ? (
             <div className="space-y-3 rounded-2xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -285,6 +418,26 @@ export default function TechPaymentsPage() {
                   Email
                 </button>
                 <button onClick={() => shareLink("Square payment link", checkoutUrl)} className="py-2 rounded-xl text-sm font-medium" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}>
+                  Share
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {receiptUrl ? (
+            <div className="space-y-3 rounded-2xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              <div className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Square receipt ready</div>
+              <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-sm break-all" style={{ color: "#C2410C" }}>
+                {receiptUrl}
+              </a>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => openText(receiptUrl, true)} className="py-2 rounded-xl text-sm font-medium" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}>
+                  Text Receipt
+                </button>
+                <button onClick={() => openEmail(receiptUrl, true)} className="py-2 rounded-xl text-sm font-medium" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}>
+                  Email Receipt
+                </button>
+                <button onClick={() => shareLink("Square receipt", receiptUrl)} className="py-2 rounded-xl text-sm font-medium" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}>
                   Share
                 </button>
               </div>
