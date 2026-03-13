@@ -144,7 +144,7 @@ export default function SchedulePage() {
     try {
       const [techRes, jobRes] = await Promise.all([
         fetch("/api/techs?activeOnly=true"),
-        fetch("/api/jobs?limit=500"),
+        fetch("/api/jobs?limit=1000"),
       ]);
       const techData = await techRes.json();
       const jobData = await jobRes.json();

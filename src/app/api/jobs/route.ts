@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const date = searchParams.get("date");
     const techId = searchParams.get("techId");
     const search = searchParams.get("search");
-    const limit = parseInt(searchParams.get("limit") || "100", 10);
+    const limit = parseInt(searchParams.get("limit") || "1000", 10);
 
     let filtered = await listJobs();
 

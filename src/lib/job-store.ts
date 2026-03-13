@@ -117,43 +117,61 @@ async function ensureTable() {
 }
 
 function normalizeJob(raw: any): Job {
+  const rawId = raw?.id ?? raw?.payload?.id;
+  const rawJobNumber = raw?.jobNumber ?? raw?.job_number ?? raw?.payload?.jobNumber;
+  const rawScheduledDate = raw?.scheduledDate ?? raw?.scheduled_date ?? raw?.payload?.scheduledDate;
+  const rawScheduledTimeStart = raw?.scheduledTimeStart ?? raw?.scheduled_time_start ?? raw?.payload?.scheduledTimeStart;
+  const rawStatus = raw?.status ?? raw?.payload?.status;
   return {
-    id: String(raw.id),
-    jobNumber: String(raw.jobNumber || ""),
-    title: String(raw.title || "New Job"),
-    customerId: String(raw.customerId || ""),
-    customerName: String(raw.customerName || ""),
-    propertyAddress: String(raw.propertyAddress || ""),
-    fireplaceUnit: raw.fireplaceUnit || undefined,
-    jobType: (raw.jobType || "service") as JobType,
-    status: (raw.status || "scheduled") as JobStatus,
+    id: String(rawId || ""),
+    jobNumber: String(rawJobNumber || ""),
+    title: String(raw.title ?? raw?.payload?.title ?? "New Job"),
+    customerId: String(raw.customerId ?? raw?.payload?.customerId ?? ""),
+    customerName: String(raw.customerName ?? raw?.payload?.customerName ?? ""),
+    propertyAddress: String(raw.propertyAddress ?? raw?.payload?.propertyAddress ?? ""),
+    fireplaceUnit: raw.fireplaceUnit || raw?.payload?.fireplaceUnit || undefined,
+    jobType: (raw.jobType ?? raw?.payload?.jobType ?? "service") as JobType,
+    status: (rawStatus || "scheduled") as JobStatus,
     priority: (raw.priority || "normal") as JobPriority,
-    scheduledDate: String(raw.scheduledDate || ""),
-    scheduledTimeStart: String(raw.scheduledTimeStart || "09:00"),
-    scheduledTimeEnd: String(raw.scheduledTimeEnd || "10:00"),
-    assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : [],
-    totalAmount: Number(raw.totalAmount || 0),
-    notes: raw.notes ? String(raw.notes) : undefined,
-    completedAt: raw.completedAt ? String(raw.completedAt) : undefined,
-    createdAt: String(raw.createdAt || new Date().toISOString()),
-    updatedAt: String(raw.updatedAt || new Date().toISOString()),
-    photos: Array.isArray(raw.photos) ? raw.photos : [],
+    scheduledDate: String(rawScheduledDate || ""),
+    scheduledTimeStart: String(rawScheduledTimeStart || "09:00"),
+    scheduledTimeEnd: String(raw.scheduledTimeEnd ?? raw?.payload?.scheduledTimeEnd ?? "10:00"),
+    assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : Array.isArray(raw?.payload?.assignedTechs) ? raw.payload.assignedTechs : [],
+    totalAmount: Number(raw.totalAmount ?? raw?.payload?.totalAmount ?? 0),
+    notes: raw.notes || raw?.payload?.notes ? String(raw.notes ?? raw?.payload?.notes) : undefined,
+    completedAt: raw.completedAt || raw?.payload?.completedAt ? String(raw.completedAt ?? raw?.payload?.completedAt) : undefined,
+    createdAt: String(raw.createdAt ?? raw?.created_at ?? raw?.payload?.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? raw?.updated_at ?? raw?.payload?.updatedAt ?? new Date().toISOString()),
+    photos: Array.isArray(raw.photos) ? raw.photos : Array.isArray(raw?.payload?.photos) ? raw.payload.photos : [],
   };
+}
+
+function isValidJob(job: Job) {
+  return Boolean(
+    job.id &&
+    job.jobNumber &&
+    job.title &&
+    job.title.toLowerCase() !== "new job" &&
+    job.customerName &&
+    job.scheduledDate
+  );
 }
 
 export async function listJobs(): Promise<Job[]> {
   const sql = getSql();
   if (!sql) {
-    return loadFileJobs();
+    return loadFileJobs().map((job) => normalizeJob(job)).filter(isValidJob);
   }
 
   await ensureTable();
-  const rows = await sql<{ payload: Job }[]>`
-    select payload
+  const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
+    select id, job_number, scheduled_date, scheduled_time_start, status, payload
     from hearth_jobs_store
     order by scheduled_date asc nulls last, scheduled_time_start asc nulls last, updated_at desc
   `;
-  return rows.map((row) => normalizeJob(row.payload));
+  return rows
+    .map((row) => normalizeJob({ ...row.payload, id: row.id, job_number: row.job_number, scheduled_date: row.scheduled_date, scheduled_time_start: row.scheduled_time_start, status: row.status }))
+    .filter(isValidJob);
 }
 
 export async function getJob(id: string): Promise<Job | null> {
@@ -163,8 +181,13 @@ export async function getJob(id: string): Promise<Job | null> {
   }
 
   await ensureTable();
-  const rows = await sql<{ payload: Job }[]>`select payload from hearth_jobs_store where id = ${id} limit 1`;
-  return rows[0] ? normalizeJob(rows[0].payload) : null;
+  const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
+    select id, job_number, scheduled_date, scheduled_time_start, status, payload
+    from hearth_jobs_store
+    where id = ${id}
+    limit 1
+  `;
+  return rows[0] ? normalizeJob({ ...rows[0].payload, id: rows[0].id, job_number: rows[0].job_number, scheduled_date: rows[0].scheduled_date, scheduled_time_start: rows[0].scheduled_time_start, status: rows[0].status }) : null;
 }
 
 function nextJobNumberFrom(jobs: Job[]) {

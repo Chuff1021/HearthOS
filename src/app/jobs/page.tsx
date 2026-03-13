@@ -58,6 +58,14 @@ function addMinutes(time: string, minutesToAdd: number) {
   return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
 }
 
+function buildPrefillTitle(prefillTitle: string | null, customerName: string | null, jobType: string | null) {
+  const cleanedTitle = (prefillTitle || "").trim();
+  if (cleanedTitle && cleanedTitle.toLowerCase() !== "new job") return cleanedTitle;
+  const cleanedCustomer = (customerName || "").trim();
+  const cleanedType = (jobType || "service").trim();
+  return cleanedCustomer ? `${cleanedCustomer} - ${cleanedType}` : "New Job";
+}
+
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -85,7 +93,7 @@ export default function JobsPage() {
   });
 
   async function loadJobs() {
-    const res = await fetch("/api/jobs");
+    const res = await fetch("/api/jobs?limit=1000");
     const data = await res.json();
     setJobs(data.jobs || []);
   }
@@ -141,7 +149,7 @@ export default function JobsPage() {
     }
     setFormData((prev) => ({
       ...prev,
-      title: prefillTitle || prev.title,
+      title: buildPrefillTitle(prefillTitle, prefillCustomerName, prefillJobType),
       propertyAddress: prefillAddress || prev.propertyAddress,
       jobType: (prefillJobType as any) || prev.jobType,
     }));
@@ -201,6 +209,15 @@ export default function JobsPage() {
     } finally {
       setCreating(false);
     }
+  }
+
+  async function handleDeleteJob(jobId: string) {
+    const ok = window.confirm("Delete this job?");
+    if (!ok) return;
+    const res = await fetch(`/api/jobs?id=${encodeURIComponent(jobId)}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setSelectedJob(null);
+    await loadJobs();
   }
 
   return (
@@ -324,7 +341,7 @@ export default function JobsPage() {
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Type</div>
-                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.jobType}</div>
+              <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.jobType}</div>
                 <div className="text-sm mt-2" style={{ color: priorityColors[selectedJob.priority]?.text || "var(--color-text-secondary)" }}>{selectedJob.priority.toUpperCase()} priority</div>
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -333,6 +350,11 @@ export default function JobsPage() {
                   {selectedJob.assignedTechs.length ? selectedJob.assignedTechs.map((tech) => tech.name).join(", ") : "Unassigned"}
                 </div>
               </div>
+            </div>
+            <div className="px-6 pb-6 flex justify-end">
+              <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
+                Delete Job
+              </button>
             </div>
           </div>
         </div>
