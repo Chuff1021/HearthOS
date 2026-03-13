@@ -190,7 +190,14 @@ export async function listJobs(): Promise<Job[]> {
     order by scheduled_date asc nulls last, scheduled_time_start asc nulls last, updated_at desc
   `;
   return rows
-    .map((row) => normalizeJob({ ...row.payload, id: row.id, job_number: row.job_number, scheduled_date: row.scheduled_date, scheduled_time_start: row.scheduled_time_start, status: row.status }))
+    .map((row) => normalizeJob({
+      id: row.id,
+      job_number: row.job_number,
+      scheduled_date: row.scheduled_date,
+      scheduled_time_start: row.scheduled_time_start,
+      status: row.status,
+      payload: row.payload,
+    }))
     .filter(isValidJob);
 }
 
@@ -207,7 +214,16 @@ export async function getJob(id: string): Promise<Job | null> {
     where id = ${id}
     limit 1
   `;
-  return rows[0] ? normalizeJob({ ...rows[0].payload, id: rows[0].id, job_number: rows[0].job_number, scheduled_date: rows[0].scheduled_date, scheduled_time_start: rows[0].scheduled_time_start, status: rows[0].status }) : null;
+  return rows[0]
+    ? normalizeJob({
+        id: rows[0].id,
+        job_number: rows[0].job_number,
+        scheduled_date: rows[0].scheduled_date,
+        scheduled_time_start: rows[0].scheduled_time_start,
+        status: rows[0].status,
+        payload: rows[0].payload,
+      })
+    : null;
 }
 
 function nextJobNumberFrom(jobs: Job[]) {
