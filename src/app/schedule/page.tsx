@@ -46,6 +46,14 @@ interface CustomerLookup {
 
 type SelectedCustomer = { id: string; name: string; address?: string } | null;
 
+function resolveCustomerName(
+  selectedCustomer: SelectedCustomer,
+  formCustomerName: string,
+  customerQuery: string
+) {
+  return (selectedCustomer?.name || formCustomerName || customerQuery || "").trim();
+}
+
 const JOB_TYPE_OPTIONS = [
   "Service Call",
   "Gas Service",
@@ -289,9 +297,10 @@ export default function SchedulePage() {
 
   function validateForm() {
     const errs: Record<string, string> = {};
+    const customerName = resolveCustomerName(selectedCustomer, form.customerName, customerQuery);
     if (!form.title.trim()) errs.title = "Job title is required";
     if (!form.jobType.trim()) errs.jobType = "Job type is required";
-    if (!form.customerName.trim()) errs.customerName = "Customer is required";
+    if (!customerName) errs.customerName = "Customer is required";
     if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
     if (!form.scheduledTimeStart) errs.scheduledTimeStart = "Start time is required";
@@ -367,6 +376,7 @@ export default function SchedulePage() {
     setSaving(true);
     setSaveError(null);
     try {
+      const customerName = resolveCustomerName(selectedCustomer, form.customerName, customerQuery);
       const assignedTechs = techs
         .filter((t) => form.assignedTechs.includes(t.id))
         .map((t) => ({ id: t.id, name: t.name, color: t.color }));
@@ -377,8 +387,8 @@ export default function SchedulePage() {
           title: form.title,
           jobType: form.jobType,
           priority: form.priority,
-          customerId: form.customerId || undefined,
-          customerName: form.customerName,
+          customerId: selectedCustomer?.id || form.customerId || undefined,
+          customerName,
           propertyAddress: form.propertyAddress,
           notes: form.notes || undefined,
           scheduledDate: form.scheduledDate,
@@ -665,10 +675,12 @@ export default function SchedulePage() {
                   onChange={(e) => {
                     setSelectedCustomer(null);
                     setCustomerQuery(e.target.value);
+                    setForm((f) => ({ ...f, customerId: "", customerName: e.target.value }));
                   }}
                   className="w-full px-3 py-2 rounded-lg"
-                  style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                  style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.customerName ? "#FF204E" : "var(--color-border)"}` }}
                 />
+                {formErrors.customerName && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.customerName}</p>}
                 {customerLoading && <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Looking up customers...</p>}
                 {customerLookupError && <p className="text-xs mt-1" style={{ color: "#FF4400" }}>{customerLookupError}</p>}
                 {customerResults.length > 0 && !selectedCustomer && (
