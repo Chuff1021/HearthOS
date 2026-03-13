@@ -128,32 +128,41 @@ async function ensureTable() {
 }
 
 function normalizeJob(raw: any): Job {
-  const rawId = raw?.id ?? raw?.payload?.id;
-  const rawJobNumber = raw?.jobNumber ?? raw?.job_number ?? raw?.payload?.jobNumber;
-  const rawScheduledDate = raw?.scheduledDate ?? raw?.scheduled_date ?? raw?.payload?.scheduledDate;
-  const rawScheduledTimeStart = raw?.scheduledTimeStart ?? raw?.scheduled_time_start ?? raw?.payload?.scheduledTimeStart;
-  const rawStatus = raw?.status ?? raw?.payload?.status;
+  const payload = typeof raw?.payload === "string"
+    ? (() => {
+        try {
+          return JSON.parse(raw.payload);
+        } catch {
+          return {};
+        }
+      })()
+    : raw?.payload || {};
+  const rawId = raw?.id ?? payload?.id;
+  const rawJobNumber = raw?.jobNumber ?? raw?.job_number ?? payload?.jobNumber;
+  const rawScheduledDate = raw?.scheduledDate ?? raw?.scheduled_date ?? payload?.scheduledDate;
+  const rawScheduledTimeStart = raw?.scheduledTimeStart ?? raw?.scheduled_time_start ?? payload?.scheduledTimeStart;
+  const rawStatus = raw?.status ?? payload?.status;
   return {
     id: String(rawId || ""),
     jobNumber: String(rawJobNumber || ""),
-    title: String(raw.title ?? raw?.payload?.title ?? "New Job"),
-    customerId: String(raw.customerId ?? raw?.payload?.customerId ?? ""),
-    customerName: String(raw.customerName ?? raw?.payload?.customerName ?? ""),
-    propertyAddress: String(raw.propertyAddress ?? raw?.payload?.propertyAddress ?? ""),
-    fireplaceUnit: raw.fireplaceUnit || raw?.payload?.fireplaceUnit || undefined,
-    jobType: (raw.jobType ?? raw?.payload?.jobType ?? "service") as JobType,
+    title: String(raw.title ?? payload?.title ?? "New Job"),
+    customerId: String(raw.customerId ?? payload?.customerId ?? ""),
+    customerName: String(raw.customerName ?? payload?.customerName ?? ""),
+    propertyAddress: String(raw.propertyAddress ?? payload?.propertyAddress ?? ""),
+    fireplaceUnit: raw.fireplaceUnit || payload?.fireplaceUnit || undefined,
+    jobType: (raw.jobType ?? payload?.jobType ?? "service") as JobType,
     status: (rawStatus || "scheduled") as JobStatus,
     priority: (raw.priority || "normal") as JobPriority,
     scheduledDate: String(rawScheduledDate || ""),
     scheduledTimeStart: String(rawScheduledTimeStart || "09:00"),
-    scheduledTimeEnd: String(raw.scheduledTimeEnd ?? raw?.payload?.scheduledTimeEnd ?? "10:00"),
-    assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : Array.isArray(raw?.payload?.assignedTechs) ? raw.payload.assignedTechs : [],
-    totalAmount: Number(raw.totalAmount ?? raw?.payload?.totalAmount ?? 0),
-    notes: raw.notes || raw?.payload?.notes ? String(raw.notes ?? raw?.payload?.notes) : undefined,
-    completedAt: raw.completedAt || raw?.payload?.completedAt ? String(raw.completedAt ?? raw?.payload?.completedAt) : undefined,
-    createdAt: String(raw.createdAt ?? raw?.created_at ?? raw?.payload?.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? raw?.updated_at ?? raw?.payload?.updatedAt ?? new Date().toISOString()),
-    photos: Array.isArray(raw.photos) ? raw.photos : Array.isArray(raw?.payload?.photos) ? raw.payload.photos : [],
+    scheduledTimeEnd: String(raw.scheduledTimeEnd ?? payload?.scheduledTimeEnd ?? "10:00"),
+    assignedTechs: Array.isArray(raw.assignedTechs) ? raw.assignedTechs : Array.isArray(payload?.assignedTechs) ? payload.assignedTechs : [],
+    totalAmount: Number(raw.totalAmount ?? payload?.totalAmount ?? 0),
+    notes: raw.notes || payload?.notes ? String(raw.notes ?? payload?.notes) : undefined,
+    completedAt: raw.completedAt || payload?.completedAt ? String(raw.completedAt ?? payload?.completedAt) : undefined,
+    createdAt: String(raw.createdAt ?? raw?.created_at ?? payload?.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? raw?.updated_at ?? payload?.updatedAt ?? new Date().toISOString()),
+    photos: Array.isArray(raw.photos) ? raw.photos : Array.isArray(payload?.photos) ? payload.photos : [],
   };
 }
 
