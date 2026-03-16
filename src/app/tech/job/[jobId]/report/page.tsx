@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getJob } from "@/lib/job-store";
 import { buildInitialChecklistForm, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
 import AutoPrint from "./AutoPrint";
+import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,7 @@ export default async function TechJobReportPage({
               <h1 style={{ margin: "8px 0 4px", fontSize: 28, lineHeight: 1.1, color: "#111827" }}>{template.title}</h1>
               <p style={{ margin: 0, color: "#6b7280" }}>{template.subtitle}</p>
             </div>
-            <button onClick={() => window.print()} style={{ padding: "10px 16px", borderRadius: 12, background: "#c2410c", color: "#fff", border: "none", fontWeight: 700 }}>
-              Print / Save PDF
-            </button>
+            <PrintButton />
           </div>
         </div>
 
