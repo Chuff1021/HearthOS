@@ -35,6 +35,15 @@ export interface Job {
   totalAmount: number;
   notes?: string;
   checklistItems?: Record<string, boolean>;
+  checklistForm?: {
+    templateId: string;
+    values: Record<string, string | boolean>;
+    customerName?: string;
+    technicianName?: string;
+    customerSignature?: string;
+    signedAt?: string;
+    updatedAt?: string;
+  };
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -191,6 +200,12 @@ function normalizeJob(raw: any): Job {
         ? raw.checklistItems
         : payload?.checklistItems && typeof payload.checklistItems === "object"
           ? payload.checklistItems
+          : undefined,
+    checklistForm:
+      raw.checklistForm && typeof raw.checklistForm === "object"
+        ? raw.checklistForm
+        : payload?.checklistForm && typeof payload.checklistForm === "object"
+          ? payload.checklistForm
           : undefined,
     completedAt: raw.completedAt || payload?.completedAt ? String(raw.completedAt ?? payload?.completedAt) : undefined,
     createdAt: String(raw.createdAt ?? raw?.created_at ?? payload?.createdAt ?? new Date().toISOString()),

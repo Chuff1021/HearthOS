@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
+import { buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId, type ChecklistForm } from "@/lib/job-checklists";
 
 const emptyJobData = {
   id: "",
@@ -22,28 +23,8 @@ const emptyJobData = {
   invoices: [],
   photos: [],
   checklistItems: {},
+  checklistForm: undefined,
 };
-
-const inspectionChecklist = [
-  { id: 1, task: "Visual inspection of unit exterior", required: true, photo: false },
-  { id: 2, task: "Check pilot light and ignition", required: true, photo: false },
-  { id: 3, task: "Inspect gas lines for leaks", required: true, photo: true },
-  { id: 4, task: "Clean glass and interior", required: true, photo: true },
-  { id: 5, task: "Check venting system", required: true, photo: true },
-  { id: 6, task: "Test thermostat/remote", required: true, photo: false },
-  { id: 7, task: "Verify proper combustion", required: true, photo: false },
-  { id: 8, task: "Final photo of completed work", required: true, photo: true },
-];
-
-const installationChecklist = [
-  { id: 1, task: "Verify unit matches order", required: true, photo: true },
-  { id: 2, task: "Install gas line connection", required: true, photo: true },
-  { id: 3, task: "Install venting system", required: true, photo: true },
-  { id: 4, task: "Connect electrical", required: true, photo: true },
-  { id: 5, task: "Test all functions", required: true, photo: false },
-  { id: 6, task: "Customer walkthrough", required: true, photo: false },
-  { id: 7, task: "Final installation photo", required: true, photo: true },
-];
 
 // Material catalog with unit prices
 const materialCatalog = [
@@ -78,7 +59,7 @@ interface MaterialUsed {
 }
 
 type ChecklistPhotoTarget = {
-  id: number;
+  id: string;
   task: string;
 };
 
@@ -113,7 +94,8 @@ export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
   const [activeTab, setActiveTab] = useState<"details" | "checklist" | "photos" | "customer">("details");
-  const [checklistItems, setChecklistItems] = useState<Record<number, boolean>>({});
+  const [checklistItems, setChecklistItems] = useState<Record<string, boolean>>({});
+  const [checklistForm, setChecklistForm] = useState<ChecklistForm | null>(null);
   const [showEstimateModal, setShowEstimateModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNote, setNewNote] = useState("");
@@ -129,8 +111,14 @@ export default function JobDetailPage() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const materialCounter = useRef(1000);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingSignatureRef = useRef(false);
 
-  const checklist = job.type === "Annual Inspection" ? inspectionChecklist : installationChecklist;
+  const checklistTemplateId = useMemo(
+    () => checklistForm?.templateId || inferChecklistTemplateId({ jobType: job.type, fireplaceType: job.fireplaceType, title: job.type }),
+    [checklistForm?.templateId, job.fireplaceType, job.type]
+  );
+  const checklistTemplate = useMemo(() => getChecklistTemplate(checklistTemplateId), [checklistTemplateId]);
 
   useEffect(() => {
     async function loadJob() {
@@ -140,18 +128,29 @@ export default function JobDetailPage() {
         const data = await res.json();
         const found = data.jobs?.[0];
         if (found) {
+          const inferredTemplateId = inferChecklistTemplateId({
+            jobType: found.jobType || found.title,
+            fireplaceType: found.fireplaceUnit?.type,
+            title: found.title,
+          });
+          const initialForm = found.checklistForm || buildInitialChecklistForm(inferredTemplateId);
           setJob((prev: any) => ({
             ...prev,
             id: found.id,
             customer: found.customerName || prev.customer,
             address: found.propertyAddress || prev.address,
             type: found.title || prev.type,
+            fireplace: found.fireplaceUnit?.nickname || found.fireplaceUnit?.brand || prev.fireplace,
+            fireplaceModel: found.fireplaceUnit?.model || prev.fireplaceModel,
+            fireplaceType: found.fireplaceUnit?.type || prev.fireplaceType,
             scheduled: `${found.scheduledDate} ${found.scheduledTimeStart}`,
             notes: found.notes || prev.notes,
             photos: found.photos || prev.photos || [],
             checklistItems: found.checklistItems || {},
+            checklistForm: initialForm,
           }));
           setChecklistItems(found.checklistItems || {});
+          setChecklistForm(initialForm);
         }
       } finally {
         setLoadingJob(false);
@@ -159,6 +158,19 @@ export default function JobDetailPage() {
     }
     if (jobId) loadJob();
   }, [jobId]);
+
+  useEffect(() => {
+    const canvas = signatureCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    if (!checklistForm?.customerSignature) return;
+    const image = new Image();
+    image.onload = () => {
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+    image.src = checklistForm.customerSignature;
+  }, [checklistForm?.customerSignature]);
 
   async function persistJobUpdates(updates: Record<string, unknown>) {
     const res = await fetch('/api/jobs', {
@@ -175,11 +187,14 @@ export default function JobDetailPage() {
       if (data.job.checklistItems) {
         setChecklistItems(data.job.checklistItems);
       }
+      if (data.job.checklistForm) {
+        setChecklistForm(data.job.checklistForm);
+      }
     }
     return data.job;
   }
 
-  const handleCheckItem = async (id: number) => {
+  const handleCheckItem = async (id: string) => {
     const nextChecklistItems = { ...checklistItems, [id]: !checklistItems[id] };
     setChecklistItems(nextChecklistItems);
     setJob((prev: any) => ({ ...prev, checklistItems: nextChecklistItems }));
@@ -190,8 +205,48 @@ export default function JobDetailPage() {
     }
   };
 
-  const completedCount = Object.values(checklistItems).filter(Boolean).length;
-  const progress = Math.round((completedCount / checklist.length) * 100);
+  const updateChecklistForm = async (fieldId: string, value: string | boolean) => {
+    const nextForm: ChecklistForm = {
+      ...(checklistForm || buildInitialChecklistForm(checklistTemplateId)),
+      templateId: checklistTemplateId,
+      values: {
+        ...(checklistForm?.values || {}),
+        [fieldId]: value,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    setChecklistForm(nextForm);
+    setJob((prev: any) => ({ ...prev, checklistForm: nextForm }));
+    try {
+      await persistJobUpdates({ checklistForm: nextForm });
+    } catch {
+      setActionMsg("Checklist form save failed. Try again.");
+    }
+  };
+
+  const updateChecklistMeta = async (patch: Partial<ChecklistForm>) => {
+    const nextForm: ChecklistForm = {
+      ...(checklistForm || buildInitialChecklistForm(checklistTemplateId)),
+      ...patch,
+      templateId: checklistTemplateId,
+      values: {
+        ...(checklistForm?.values || {}),
+        ...(patch.values || {}),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    setChecklistForm(nextForm);
+    setJob((prev: any) => ({ ...prev, checklistForm: nextForm }));
+    try {
+      await persistJobUpdates({ checklistForm: nextForm });
+    } catch {
+      setActionMsg("Checklist save failed. Try again.");
+    }
+  };
+
+  const completion = checklistCompletion(checklistForm);
+  const completedCount = completion.completed;
+  const progress = completion.percent;
 
   const handlePhotoCapture = () => {
     setPendingChecklistPhoto(null);
@@ -201,6 +256,58 @@ export default function JobDetailPage() {
   const handleChecklistPhotoCapture = (item: ChecklistPhotoTarget) => {
     setPendingChecklistPhoto(item);
     fileInputRef.current?.click();
+  };
+
+  const drawSignaturePoint = (clientX: number, clientY: number) => {
+    const canvas = signatureCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (!isDrawingSignatureRef.current) {
+      context.beginPath();
+      context.moveTo(x, y);
+      isDrawingSignatureRef.current = true;
+      return;
+    }
+    context.lineWidth = 2;
+    context.lineCap = "round";
+    context.strokeStyle = "#111827";
+    context.lineTo(x, y);
+    context.stroke();
+  };
+
+  const startSignature = (clientX: number, clientY: number) => {
+    isDrawingSignatureRef.current = false;
+    drawSignaturePoint(clientX, clientY);
+  };
+
+  const endSignature = () => {
+    isDrawingSignatureRef.current = false;
+  };
+
+  const saveSignature = async () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const signature = canvas.toDataURL("image/png");
+    await updateChecklistMeta({
+      customerSignature: signature,
+      signedAt: new Date().toISOString(),
+    });
+    setActionMsg("Customer signature saved.");
+  };
+
+  const clearSignature = async () => {
+    const canvas = signatureCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (canvas && context) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    await updateChecklistMeta({
+      customerSignature: "",
+      signedAt: undefined,
+    });
   };
 
   const handlePhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -462,11 +569,23 @@ export default function JobDetailPage() {
 
         {activeTab === "checklist" && (
           <div className="space-y-4">
-            {/* Progress Bar */}
             <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-400">Checklist Progress</span>
-                <span className="text-blue-600 font-medium">{completedCount}/{checklist.length} · {progress}%</span>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">{checklistTemplate.title}</div>
+                  <div className="text-xs text-gray-400 mt-1">{checklistTemplate.subtitle}</div>
+                </div>
+                <button
+                  onClick={() => window.open(`/tech/job/${jobId}/report`, "_blank", "noopener,noreferrer")}
+                  className="px-3 py-2 rounded-lg text-xs font-medium"
+                  style={{ background: "rgba(37,99,235,0.14)", color: "#2563EB" }}
+                >
+                  Preview PDF
+                </button>
+              </div>
+              <div className="flex justify-between text-sm mb-2 mt-4">
+                <span className="text-gray-400">Required Fields</span>
+                <span className="text-blue-600 font-medium">{completedCount}/{completion.total} · {progress}%</span>
               </div>
               <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
@@ -476,60 +595,166 @@ export default function JobDetailPage() {
               </div>
             </div>
 
-            {/* Checklist Items */}
-            <div className="space-y-2">
-              {checklist.map((item) => (
-                (() => {
-                  const checklistPhotos = (job.photos || []).filter((photo: any) => String(photo.checklistItemId || "") === String(item.id));
-                  return (
-                <div
-                  key={item.id}
-                  className={`bg-[var(--color-surface-1)] rounded-xl p-4 border ${
-                    checklistItems[item.id] ? "border-green-500/50" : "border-gray-800"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <button
-                      onClick={() => handleCheckItem(item.id)}
-                      className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                        checklistItems[item.id]
-                          ? "bg-green-500"
-                          : "border-2 border-gray-600"
-                      }`}
-                    >
-                      {checklistItems[item.id] && (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                    <div className="flex-1">
-                      <p className={`text-sm ${checklistItems[item.id] ? "line-through text-gray-500" : ""}`}>
-                        {item.task}
-                      </p>
-                      {item.photo && (
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          <button
-                            onClick={() => handleChecklistPhotoCapture({ id: item.id, task: item.task })}
-                            className="flex items-center gap-1 text-xs text-blue-600"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            {checklistPhotos.length ? `Add Photo (${checklistPhotos.length})` : "Photo Required"}
-                          </button>
-                          {checklistPhotos.length > 0 && (
-                            <span className="text-xs text-green-500">{checklistPhotos.length} saved</span>
-                          )}
+            <div className="space-y-4">
+              {checklistTemplate.sections.map((section) => (
+                <div key={section.id} className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-gray-800">
+                  <div className="mb-3">
+                    <h3 className="font-semibold">{section.title}</h3>
+                    {section.description ? <p className="text-xs text-gray-400 mt-1">{section.description}</p> : null}
+                  </div>
+                  <div className="space-y-3">
+                    {section.fields.map((field) => {
+                      const fieldValue = checklistForm?.values?.[field.id];
+                      const checklistPhotos = (job.photos || []).filter((photo: any) => String(photo.checklistItemId || "") === String(field.id));
+
+                      if (field.type === "checkbox") {
+                        return (
+                          <div key={field.id} className={`rounded-xl p-3 border ${Boolean(fieldValue) ? "border-green-500/50" : "border-gray-800"}`}>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => {
+                                  void handleCheckItem(field.id);
+                                  void updateChecklistForm(field.id, !Boolean(fieldValue));
+                                }}
+                                className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                  Boolean(fieldValue) ? "bg-green-500" : "border-2 border-gray-600"
+                                }`}
+                              >
+                                {Boolean(fieldValue) ? (
+                                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : null}
+                              </button>
+                              <div className="flex-1">
+                                <p className={`text-sm ${Boolean(fieldValue) ? "line-through text-gray-500" : ""}`}>
+                                  {field.label}
+                                  {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                  <button
+                                    onClick={() => handleChecklistPhotoCapture({ id: field.id, task: field.label })}
+                                    className="flex items-center gap-1 text-xs text-blue-600"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    {checklistPhotos.length ? `Add Photo (${checklistPhotos.length})` : "Add Photo"}
+                                  </button>
+                                  {checklistPhotos.length > 0 ? <span className="text-xs text-green-500">{checklistPhotos.length} saved</span> : null}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (field.type === "textarea") {
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </label>
+                            <textarea
+                              rows={4}
+                              value={String(fieldValue || "")}
+                              onChange={(event) => setChecklistForm((prev) => ({
+                                ...(prev || buildInitialChecklistForm(checklistTemplateId)),
+                                templateId: checklistTemplateId,
+                                values: { ...(prev?.values || {}), [field.id]: event.target.value },
+                              }))}
+                              onBlur={(event) => void updateChecklistForm(field.id, event.target.value)}
+                              placeholder={field.placeholder}
+                              className="w-full rounded-xl px-3 py-3 text-sm"
+                              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={field.id} className="space-y-2">
+                          <label className="text-sm font-medium">
+                            {field.label}
+                            {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                          </label>
+                          <input
+                            type="text"
+                            value={String(fieldValue || "")}
+                            onChange={(event) => setChecklistForm((prev) => ({
+                              ...(prev || buildInitialChecklistForm(checklistTemplateId)),
+                              templateId: checklistTemplateId,
+                              values: { ...(prev?.values || {}), [field.id]: event.target.value },
+                            }))}
+                            onBlur={(event) => void updateChecklistForm(field.id, event.target.value)}
+                            placeholder={field.placeholder}
+                            className="w-full rounded-xl px-3 py-3 text-sm"
+                            style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                          />
                         </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
-                  );
-                })()
               ))}
+            </div>
+
+            <div className="bg-[var(--color-surface-1)] rounded-xl p-4 border border-gray-800 space-y-3">
+              <h3 className="font-semibold">Customer Sign-Off</h3>
+              <input
+                type="text"
+                placeholder="Customer name"
+                value={checklistForm?.customerName || ""}
+                onChange={(event) => setChecklistForm((prev) => ({
+                  ...(prev || buildInitialChecklistForm(checklistTemplateId)),
+                  templateId: checklistTemplateId,
+                  customerName: event.target.value,
+                  values: { ...(prev?.values || {}) },
+                }))}
+                onBlur={(event) => void updateChecklistMeta({ customerName: event.target.value })}
+                className="w-full rounded-xl px-3 py-3 text-sm"
+                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+              />
+              <input
+                type="text"
+                placeholder="Technician name"
+                value={checklistForm?.technicianName || ""}
+                onChange={(event) => setChecklistForm((prev) => ({
+                  ...(prev || buildInitialChecklistForm(checklistTemplateId)),
+                  templateId: checklistTemplateId,
+                  technicianName: event.target.value,
+                  values: { ...(prev?.values || {}) },
+                }))}
+                onBlur={(event) => void updateChecklistMeta({ technicianName: event.target.value })}
+                className="w-full rounded-xl px-3 py-3 text-sm"
+                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+              />
+              <div className="rounded-xl border border-dashed border-gray-700 bg-white p-2">
+                <canvas
+                  ref={signatureCanvasRef}
+                  width={800}
+                  height={220}
+                  className="w-full h-36 rounded-lg touch-none"
+                  onPointerDown={(event) => startSignature(event.clientX, event.clientY)}
+                  onPointerMove={(event) => {
+                    if ((event.buttons & 1) !== 1) return;
+                    drawSignaturePoint(event.clientX, event.clientY);
+                  }}
+                  onPointerUp={endSignature}
+                  onPointerLeave={endSignature}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => void clearSignature()} className="flex-1 py-2 rounded-xl text-sm font-medium" style={{ background: "var(--color-surface-3)" }}>
+                  Clear Signature
+                </button>
+                <button onClick={() => void saveSignature()} className="flex-1 py-2 rounded-xl text-sm font-medium text-white" style={{ background: "#2563EB" }}>
+                  Save Signature
+                </button>
+              </div>
+              {checklistForm?.signedAt ? <div className="text-xs text-gray-400">Signed {new Date(checklistForm.signedAt).toLocaleString()}</div> : null}
             </div>
 
             {/* ─── Materials Used Section ─── */}
@@ -617,7 +842,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* Complete & Share Button */}
-            {progress === 100 && (
+            {progress === 100 && checklistForm?.customerSignature && (
               <button onClick={handleCompleteInspection} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
                 Complete &amp; Share Inspection
               </button>
