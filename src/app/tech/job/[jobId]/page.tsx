@@ -576,11 +576,11 @@ export default function JobDetailPage() {
                   <div className="text-xs text-gray-400 mt-1">{checklistTemplate.subtitle}</div>
                 </div>
                 <button
-                  onClick={() => window.open(`/tech/job/${jobId}/report`, "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open(`/tech/job/${jobId}/report?print=1`, "_blank", "noopener,noreferrer")}
                   className="px-3 py-2 rounded-lg text-xs font-medium"
                   style={{ background: "rgba(37,99,235,0.14)", color: "#2563EB" }}
                 >
-                  Preview PDF
+                  Generate PDF
                 </button>
               </div>
               <div className="flex justify-between text-sm mb-2 mt-4">
@@ -843,9 +843,17 @@ export default function JobDetailPage() {
 
             {/* Complete & Share Button */}
             {progress === 100 && checklistForm?.customerSignature && (
-              <button onClick={handleCompleteInspection} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
-                Complete &amp; Share Inspection
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => window.open(`/tech/job/${jobId}/report?print=1`, "_blank", "noopener,noreferrer")}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-4 rounded-xl font-semibold"
+                >
+                  Generate Customer PDF
+                </button>
+                <button onClick={handleCompleteInspection} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
+                  Complete &amp; Share Inspection
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getJob } from "@/lib/job-store";
 import { buildInitialChecklistForm, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
+import AutoPrint from "./AutoPrint";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,15 @@ function valueLabel(value: string | boolean | undefined) {
   return String(value || "").trim() || "—";
 }
 
-export default async function TechJobReportPage({ params }: { params: Promise<{ jobId: string }> }) {
+export default async function TechJobReportPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ jobId: string }>;
+  searchParams: Promise<{ print?: string }>;
+}) {
   const { jobId } = await params;
+  const resolvedSearchParams = await searchParams;
   const job = await getJob(jobId);
 
   if (!job) {
@@ -27,6 +35,7 @@ export default async function TechJobReportPage({ params }: { params: Promise<{ 
 
   return (
     <div style={{ background: "#f3f4f6", minHeight: "100vh", padding: "24px" }}>
+      <AutoPrint enabled={resolvedSearchParams.print === "1"} />
       <div style={{ maxWidth: 960, margin: "0 auto", background: "#fff", borderRadius: 20, boxShadow: "0 16px 48px rgba(15,23,42,0.12)", overflow: "hidden" }}>
         <div style={{ padding: 24, background: "linear-gradient(135deg, #fff7ed, #ffedd5)", borderBottom: "1px solid rgba(194,65,12,0.16)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
