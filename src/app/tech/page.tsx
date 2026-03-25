@@ -76,6 +76,7 @@ export default function TechApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState<"clock" | string | null>(null);
+  const [tab, setTab] = useState<"active" | "history">("active");
   const gps = useGpsStatus();
 
   const loadSession = async () => {
@@ -108,6 +109,11 @@ export default function TechApp() {
 
   const upcomingJobs = useMemo(
     () => (session?.jobs || []).filter((job) => !["completed", "cancelled"].includes(job.status)),
+    [session]
+  );
+
+  const completedJobs = useMemo(
+    () => (session?.jobs || []).filter((job) => ["completed", "cancelled"].includes(job.status)),
     [session]
   );
 
@@ -245,71 +251,173 @@ export default function TechApp() {
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>Assigned Jobs</h2>
-              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                {loading ? "Loading jobs..." : `${upcomingJobs.length} active jobs assigned to you`}
-              </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setTab("active")}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{
+                  background: tab === "active" ? "linear-gradient(135deg, #FF6A00, #F59E0B)" : "var(--color-surface-3)",
+                  color: tab === "active" ? "#fff" : "var(--color-text-muted)",
+                  border: tab === "active" ? "none" : "1px solid var(--color-border)",
+                }}
+              >
+                Active ({upcomingJobs.length})
+              </button>
+              <button
+                onClick={() => setTab("history")}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{
+                  background: tab === "history" ? "linear-gradient(135deg, #FF6A00, #F59E0B)" : "var(--color-surface-3)",
+                  color: tab === "history" ? "#fff" : "var(--color-text-muted)",
+                  border: tab === "history" ? "none" : "1px solid var(--color-border)",
+                }}
+              >
+                History ({completedJobs.length})
+              </button>
             </div>
             <Link href="/tech/profile" className="text-sm font-medium" style={{ color: "#C2410C" }}>
               Profile
             </Link>
           </div>
 
-          {loading ? (
-            <div className="rounded-2xl p-4 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
-              Loading your jobs...
-            </div>
-          ) : upcomingJobs.length === 0 ? (
-            <div className="rounded-2xl p-5 text-center" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>No jobs assigned right now</p>
-              <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>
-                Once dispatch assigns work to your team record, it will show here automatically.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {upcomingJobs.map((job) => {
-                const statusLabel =
-                  job.status === "in_progress" ? "In Progress" :
-                  job.status === "on_hold" ? "On Hold" :
-                  job.status === "scheduled" ? "Scheduled" :
-                  job.status;
+          {tab === "active" && (
+            <>
+              {loading ? (
+                <div className="rounded-2xl p-4 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                  Loading your jobs...
+                </div>
+              ) : upcomingJobs.length === 0 ? (
+                <div className="rounded-2xl p-5 text-center" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                  <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>No jobs assigned right now</p>
+                  <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>
+                    Once dispatch assigns work to your team record, it will show here automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingJobs.map((job) => {
+                    const statusLabel =
+                      job.status === "in_progress" ? "In Progress" :
+                      job.status === "on_hold" ? "On Hold" :
+                      job.status === "scheduled" ? "Scheduled" :
+                      job.status;
 
-                return (
-                  <div
-                    key={job.id}
-                    className="rounded-2xl p-4"
-                    style={{
-                      background: "var(--color-surface-1)",
-                      border: "1px solid var(--color-border)",
-                      boxShadow: "var(--shadow-subtle)",
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div>
-                        <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{job.customerName}</h3>
-                        <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{job.title}</p>
+                    return (
+                      <div
+                        key={job.id}
+                        className="rounded-2xl p-4"
+                        style={{
+                          background: "var(--color-surface-1)",
+                          border: "1px solid var(--color-border)",
+                          boxShadow: "var(--shadow-subtle)",
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div>
+                            <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{job.customerName}</h3>
+                            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{job.title}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="inline-flex px-2 py-1 rounded-full text-[11px] font-semibold" style={{ background: "rgba(255,106,0,0.10)", color: "#C2410C" }}>
+                              {statusLabel}
+                            </span>
+                            <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{formatSchedule(job)}</p>
+                          </div>
+                        </div>
+
+                        <p className="text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress}</p>
+                        {fireplaceLabel(job) ? (
+                          <p className="text-xs mb-3" style={{ color: "var(--color-text-muted)" }}>
+                            Unit: {fireplaceLabel(job)}
+                          </p>
+                        ) : null}
+
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/tech/job/${job.id}`}
+                            className="flex-1 text-center py-2 rounded-lg text-sm font-medium transition-colors"
+                            style={{
+                              background: "var(--color-surface-3)",
+                              color: "var(--color-text-primary)",
+                              border: "1px solid var(--color-border)",
+                            }}
+                          >
+                            View Details
+                          </Link>
+                          <button
+                            onClick={() => handleJobStatus(job)}
+                            disabled={!isClockedIn || busyAction === job.id}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${!isClockedIn ? "cursor-not-allowed opacity-50" : ""}`}
+                            style={{
+                              background: job.status === "in_progress" ? "rgba(22,163,74,0.14)" : "linear-gradient(135deg, #FF6A00, #F59E0B)",
+                              color: job.status === "in_progress" ? "#15803D" : "#fff",
+                            }}
+                          >
+                            {busyAction === job.id ? "Saving..." : job.status === "in_progress" ? "Complete Job" : "Start Job"}
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-flex px-2 py-1 rounded-full text-[11px] font-semibold" style={{ background: "rgba(255,106,0,0.10)", color: "#C2410C" }}>
-                          {statusLabel}
-                        </span>
-                        <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{formatSchedule(job)}</p>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === "history" && (
+            <>
+              {loading ? (
+                <div className="rounded-2xl p-4 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                  Loading job history...
+                </div>
+              ) : completedJobs.length === 0 ? (
+                <div className="rounded-2xl p-5 text-center" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                  <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>No completed jobs yet</p>
+                  <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>
+                    Completed and cancelled jobs will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {completedJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="rounded-2xl p-4"
+                      style={{
+                        background: "var(--color-surface-1)",
+                        border: "1px solid var(--color-border)",
+                        opacity: job.status === "cancelled" ? 0.6 : 1,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                          <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{job.customerName}</h3>
+                          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{job.title}</p>
+                        </div>
+                        <div className="text-right">
+                          <span
+                            className="inline-flex px-2 py-1 rounded-full text-[11px] font-semibold"
+                            style={{
+                              background: job.status === "completed" ? "rgba(22,163,74,0.12)" : "rgba(239,68,68,0.12)",
+                              color: job.status === "completed" ? "#15803D" : "#DC2626",
+                            }}
+                          >
+                            {job.status === "completed" ? "Completed" : "Cancelled"}
+                          </span>
+                          <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{formatSchedule(job)}</p>
+                        </div>
                       </div>
-                    </div>
 
-                    <p className="text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress}</p>
-                    {fireplaceLabel(job) ? (
-                      <p className="text-xs mb-3" style={{ color: "var(--color-text-muted)" }}>
-                        Unit: {fireplaceLabel(job)}
-                      </p>
-                    ) : null}
+                      <p className="text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress}</p>
+                      {fireplaceLabel(job) ? (
+                        <p className="text-xs mb-2" style={{ color: "var(--color-text-muted)" }}>
+                          Unit: {fireplaceLabel(job)}
+                        </p>
+                      ) : null}
 
-                    <div className="flex items-center gap-2">
                       <Link
                         href={`/tech/job/${job.id}`}
-                        className="flex-1 text-center py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="block text-center py-2 rounded-lg text-sm font-medium transition-colors"
                         style={{
                           background: "var(--color-surface-3)",
                           color: "var(--color-text-primary)",
@@ -318,22 +426,11 @@ export default function TechApp() {
                       >
                         View Details
                       </Link>
-                      <button
-                        onClick={() => handleJobStatus(job)}
-                        disabled={!isClockedIn || busyAction === job.id}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${!isClockedIn ? "cursor-not-allowed opacity-50" : ""}`}
-                        style={{
-                          background: job.status === "in_progress" ? "rgba(22,163,74,0.14)" : "linear-gradient(135deg, #FF6A00, #F59E0B)",
-                          color: job.status === "in_progress" ? "#15803D" : "#fff",
-                        }}
-                      >
-                        {busyAction === job.id ? "Saving..." : job.status === "in_progress" ? "Complete Job" : "Start Job"}
-                      </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
