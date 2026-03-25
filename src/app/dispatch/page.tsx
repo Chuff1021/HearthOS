@@ -39,6 +39,7 @@ export default function DispatchPage() {
   const [techs, setTechs] = useState<Tech[]>([]);
   const [unassignedJobs, setUnassignedJobs] = useState<UnassignedJob[]>([]);
   const [selectedTechId, setSelectedTechId] = useState<string>("");
+  const selectedTechIdRef = useRef<string>("");
   const [loading, setLoading] = useState(true);
   const [gpsDebug, setGpsDebug] = useState<{ latestLocationCount: number; unmappedLiveCount: number } | null>(null);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
@@ -114,6 +115,11 @@ export default function DispatchPage() {
     return haversineMiles(p, proj);
   }
 
+  // Keep ref in sync so the polling interval always has the current value
+  useEffect(() => {
+    selectedTechIdRef.current = selectedTechId;
+  }, [selectedTechId]);
+
   async function loadDispatch() {
     setLoading(true);
     try {
@@ -122,7 +128,10 @@ export default function DispatchPage() {
       setTechs(data.techs || []);
       setUnassignedJobs(data.unassignedJobs || []);
       setGpsDebug(data.gpsDebug || null);
-      if (!selectedTechId && data.techs?.length) setSelectedTechId(data.techs[0].id);
+      // Only auto-select first tech if nothing is selected yet
+      if (!selectedTechIdRef.current && data.techs?.length) {
+        setSelectedTechId(data.techs[0].id);
+      }
     } finally {
       setLoading(false);
     }
@@ -445,7 +454,7 @@ export default function DispatchPage() {
               <div ref={mapContainerRef} className="absolute inset-0" />
               {liveTechs.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
-                  No live GPS ping yet. Open Tech Profile on phone, allow location, tap Register Me as Tech, and keep tracking enabled.
+                  No live GPS pings yet. Techs need to clock in on their phone app to start GPS tracking.
                 </div>
               )}
             </div>
