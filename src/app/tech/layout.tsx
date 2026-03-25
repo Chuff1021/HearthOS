@@ -4,6 +4,7 @@ import { isClerkConfigured } from "@/lib/auth";
 import TechAuthGate from "@/components/tech/TechAuthGate";
 import TechPwaProvider from "@/components/tech/TechPwaProvider";
 import TechRuntimeProvider from "@/components/tech/TechRuntimeProvider";
+import { GpsStatusProvider } from "@/components/tech/GpsStatusContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -45,8 +46,10 @@ export default function TechLayout({
         <TechPwaProvider />
         {clerkEnabled ? (
           <TechAuthGate>
-            <TechRuntimeProvider />
-            {children}
+            <GpsStatusProvider>
+              <TechRuntimeProvider />
+              {children}
+            </GpsStatusProvider>
           </TechAuthGate>
         ) : (
           children

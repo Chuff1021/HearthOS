@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import TechBottomNav from "@/components/tech/TechBottomNav";
+import { useGpsStatus } from "@/components/tech/GpsStatusContext";
 
 type TechJob = {
   id: string;
@@ -75,6 +76,7 @@ export default function TechApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState<"clock" | string | null>(null);
+  const gps = useGpsStatus();
 
   const loadSession = async () => {
     setLoading(true);
@@ -170,16 +172,16 @@ export default function TechApp() {
             </p>
           </div>
           <div className="text-right">
-            <div className="flex items-center justify-end gap-1 text-xs" style={{ color: session?.latestLocation ? "#15803D" : "var(--color-text-muted)" }}>
+            <div className="flex items-center justify-end gap-1 text-xs" style={{ color: gps.isTracking ? "#15803D" : "var(--color-text-muted)" }}>
               <div
-                className={`w-2 h-2 rounded-full ${session?.latestLocation ? "animate-pulse" : ""}`}
-                style={{ background: session?.latestLocation ? "#16A34A" : "var(--color-text-muted)" }}
+                className={`w-2 h-2 rounded-full ${gps.isTracking ? "animate-pulse" : ""}`}
+                style={{ background: gps.isTracking ? "#16A34A" : "var(--color-text-muted)" }}
               />
-              {session?.latestLocation ? "GPS Live" : "GPS Pending"}
+              {gps.isTracking ? "GPS Live" : "GPS Off"}
             </div>
-            {session?.latestLocation ? (
+            {gps.lastPingAt ? (
               <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
-                Last ping {formatTime(session.latestLocation.timestamp)}
+                Last ping {formatTime(gps.lastPingAt)}
               </p>
             ) : null}
           </div>

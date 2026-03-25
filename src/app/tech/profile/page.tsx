@@ -1,32 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
 import TechBottomNav from "@/components/tech/TechBottomNav";
-
-const GPS_ENABLED_KEY = "hearth-tech-gps-enabled";
-const GPS_TRACKING_KEY = "hearth-tech-is-tracking";
+import { useGpsStatus } from "@/components/tech/GpsStatusContext";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [techId, setTechId] = useState<string>("");
+  const gps = useGpsStatus();
+
   const [requestType, setRequestType] = useState<"paid_vacation" | "unpaid_vacation" | "unpaid_appointment_time">("paid_vacation");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [requestReason, setRequestReason] = useState("");
   const [requestStatus, setRequestStatus] = useState<string>("");
-  const [locationLabel, setLocationLabel] = useState<string>("Waiting for GPS...");
-  const [gpsError, setGpsError] = useState<string>("");
-  const [gpsState, setGpsState] = useState<string>("unknown");
-  const [lastGpsPingAt, setLastGpsPingAt] = useState<string>("");
-  const [techLinkStatus, setTechLinkStatus] = useState<string>("");
-  const [linkedTechName, setLinkedTechName] = useState<string>("");
-  const [linkedTechEmail, setLinkedTechEmail] = useState<string>("");
   const [todayStats, setTodayStats] = useState({
     jobsCompleted: 0,
     hoursWorked: "0h 00m",
@@ -34,128 +24,20 @@ export default function ProfilePage() {
     clockIn: "--",
   });
   const [isClockedIn, setIsClockedIn] = useState(false);
-  const watchRef = useRef<number | null>(null);
+  const [techId, setTechId] = useState<string>("");
+  const [techName, setTechName] = useState<string>("");
+  const [techEmail, setTechEmail] = useState<string>("");
 
   const handleSignOut = async () => {
     await signOut({ redirectUrl: "/sign-in" });
   };
 
-  // Prefer linked team record name over generic auth profile names
   const authName = user?.fullName || user?.firstName || user?.username || "";
-  const userName = linkedTechName || authName || "Service Tech";
-  const userEmail = linkedTechEmail || user?.primaryEmailAddress?.emailAddress || "";
+  const userName = techName || authName || "Service Tech";
+  const userEmail = techEmail || user?.primaryEmailAddress?.emailAddress || "";
   const userInitials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
-  const [isTracking, setIsTracking] = useState(true);
 
-  // Derived state
-  const effectiveTracking = gpsEnabled && isTracking && isClockedIn;
-  const currentLocation = effectiveTracking ? locationLabel : null;
-
-  async function ensureTechProfile(forceCreate = false) {
-    try {
-      if (!isLoaded) return;
-      setTechLinkStatus('Linking tech account...');
-
-      // 1) Persistent account-linked tech ID (strongest mapping)
-      const linkedTechId = user?.unsafeMetadata?.techId as string | undefined;
-      if (linkedTechId && !forceCreate) {
-        setTechId(linkedTechId);
-        const r = await fetch('/api/techs?activeOnly=true');
-        const d = await r.json().catch(() => ({}));
-        const m = (d.techs || []).find((t: any) => t.id === linkedTechId);
-        if (m?.name) setLinkedTechName(m.name);
-        if (m?.email) setLinkedTechEmail(m.email);
-        setTechLinkStatus('Tech linked via account metadata.');
-        return;
-      }
-
-      const res = await fetch('/api/techs?activeOnly=true');
-      const data = await res.json();
-      const list = data.techs || [];
-
-      // 2) Exact email match
-      const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-      let match = email ? list.find((t: any) => String(t.email || '').toLowerCase() === email) : null;
-
-      // 3) Full name/first-name fallback
-      if (!match) {
-        const nameLower = (user?.fullName || user?.firstName || '').toLowerCase();
-        match = list.find((t: any) =>
-          nameLower && (
-            String(t.name || '').toLowerCase() === nameLower ||
-            nameLower.includes(String(t.name || '').split(' ')[0].toLowerCase())
-          )
-        );
-      }
-
-      if (match) {
-        setTechId(match.id);
-        setLinkedTechName(match.name || '');
-        setLinkedTechEmail(match.email || '');
-        try {
-          await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: match.id } });
-        } catch {
-          // non-fatal
-        }
-        setTechLinkStatus(`Tech linked: ${match.name}${forceCreate ? ' (re-linked)' : ''}`);
-        return;
-      }
-
-      // 4) Auto-create a tech profile for logged-in user if no match exists
-      const autoName = (user?.fullName || user?.firstName || 'Field Tech').trim();
-      const autoEmail = (user?.primaryEmailAddress?.emailAddress || '').trim().toLowerCase();
-      const fallbackEmail = autoEmail || `${String(user?.id || 'tech').replace(/[^a-zA-Z0-9_-]/g, '')}@local.hearthos`;
-
-      const createRes = await fetch('/api/techs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: autoName, email: fallbackEmail, phone: '', role: 'tech' }),
-      });
-      const createData = await createRes.json().catch(() => ({}));
-      if (createRes.ok && createData?.tech?.id) {
-        setTechId(createData.tech.id);
-        setLinkedTechName(createData.tech.name || '');
-        setLinkedTechEmail(createData.tech.email || '');
-        try {
-          await user?.update({ unsafeMetadata: { ...(user?.unsafeMetadata || {}), techId: createData.tech.id } });
-        } catch {
-          // non-fatal
-        }
-        setTechLinkStatus(`Tech profile ready: ${createData.tech.name}`);
-        return;
-      }
-
-      // Emergency fallback: still track GPS under account id so dispatch can see live pings
-      if (user?.id) {
-        setTechId(user.id);
-        setTechLinkStatus(`Tech record creation failed (${createData?.error || createRes.status}), using account tracking id.`);
-        return;
-      }
-
-      setTechLinkStatus(`Unable to auto-link tech profile (${createData?.error || createRes.status}). Use Register button below.`);
-    } catch (e) {
-      if (user?.id) {
-        setTechId(user.id);
-        setTechLinkStatus('Tech linking failed, using account tracking id for GPS.');
-      } else {
-        setTechLinkStatus(`Tech linking failed. ${e instanceof Error ? e.message : ''}`.trim());
-      }
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const savedGpsEnabled = window.localStorage.getItem(GPS_ENABLED_KEY);
-    const savedTracking = window.localStorage.getItem(GPS_TRACKING_KEY);
-    if (savedGpsEnabled !== null) setGpsEnabled(savedGpsEnabled === "true");
-    if (savedTracking !== null) setIsTracking(savedTracking === "true");
-  }, []);
-
-  useEffect(() => {
-    ensureTechProfile(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, user?.firstName, user?.fullName, user?.id, user?.unsafeMetadata, user?.primaryEmailAddress?.emailAddress]);
-
+  // Load profile stats + tech identity from /api/tech/me (server handles auto-link)
   useEffect(() => {
     if (!isLoaded) return;
     let cancelled = false;
@@ -166,6 +48,11 @@ export default function ProfilePage() {
         if (!res.ok) return;
         const data = await res.json().catch(() => null);
         if (!data || cancelled) return;
+
+        // Tech identity from server
+        if (data.tech?.id) setTechId(data.tech.id);
+        if (data.tech?.name) setTechName(data.tech.name);
+        if (data.tech?.email) setTechEmail(data.tech.email);
 
         const openClock = data.clockEntry?.clockInAt ? new Date(data.clockEntry.clockInAt) : null;
         const totalMinutes = openClock ? Math.max(0, Math.round((Date.now() - openClock.getTime()) / 60000)) : 0;
@@ -200,103 +87,35 @@ export default function ProfilePage() {
     };
   }, [isLoaded]);
 
-  useEffect(() => {
-    if (!gpsEnabled || !isTracking || !isClockedIn) {
-      if (watchRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchRef.current);
-        watchRef.current = null;
-      }
-      return;
-    }
-
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGpsError('Geolocation not supported on this device/browser.');
-      return;
-    }
-
-    const effectiveTechId = techId || user?.id || `user-${(userName || 'unknown').toLowerCase().replace(/\s+/g, '-')}`;
-
-    setGpsError('');
-    watchRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy, speed, heading } = pos.coords;
-        setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`);
-        setGpsState('active');
-        setLastGpsPingAt(new Date().toISOString());
-
-        const pingRes = await fetch('/api/tech/locations', {
-          cache: 'no-store',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            techId: effectiveTechId,
-            techName: userName,
-            techEmail: userEmail,
-            lat: latitude,
-            lng: longitude,
-            accuracy,
-            speed,
-            heading,
-            timestamp: new Date(pos.timestamp).toISOString(),
-          }),
-        });
-
-        if (!pingRes.ok) {
-          const data = await pingRes.json().catch(() => ({}));
-          setGpsError(data.error || 'Failed to send GPS ping to dispatch.');
-        }
-      },
-      (err) => {
-        setGpsState('error');
-        setGpsError(err.message || 'GPS permission denied/unavailable.');
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10000,
-        timeout: 20000,
-      }
-    );
-
-    return () => {
-      if (watchRef.current !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchRef.current);
-        watchRef.current = null;
-      }
-    };
-  }, [gpsEnabled, isTracking, isClockedIn, techId, user?.id, userName]);
-
   async function requestLocationPermission() {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGpsError('Geolocation not supported.');
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      gps.update({ error: "Geolocation not supported." });
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        setGpsState('permission_granted');
-        setGpsError('');
-        setLocationLabel(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`);
+      () => {
+        gps.update({ gpsPermission: "granted", error: null });
       },
       (err) => {
-        setGpsState('permission_denied');
-        setGpsError(err.message || 'Location permission denied.');
+        gps.update({ gpsPermission: "denied", error: err.message || "Location permission denied." });
       },
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }
 
   async function submitTimeOffRequest() {
-    if (!techId || !startDate || !endDate) {
-      setRequestStatus('Please select dates first.');
+    const effectiveTechId = techId || user?.id;
+    if (!effectiveTechId || !startDate || !endDate) {
+      setRequestStatus("Please select dates first.");
       return;
     }
 
-    const res = await fetch('/api/time-off-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/time-off-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        techId,
+        techId: effectiveTechId,
         techName: userName,
         type: requestType,
         startDate,
@@ -306,25 +125,13 @@ export default function ProfilePage() {
     });
 
     if (res.ok) {
-      setRequestStatus('Request submitted.');
-      setRequestReason('');
+      setRequestStatus("Request submitted.");
+      setRequestReason("");
     } else {
       const data = await res.json().catch(() => ({}));
-      setRequestStatus(data.error || 'Failed to submit request.');
+      setRequestStatus(data.error || "Failed to submit request.");
     }
   }
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(GPS_ENABLED_KEY, String(gpsEnabled));
-    window.dispatchEvent(new Event("hearth-tech-gps-toggle"));
-  }, [gpsEnabled]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(GPS_TRACKING_KEY, String(isTracking));
-    window.dispatchEvent(new Event("hearth-tech-gps-toggle"));
-  }, [isTracking]);
 
   return (
     <div className="flex flex-col min-h-screen pb-32">
@@ -374,17 +181,17 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* GPS Tracking */}
+        {/* GPS Status — reads from shared context, no local tracking */}
         <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">GPS Tracking</h3>
-            <div className={`flex items-center gap-1 text-xs ${isTracking ? "text-green-400" : "text-gray-500"}`}>
-              <div className={`w-2 h-2 rounded-full ${effectiveTracking ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></div>
-              {effectiveTracking ? "Active" : "Inactive"}
+            <div className={`flex items-center gap-1 text-xs ${gps.isTracking ? "text-green-400" : "text-gray-500"}`}>
+              <div className={`w-2 h-2 rounded-full ${gps.isTracking ? "bg-green-400 animate-pulse" : "bg-gray-500"}`} />
+              {gps.isTracking ? "Active" : isClockedIn ? "Starting..." : "Clock in to track"}
             </div>
           </div>
-          
-          {currentLocation && (
+
+          {gps.isTracking && gps.lastPingAt && (
             <div className="bg-[var(--color-surface-3)] rounded-lg p-3 mb-3">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -392,70 +199,37 @@ export default function ProfilePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <div>
-                  <p className="text-sm font-medium">Current Location</p>
-                  <p className="text-xs text-gray-400">{currentLocation}</p>
+                  <p className="text-sm font-medium">GPS Active</p>
+                  <p className="text-xs text-gray-400">
+                    Last ping: {new Date(gps.lastPingAt).toLocaleTimeString()}
+                    {gps.accuracy != null ? ` · ±${Math.round(gps.accuracy)}m` : ""}
+                  </p>
                 </div>
               </div>
             </div>
           )}
-          {gpsError && (
+
+          {gps.error && (
             <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-2 mb-3 text-xs text-red-300">
-              {gpsError}
+              {gps.error}
             </div>
           )}
 
           <div className="space-y-3">
-            <button
-              onClick={requestLocationPermission}
-              className="w-full py-2 rounded-lg text-sm font-medium"
-              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
-            >
-              Request Location Permission
-            </button>
+            {gps.gpsPermission !== "granted" && (
+              <button
+                onClick={requestLocationPermission}
+                className="w-full py-2 rounded-lg text-sm font-medium"
+                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+              >
+                Request Location Permission
+              </button>
+            )}
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-              GPS State: {gpsState} {lastGpsPingAt ? `· Last Ping: ${new Date(lastGpsPingAt).toLocaleTimeString()}` : ''}
+              GPS Permission: {gps.gpsPermission}
             </div>
             <div className="text-xs" style={{ color: isClockedIn ? "#15803D" : "var(--color-text-muted)" }}>
-              Shift: {isClockedIn ? "Clocked in" : "Clocked out"}
-            </div>
-            <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-              Tracking As: {techId || user?.id || 'unresolved'}
-            </div>
-            <div className="text-xs" style={{ color: techId ? '#98CD00' : 'var(--color-text-muted)' }}>
-              {techLinkStatus || (techId ? 'Tech profile linked.' : 'Tech profile not linked yet.')}
-            </div>
-            <button
-              onClick={() => ensureTechProfile(true)}
-              className="w-full py-2 rounded-lg text-sm font-medium"
-              style={{ background: '#2563EB', color: 'white' }}
-            >
-              Register Me as Tech
-            </button>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Enable GPS</p>
-                <p className="text-xs text-gray-400">Allow location tracking</p>
-              </div>
-              <button
-                onClick={() => setGpsEnabled(!gpsEnabled)}
-                className={`w-12 h-7 rounded-full transition-colors ${gpsEnabled ? "bg-green-500" : "bg-gray-600"}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${gpsEnabled ? "translate-x-6" : "translate-x-1"}`}></div>
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Live Tracking</p>
-                <p className="text-xs text-gray-400">Only runs while clocked in</p>
-              </div>
-              <button
-                onClick={() => setIsTracking(!isTracking)}
-                className={`w-12 h-7 rounded-full transition-colors ${isTracking ? "bg-green-500" : "bg-gray-600"}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${isTracking ? "translate-x-6" : "translate-x-1"}`}></div>
-              </button>
+              Shift: {isClockedIn ? "Clocked in — GPS auto-tracking" : "Clocked out — GPS paused"}
             </div>
           </div>
         </div>
@@ -481,7 +255,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <select
               value={requestType}
-              onChange={(e) => setRequestType(e.target.value as any)}
+              onChange={(e) => setRequestType(e.target.value as typeof requestType)}
               className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-3)] border border-gray-700"
             >
               <option value="paid_vacation">Paid Vacation</option>
@@ -508,19 +282,19 @@ export default function ProfilePage() {
 
         {/* Quick Links */}
         <div className="space-y-2">
-          <button onClick={() => router.push('/admin/time')} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button onClick={() => router.push("/admin/time")} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
             <span>Time History</span>
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <button onClick={() => router.push('/tech')} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button onClick={() => router.push("/tech")} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
             <span>Job History</span>
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <button onClick={() => router.push('/settings')} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button onClick={() => router.push("/settings")} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
             <span>Settings</span>
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -529,7 +303,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Logout */}
-        <button 
+        <button
           onClick={handleSignOut}
           className="w-full bg-red-500/20 text-red-400 rounded-xl p-4 font-medium border border-red-500/50 cursor-pointer"
         >

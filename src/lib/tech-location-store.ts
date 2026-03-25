@@ -72,15 +72,13 @@ export async function addLocationPoint(point: TechLocationPoint) {
       (${point.techId}, ${point.techName || null}, ${point.techEmail || null}, ${point.lat}, ${point.lng}, ${point.accuracy ?? null}, ${point.speed ?? null}, ${point.heading ?? null}, ${point.timestamp});
   `;
 
-  // Keep table bounded
-  await sql`
-    delete from tech_locations_live
-    where id in (
-      select id from tech_locations_live
-      order by ts desc
-      offset 50000
-    );
-  `;
+  // Probabilistic 30-day pruning (runs ~1% of inserts to avoid write amplification)
+  if (Math.random() < 0.01) {
+    await sql`
+      delete from tech_locations_live
+      where ts < now() - interval '30 days';
+    `;
+  }
 
   return point;
 }

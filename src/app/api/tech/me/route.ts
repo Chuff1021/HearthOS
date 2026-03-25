@@ -58,6 +58,60 @@ export async function GET(request: NextRequest) {
       directory.find((entry) => samePerson(entry.name, authName)) ||
       null;
 
+    // Server-side auto-link: persist techId to Clerk metadata if found but not yet linked
+    if (tech && (!linkedTechId || linkedTechId !== tech.id)) {
+      try {
+        await client.users.updateUser(userId, {
+          unsafeMetadata: { ...(user.unsafeMetadata || {}), techId: tech.id },
+        });
+      } catch {
+        // non-fatal — linking will retry next request
+      }
+    }
+
+    // Server-side auto-create: if no tech record exists, create one automatically
+    if (!tech && authEmail) {
+      try {
+        const createRes = await fetch(
+          `${request.nextUrl.origin}/api/techs`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: authName || "Service Tech",
+              email: authEmail,
+              phone: "",
+              role: "tech",
+            }),
+          }
+        );
+        if (createRes.ok) {
+          const createData = await createRes.json().catch(() => null);
+          if (createData?.tech?.id) {
+            tech = {
+              id: createData.tech.id,
+              name: createData.tech.name || authName || "Service Tech",
+              email: createData.tech.email || authEmail,
+              color: createData.tech.color || "#2563EB",
+              initials: createData.tech.initials || (authName || authEmail || "ST").split(" ").filter(Boolean).map((p: string) => p[0]).join("").slice(0, 3).toUpperCase(),
+              role: "tech" as const,
+              active: true,
+            };
+            // Link the newly created tech to Clerk
+            try {
+              await client.users.updateUser(userId, {
+                unsafeMetadata: { ...(user.unsafeMetadata || {}), techId: tech.id },
+              });
+            } catch {
+              // non-fatal
+            }
+          }
+        }
+      } catch {
+        // auto-create failed — fall through to fallback
+      }
+    }
+
     const effectiveTech = tech
       ? tech
       : {
