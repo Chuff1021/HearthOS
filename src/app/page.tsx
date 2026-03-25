@@ -1,4 +1,5 @@
 "use client";
+// HearthOS Dashboard — deployment verification
 
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
