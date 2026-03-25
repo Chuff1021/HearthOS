@@ -27,25 +27,36 @@ const emptyJobData = {
 };
 
 // Material catalog with unit prices
-const materialCatalog = [
-  { id: "flex-pipe-6", name: "Flex Gas Pipe", unit: "ft", unitPrice: 4.50, category: "pipe" },
-  { id: "rigid-pipe-4", name: "4\" Rigid Vent Pipe", unit: "ft", unitPrice: 8.75, category: "pipe" },
-  { id: "rigid-pipe-6", name: "6\" Rigid Vent Pipe", unit: "ft", unitPrice: 11.25, category: "pipe" },
-  { id: "flex-liner", name: "Flex Liner (SS)", unit: "ft", unitPrice: 14.00, category: "pipe" },
-  { id: "elbow-90", name: "90° Elbow", unit: "ea", unitPrice: 22.00, category: "fitting" },
-  { id: "elbow-45", name: "45° Elbow", unit: "ea", unitPrice: 18.50, category: "fitting" },
-  { id: "tee-cap", name: "Tee Cap", unit: "ea", unitPrice: 15.00, category: "fitting" },
-  { id: "termination-cap", name: "Termination Cap", unit: "ea", unitPrice: 45.00, category: "fitting" },
-  { id: "thermocouple", name: "Thermocouple (Universal)", unit: "ea", unitPrice: 28.00, category: "part" },
-  { id: "thermopile", name: "Thermopile", unit: "ea", unitPrice: 42.00, category: "part" },
-  { id: "igniter", name: "Spark Igniter", unit: "ea", unitPrice: 35.00, category: "part" },
-  { id: "gas-valve", name: "Gas Valve", unit: "ea", unitPrice: 125.00, category: "part" },
-  { id: "blower-kit", name: "Blower Kit", unit: "ea", unitPrice: 89.00, category: "part" },
-  { id: "remote-kit", name: "Remote Control Kit", unit: "ea", unitPrice: 65.00, category: "part" },
-  { id: "glass-panel", name: "Replacement Glass Panel", unit: "ea", unitPrice: 145.00, category: "part" },
-  { id: "gasket-tape", name: "Gasket Tape (per roll)", unit: "ea", unitPrice: 12.00, category: "supply" },
-  { id: "pipe-sealant", name: "Gas Pipe Sealant", unit: "ea", unitPrice: 8.00, category: "supply" },
-  { id: "wire-connector", name: "Wire Connectors (bag)", unit: "ea", unitPrice: 5.00, category: "supply" },
+type CatalogItem = {
+  id: string;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  category: string;
+  qtyOnHand?: number;
+  sku?: string;
+  source: "quickbooks" | "local";
+};
+
+const localMaterialCatalog: CatalogItem[] = [
+  { id: "flex-pipe-6", name: "Flex Gas Pipe", unit: "ft", unitPrice: 4.50, category: "pipe", source: "local" },
+  { id: "rigid-pipe-4", name: "4\" Rigid Vent Pipe", unit: "ft", unitPrice: 8.75, category: "pipe", source: "local" },
+  { id: "rigid-pipe-6", name: "6\" Rigid Vent Pipe", unit: "ft", unitPrice: 11.25, category: "pipe", source: "local" },
+  { id: "flex-liner", name: "Flex Liner (SS)", unit: "ft", unitPrice: 14.00, category: "pipe", source: "local" },
+  { id: "elbow-90", name: "90° Elbow", unit: "ea", unitPrice: 22.00, category: "fitting", source: "local" },
+  { id: "elbow-45", name: "45° Elbow", unit: "ea", unitPrice: 18.50, category: "fitting", source: "local" },
+  { id: "tee-cap", name: "Tee Cap", unit: "ea", unitPrice: 15.00, category: "fitting", source: "local" },
+  { id: "termination-cap", name: "Termination Cap", unit: "ea", unitPrice: 45.00, category: "fitting", source: "local" },
+  { id: "thermocouple", name: "Thermocouple (Universal)", unit: "ea", unitPrice: 28.00, category: "part", source: "local" },
+  { id: "thermopile", name: "Thermopile", unit: "ea", unitPrice: 42.00, category: "part", source: "local" },
+  { id: "igniter", name: "Spark Igniter", unit: "ea", unitPrice: 35.00, category: "part", source: "local" },
+  { id: "gas-valve", name: "Gas Valve", unit: "ea", unitPrice: 125.00, category: "part", source: "local" },
+  { id: "blower-kit", name: "Blower Kit", unit: "ea", unitPrice: 89.00, category: "part", source: "local" },
+  { id: "remote-kit", name: "Remote Control Kit", unit: "ea", unitPrice: 65.00, category: "part", source: "local" },
+  { id: "glass-panel", name: "Replacement Glass Panel", unit: "ea", unitPrice: 145.00, category: "part", source: "local" },
+  { id: "gasket-tape", name: "Gasket Tape (per roll)", unit: "ea", unitPrice: 12.00, category: "supply", source: "local" },
+  { id: "pipe-sealant", name: "Gas Pipe Sealant", unit: "ea", unitPrice: 8.00, category: "supply", source: "local" },
+  { id: "wire-connector", name: "Wire Connectors (bag)", unit: "ea", unitPrice: 5.00, category: "supply", source: "local" },
 ];
 
 interface MaterialUsed {
@@ -103,6 +114,9 @@ export default function JobDetailPage() {
   const [showMaterialPicker, setShowMaterialPicker] = useState(false);
   const [materialSearch, setMaterialSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [qbItems, setQbItems] = useState<CatalogItem[]>([]);
+  const [qbItemsLoaded, setQbItemsLoaded] = useState(false);
+  const [qbItemsLoading, setQbItemsLoading] = useState(false);
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [loadingJob, setLoadingJob] = useState(true);
@@ -356,13 +370,63 @@ export default function JobDetailPage() {
     }
   };
 
+  // Fetch QuickBooks inventory when picker opens
+  useEffect(() => {
+    if (!showMaterialPicker || qbItemsLoaded) return;
+    let cancelled = false;
+    setQbItemsLoading(true);
+
+    async function fetchQbItems() {
+      try {
+        const res = await fetch("/api/quickbooks/items?type=inventory", { cache: "no-store" });
+        if (!res.ok) throw new Error("QB fetch failed");
+        const data = await res.json();
+        if (cancelled) return;
+        const items: CatalogItem[] = (data.items || [])
+          .filter((item: any) => item.Active !== false)
+          .map((item: any) => ({
+            id: `qb-${item.Id}`,
+            name: item.Name || "Unknown Item",
+            unit: "ea",
+            unitPrice: Number(item.UnitPrice) || 0,
+            category: "inventory",
+            qtyOnHand: item.QtyOnHand ?? undefined,
+            sku: item.Sku || undefined,
+            source: "quickbooks" as const,
+          }));
+        setQbItems(items);
+        setQbItemsLoaded(true);
+      } catch {
+        // QB not connected or failed — just use local catalog
+        setQbItemsLoaded(true);
+      } finally {
+        if (!cancelled) setQbItemsLoading(false);
+      }
+    }
+
+    fetchQbItems();
+    return () => { cancelled = true; };
+  }, [showMaterialPicker, qbItemsLoaded]);
+
+  // Merge QB items with local catalog — QB items first
+  const materialCatalog: CatalogItem[] = useMemo(() => {
+    return [...qbItems, ...localMaterialCatalog];
+  }, [qbItems]);
+
+  // Derive available categories from the merged catalog
+  const availableCategories = useMemo(() => {
+    const cats = new Set(materialCatalog.map((m) => m.category));
+    return ["all", ...Array.from(cats).sort()];
+  }, [materialCatalog]);
+
   const filteredMaterials = materialCatalog.filter((m) => {
-    const matchesSearch = m.name.toLowerCase().includes(materialSearch.toLowerCase());
+    const matchesSearch = m.name.toLowerCase().includes(materialSearch.toLowerCase()) ||
+      (m.sku && m.sku.toLowerCase().includes(materialSearch.toLowerCase()));
     const matchesCategory = selectedCategory === "all" || m.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const addMaterial = (material: typeof materialCatalog[0]) => {
+  const addMaterial = (material: CatalogItem) => {
     const existing = materialsUsed.find((m) => m.materialId === material.id);
     if (existing) {
       setMaterialsUsed((prev) =>
@@ -455,6 +519,7 @@ export default function JobDetailPage() {
     fitting: "bg-purple-500/20 text-purple-400",
     part: "bg-blue-600/20 text-blue-600",
     supply: "bg-green-500/20 text-green-400",
+    inventory: "bg-orange-500/20 text-orange-400",
   };
 
   return (
@@ -1053,7 +1118,7 @@ export default function JobDetailPage() {
 
             {/* Category Filter */}
             <div className="px-4 pb-3 flex gap-2 overflow-x-auto">
-              {["all", "pipe", "fitting", "part", "supply"].map((cat) => (
+              {availableCategories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -1070,6 +1135,11 @@ export default function JobDetailPage() {
 
             {/* Material List */}
             <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+              {qbItemsLoading && (
+                <div className="text-center py-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  Loading QuickBooks inventory...
+                </div>
+              )}
               {filteredMaterials.map((material) => (
                 <button
                   key={material.id}
@@ -1079,19 +1149,30 @@ export default function JobDetailPage() {
                   <div>
                     <p className="text-sm font-medium">{material.name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[material.category]}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[material.category] || "bg-gray-500/20 text-gray-400"}`}>
                         {material.category}
                       </span>
+                      {material.sku && (
+                        <span className="text-xs text-gray-500">SKU: {material.sku}</span>
+                      )}
                       <span className="text-xs text-gray-400">per {material.unit}</span>
                     </div>
+                    {material.qtyOnHand != null && (
+                      <p className="text-xs mt-1" style={{ color: material.qtyOnHand > 0 ? "#15803D" : "#DC2626" }}>
+                        {material.qtyOnHand > 0 ? `${material.qtyOnHand} in stock` : "Out of stock"}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-blue-600">${material.unitPrice.toFixed(2)}</p>
                     <p className="text-xs text-gray-500">/{material.unit}</p>
+                    {material.source === "quickbooks" && (
+                      <p className="text-[10px] text-orange-400 mt-0.5">QB</p>
+                    )}
                   </div>
                 </button>
               ))}
-              {filteredMaterials.length === 0 && (
+              {filteredMaterials.length === 0 && !qbItemsLoading && (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-sm">No materials found</p>
                 </div>
