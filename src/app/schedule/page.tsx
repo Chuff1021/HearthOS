@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
 
 type ViewMode = "master" | "tech";
+type CalendarView = "week" | "month";
 
 interface Tech {
   id: string;
@@ -27,6 +28,7 @@ interface Job {
   scheduledTimeStart: string;
   scheduledTimeEnd: string;
   status: "scheduled" | "in_progress" | "completed" | "cancelled" | "on_hold";
+  priority?: string;
   assignedTechs: Array<{ id: string; name: string; color: string }>;
 }
 
@@ -71,8 +73,17 @@ const JOB_TYPE_OPTIONS = [
   "Estimate / Consultation",
 ];
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am-6pm
+
+const STATUS_COLORS: Record<string, string> = {
+  scheduled: "#2563EB",
+  in_progress: "#F59E0B",
+  completed: "#16A34A",
+  cancelled: "#9CA3AF",
+  on_hold: "#8B5CF6",
+};
 
 function getWeekDates(baseDate: Date): Date[] {
   const sunday = new Date(baseDate);
@@ -84,8 +95,33 @@ function getWeekDates(baseDate: Date): Date[] {
   });
 }
 
+function getMonthGrid(baseDate: Date): Date[][] {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(gridStart.getDate() - startOffset);
+
+  const weeks: Date[][] = [];
+  for (let w = 0; w < 6; w++) {
+    const week: Date[] = [];
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(gridStart);
+      day.setDate(gridStart.getDate() + w * 7 + d);
+      week.push(day);
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
 function isoDate(d: Date) {
   return d.toISOString().split("T")[0];
+}
+
+function todayIso() {
+  return isoDate(new Date());
 }
 
 function toHourFloat(hhmm: string) {
@@ -99,6 +135,17 @@ function toHHMM(hourFloat: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function formatTime12(hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hr = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${hr}:${String(m || 0).padStart(2, "0")} ${ampm}`;
+}
+
+function formatTimeRange(start: string, end: string) {
+  return `${formatTime12(start)} – ${formatTime12(end)}`;
+}
+
 function addMinutes(time: string, minutesToAdd: number) {
   const [hours, minutes] = time.split(":").map(Number);
   const total = Math.min((hours * 60) + minutes + minutesToAdd, 23 * 60 + 45);
@@ -109,8 +156,10 @@ function addMinutes(time: string, minutesToAdd: number) {
 
 export default function SchedulePage() {
   const searchParams = useSearchParams();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("master");
+  const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [techs, setTechs] = useState<Tech[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,8 +198,12 @@ export default function SchedulePage() {
   });
 
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
+  const monthGrid = useMemo(() => getMonthGrid(currentDate), [currentDate]);
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
+  const today = todayIso();
+
+  // ────────────────── Data loading ──────────────────
 
   async function loadData() {
     setLoading(true);
@@ -181,6 +234,18 @@ export default function SchedulePage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-scroll to current hour on first week view load
+  useEffect(() => {
+    if (calendarView !== "week" || loading) return;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const targetHour = Math.max(7, Math.min(currentHour, 17));
+    const rowIndex = targetHour - 7;
+    if (scrollRef.current && rowIndex > 0) {
+      scrollRef.current.scrollTop = rowIndex * 90;
+    }
+  }, [calendarView, loading]);
 
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
@@ -245,6 +310,8 @@ export default function SchedulePage() {
     };
   }, [customerQuery]);
 
+  // ────────────────── Filtered jobs ──────────────────
+
   const weekJobs = useMemo(() => {
     return jobs.filter((j) => {
       const d = new Date(j.scheduledDate + "T00:00:00");
@@ -260,7 +327,40 @@ export default function SchedulePage() {
     return weekJobs.filter((j) => j.assignedTechs.some((t) => t.id === focusTechId));
   }, [weekJobs, selectedTechIds, viewMode, focusTechId]);
 
-  const monthYear = weekDates[0].toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  // Jobs for month view — all jobs in the visible month range
+  const monthJobs = useMemo(() => {
+    if (calendarView !== "month") return [];
+    const first = monthGrid[0][0];
+    const last = monthGrid[monthGrid.length - 1][6];
+    return jobs.filter((j) => {
+      const d = new Date(j.scheduledDate + "T00:00:00");
+      return d >= first && d <= last;
+    });
+  }, [jobs, monthGrid, calendarView]);
+
+  // ────────────────── Navigation ──────────────────
+
+  function goPrev() {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - (calendarView === "month" ? 30 : 7));
+    setCurrentDate(d);
+  }
+
+  function goNext() {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + (calendarView === "month" ? 30 : 7));
+    setCurrentDate(d);
+  }
+
+  function goToday() {
+    setCurrentDate(new Date());
+  }
+
+  const headerLabel = calendarView === "month"
+    ? currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : `${weekDates[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${weekDates[6].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+
+  // ────────────────── Tech filter ──────────────────
 
   function toggleTech(techId: string) {
     setSelectedTechIds((prev) =>
@@ -268,17 +368,20 @@ export default function SchedulePage() {
     );
   }
 
-  function goPrevWeek() {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() - 7);
-    setCurrentDate(d);
+  // ────────────────── Day stats for week view ──────────────────
+
+  function dayStats(date: Date) {
+    const iso = isoDate(date);
+    const dayJobs = visibleJobs.filter((j) => j.scheduledDate === iso);
+    const totalHours = dayJobs.reduce((sum, j) => {
+      return sum + Math.max(0, toHourFloat(j.scheduledTimeEnd) - toHourFloat(j.scheduledTimeStart));
+    }, 0);
+    const techIds = new Set<string>();
+    dayJobs.forEach((j) => j.assignedTechs.forEach((t) => techIds.add(t.id)));
+    return { count: dayJobs.length, hours: totalHours, techCount: techIds.size };
   }
 
-  function goNextWeek() {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + 7);
-    setCurrentDate(d);
-  }
+  // ────────────────── Customer helpers ──────────────────
 
   function customerAddressLine(c: CustomerLookup) {
     const a = c.address;
@@ -303,6 +406,8 @@ export default function SchedulePage() {
     setCustomerResults([]);
     setFormErrors((prev) => ({ ...prev, customerName: "", propertyAddress: "" }));
   }
+
+  // ────────────────── Form validation & CRUD ──────────────────
 
   function validateForm() {
     const errs: Record<string, string> = {};
@@ -338,12 +443,7 @@ export default function SchedulePage() {
         firstName: firstName || "New",
         lastName,
         address: form.propertyAddress
-          ? {
-              line1: form.propertyAddress,
-              city: "",
-              state: "",
-              zip: "",
-            }
+          ? { line1: form.propertyAddress, city: "", state: "", zip: "" }
           : undefined,
         active: true,
       };
@@ -416,9 +516,7 @@ export default function SchedulePage() {
         return;
       }
 
-      // Move calendar to the newly scheduled date's week so user sees the new card immediately
       setCurrentDate(new Date(form.scheduledDate + "T00:00:00"));
-
       setShowCreate(false);
       setSelectedCustomer(null);
       setCustomerQuery("");
@@ -492,12 +590,13 @@ export default function SchedulePage() {
       setSaveError(null);
     }
     if (showCreate && !form.scheduledDate) {
-      setForm((f) => ({
-        ...f,
-        scheduledDate: isoDate(new Date()),
-      }));
+      setForm((f) => ({ ...f, scheduledDate: isoDate(new Date()) }));
     }
   }, [showCreate, form.scheduledDate]);
+
+  // ════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -505,42 +604,62 @@ export default function SchedulePage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        {/* ── Toolbar ── */}
+        <div className="px-6 py-3 flex items-center justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div className="flex items-center gap-3">
-            <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Master Schedule</h1>
-            <button onClick={goPrevWeek} className="px-2 py-1 rounded" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>◀</button>
-            <span className="text-sm font-semibold">{monthYear}</span>
-            <button onClick={goNextWeek} className="px-2 py-1 rounded" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>▶</button>
+            <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Schedule</h1>
+            <div className="flex items-center gap-1">
+              <button onClick={goPrev} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <button onClick={goToday} className="px-3 py-1 rounded text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>
+                Today
+              </button>
+              <button onClick={goNext} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+            <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{headerLabel}</span>
           </div>
+
           <div className="flex items-center gap-2">
+            {/* Calendar view toggle */}
             <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-              <button onClick={() => setViewMode("master")} className="px-3 py-1.5 text-xs font-semibold" style={{ background: viewMode === "master" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>Master</button>
-              <button onClick={() => setViewMode("tech")} className="px-3 py-1.5 text-xs font-semibold" style={{ background: viewMode === "tech" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>By Tech</button>
+              <button onClick={() => setCalendarView("week")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "week" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "week" ? "#fff" : "var(--color-text-secondary)" }}>Week</button>
+              <button onClick={() => setCalendarView("month")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "month" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "month" ? "#fff" : "var(--color-text-secondary)" }}>Month</button>
+            </div>
+            {/* Master / Tech toggle */}
+            <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+              <button onClick={() => setViewMode("master")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "master" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>Master</button>
+              <button onClick={() => setViewMode("tech")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "tech" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>By Tech</button>
             </div>
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "#2563EB", color: "white" }}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "white" }}
             >
-              New Job
+              + New Job
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        {/* ── Tech filter bar ── */}
+        <div className="px-6 py-2 flex items-center gap-2 flex-wrap" style={{ borderBottom: "1px solid var(--color-border)" }}>
           {viewMode === "master" ? (
             <>
-              <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Filter techs:</span>
+              <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Techs:</span>
               {techs.map((tech) => (
                 <button
                   key={tech.id}
                   onClick={() => toggleTech(tech.id)}
-                  className="px-2.5 py-1 rounded-lg text-xs"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
                   style={{
-                    border: "1px solid var(--color-border)",
-                    background: selectedTechIds.includes(tech.id) ? "var(--color-surface-3)" : "transparent",
+                    border: selectedTechIds.includes(tech.id) ? `2px solid ${tech.color}` : "1px solid var(--color-border)",
+                    background: selectedTechIds.includes(tech.id) ? `${tech.color}15` : "transparent",
+                    color: selectedTechIds.includes(tech.id) ? "var(--color-text-primary)" : "var(--color-text-muted)",
                   }}
                 >
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: tech.color }} />
                   {tech.name}
                 </button>
               ))}
@@ -566,27 +685,143 @@ export default function SchedulePage() {
           </div>
         )}
 
-        <div className="flex-1 overflow-auto">
+        {/* ════════════════════ CALENDAR BODY ════════════════════ */}
+        <div ref={scrollRef} className="flex-1 overflow-auto">
           {loading ? (
-            <div className="p-8">Loading schedule...</div>
-          ) : (
-            <div className="min-w-[980px]">
-              <div className="grid sticky top-0 z-10" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
-                <div />
-                {weekDates.map((date, i) => (
-                  <div key={i} className="text-center py-2">
-                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{DAYS[i]}</div>
-                    <div className="font-semibold">{date.getDate()}</div>
-                  </div>
+            <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>Loading schedule...</div>
+          ) : calendarView === "month" ? (
+            /* ─────────── MONTH VIEW ─────────── */
+            <div className="p-4">
+              {/* Day headers */}
+              <div className="grid grid-cols-7 mb-1">
+                {DAY_NAMES_SHORT.map((d) => (
+                  <div key={d} className="text-center text-xs font-semibold py-2" style={{ color: "var(--color-text-muted)" }}>{d}</div>
                 ))}
               </div>
+              {/* Weeks */}
+              {monthGrid.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7" style={{ minHeight: 120 }}>
+                  {week.map((date, di) => {
+                    const iso = isoDate(date);
+                    const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                    const isToday = iso === today;
+                    const dayJobs = monthJobs
+                      .filter((j) => j.scheduledDate === iso)
+                      .sort((a, b) => a.scheduledTimeStart.localeCompare(b.scheduledTimeStart));
 
+                    return (
+                      <div
+                        key={di}
+                        onClick={() => { setCurrentDate(new Date(date)); setCalendarView("week"); }}
+                        className="border-t border-l p-1.5 cursor-pointer hover:bg-black/[0.03] transition-colors"
+                        style={{
+                          borderColor: "var(--color-border)",
+                          background: isToday ? "rgba(37,99,235,0.06)" : undefined,
+                          opacity: isCurrentMonth ? 1 : 0.4,
+                          borderRight: di === 6 ? "1px solid var(--color-border)" : undefined,
+                          borderBottom: wi === monthGrid.length - 1 ? "1px solid var(--color-border)" : undefined,
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className={`text-xs font-semibold leading-none ${isToday ? "bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center" : ""}`}
+                            style={{ color: isToday ? undefined : "var(--color-text-primary)" }}
+                          >
+                            {date.getDate()}
+                          </span>
+                          {dayJobs.length > 0 && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>
+                              {dayJobs.length}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          {dayJobs.slice(0, 3).map((job) => (
+                            <div
+                              key={job.id}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] leading-tight truncate"
+                              style={{
+                                background: `${job.assignedTechs[0]?.color || "#2563EB"}18`,
+                                borderLeft: `3px solid ${job.assignedTechs[0]?.color || "#2563EB"}`,
+                              }}
+                            >
+                              <span className="font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+                                {formatTime12(job.scheduledTimeStart).replace(/ (AM|PM)/, "")}
+                              </span>
+                              <span className="truncate" style={{ color: "var(--color-text-secondary)" }}>
+                                {job.customerName}
+                              </span>
+                            </div>
+                          ))}
+                          {dayJobs.length > 3 && (
+                            <div className="text-[10px] font-medium px-1.5" style={{ color: "var(--color-text-muted)" }}>
+                              +{dayJobs.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* ─────────── WEEK VIEW ─────────── */
+            <div className="min-w-[980px]">
+              {/* Day headers */}
+              <div className="grid sticky top-0 z-10" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+                <div />
+                {weekDates.map((date, i) => {
+                  const iso = isoDate(date);
+                  const isToday = iso === today;
+                  const isWeekend = i === 0 || i === 6;
+                  const stats = dayStats(date);
+                  return (
+                    <div
+                      key={i}
+                      className="text-center py-2 border-l"
+                      style={{
+                        borderColor: "var(--color-border)",
+                        background: isToday ? "rgba(37,99,235,0.06)" : isWeekend ? "rgba(0,0,0,0.02)" : undefined,
+                      }}
+                    >
+                      <div className="text-[11px] font-medium" style={{ color: "var(--color-text-muted)" }}>
+                        {DAY_NAMES_FULL[i]}
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                        <span
+                          className={`text-lg font-bold leading-none ${isToday ? "bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center" : ""}`}
+                          style={{ color: isToday ? undefined : "var(--color-text-primary)" }}
+                        >
+                          {date.getDate()}
+                        </span>
+                      </div>
+                      {/* Day stats */}
+                      <div className="flex items-center justify-center gap-2 mt-1">
+                        {stats.count > 0 ? (
+                          <>
+                            <span className="text-[10px] font-medium" style={{ color: "#2563EB" }}>{stats.count} jobs</span>
+                            <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{stats.hours.toFixed(1)}h</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>No jobs</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Time grid rows */}
               {HOURS.map((hour) => (
-                <div key={hour} className="grid" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", height: 82, borderBottom: "1px solid var(--color-border)" }}>
-                  <div className="text-xs pt-1 pr-2 text-right" style={{ color: "var(--color-text-muted)" }}>
-                    {hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                <div key={hour} className="grid" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", minHeight: 90, borderBottom: "1px solid var(--color-border)" }}>
+                  <div className="text-xs pt-2 pr-3 text-right font-medium" style={{ color: "var(--color-text-muted)" }}>
+                    {hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`}
                   </div>
                   {weekDates.map((d, dayIndex) => {
+                    const iso = isoDate(d);
+                    const isToday = iso === today;
+                    const isWeekend = dayIndex === 0 || dayIndex === 6;
                     const dayJobs = visibleJobs.filter((j) => {
                       const jd = new Date(j.scheduledDate + "T00:00:00");
                       return jd.toDateString() === d.toDateString() && Math.floor(toHourFloat(j.scheduledTimeStart)) === hour;
@@ -598,7 +833,13 @@ export default function SchedulePage() {
                         className="relative border-l"
                         style={{
                           borderColor: "var(--color-border)",
-                          background: dragOverSlot === `${d.toDateString()}-${hour}` ? "rgba(37,99,235,0.08)" : undefined,
+                          background: dragOverSlot === `${d.toDateString()}-${hour}`
+                            ? "rgba(37,99,235,0.10)"
+                            : isToday
+                              ? "rgba(37,99,235,0.03)"
+                              : isWeekend
+                                ? "rgba(0,0,0,0.015)"
+                                : undefined,
                         }}
                         onDragOver={(e) => {
                           e.preventDefault();
@@ -619,6 +860,9 @@ export default function SchedulePage() {
                           const start = toHourFloat(job.scheduledTimeStart);
                           const end = toHourFloat(job.scheduledTimeEnd);
                           const duration = Math.max(0.5, end - start);
+                          const techColor = job.assignedTechs[0]?.color || "#2563EB";
+                          const isHighPriority = job.priority === "high" || job.priority === "urgent";
+
                           return (
                             <div
                               key={job.id}
@@ -635,25 +879,62 @@ export default function SchedulePage() {
                                 setDraggedDuration(null);
                                 setDragOverSlot(null);
                               }}
-                              className="absolute left-1 right-1 rounded-md p-1.5 text-white cursor-move"
+                              className="absolute left-1 right-1 rounded-lg cursor-move overflow-hidden"
                               style={{
                                 top: 2,
-                                height: duration * 82 - 4,
-                                background: job.assignedTechs[0]?.color || "#2563EB",
-                                overflow: "hidden",
-                                opacity: draggedJobId === job.id ? 0.75 : 1,
+                                height: Math.max(duration * 90 - 4, 42),
+                                background: "var(--color-surface-1)",
+                                border: `1px solid ${isHighPriority ? "#F59E0B" : "var(--color-border)"}`,
+                                borderLeft: `4px solid ${isHighPriority ? "#F59E0B" : techColor}`,
+                                opacity: draggedJobId === job.id ? 0.6 : 1,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                               }}
-                              title="Drag to reschedule"
+                              title={`${job.title}\n${job.customerName}\n${job.propertyAddress}\n${formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}`}
                             >
-                              <div className="text-[10px] font-bold truncate">{job.title}</div>
-                              <div className="text-[9px] opacity-90 truncate">{job.customerName}</div>
-                              <div className="text-[9px] opacity-80 truncate">{job.propertyAddress}</div>
+                              <div className="px-2 py-1.5 h-full flex flex-col">
+                                {/* Time + status */}
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: STATUS_COLORS[job.status] || "#9CA3AF" }} />
+                                  <span className="text-[11px] font-bold truncate" style={{ color: "var(--color-text-primary)" }}>
+                                    {formatTime12(job.scheduledTimeStart)}
+                                  </span>
+                                </div>
+                                {/* Customer */}
+                                <div className="text-xs font-semibold truncate mt-0.5" style={{ color: "var(--color-text-primary)" }}>
+                                  {job.customerName}
+                                </div>
+                                {/* Title */}
+                                <div className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)" }}>
+                                  {job.title}
+                                </div>
+                                {/* Address — only show if card is tall enough */}
+                                {duration >= 1 && (
+                                  <div className="text-[10px] truncate mt-auto" style={{ color: "var(--color-text-muted)" }}>
+                                    {job.propertyAddress}
+                                  </div>
+                                )}
+                                {/* Tech pills */}
+                                {duration >= 1.5 && job.assignedTechs.length > 0 && (
+                                  <div className="flex gap-1 mt-1">
+                                    {job.assignedTechs.map((t) => (
+                                      <span key={t.id} className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white" style={{ background: t.color }}>
+                                        {t.name.split(" ")[0]}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Remove button */}
                               <button
-                                onClick={() => removeJob(job.id)}
+                                onClick={(e) => { e.stopPropagation(); removeJob(job.id); }}
                                 disabled={draggedJobId !== null}
-                                className="absolute top-1 right-1 text-[9px] px-1 rounded bg-black/30"
-                                style={{ opacity: draggedJobId ? 0.45 : 1, pointerEvents: draggedJobId ? "none" : "auto" }}
-                                title={draggedJobId ? "Release drag first" : "Remove"}
+                                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded text-[10px] transition-opacity hover:bg-red-500/20"
+                                style={{
+                                  color: "var(--color-text-muted)",
+                                  opacity: draggedJobId ? 0.3 : 0.6,
+                                  pointerEvents: draggedJobId ? "none" : "auto",
+                                }}
+                                title="Remove job"
                               >
                                 ✕
                               </button>
@@ -670,12 +951,13 @@ export default function SchedulePage() {
         </div>
       </div>
 
+      {/* ════════════════════ CREATE JOB MODAL ════════════════════ */}
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+          <div className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Add Scheduled Job</h2>
-              <button onClick={() => setShowCreate(false)}>✕</button>
+              <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
             <div className="space-y-3">
               {saveError && (
@@ -701,13 +983,7 @@ export default function SchedulePage() {
                 {customerResults.length > 0 && !selectedCustomer && (
                   <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     {customerResults.slice(0, 6).map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => applyCustomer(c)}
-                        className="w-full text-left px-3 py-2 text-sm"
-                        style={{ borderBottom: "1px solid var(--color-border)" }}
-                      >
+                      <button key={c.id} type="button" onClick={() => applyCustomer(c)} className="w-full text-left px-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--color-border)" }}>
                         <div className="font-medium">{c.displayName}</div>
                         <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{customerAddressLine(c)}</div>
                       </button>
@@ -717,13 +993,7 @@ export default function SchedulePage() {
                 {!customerLoading && customerQuery.trim().length >= 2 && customerResults.length === 0 && (
                   <div className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No matching customer found.</p>
-                    <button
-                      type="button"
-                      onClick={createCustomerInline}
-                      disabled={creatingCustomer}
-                      className="px-2 py-1 rounded text-xs font-semibold"
-                      style={{ background: "#2563EB", color: "white" }}
-                    >
+                    <button type="button" onClick={createCustomerInline} disabled={creatingCustomer} className="px-2 py-1 rounded text-xs font-semibold" style={{ background: "#2563EB", color: "white" }}>
                       {creatingCustomer ? "Creating..." : "Create Customer"}
                     </button>
                   </div>
@@ -816,7 +1086,7 @@ export default function SchedulePage() {
                 {formErrors.assignedTechs && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.assignedTechs}</p>}
               </div>
             </div>
-            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "#2563EB" }}>
+            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
               {saving ? "Saving..." : "Create Job"}
             </button>
           </div>
