@@ -169,6 +169,7 @@ export default function SchedulePage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
   const [draggedDuration, setDraggedDuration] = useState<number | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
@@ -879,7 +880,8 @@ export default function SchedulePage() {
                                 setDraggedDuration(null);
                                 setDragOverSlot(null);
                               }}
-                              className="absolute left-1 right-1 rounded-lg cursor-move overflow-hidden"
+                              onClick={() => setSelectedJob(job)}
+                              className="absolute left-1 right-1 rounded-lg cursor-pointer overflow-hidden"
                               style={{
                                 top: 2,
                                 height: Math.max(duration * 90 - 4, 42),
@@ -1089,6 +1091,151 @@ export default function SchedulePage() {
             <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
               {saving ? "Saving..." : "Create Job"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════ JOB DETAIL MODAL ════════════════════ */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedJob(null)}>
+          <div
+            className="w-full max-w-lg rounded-2xl max-h-[85vh] overflow-y-auto"
+            style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with color bar */}
+            <div className="rounded-t-2xl px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)", borderLeft: `5px solid ${selectedJob.assignedTechs[0]?.color || "#2563EB"}` }}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{selectedJob.title}</h2>
+                  <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{selectedJob.customerName}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{
+                      background: `${STATUS_COLORS[selectedJob.status] || "#9CA3AF"}20`,
+                      color: STATUS_COLORS[selectedJob.status] || "#9CA3AF",
+                    }}
+                  >
+                    {selectedJob.status === "in_progress" ? "In Progress" : selectedJob.status === "on_hold" ? "On Hold" : selectedJob.status.charAt(0).toUpperCase() + selectedJob.status.slice(1)}
+                  </span>
+                  <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {/* Schedule */}
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(37,99,235,0.1)" }}>
+                  <svg className="w-5 h-5" style={{ color: "#2563EB" }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                    {new Date(selectedJob.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {formatTimeRange(selectedJob.scheduledTimeStart, selectedJob.scheduledTimeEnd)}
+                    {" · "}
+                    {(() => {
+                      const dur = toHourFloat(selectedJob.scheduledTimeEnd) - toHourFloat(selectedJob.scheduledTimeStart);
+                      const hrs = Math.floor(dur);
+                      const mins = Math.round((dur - hrs) * 60);
+                      return hrs > 0 ? `${hrs}h ${mins > 0 ? `${mins}m` : ""}` : `${mins}m`;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Address */}
+              {selectedJob.propertyAddress && (
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(245,158,11,0.1)" }}>
+                    <svg className="w-5 h-5" style={{ color: "#F59E0B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedJob.propertyAddress}</p>
+                    <a
+                      href={`https://maps.apple.com/?q=${encodeURIComponent(selectedJob.propertyAddress)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium mt-0.5 inline-block"
+                      style={{ color: "#2563EB" }}
+                    >
+                      Open in Maps
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Techs */}
+              {selectedJob.assignedTechs.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(22,163,74,0.1)" }}>
+                    <svg className="w-5 h-5" style={{ color: "#16A34A" }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedJob.assignedTechs.map((t) => (
+                      <span key={t.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: `${t.color}15`, border: `1px solid ${t.color}40` }}>
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Job Number */}
+              {selectedJob.jobNumber && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(139,92,246,0.1)" }}>
+                    <svg className="w-5 h-5" style={{ color: "#8B5CF6" }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                  </div>
+                  <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>Job #{selectedJob.jobNumber}</p>
+                </div>
+              )}
+
+              {/* Priority */}
+              {selectedJob.priority && selectedJob.priority !== "normal" && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: selectedJob.priority === "urgent" ? "rgba(220,38,38,0.1)" : "rgba(245,158,11,0.1)" }}>
+                    <svg className="w-5 h-5" style={{ color: selectedJob.priority === "urgent" ? "#DC2626" : "#F59E0B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: selectedJob.priority === "urgent" ? "#DC2626" : "#F59E0B" }}>
+                    {selectedJob.priority.charAt(0).toUpperCase() + selectedJob.priority.slice(1)} Priority
+                  </p>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedJob.notes && (
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>Notes</p>
+                  <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedJob.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-6 py-4 flex gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <a
+                href={`/jobs?highlight=${selectedJob.id}`}
+                className="flex-1 text-center py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{ background: "var(--color-surface-3)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+              >
+                Open in Jobs
+              </a>
+              <button
+                onClick={() => { removeJob(selectedJob.id); setSelectedJob(null); }}
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       )}
