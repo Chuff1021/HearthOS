@@ -53,14 +53,14 @@ export async function searchManualSections(
     const brandModelPatterns = keywords.map((k) => `%${k}%`);
 
     // Step 1: Find manuals that match the brand/model keywords
+    const bmConditions = brandModelPatterns.map((p) => sql`LOWER(brand) LIKE ${p} OR LOWER(model) LIKE ${p}`);
+    const bmCombined = bmConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
+
     const matchingManuals = await sql`
       SELECT id, brand, model, type as manual_type, url
       FROM manuals
       WHERE is_active = true
-        AND (
-          ${sql`LOWER(brand) LIKE ANY(${brandModelPatterns})`}
-          OR ${sql`LOWER(model) LIKE ANY(${brandModelPatterns})`}
-        )
+        AND (${bmCombined})
       LIMIT 10
     `;
 
@@ -81,8 +81,11 @@ export async function searchManualSections(
     let rows: any[];
 
     if (topicPatterns.length > 0) {
-      // Search for sections where snippet matches topic keywords
-      // Order by number of topic keyword matches (more = better)
+      // Build a single OR condition for snippet matching
+      // Using string concatenation for the WHERE clause since LIKE ANY has issues
+      const likeConditions = topicPatterns.map((p) => sql`LOWER(ms.snippet) LIKE ${p}`);
+      const combinedCondition = likeConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
+
       rows = await sql`
         SELECT
           ms.id as section_id,
@@ -94,7 +97,7 @@ export async function searchManualSections(
           ms.tags::text as tags
         FROM manual_sections ms
         WHERE ms.manual_id = ANY(${manualIds})
-          AND ${sql`LOWER(ms.snippet) LIKE ANY(${topicPatterns})`}
+          AND (${combinedCondition})
         ORDER BY ms.page_start ASC
         LIMIT ${limit}
       `;
