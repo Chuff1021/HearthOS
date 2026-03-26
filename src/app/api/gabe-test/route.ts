@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model,
         messages: [
+          { role: "system", content: "detailed thinking off" },
           { role: "system", content: SYSTEM_PROMPT },
           ...messages,
         ],
@@ -68,13 +69,27 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    let answer = data.choices?.[0]?.message?.content || "";
+    const rawContent = data.choices?.[0]?.message?.content || "";
 
-    // Strip <think> tags from Nemotron Ultra
-    answer = answer.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    // Nemotron Ultra puts reasoning in <think>...</think> then answer after.
+    // If the entire response is wrapped in <think>, extract what's after the closing tag.
+    // If there's no closing tag, the model may still be "thinking" — use the raw content.
+    let answer = rawContent;
+    const thinkClose = rawContent.indexOf("</think>");
+    if (thinkClose !== -1) {
+      answer = rawContent.substring(thinkClose + "</think>".length).trim();
+    }
+    // If stripping left nothing, fall back to the content inside <think> (better than empty)
+    if (!answer) {
+      answer = rawContent.replace(/<\/?think>/g, "").trim();
+    }
 
     if (!answer) {
-      return NextResponse.json({ error: "Empty response from model" }, { status: 500 });
+      return NextResponse.json({
+        error: "Empty response from model",
+        rawLength: rawContent.length,
+        rawPreview: rawContent.substring(0, 200),
+      }, { status: 500 });
     }
 
     return NextResponse.json({
