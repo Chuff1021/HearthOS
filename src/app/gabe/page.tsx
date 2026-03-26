@@ -38,7 +38,7 @@ export default function GabeChatPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/gabe", {
+      const res = await fetch("/api/gabe-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,7 +52,7 @@ export default function GabeChatPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to get response");
+        setError(data.error || data.message || data.details || `Error ${res.status}`);
         return;
       }
 
