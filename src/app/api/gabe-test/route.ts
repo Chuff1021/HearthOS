@@ -46,18 +46,24 @@ Add a "Sources:" line at the end listing each page you used.`;
 function buildSourceLinks(results: ManualSearchResult[]): string {
   if (results.length === 0) return "";
 
-  const unique = new Map<string, ManualSearchResult>();
+  // Dedupe by manual (not by page) — show one link per manual
+  const byManual = new Map<string, ManualSearchResult[]>();
   for (const r of results) {
-    const key = `${r.manualId}-${r.pageStart}`;
-    if (!unique.has(key)) unique.set(key, r);
+    const existing = byManual.get(r.manualId) || [];
+    existing.push(r);
+    byManual.set(r.manualId, existing);
   }
 
-  const links = Array.from(unique.values()).map((r) => {
-    const name = `${r.brand} ${r.model}${r.manualType ? ` (${r.manualType})` : ""}`;
-    return `- ${name}, p.${r.pageStart} — ${r.manualUrl}#page=${r.pageStart}`;
+  const links = Array.from(byManual.values()).map((pages) => {
+    const r = pages[0];
+    const name = `${r.brand} ${r.model}`;
+    const pageNums = [...new Set(pages.map((p) => p.pageStart))].sort((a, b) => a - b);
+    const pageList = pageNums.map((p) => `p.${p}`).join(", ");
+    const firstPage = pageNums[0];
+    return `[${name} — ${pageList}](${r.manualUrl}#page=${firstPage})`;
   });
 
-  return "\n\n📖 **Manual Links:**\n" + links.join("\n");
+  return "\n\n---\n**Sources:** " + links.join(" · ");
 }
 
 export async function POST(request: NextRequest) {

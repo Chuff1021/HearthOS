@@ -1,8 +1,123 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+
+/** Simple markdown-to-JSX renderer for chat messages */
+function renderMarkdown(text: string) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+  let listKey = 0;
+
+  function flushList() {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`list-${listKey++}`} className="space-y-1 my-2 ml-4">
+          {listItems.map((item, i) => (
+            <li key={i} className="flex gap-2 text-sm">
+              <span style={{ color: "var(--color-text-muted)" }}>•</span>
+              <span>{inlineFormat(item)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  }
+
+  function inlineFormat(str: string): React.ReactNode {
+    // Process inline markdown: **bold**, [text](url), `code`
+    const parts: React.ReactNode[] = [];
+    let remaining = str;
+    let key = 0;
+
+    while (remaining.length > 0) {
+      // Links: [text](url)
+      const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      // Bold: **text**
+      const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
+      // Code: `text`
+      const codeMatch = remaining.match(/`([^`]+)`/);
+
+      // Find earliest match
+      const matches = [
+        linkMatch ? { type: "link", match: linkMatch, index: remaining.indexOf(linkMatch[0]) } : null,
+        boldMatch ? { type: "bold", match: boldMatch, index: remaining.indexOf(boldMatch[0]) } : null,
+        codeMatch ? { type: "code", match: codeMatch, index: remaining.indexOf(codeMatch[0]) } : null,
+      ].filter(Boolean).sort((a, b) => a!.index - b!.index);
+
+      if (matches.length === 0) {
+        parts.push(remaining);
+        break;
+      }
+
+      const first = matches[0]!;
+      if (first.index > 0) {
+        parts.push(remaining.slice(0, first.index));
+      }
+
+      if (first.type === "link") {
+        parts.push(
+          <a key={key++} href={first.match![2]} target="_blank" rel="noreferrer"
+            className="font-medium underline" style={{ color: "#2563EB" }}>
+            {first.match![1]}
+          </a>
+        );
+      } else if (first.type === "bold") {
+        parts.push(<strong key={key++} className="font-semibold">{first.match![1]}</strong>);
+      } else if (first.type === "code") {
+        parts.push(
+          <code key={key++} className="px-1.5 py-0.5 rounded text-xs font-mono"
+            style={{ background: "var(--color-surface-3)" }}>
+            {first.match![1]}
+          </code>
+        );
+      }
+
+      remaining = remaining.slice(first.index + first.match![0].length);
+    }
+
+    return parts.length === 1 ? parts[0] : <>{parts}</>;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Horizontal rule
+    if (/^---+$/.test(trimmed)) {
+      flushList();
+      elements.push(<hr key={`hr-${i}`} className="my-3" style={{ borderColor: "var(--color-border)" }} />);
+      continue;
+    }
+
+    // List items (- or * or numbered)
+    const listMatch = trimmed.match(/^[-*•]\s+(.+)/) || trimmed.match(/^\d+[.)]\s+(.+)/);
+    if (listMatch) {
+      listItems.push(listMatch[1]);
+      continue;
+    }
+
+    flushList();
+
+    // Empty line
+    if (!trimmed) {
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={`p-${i}`} className="text-sm my-1" style={{ lineHeight: 1.6 }}>
+        {inlineFormat(trimmed)}
+      </p>
+    );
+  }
+
+  flushList();
+  return elements;
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -158,8 +273,10 @@ export default function GabeChatPage() {
                     border: msg.role === "assistant" ? "1px solid var(--color-border)" : undefined,
                   }}
                 >
-                  <div className="text-sm whitespace-pre-wrap break-words" style={{ lineHeight: 1.6 }}>
-                    {msg.content}
+                  <div className="break-words">
+                    {msg.role === "assistant" ? renderMarkdown(msg.content) : (
+                      <p className="text-sm" style={{ lineHeight: 1.6 }}>{msg.content}</p>
+                    )}
                   </div>
                 </div>
               </div>
