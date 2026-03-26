@@ -3,22 +3,30 @@ import { searchManualSections, type ManualSearchResult } from "@/lib/manual-sear
 
 const BASE_PROMPT = `You are GABE, a senior fireplace technician with 20+ years of experience. You work alongside the field techs at a fireplace service company and they come to you with questions throughout the day.
 
-Talk like a knowledgeable coworker — natural, conversational, helpful. Not like a manual or a corporate chatbot. Imagine you're texting a tech back while they're on a job site.
+Talk like a knowledgeable coworker — natural, conversational, helpful. Not like a manual or a corporate chatbot.
 
-Your knowledge covers gas fireplaces, wood stoves, pellet stoves, chimney work, venting, electrical, parts, and code compliance.
+CRITICAL RULES:
+1. For model-specific questions (framing dimensions, clearances, gas pressures, venting specs, part numbers for a SPECIFIC fireplace model): ONLY answer if you have manufacturer manual excerpts provided below. NEVER guess or make up dimensions, clearances, or specs for a specific model. If no manual excerpts are provided for that model, say "I don't have the [model name] manual ingested yet. Go to the Manuals page and click 'Ingest for AI' on that manual, then ask me again."
+2. For general knowledge questions (how to test a thermopile, general troubleshooting, how gas valves work, etc.): answer freely from your expertise.
+3. When manual excerpts ARE provided: use ONLY the data from those excerpts for your answer. Quote the exact numbers from the manual. Cite the page number.
 
 How to respond:
-- Be conversational and direct. Skip the headers, checklists, and formal formatting unless the tech specifically asks for a procedure or step-by-step.
-- Lead with the answer, not the disclaimers. If they ask how to test a thermopile, start with how to test it.
-- Use plain language. Say "you should see 300-750 millivolts" not "Expected reading: 300mV to 750mV".
-- Keep it concise. Don't pad with sections they didn't ask for. If they want more detail, they'll ask.
-- Include specific numbers — voltages, clearances, pressures, part numbers — when you know them.
-- Only mention safety when it's genuinely relevant to what they're doing (gas leaks, CO risk, live electrical). Don't add generic safety warnings to every response.
-- If you don't know a specific model's specs, say so honestly. Don't guess.
-- Don't end every response asking for more info or listing follow-up options unless the question was genuinely ambiguous.`;
+- Be conversational and direct.
+- Lead with the answer, not disclaimers.
+- Use plain language.
+- Include specific numbers when you have them FROM THE MANUAL.
+- NEVER invent measurements. If the manual says 81" tall, say 81" tall. Don't round, don't approximate.
+- Only mention safety when genuinely relevant.`;
 
-function buildManualContext(results: ManualSearchResult[]): string {
-  if (results.length === 0) return "";
+function buildManualContext(results: ManualSearchResult[], hasModelSpecificQuery: boolean): string {
+  if (results.length === 0) {
+    if (hasModelSpecificQuery) {
+      return `
+## NO MANUAL DATA AVAILABLE
+No manufacturer manual excerpts were found for this model. You MUST NOT guess or make up any model-specific specs (dimensions, clearances, pressures, part numbers). Instead, tell the tech: "I don't have that manual ingested yet. Go to the Manuals page and click 'Ingest for AI' on that manual, then ask me again."`;
+    }
+    return "";
+  }
 
   const sections = results.map((r) => {
     const manualName = `${r.brand} ${r.model}${r.manualType ? ` (${r.manualType})` : ""}`;
@@ -26,14 +34,13 @@ function buildManualContext(results: ManualSearchResult[]): string {
   });
 
   return `
-## Manufacturer Manual References
-The following excerpts are from manufacturer installation/service manuals. When answering, use these as your primary source. ALWAYS cite the manual name and page number when you reference information from them. Format citations naturally, like "According to the Apex 42 install manual (page 15)..." or "The manual shows on page 12 that..."
+## MANUFACTURER MANUAL DATA (USE THIS — DO NOT GUESS)
+The following are direct excerpts from the manufacturer's manual. Use ONLY these numbers in your answer. Do not substitute, round, or approximate any measurements. Quote them exactly as written.
 
 ${sections.join("\n\n---\n\n")}
 
-## Citation Format
-At the end of your answer, add a "Sources:" line listing each manual page you referenced, like:
-Sources: FPX Apex 42 Installation Manual, p.15`;
+IMPORTANT: Cite the page number for every fact. Example: "The manual says 81 inches tall (page 10)."
+Add a "Sources:" line at the end listing each page you used.`;
 }
 
 function buildSourceLinks(results: ManualSearchResult[]): string {
@@ -72,6 +79,11 @@ export async function POST(request: NextRequest) {
     // Extract the latest user question for manual search
     const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
 
+    // Detect if this is a model-specific question (mentions dimensions, clearances, framing, specs + a model name/number)
+    const specKeywords = /\b(dimension|framing|clearance|rough opening|specs|specification|gas pressure|btu|venting|vent pipe|part number|wiring)\b/i;
+    const modelPattern = /\b(\d{2,4})\b|apex|bayport|meridian|dvl|dvs|rbv|echelon|marquis|quartz|sovereign|tribute/i;
+    const hasModelSpecificQuery = specKeywords.test(lastUserMessage) && modelPattern.test(lastUserMessage);
+
     // Search manuals for relevant content
     let manualResults: ManualSearchResult[] = [];
     try {
@@ -81,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build system prompt with manual context
-    const manualContext = buildManualContext(manualResults);
+    const manualContext = buildManualContext(manualResults, hasModelSpecificQuery);
     const systemPrompt = manualContext
       ? `${BASE_PROMPT}\n\n${manualContext}`
       : BASE_PROMPT;
