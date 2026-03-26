@@ -78,7 +78,7 @@ interface OrchestratorResponse {
 export async function GET() {
   const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
   const engineUrl = process.env.GABE_ENGINE_URL;
-  const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
+  const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "false").toLowerCase() === "true";
 
   const result: Record<string, unknown> = {
     engineRequired,
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join("\n");
     const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
     const engineUrl = process.env.GABE_ENGINE_URL;
-    const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "true").toLowerCase() === "true";
+    const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "false").toLowerCase() === "true";
 
     // Local manual-guard path removed; use orchestrator/engine pipeline only.
 
@@ -279,13 +279,21 @@ export async function POST(request: NextRequest) {
       }, { status: 503 });
     }
 
+    const nvidiaApiKey = process.env.NVIDIA_API_KEY;
     const groqApiKey = process.env.GROQ_API_KEY;
-    const modelOverride = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+    const llmApiKey = nvidiaApiKey || groqApiKey;
+    const llmBaseUrl = nvidiaApiKey
+      ? "https://integrate.api.nvidia.com/v1/chat/completions"
+      : "https://api.groq.com/openai/v1/chat/completions";
+    const modelOverride = nvidiaApiKey
+      ? (process.env.NVIDIA_MODEL || "nvidia/llama-3.1-nemotron-ultra-253b-v1")
+      : (process.env.GROQ_MODEL || "llama-3.1-8b-instant");
 
-    console.log("[GABE] GROQ_API_KEY present:", !!groqApiKey);
-    console.log("[GABE] GROQ_MODEL:", modelOverride);
+    console.log("[GABE] LLM provider:", nvidiaApiKey ? "NVIDIA" : "Groq");
+    console.log("[GABE] LLM model:", modelOverride);
+    console.log("[GABE] API key present:", !!llmApiKey);
 
-    if (!groqApiKey) {
+    if (!llmApiKey) {
       const brandCounts = allManuals.reduce((acc, m) => {
         acc[m.brand] = (acc[m.brand] || 0) + 1;
         return acc;
@@ -300,11 +308,9 @@ export async function POST(request: NextRequest) {
         ? allManuals.slice(0, 30).map(m => `- ${m.brand} ${m.model}${m.pages ? ` (${m.pages} pages)` : ""}${m.url ? " — 🔗" : ""}`).join("\n")
         : "No manuals loaded - check /api/manuals endpoint";
 
-      const fallbackResponse = `🔥 **GABE AI is not configured** — Missing GROQ_API_KEY environment variable.
+      const fallbackResponse = `🔥 **GABE AI is not configured** — No LLM API key found.
 
-**Current Status:** Key is ${groqApiKey ? "present but not working" : "NOT FOUND"}
-
-To fix:
+**Current Status:** Neither NVIDIA_API_KEY nor GROQ_API_KEY is set.
 
 **📚 Manual Library Status:**
 - **Total Manuals:** ${allManuals.length}
@@ -316,7 +322,7 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 
 ---
 
-**However, I can still help with common fireplace questions!**
+**Common Fireplace Troubleshooting:**
 
 **Pilot Light Issues:**
 1. Check gas valve is ON at unit and main
@@ -325,30 +331,12 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 4. Check for air in gas line (new installs)
 5. Verify spark igniter gap (1/8")
 
-**Thermocouple Testing:**
-- Should read 15–30mV when heated
-- Check connection to gas valve
-- Replace if damaged ($15–30 parts)
-
-**Thermopile Testing:**
-- Should read 350–750mV when fully heated (3–5 min)
-- Under load test: stay above 250mV
-- Replace if under 300mV ($35–55 parts)
-
-**Direct Vent Venting:**
-- 4" inner, 6.5" outer co-axial pipe
-- Horizontal: min 12" from window/door
-- Vertical: 3' above roof penetration
-- Each 90° elbow = 5 ft equivalent length
+**Thermocouple Testing:** Should read 15–30mV when heated
+**Thermopile Testing:** Should read 350–750mV fully heated (3–5 min)
 
 ⚠️ **Safety First:** If you smell gas, shut off supply and ventilate before troubleshooting.
 
-**To enable full AI responses:**
-1. Go to https://console.groq.com to get a free API key
-2. Add GROQ_API_KEY to your Vercel project settings (Environment Variables)
-3. Redeploy the application
-
-Would you like help with a specific fireplace model or issue?`;
+**To enable full AI responses:** Add NVIDIA_API_KEY to your Vercel environment variables and redeploy.`;
 
       try {
         saveConversationLog({
@@ -403,11 +391,11 @@ Would you like help with a specific fireplace model or issue?`;
       sections: sectionsForPrompt,
     });
 
-    console.log("[GABE] Calling Groq API with", messages.length, "messages");
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    console.log("[GABE] Calling LLM API with", messages.length, "messages");
+    const response = await fetch(llmBaseUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${groqApiKey}`,
+        "Authorization": `Bearer ${llmApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -416,15 +404,16 @@ Would you like help with a specific fireplace model or issue?`;
           { role: "system", content: systemPrompt },
           ...messages,
         ],
-        temperature: 0.3,
-        max_tokens: 1024,
+        temperature: 0.6,
+        top_p: 0.95,
+        max_tokens: 4096,
         stream: false,
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Groq API error:", error);
+      console.error("LLM API error:", error);
 
       const isAuthError = response.status === 401 || response.status === 403;
       let errorMessage = "AI service temporarily unavailable";
@@ -438,7 +427,7 @@ Would you like help with a specific fireplace model or issue?`;
 
       return NextResponse.json({
         error: errorMessage,
-        isKeyConfigured: !!groqApiKey,
+        isKeyConfigured: !!llmApiKey,
         isAuthError,
         details: error,
       }, { status: isAuthError ? 401 : 503 });
