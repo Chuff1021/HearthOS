@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createManual } from "@/lib/manuals";
+import postgres from "postgres";
 
 const MANUAL_LIBRARY = [
   { brand: "Lopi", model: "Answer Wood Stove", type: "Owners Manual", category: "Wood Stove", url: "https://www.travisindustries.com/Docs/93508034.pdf", pages: 20 },
@@ -221,34 +221,106 @@ const MANUAL_LIBRARY = [
 ];
 
 export async function POST() {
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ error: "No DATABASE_URL" }, { status: 500 });
+  }
+
+  const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
+
   try {
+    // Ensure organizations table and default org exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS organizations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        phone TEXT,
+        email TEXT,
+        address TEXT,
+        logo_url TEXT,
+        timezone TEXT DEFAULT 'America/Chicago',
+        settings JSONB DEFAULT '{}',
+        subscription_tier TEXT DEFAULT 'starter',
+        qb_realm_id TEXT,
+        qb_access_token TEXT,
+        qb_refresh_token TEXT,
+        qb_token_expires_at TIMESTAMPTZ,
+        qb_connected BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
+
+    const orgs = await sql`SELECT id FROM organizations WHERE slug = 'default' LIMIT 1`;
+    let orgId: string;
+    if (orgs.length > 0) {
+      orgId = orgs[0].id;
+    } else {
+      const created = await sql`INSERT INTO organizations (name, slug) VALUES ('HearthOS', 'default') RETURNING id`;
+      orgId = created[0].id;
+    }
+
+    // Ensure manuals table exists
+    await sql`
+      CREATE TABLE IF NOT EXISTS manuals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID NOT NULL,
+        brand VARCHAR(100) NOT NULL,
+        model VARCHAR(100) NOT NULL,
+        type VARCHAR(100),
+        category VARCHAR(100),
+        url TEXT NOT NULL,
+        pages INTEGER,
+        source VARCHAR(50) DEFAULT 'url',
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
+
+    // Ensure manual_sections table exists
+    await sql`
+      CREATE TABLE IF NOT EXISTS manual_sections (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        manual_id UUID NOT NULL,
+        page_start INTEGER NOT NULL,
+        page_end INTEGER,
+        title VARCHAR(255),
+        snippet TEXT NOT NULL,
+        tags JSONB DEFAULT '[]',
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
+
     let created = 0;
     let skipped = 0;
-    const errors: string[] = [];
 
     for (const entry of MANUAL_LIBRARY) {
       try {
-        await createManual({
-          brand: entry.brand,
-          model: entry.model,
-          type: entry.type || undefined,
-          category: entry.category || undefined,
-          url: entry.url,
-          pages: entry.pages || null,
-          source: "seed",
-        });
-        created++;
-      } catch (e) {
-        // Likely duplicate — skip
-        skipped++;
-        if (errors.length < 5) {
-          errors.push(`${entry.brand} ${entry.model}: ${e instanceof Error ? e.message : String(e)}`);
+        // Check if already exists
+        const existing = await sql`
+          SELECT id FROM manuals WHERE org_id = ${orgId} AND brand = ${entry.brand} AND model = ${entry.model} AND COALESCE(type, '') = ${entry.type || ''} LIMIT 1
+        `;
+        if (existing.length > 0) {
+          skipped++;
+          continue;
         }
+
+        await sql`
+          INSERT INTO manuals (org_id, brand, model, type, category, url, pages, source)
+          VALUES (${orgId}, ${entry.brand}, ${entry.model}, ${entry.type || null}, ${entry.category || null}, ${entry.url}, ${entry.pages || null}, 'seed')
+        `;
+        created++;
+      } catch {
+        skipped++;
       }
     }
 
-    return NextResponse.json({ created, skipped, total: MANUAL_LIBRARY.length, errors });
+    await sql.end();
+    return NextResponse.json({ created, skipped, total: MANUAL_LIBRARY.length, orgId });
   } catch (err) {
+    try { await sql.end(); } catch {}
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Seed failed" },
       { status: 500 }
