@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { searchManualSections, type ManualSearchResult } from "@/lib/manual-search";
 
-const SYSTEM_PROMPT = `You are GABE, a senior fireplace technician with 20+ years of experience. You work alongside the field techs at a fireplace service company and they come to you with questions throughout the day.
+const BASE_PROMPT = `You are GABE, a senior fireplace technician with 20+ years of experience. You work alongside the field techs at a fireplace service company and they come to you with questions throughout the day.
 
 Talk like a knowledgeable coworker — natural, conversational, helpful. Not like a manual or a corporate chatbot. Imagine you're texting a tech back while they're on a job site.
 
@@ -15,6 +16,42 @@ How to respond:
 - Only mention safety when it's genuinely relevant to what they're doing (gas leaks, CO risk, live electrical). Don't add generic safety warnings to every response.
 - If you don't know a specific model's specs, say so honestly. Don't guess.
 - Don't end every response asking for more info or listing follow-up options unless the question was genuinely ambiguous.`;
+
+function buildManualContext(results: ManualSearchResult[]): string {
+  if (results.length === 0) return "";
+
+  const sections = results.map((r) => {
+    const manualName = `${r.brand} ${r.model}${r.manualType ? ` (${r.manualType})` : ""}`;
+    return `[${manualName} — Page ${r.pageStart}]\n${r.snippet}`;
+  });
+
+  return `
+## Manufacturer Manual References
+The following excerpts are from manufacturer installation/service manuals. When answering, use these as your primary source. ALWAYS cite the manual name and page number when you reference information from them. Format citations naturally, like "According to the Apex 42 install manual (page 15)..." or "The manual shows on page 12 that..."
+
+${sections.join("\n\n---\n\n")}
+
+## Citation Format
+At the end of your answer, add a "Sources:" line listing each manual page you referenced, like:
+Sources: FPX Apex 42 Installation Manual, p.15`;
+}
+
+function buildSourceLinks(results: ManualSearchResult[]): string {
+  if (results.length === 0) return "";
+
+  const unique = new Map<string, ManualSearchResult>();
+  for (const r of results) {
+    const key = `${r.manualId}-${r.pageStart}`;
+    if (!unique.has(key)) unique.set(key, r);
+  }
+
+  const links = Array.from(unique.values()).map((r) => {
+    const name = `${r.brand} ${r.model}${r.manualType ? ` (${r.manualType})` : ""}`;
+    return `- ${name}, p.${r.pageStart} — ${r.manualUrl}#page=${r.pageStart}`;
+  });
+
+  return "\n\n📖 **Manual Links:**\n" + links.join("\n");
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +69,23 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Extract the latest user question for manual search
+    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
+
+    // Search manuals for relevant content
+    let manualResults: ManualSearchResult[] = [];
+    try {
+      manualResults = await searchManualSections(lastUserMessage, { limit: 5 });
+    } catch (e) {
+      console.warn("[GABE-TEST] Manual search failed (non-fatal):", e);
+    }
+
+    // Build system prompt with manual context
+    const manualContext = buildManualContext(manualResults);
+    const systemPrompt = manualContext
+      ? `${BASE_PROMPT}\n\n${manualContext}`
+      : BASE_PROMPT;
+
     const model = process.env.NVIDIA_MODEL || "nvidia/llama-3.1-nemotron-ultra-253b-v1";
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -44,7 +98,7 @@ export async function POST(request: NextRequest) {
         model,
         messages: [
           { role: "system", content: "detailed thinking off" },
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         temperature: 0.6,
@@ -66,15 +120,11 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || "";
 
-    // Nemotron Ultra puts reasoning in <think>...</think> then answer after.
-    // If the entire response is wrapped in <think>, extract what's after the closing tag.
-    // If there's no closing tag, the model may still be "thinking" — use the raw content.
     let answer = rawContent;
     const thinkClose = rawContent.indexOf("</think>");
     if (thinkClose !== -1) {
       answer = rawContent.substring(thinkClose + "</think>".length).trim();
     }
-    // If stripping left nothing, fall back to the content inside <think> (better than empty)
     if (!answer) {
       answer = rawContent.replace(/<\/?think>/g, "").trim();
     }
@@ -87,10 +137,16 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Append manual source links if we found matches
+    if (manualResults.length > 0) {
+      answer += buildSourceLinks(manualResults);
+    }
+
     return NextResponse.json({
       answer,
       model,
       usage: data.usage || null,
+      manualPagesUsed: manualResults.length,
     });
   } catch (err) {
     console.error("[GABE-TEST] Unhandled error:", err);

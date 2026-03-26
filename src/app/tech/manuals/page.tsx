@@ -80,6 +80,10 @@ export default function ManualsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [manuals, setManuals] = useState<Manual[]>([]);
   const [inferredMakeById, setInferredMakeById] = useState<Record<string, string>>({});
+  const [ingestingId, setIngestingId] = useState<string | null>(null);
+  const [lastIngestedId, setLastIngestedId] = useState<string | null>(null);
+  const [ingestProgress, setIngestProgress] = useState<{ current: number; total: number } | null>(null);
+  const [ingestStatus, setIngestStatus] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formState, setFormState] = useState({
@@ -234,6 +238,90 @@ export default function ManualsPage() {
     }
   };
 
+  async function ingestManual(manual: Manual) {
+    if (ingestingId) return;
+    setIngestingId(manual.id);
+    setIngestProgress(null);
+    setIngestStatus("Loading PDF...");
+
+    try {
+      // Dynamically import pdfjs-dist
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+      // Fetch and load the PDF
+      const pdf = await pdfjsLib.getDocument({
+        url: manual.url,
+        disableAutoFetch: true,
+        disableStream: true,
+      }).promise;
+
+      const totalPages = pdf.numPages;
+      setIngestProgress({ current: 0, total: totalPages });
+      setIngestStatus(`Processing 0 / ${totalPages} pages...`);
+
+      let successCount = 0;
+
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        setIngestProgress({ current: pageNum, total: totalPages });
+        setIngestStatus(`Processing page ${pageNum} / ${totalPages}...`);
+
+        try {
+          const page = await pdf.getPage(pageNum);
+          const scale = 2.0; // ~200 DPI for letter-size
+          const viewport = page.getViewport({ scale });
+
+          // Render page to canvas
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+
+          await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+
+          // Convert to base64 PNG (strip the data:image/png;base64, prefix)
+          const dataUrl = canvas.toDataURL("image/png", 0.85);
+          const imageBase64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+
+          // Send to ingestion API
+          const res = await fetch("/api/manuals/ingest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              manualId: manual.id,
+              pageNumber: pageNum,
+              imageBase64,
+            }),
+          });
+
+          if (res.ok) {
+            successCount++;
+          } else {
+            const err = await res.json().catch(() => ({}));
+            console.warn(`Page ${pageNum} ingestion failed:`, err);
+          }
+
+          // Clean up canvas
+          canvas.width = 0;
+          canvas.height = 0;
+        } catch (pageErr) {
+          console.warn(`Failed to process page ${pageNum}:`, pageErr);
+        }
+      }
+
+      setIngestStatus(`Done! ${successCount} / ${totalPages} pages ingested for GABE AI.`);
+      setLastIngestedId(manual.id);
+    } catch (err) {
+      console.error("Ingestion failed:", err);
+      setIngestStatus(`Failed: ${err instanceof Error ? err.message : "Could not process PDF"}`);
+      setLastIngestedId(manual.id);
+    } finally {
+      setIngestingId(null);
+      setIngestProgress(null);
+    }
+  }
+
   return (
     <div className="ui-page-mobile flex flex-col min-h-screen pb-32">
       <header
@@ -350,7 +438,35 @@ export default function ManualsPage() {
                         >
                           View PDF
                         </a>
+                        <button
+                          onClick={() => ingestManual(manual)}
+                          disabled={!!ingestingId}
+                          className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            background: ingestingId === manual.id ? "rgba(245,158,11,0.15)" : "rgba(37,99,235,0.12)",
+                            color: ingestingId === manual.id ? "#F59E0B" : "#2563EB",
+                            border: `1px solid ${ingestingId === manual.id ? "rgba(245,158,11,0.3)" : "rgba(37,99,235,0.25)"}`,
+                          }}
+                        >
+                          {ingestingId === manual.id ? `${ingestProgress?.current || 0}/${ingestProgress?.total || "?"}` : "Ingest for AI"}
+                        </button>
                       </div>
+                      {(ingestingId === manual.id || lastIngestedId === manual.id) && ingestStatus && (
+                        <div className="mt-2">
+                          {ingestProgress && (
+                            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-3)" }}>
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${Math.round((ingestProgress.current / ingestProgress.total) * 100)}%`,
+                                  background: "linear-gradient(90deg, #2563EB, #F59E0B)",
+                                }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{ingestStatus}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
