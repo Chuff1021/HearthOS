@@ -138,7 +138,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const allManuals = await listManuals();
+    let allManuals: Awaited<ReturnType<typeof listManuals>> = [];
+    try {
+      allManuals = await listManuals();
+    } catch (e) {
+      console.warn("[GABE] Failed to load manuals (non-fatal):", e);
+    }
     const modelContext = (jobContext?.fireplace || "").trim();
     const modelManualCandidates = modelContext
       ? allManuals.filter((m) => `${m.brand} ${m.model}`.toLowerCase().includes(modelContext.toLowerCase()) || m.model.toLowerCase().includes(modelContext.toLowerCase()))
@@ -379,9 +384,14 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 
     const manualsForPrompt = prioritizedManuals.slice(0, 25);
     const manualIds = new Set(manualsForPrompt.map((m) => m.id));
-    const allSections = selectedManualRecord
-      ? await listManualSections(selectedManualRecord.id)
-      : await listManualSections();
+    let allSections: Awaited<ReturnType<typeof listManualSections>> = [];
+    try {
+      allSections = selectedManualRecord
+        ? await listManualSections(selectedManualRecord.id)
+        : await listManualSections();
+    } catch (e) {
+      console.warn("[GABE] Failed to load manual sections (non-fatal):", e);
+    }
     const sectionsForPrompt = allSections
       .filter((s) => manualIds.has(s.manualId))
       .slice(0, 200);
@@ -434,7 +444,10 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
     }
 
     const data = await response.json() as GroqResponse;
-    const assistantMessage = data.choices[0]?.message?.content;
+    let assistantMessage = data.choices[0]?.message?.content || "";
+
+    // Nemotron Ultra wraps reasoning in <think>...</think> tags — strip them
+    assistantMessage = assistantMessage.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
     if (!assistantMessage) {
       return NextResponse.json(
