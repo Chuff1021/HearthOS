@@ -169,6 +169,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [techs, setTechs] = useState<Tech[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [jobsTab, setJobsTab] = useState<"active" | "completed">("active");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [jobTypeFilter, setJobTypeFilter] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -390,8 +391,14 @@ export default function JobsPage() {
       (job.propertyAddress || "").toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || job.status === statusFilter;
     const matchesJobType = jobTypeFilter === "all" || job.jobType === jobTypeFilter;
-    return matchesSearch && matchesStatus && matchesJobType;
+    // Tab filter
+    const isCompleted = job.status === "completed" || job.status === "cancelled";
+    const matchesTab = jobsTab === "completed" ? isCompleted : !isCompleted;
+    return matchesSearch && matchesStatus && matchesJobType && matchesTab;
   });
+
+  const activeCount = jobs.filter((j) => j.status !== "completed" && j.status !== "cancelled").length;
+  const completedCount = jobs.filter((j) => j.status === "completed" || j.status === "cancelled").length;
 
   const activeRelatedInvoice = selectedRelatedDocument?.type === "invoice"
     ? (relatedDocumentPreview as RelatedInvoicePreview | null)
@@ -506,11 +513,43 @@ export default function JobsPage() {
           <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>New Job</button>
         </div>
 
-        <div className="px-6 py-4 flex items-center gap-4 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+        {/* Active / Completed tabs */}
+        <div className="px-6 pt-3 pb-0 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <button
+            onClick={() => { setJobsTab("active"); setStatusFilter("all"); }}
+            className="px-4 py-2 text-sm font-semibold transition-colors"
+            style={{
+              borderBottom: jobsTab === "active" ? "2px solid #2563EB" : "2px solid transparent",
+              color: jobsTab === "active" ? "#2563EB" : "var(--color-text-muted)",
+              marginBottom: -1,
+            }}
+          >
+            Active ({activeCount})
+          </button>
+          <button
+            onClick={() => { setJobsTab("completed"); setStatusFilter("all"); }}
+            className="px-4 py-2 text-sm font-semibold transition-colors"
+            style={{
+              borderBottom: jobsTab === "completed" ? "2px solid #16A34A" : "2px solid transparent",
+              color: jobsTab === "completed" ? "#16A34A" : "var(--color-text-muted)",
+              marginBottom: -1,
+            }}
+          >
+            Completed ({completedCount})
+          </button>
+        </div>
+
+        <div className="px-6 py-3 flex items-center gap-4 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
           <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search jobs..." className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-            <option value="all">All Status</option><option value="scheduled">Scheduled</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="on_hold">On Hold</option><option value="cancelled">Cancelled</option>
-          </select>
+          {jobsTab === "active" ? (
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+              <option value="all">All Status</option><option value="scheduled">Scheduled</option><option value="in_progress">In Progress</option><option value="on_hold">On Hold</option>
+            </select>
+          ) : (
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+              <option value="all">All</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+            </select>
+          )}
           <select value={jobTypeFilter} onChange={(e) => setJobTypeFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
             <option value="all">All Types</option><option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
           </select>
