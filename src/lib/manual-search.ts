@@ -86,6 +86,13 @@ export async function searchManualSections(
       const likeConditions = topicPatterns.map((p) => sql`LOWER(ms.snippet) LIKE ${p}`);
       const combinedCondition = likeConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
 
+      // Score each matching section by how many topic keywords it contains
+      // and by snippet length (longer = more actual content, not just TOC)
+      const scoreTerms = topicPatterns.map((p) =>
+        sql`CASE WHEN LOWER(ms.snippet) LIKE ${p} THEN 1 ELSE 0 END`
+      );
+      const scoreExpr = scoreTerms.reduce((acc, term) => sql`${acc} + ${term}`);
+
       rows = await sql`
         SELECT
           ms.id as section_id,
@@ -94,11 +101,13 @@ export async function searchManualSections(
           ms.page_end,
           ms.title as section_title,
           LEFT(ms.snippet, 3000) as snippet,
-          ms.tags::text as tags
+          ms.tags::text as tags,
+          (${scoreExpr}) as keyword_score,
+          LENGTH(ms.snippet) as snippet_len
         FROM manual_sections ms
         WHERE ms.manual_id = ANY(${manualIds})
           AND (${combinedCondition})
-        ORDER BY ms.page_start ASC
+        ORDER BY keyword_score DESC, snippet_len DESC, ms.page_start ASC
         LIMIT ${limit}
       `;
     } else {
