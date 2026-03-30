@@ -61,7 +61,7 @@ function renderMarkdown(text: string) {
       if (first.type === "link") {
         parts.push(
           <a key={key++} href={first.match![2]} target="_blank" rel="noreferrer"
-            className="font-medium underline" style={{ color: "#2563EB" }}>
+            className="font-medium underline" style={{ color: "#FF6A00" }}>
             {first.match![1]}
           </a>
         );
@@ -268,9 +268,10 @@ export default function GabeChatPage() {
                 <div
                   className="max-w-[80%] rounded-2xl px-4 py-3"
                   style={{
-                    background: msg.role === "user" ? "#2563EB" : "var(--color-surface-2)",
+                    background: msg.role === "user" ? "linear-gradient(135deg, #FF6A00, #F59E0B)" : "var(--color-surface-1)",
                     color: msg.role === "user" ? "#fff" : "var(--color-text-primary)",
                     border: msg.role === "assistant" ? "1px solid var(--color-border)" : undefined,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                   }}
                 >
                   <div className="break-words">
