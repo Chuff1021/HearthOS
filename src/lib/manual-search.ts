@@ -50,8 +50,9 @@ export async function searchManualSections(
     const patterns = keywords.map((k) => `%${k}%`);
 
     // Score each section by how many keywords match across snippet + brand + model
+    // Bonus: keywords found in the SNIPPET are worth more than brand/model matches
     const scoreTerms = patterns.map((p) =>
-      sql`CASE WHEN LOWER(ms.snippet) LIKE ${p} OR LOWER(m.brand) LIKE ${p} OR LOWER(m.model) LIKE ${p} THEN 1 ELSE 0 END`
+      sql`CASE WHEN LOWER(ms.snippet) LIKE ${p} THEN 2 WHEN LOWER(m.brand) LIKE ${p} OR LOWER(m.model) LIKE ${p} THEN 1 ELSE 0 END`
     );
     const scoreExpr = scoreTerms.reduce((acc, term) => sql`${acc} + ${term}`);
 
@@ -80,7 +81,7 @@ export async function searchManualSections(
       JOIN manuals m ON m.id = ms.manual_id
       WHERE m.is_active = true
         AND (${matchCombined})
-        AND (${scoreExpr}) >= 2
+        AND (${scoreExpr}) >= 3
       ORDER BY keyword_score DESC, snippet_len DESC
       LIMIT ${limit}
     `;
