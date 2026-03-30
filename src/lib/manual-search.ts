@@ -53,14 +53,20 @@ export async function searchManualSections(
     const brandModelPatterns = keywords.map((k) => `%${k}%`);
 
     // Step 1: Find manuals that match the brand/model keywords
+    // Score by how many keywords match — more matches = more relevant manual
+    const bmScoreTerms = brandModelPatterns.map((p) =>
+      sql`CASE WHEN LOWER(brand) LIKE ${p} OR LOWER(model) LIKE ${p} THEN 1 ELSE 0 END`
+    );
+    const bmScoreExpr = bmScoreTerms.reduce((acc, term) => sql`${acc} + ${term}`);
     const bmConditions = brandModelPatterns.map((p) => sql`LOWER(brand) LIKE ${p} OR LOWER(model) LIKE ${p}`);
     const bmCombined = bmConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
 
     const matchingManuals = await sql`
-      SELECT id, brand, model, type as manual_type, url
+      SELECT id, brand, model, type as manual_type, url, (${bmScoreExpr}) as match_score
       FROM manuals
       WHERE is_active = true
         AND (${bmCombined})
+      ORDER BY match_score DESC
       LIMIT 10
     `;
 
