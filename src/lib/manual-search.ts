@@ -61,14 +61,28 @@ export async function searchManualSections(
     const bmConditions = brandModelPatterns.map((p) => sql`LOWER(brand) LIKE ${p} OR LOWER(model) LIKE ${p}`);
     const bmCombined = bmConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
 
-    const matchingManuals = await sql`
+    // First try: find manuals matching 2+ keywords (strong match)
+    let matchingManuals = await sql`
       SELECT id, brand, model, type as manual_type, url, (${bmScoreExpr}) as match_score
       FROM manuals
       WHERE is_active = true
         AND (${bmCombined})
+        AND (${bmScoreExpr}) >= 2
       ORDER BY match_score DESC
-      LIMIT 10
+      LIMIT 6
     `;
+
+    // Fallback: if no strong matches, accept single-keyword matches
+    if (matchingManuals.length === 0) {
+      matchingManuals = await sql`
+        SELECT id, brand, model, type as manual_type, url, (${bmScoreExpr}) as match_score
+        FROM manuals
+        WHERE is_active = true
+          AND (${bmCombined})
+        ORDER BY match_score DESC
+        LIMIT 6
+      `;
+    }
 
     if (matchingManuals.length === 0) {
       await sql.end();
@@ -120,7 +134,37 @@ export async function searchManualSections(
       rows = [];
     }
 
-    // If no content matches, fall back to first few pages of matching manuals
+    // If no content matches in the matched manuals, try searching ALL manuals
+    // by snippet content (handles cases where the manual brand/model metadata doesn't match)
+    if (rows.length === 0 && topicPatterns.length > 0) {
+      const allSnippetConditions = [...topicPatterns, ...brandModelPatterns].map((p) => sql`LOWER(ms.snippet) LIKE ${p}`);
+      const allSnippetCombined = allSnippetConditions.reduce((acc, cond) => sql`${acc} OR ${cond}`);
+      const allScoreTerms = [...topicPatterns, ...brandModelPatterns].map((p) =>
+        sql`CASE WHEN LOWER(ms.snippet) LIKE ${p} THEN 1 ELSE 0 END`
+      );
+      const allScoreExpr = allScoreTerms.reduce((acc, term) => sql`${acc} + ${term}`);
+
+      rows = await sql`
+        SELECT
+          ms.id as section_id,
+          ms.manual_id,
+          ms.page_start,
+          ms.page_end,
+          ms.title as section_title,
+          LEFT(ms.snippet, 3000) as snippet,
+          ms.tags::text as tags,
+          (${allScoreExpr}) as keyword_score,
+          LENGTH(ms.snippet) as snippet_len
+        FROM manual_sections ms
+        JOIN manuals m ON m.id = ms.manual_id
+        WHERE m.is_active = true
+          AND (${allSnippetCombined})
+        ORDER BY keyword_score DESC, snippet_len DESC
+        LIMIT ${limit}
+      `;
+    }
+
+    // Last fallback: first pages of matching manuals
     if (rows.length === 0) {
       rows = await sql`
         SELECT
@@ -139,6 +183,16 @@ export async function searchManualSections(
     }
 
     await sql.end();
+
+    // Get manual metadata for any manual IDs in results that aren't in our map
+    const resultManualIds = [...new Set(rows.map((r: any) => r.manual_id))];
+    const missingIds = resultManualIds.filter(id => !manualMap.has(id));
+    if (missingIds.length > 0) {
+      const extraManuals = await sql`SELECT id, brand, model, type as manual_type, url FROM manuals WHERE id = ANY(${missingIds})`;
+      for (const em of extraManuals as any[]) {
+        manualMap.set(em.id, em);
+      }
+    }
 
     return rows.map((r: any) => {
       const manual = manualMap.get(r.manual_id) || {} as any;
