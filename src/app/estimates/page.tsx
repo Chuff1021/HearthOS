@@ -392,7 +392,7 @@ export default function EstimatesPage() {
       const res = await fetch("/api/estimator/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, customerName: selectedCustomer?.name || "" }),
+        body: JSON.stringify({ prompt, customerName: selectedCustomerName || "" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI generation failed");
