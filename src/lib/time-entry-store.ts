@@ -338,7 +338,7 @@ export async function createManualTimeEntry(input: {
       id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
     ) VALUES (
       ${entry.id}, ${entry.techId}, ${entry.techName || null},
-      ${entry.clockInAt}, ${entry.clockOutAt}, ${entry.totalMinutes ?? null},
+      ${entry.clockInAt}, ${entry.clockOutAt || null}, ${entry.totalMinutes ?? null},
       ${entry.status}, ${true}, ${entry.editNote || null},
       ${JSON.stringify(entry)}::jsonb, ${entry.createdAt}, ${entry.updatedAt}
     )
