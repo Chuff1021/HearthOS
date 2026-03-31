@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
 
-    // Fetch recent QB estimates for pricing reference
+    // Fetch QB estimates — prioritize ones matching this model/product
     let historicalData = "";
     try {
       const qbRes = await fetch(`${request.nextUrl.origin}/api/quickbooks/estimates`, {
@@ -59,7 +59,24 @@ export async function POST(request: NextRequest) {
       });
       if (qbRes.ok) {
         const qbData = await qbRes.json();
-        const estimates = (qbData.estimates || []).slice(0, 50); // Last 50 estimates
+        const allEstimates = qbData.estimates || [];
+
+        // Extract keywords from the prompt to find matching estimates
+        const promptLower = prompt.toLowerCase();
+        const keywords = promptLower.split(/\s+/).filter((w: string) => w.length >= 3);
+
+        // Find estimates that match the specific model/product
+        const matchingEstimates = allEstimates.filter((est: any) => {
+          const estText = JSON.stringify(est).toLowerCase();
+          return keywords.some((kw: string) => estText.includes(kw));
+        });
+
+        // Use matching estimates first, then fill with recent general ones
+        const prioritized = [
+          ...matchingEstimates.slice(0, 20),
+          ...allEstimates.filter((e: any) => !matchingEstimates.includes(e)).slice(0, 30),
+        ];
+        const estimates = prioritized.slice(0, 50);
 
         // Build a pricing reference from historical estimates
         const itemPrices = new Map<string, { prices: number[]; descriptions: string[] }>();
@@ -99,9 +116,23 @@ export async function POST(request: NextRequest) {
           pricingLines.push(`${labor.type}: $${labor.amount} (${labor.context})`);
         }
 
-        // Also include some full estimate examples for context
-        pricingLines.push("\n=== RECENT FULL ESTIMATE EXAMPLES ===");
-        for (const est of estimates.slice(0, 10)) {
+        // Show matching estimates first (for this specific model)
+        if (matchingEstimates.length > 0) {
+          pricingLines.push(`\n=== ESTIMATES MATCHING "${prompt}" (USE THESE AS PRIMARY REFERENCE) ===`);
+          for (const est of matchingEstimates.slice(0, 10)) {
+            const lines = (est.Line || [])
+              .filter((l: any) => l.DetailType === "SalesItemLineDetail")
+              .map((l: any) => `  ${l.SalesItemLineDetail?.ItemRef?.name}: ${l.SalesItemLineDetail?.Qty || 1}x $${l.SalesItemLineDetail?.UnitPrice} = $${l.Amount}`);
+            if (lines.length > 0) {
+              pricingLines.push(`\nEstimate #${est.DocNumber} for ${est.CustomerRef?.name} — Total: $${est.TotalAmt}`);
+              pricingLines.push(lines.join("\n"));
+            }
+          }
+        }
+
+        // Also include general recent examples
+        pricingLines.push("\n=== RECENT FULL ESTIMATE EXAMPLES (GENERAL PRICING) ===");
+        for (const est of allEstimates.filter((e: any) => !matchingEstimates.includes(e)).slice(0, 10)) {
           const lines = (est.Line || [])
             .filter((l: any) => l.DetailType === "SalesItemLineDetail")
             .map((l: any) => `  ${l.SalesItemLineDetail?.ItemRef?.name}: ${l.SalesItemLineDetail?.Qty || 1}x $${l.SalesItemLineDetail?.UnitPrice} = $${l.Amount}`);
