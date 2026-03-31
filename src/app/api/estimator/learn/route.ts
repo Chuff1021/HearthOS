@@ -32,23 +32,31 @@ export async function POST(request: NextRequest) {
     }
     const client = getClientFromTokens(org.qbAccessToken, org.qbRefreshToken, org.qbRealmId);
 
-    // Fetch ALL invoices
+    // Fetch ALL invoices from 2025-2026
     let invoices: any[] = [];
     try {
-      invoices = await (client as any).queryAll("SELECT * FROM Invoice ORDERBY TxnDate DESC");
+      invoices = await (client as any).queryAll("SELECT * FROM Invoice WHERE TxnDate >= '2025-01-01' ORDERBY TxnDate DESC");
     } catch {
-      invoices = await client.getInvoices(1000);
+      try {
+        invoices = await (client as any).queryAll("SELECT * FROM Invoice ORDERBY TxnDate DESC");
+      } catch {
+        invoices = await client.getInvoices();
+      }
     }
 
-    // Fetch ALL estimates
+    // Fetch ALL estimates from 2025-2026
     let estimates: any[] = [];
     try {
-      estimates = await (client as any).queryAll("SELECT * FROM Estimate ORDERBY TxnDate DESC");
+      estimates = await (client as any).queryAll("SELECT * FROM Estimate WHERE TxnDate >= '2025-01-01' ORDERBY TxnDate DESC");
     } catch {
-      estimates = await (client as any).getEstimates(1000);
+      try {
+        estimates = await (client as any).queryAll("SELECT * FROM Estimate ORDERBY TxnDate DESC");
+      } catch {
+        estimates = await (client as any).getEstimates();
+      }
     }
 
-    // Combine all transactions
+    // Combine — invoices first (primary truth), then estimates
     const allTransactions = [
       ...invoices.map((inv: any) => ({ ...inv, _type: "invoice" })),
       ...estimates.map((est: any) => ({ ...est, _type: "estimate" })),
@@ -238,11 +246,86 @@ export async function POST(request: NextRequest) {
       ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(samplePatterns)}::jsonb, updated_at = now()
     `;
 
+    // 7. Build PRODUCT CATALOG — invoices as primary, estimates as fallback
+    const productMap: Record<string, any> = {};
+
+    for (const txn of allTransactions) {
+      const lines = txn.items || [];
+      if (lines.length === 0) continue;
+
+      // Find the main unit (most expensive non-labor/pipe item)
+      let mainUnit: any = null;
+      let maxAmount = 0;
+      for (const l of lines) {
+        const name = (l.name || "").toLowerCase();
+        if (name.includes("service") || name.includes("install") || name.includes("labor")) continue;
+        if (name.includes("users charge") || name.includes("charge") || name.includes("sales tax")) continue;
+        if (name.includes("pipe") || name.includes("chase cover") || name.includes("stone") || name.includes("mantels") || name.includes("materials")) continue;
+        const amount = l.qty * l.price;
+        if (amount > maxAmount) {
+          maxAmount = amount;
+          mainUnit = l;
+        }
+      }
+      if (!mainUnit || maxAmount < 100) continue;
+
+      const pn = mainUnit.name;
+      if (!productMap[pn]) {
+        productMap[pn] = { partNumber: pn, descriptions: [], invoicePrices: [], estimatePrices: [], invoiceTemplates: [], estimateTemplates: [] };
+      }
+      const entry = productMap[pn];
+      const desc = mainUnit.desc || mainUnit.name;
+      if (desc && !entry.descriptions.includes(desc)) entry.descriptions.push(desc);
+
+      const components = lines.map((l: any) => ({
+        partNumber: l.name, description: l.desc || l.name, qty: l.qty, price: l.price, amount: l.qty * l.price,
+      }));
+      const template = { docNumber: txn.docNumber, customer: txn.customer, total: txn.total, date: txn.date, components };
+
+      if (txn.type === "invoice") {
+        entry.invoicePrices.push(mainUnit.price);
+        entry.invoiceTemplates.push(template);
+      } else {
+        entry.estimatePrices.push(mainUnit.price);
+        entry.estimateTemplates.push(template);
+      }
+    }
+
+    const productCatalog: Record<string, any> = {};
+    for (const p of Object.values(productMap) as any[]) {
+      const prices = p.invoicePrices.length > 0 ? p.invoicePrices : p.estimatePrices;
+      const templates = p.invoiceTemplates.length > 0 ? p.invoiceTemplates : p.estimateTemplates;
+      if (prices.length === 0 || templates.length === 0) continue;
+
+      productCatalog[p.partNumber] = {
+        partNumber: p.partNumber,
+        description: p.descriptions[0] || "",
+        aliases: p.descriptions,
+        avgPrice: Number((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2)),
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+        invoiceCount: p.invoiceTemplates.length,
+        estimateCount: p.estimateTemplates.length,
+        priceSource: p.invoicePrices.length > 0 ? "invoice" : "estimate",
+        templateEstimate: templates[0]?.components || [],
+        templateSource: (p.invoiceTemplates.length > 0 ? "invoice" : "estimate") + " #" + (templates[0]?.docNumber || "?"),
+      };
+    }
+
+    await sql`
+      INSERT INTO estimator_knowledge (id, type, data)
+      VALUES (${"product-catalog"}, ${"product-catalog"}, ${JSON.stringify(productCatalog)}::jsonb)
+      ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(productCatalog)}::jsonb, updated_at = now()
+    `;
+
     await sql.end();
 
     return NextResponse.json({
       success: true,
       analyzed: {
+        productsCataloged: Object.keys(productCatalog).length,
+        productsFromInvoices: Object.values(productCatalog).filter((p: any) => p.priceSource === "invoice").length,
+        productsFromEstimates: Object.values(productCatalog).filter((p: any) => p.priceSource === "estimate").length,
         invoices: invoices.length,
         estimates: estimates.length,
         totalTransactions: allTransactions.length,
