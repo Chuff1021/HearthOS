@@ -615,26 +615,47 @@ export default function EstimatesPage() {
                 {selectedCustomerId && <p className="text-xs mt-1" style={{ color: "#98CD00" }}>Selected: {selectedCustomerName}</p>}
               </div>
 
-              <div className="mt-5 space-y-2">
+              {/* QuickBooks-style estimate table */}
+              <div className="mt-5 rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                {/* Table header */}
+                <div className="grid grid-cols-[1fr_60px_90px_90px_36px] gap-0 px-4 py-2.5" style={{ background: "#2CA01C", color: "#fff" }}>
+                  <div className="text-xs font-bold uppercase">Product / Service</div>
+                  <div className="text-xs font-bold uppercase text-right">Qty</div>
+                  <div className="text-xs font-bold uppercase text-right">Rate</div>
+                  <div className="text-xs font-bold uppercase text-right">Amount</div>
+                  <div></div>
+                </div>
+                {/* Table rows */}
                 {draftLines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2">
-                    <select className="col-span-3 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} onChange={(e) => assignItemPricing(idx, e.target.value)}>
-                      <option value="">Map Item (optional)</option>
-                      {items.map((it) => <option key={it.Id} value={it.Id}>{it.Name} · {getItemPartNumber(it)}</option>)}
-                    </select>
-                    <input className="col-span-4 px-2 py-2 rounded-lg text-sm" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input className="col-span-2 px-2 py-2 rounded-lg text-sm" value={line.partNumber || ""} placeholder="Part #" onChange={(e) => updateLine(idx, { partNumber: e.target.value })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input type="number" className="col-span-1 px-2 py-2 rounded-lg text-sm" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input type="number" step="0.01" className="col-span-1 px-2 py-2 rounded-lg text-sm" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <div className="col-span-1 text-sm font-semibold flex items-center justify-end">${line.total.toFixed(0)}</div>
-                    <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="col-span-1 px-2 py-2 rounded-lg text-xs" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>✕</button>
+                  <div key={idx} className="grid grid-cols-[1fr_60px_90px_90px_36px] gap-0 px-4 py-2 items-center" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
+                    <div className="pr-3">
+                      <input className="w-full text-sm font-medium bg-transparent outline-none" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "var(--color-text-primary)" }} />
+                      {line.partNumber && <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Part #: {line.partNumber}</div>}
+                    </div>
+                    <input type="number" className="w-full text-sm text-right bg-transparent outline-none" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                    <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                    <div className="text-sm font-semibold text-right" style={{ color: "var(--color-text-primary)" }}>${line.total.toFixed(2)}</div>
+                    <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="ml-1 text-xs" style={{ color: "var(--color-text-muted)" }}>✕</button>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
-                <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Draft total</div>
-                <div className="text-lg font-bold">${draftTotal.toFixed(2)}</div>
+              {/* Totals — right-aligned like QuickBooks */}
+              <div className="mt-4 flex justify-end">
+                <div className="w-64 space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
+                    <span style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--color-text-muted)" }}>Tax</span>
+                    <span style={{ color: "var(--color-text-primary)" }}>Included in line items</span>
+                  </div>
+                  <div className="flex justify-between pt-2" style={{ borderTop: "2px solid var(--color-border)" }}>
+                    <span className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>TOTAL</span>
+                    <span className="text-base font-bold" style={{ color: "#2CA01C" }}>${draftTotal.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
               <button disabled={saving} onClick={saveEstimateToQuickBooks} className="mt-4 w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)", opacity: saving ? 0.7 : 1 }}>
