@@ -77,6 +77,9 @@ export default function TechApp() {
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState<"clock" | string | null>(null);
   const [tab, setTab] = useState<"active" | "history">("active");
+  const [onLunch, setOnLunch] = useState(false);
+  const [lunchStartedAt, setLunchStartedAt] = useState<number | null>(null);
+  const [lunchTimeLeft, setLunchTimeLeft] = useState("");
   const gps = useGpsStatus();
 
   const loadSession = async () => {
@@ -117,7 +120,20 @@ export default function TechApp() {
     [session]
   );
 
-  const handleClock = async (type?: "lunch") => {
+  // Lunch countdown timer
+  useEffect(() => {
+    if (!onLunch || !lunchStartedAt) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lunchStartedAt) / 1000);
+      const remaining = Math.max(0, 30 * 60 - elapsed);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      setLunchTimeLeft(remaining > 0 ? `${mins}:${String(secs).padStart(2, "0")}` : "Break over");
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [onLunch, lunchStartedAt]);
+
+  const handleClock = async (type?: "lunch" | "back-from-lunch") => {
     if (!session?.tech?.id) return;
     setBusyAction("clock");
     try {
@@ -133,7 +149,7 @@ export default function TechApp() {
         }),
       });
       if (!res.ok) throw new Error("Failed to update time entry");
-      // If clocking out for lunch, tag the entry
+      // Tag lunch break entry
       if (type === "lunch" && action === "clock_out") {
         const data = await res.json();
         if (data.entry?.id) {
@@ -143,6 +159,12 @@ export default function TechApp() {
             body: JSON.stringify({ id: data.entry.id, editNote: "Lunch break" }),
           });
         }
+        setOnLunch(true);
+        setLunchStartedAt(Date.now());
+      } else {
+        setOnLunch(false);
+        setLunchStartedAt(null);
+        setLunchTimeLeft("");
       }
       window.dispatchEvent(new Event("hearth-tech-clock-changed"));
       await loadSession();
@@ -218,10 +240,18 @@ export default function TechApp() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                {isClockedIn ? "You are clocked in" : "Ready to start your shift?"}
+                {onLunch ? "On lunch break" : isClockedIn ? "You are clocked in" : "Ready to start your shift?"}
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                {isClockedIn && session?.clockEntry ? `Clocked in at ${formatTime(session.clockEntry.clockInAt)}` : "Clock in to begin field tracking and job time."}
+                {onLunch && lunchTimeLeft ? (
+                  <span style={{ color: lunchTimeLeft === "Break over" ? "#DC2626" : "#2563EB", fontWeight: 600 }}>
+                    {lunchTimeLeft === "Break over" ? "30 min break is over — clock back in" : `${lunchTimeLeft} remaining`}
+                  </span>
+                ) : isClockedIn && session?.clockEntry ? (
+                  `Clocked in at ${formatTime(session.clockEntry.clockInAt)}`
+                ) : (
+                  "Clock in to begin field tracking and job time."
+                )}
               </p>
             </div>
             {isClockedIn ? (
@@ -243,6 +273,15 @@ export default function TechApp() {
                   {busyAction === "clock" ? "Saving..." : "Clock Out"}
                 </button>
               </div>
+            ) : onLunch ? (
+              <button
+                onClick={() => handleClock("back-from-lunch")}
+                disabled={busyAction === "clock" || loading}
+                className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "#fff" }}
+              >
+                {busyAction === "clock" ? "Saving..." : "Back from Lunch"}
+              </button>
             ) : (
               <button
                 onClick={() => handleClock()}
