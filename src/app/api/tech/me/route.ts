@@ -159,6 +159,17 @@ export async function GET(request: NextRequest) {
     const activeJob = jobs.find((job) => job.status === "in_progress") || null;
     const mileage = await getMileageSummary(effectiveTech.id);
 
+    // Check owner flag
+    let isOwner = false;
+    try {
+      const { db, users: usersTable } = await import("@/db");
+      const { eq } = await import("drizzle-orm");
+      const ownerRows = await db.select().from(usersTable).where(eq(usersTable.id, effectiveTech.id)).limit(1);
+      isOwner = Boolean((ownerRows[0] as any)?.isOwner);
+    } catch {
+      // is_owner column may not exist yet — default to false
+    }
+
     return NextResponse.json({
       tech: effectiveTech,
       authUser: {
@@ -166,6 +177,7 @@ export async function GET(request: NextRequest) {
         name: authName,
         email: authEmail,
       },
+      isOwner,
       jobs,
       todaysJobs,
       activeJob,

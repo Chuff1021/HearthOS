@@ -48,6 +48,8 @@ export const users = pgTable('users', {
   // Technician-specific fields
   techColor: varchar('tech_color', { length: 7 }), // Hex color for dispatch board
   techSkills: jsonb('tech_skills').default([]), // ['gas', 'wood', 'pellet', 'electric']
+  isOwner: boolean('is_owner').default(false),
+  isSalaried: boolean('is_salaried').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({

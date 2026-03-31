@@ -34,6 +34,7 @@ export default function TechRuntimeProvider() {
   const gps = useGpsStatus();
   const watchRef = useRef<number | null>(null);
   const [clockedIn, setClockedIn] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   // Refs for tracking state inside callbacks
   const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
@@ -51,7 +52,10 @@ export default function TechRuntimeProvider() {
         const res = await fetch("/api/tech/me", { cache: "no-store" });
         if (!res.ok || cancelled) return;
         const data = await res.json().catch(() => null);
-        if (!cancelled) setClockedIn(Boolean(data?.clockEntry));
+        if (!cancelled) {
+          setClockedIn(Boolean(data?.clockEntry));
+          setIsOwner(Boolean(data?.isOwner));
+        }
       } catch {
         if (!cancelled) setClockedIn(false);
       }
@@ -71,10 +75,10 @@ export default function TechRuntimeProvider() {
     };
   }, [isLoaded]);
 
-  // GPS tracking — single gate: clockedIn
+  // GPS tracking — owners always track, techs only when clocked in
   useEffect(() => {
     if (!CLERK_ENABLED || !isLoaded) return;
-    if (!clockedIn) {
+    if (!clockedIn && !isOwner) {
       gps.update({ isTracking: false });
       return;
     }
@@ -214,7 +218,7 @@ export default function TechRuntimeProvider() {
       lastSentRef.current = null;
       retryCountRef.current = 0;
     };
-  }, [clockedIn, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clockedIn, isLoaded, isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }
