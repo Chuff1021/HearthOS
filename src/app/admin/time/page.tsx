@@ -107,18 +107,23 @@ export default function AdminTimePage() {
     setLoading(true);
     try {
       const weekIso = isoDate(currentWeek);
-      const [entryRes, techRes, torRes, erRes, payrollRes] = await Promise.all([
+      const [entryRes, techRes, torRes, erRes] = await Promise.all([
         fetch(`/api/time/entries?weekOf=${weekIso}`),
         fetch("/api/techs?activeOnly=true"),
         fetch("/api/time-off-requests"),
         fetch("/api/time/edit-requests?status=pending"),
-        fetch(`/api/time/payroll?weekStart=${weekIso}`),
       ]);
       const entryData = await entryRes.json();
       const techData = await techRes.json();
       const torData = await torRes.json().catch(() => ({ requests: [] }));
       const erData = await erRes.json().catch(() => ({ requests: [] }));
-      const payrollData = await payrollRes.json().catch(() => ({ approvals: [], reports: [] }));
+
+      // Payroll fetch separate so it can't break the main load
+      let payrollData = { approvals: [] as any[], reports: [] as any[] };
+      try {
+        const payrollRes = await fetch(`/api/time/payroll?weekStart=${weekIso}`);
+        if (payrollRes.ok) payrollData = await payrollRes.json();
+      } catch {}
 
       setEntries(entryData.entries || []);
       setTechs(techData.techs || []);
