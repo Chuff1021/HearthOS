@@ -143,7 +143,15 @@ export default function AdminTimePage() {
     return techs.map((tech) => {
       const techEntries = entries.filter((e) => e.techId === tech.id);
       const isClockedIn = techEntries.some((e) => e.status === "open");
-      const todayEntries = techEntries.filter((e) => e.clockInAt.startsWith(todayIso));
+
+      // Helper: check if a clockInAt string falls on a given YYYY-MM-DD date
+      const isOnDate = (clockInAt: string, dateStr: string) => {
+        try {
+          return new Date(clockInAt).toISOString().startsWith(dateStr);
+        } catch { return false; }
+      };
+
+      const todayEntries = techEntries.filter((e) => isOnDate(e.clockInAt, todayIso));
       const todayMinutes = todayEntries.reduce((sum, e) => {
         if (e.status === "open") return sum + Math.round((Date.now() - new Date(e.clockInAt).getTime()) / 60000);
         return sum + (e.totalMinutes || 0);
@@ -151,7 +159,7 @@ export default function AdminTimePage() {
 
       const dailyMinutes = weekDates.map((date) => {
         const dayIso = isoDate(date);
-        const dayEntries = techEntries.filter((e) => e.clockInAt.startsWith(dayIso));
+        const dayEntries = techEntries.filter((e) => isOnDate(e.clockInAt, dayIso));
         const totalMin = dayEntries.reduce((sum, e) => sum + (e.totalMinutes || 0), 0);
         const openEntries = dayEntries.filter((e) => e.status === "open");
         const openMin = openEntries.reduce((sum, e) => {
