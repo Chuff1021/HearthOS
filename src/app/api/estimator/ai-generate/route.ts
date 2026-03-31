@@ -9,8 +9,9 @@ When given a description of work needed, you generate a detailed estimate with l
 
 RULES:
 1. Generate line items as a JSON array. Each item has: description, quantity, unitPrice, total
-2. Use ACTUAL prices from the historical estimates. Don't make up prices.
-3. For fireplace installations, include ALL required components:
+2. Use ONLY prices from past estimates for this specific model. NEVER make up prices.
+3. If no matching estimates are found, return: { "lineItems": [], "notes": "No pricing history found for this model. Please build the estimate manually." }
+4. For fireplace installations, include ALL required components based on what was included in past estimates for this model:
    - The fireplace unit itself
    - Vent pipe (correct type and quantity based on the run described)
    - Elbows if the run requires direction changes
@@ -71,12 +72,8 @@ export async function POST(request: NextRequest) {
           return keywords.some((kw: string) => estText.includes(kw));
         });
 
-        // Use matching estimates first, then fill with recent general ones
-        const prioritized = [
-          ...matchingEstimates.slice(0, 20),
-          ...allEstimates.filter((e: any) => !matchingEstimates.includes(e)).slice(0, 30),
-        ];
-        const estimates = prioritized.slice(0, 50);
+        // ONLY use estimates that match this specific model
+        const estimates = matchingEstimates.slice(0, 30);
 
         // Build a pricing reference from historical estimates
         const itemPrices = new Map<string, { prices: number[]; descriptions: string[] }>();
@@ -116,23 +113,15 @@ export async function POST(request: NextRequest) {
           pricingLines.push(`${labor.type}: $${labor.amount} (${labor.context})`);
         }
 
-        // Show matching estimates first (for this specific model)
         if (matchingEstimates.length > 0) {
-          pricingLines.push(`\n=== ESTIMATES MATCHING "${prompt}" (USE THESE AS PRIMARY REFERENCE) ===`);
-          for (const est of matchingEstimates.slice(0, 10)) {
-            const lines = (est.Line || [])
-              .filter((l: any) => l.DetailType === "SalesItemLineDetail")
-              .map((l: any) => `  ${l.SalesItemLineDetail?.ItemRef?.name}: ${l.SalesItemLineDetail?.Qty || 1}x $${l.SalesItemLineDetail?.UnitPrice} = $${l.Amount}`);
-            if (lines.length > 0) {
-              pricingLines.push(`\nEstimate #${est.DocNumber} for ${est.CustomerRef?.name} — Total: $${est.TotalAmt}`);
-              pricingLines.push(lines.join("\n"));
-            }
-          }
+          pricingLines.push(`\n=== PAST ESTIMATES FOR THIS MODEL (${matchingEstimates.length} found) ===`);
+          pricingLines.push("Use ONLY these estimates for pricing. Match the exact components and pricing from past jobs.");
+        } else {
+          pricingLines.push(`\n=== NO PAST ESTIMATES FOUND FOR THIS MODEL ===`);
+          pricingLines.push("No matching estimates found. Tell the user you don't have pricing history for this model and they should build the estimate manually.");
         }
 
-        // Also include general recent examples
-        pricingLines.push("\n=== RECENT FULL ESTIMATE EXAMPLES (GENERAL PRICING) ===");
-        for (const est of allEstimates.filter((e: any) => !matchingEstimates.includes(e)).slice(0, 10)) {
+        for (const est of estimates.slice(0, 15)) {
           const lines = (est.Line || [])
             .filter((l: any) => l.DetailType === "SalesItemLineDetail")
             .map((l: any) => `  ${l.SalesItemLineDetail?.ItemRef?.name}: ${l.SalesItemLineDetail?.Qty || 1}x $${l.SalesItemLineDetail?.UnitPrice} = $${l.Amount}`);
