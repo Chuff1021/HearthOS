@@ -97,7 +97,9 @@ export default function TechTimeHistoryPage() {
   const dailyData = useMemo(() => {
     return weekDates.map((date) => {
       const dayIso = isoDate(date);
-      const dayEntries = entries.filter((e) => e.clockInAt.startsWith(dayIso));
+      const dayEntries = entries.filter((e) => {
+        try { return new Date(e.clockInAt).toISOString().startsWith(dayIso); } catch { return false; }
+      });
       const totalMin = dayEntries.reduce((sum, e) => {
         if (e.status === "open") {
           return sum + Math.round((Date.now() - new Date(e.clockInAt).getTime()) / 60000);
