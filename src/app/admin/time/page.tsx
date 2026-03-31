@@ -82,8 +82,12 @@ export default function AdminTimePage() {
   const [saving, setSaving] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualForm, setManualForm] = useState({ techId: "", date: "", clockIn: "08:00", clockOut: "17:00", note: "" });
-  const [activeTab, setActiveTab] = useState<"timesheet" | "requests" | "time-off">("timesheet");
+  const [activeTab, setActiveTab] = useState<"timesheet" | "approval" | "requests" | "time-off">("timesheet");
   const [reminders, setReminders] = useState<Array<{ id: string; tech_name: string; type: string; message: string; created_at: string }>>([]);
+  const [approvals, setApprovals] = useState<Record<string, boolean>>({});
+  const [payrollSent, setPayrollSent] = useState(false);
+  const [sendingPayroll, setSendingPayroll] = useState(false);
+  const [payrollResult, setPayrollResult] = useState<string>("");
 
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -103,21 +107,31 @@ export default function AdminTimePage() {
     setLoading(true);
     try {
       const weekIso = isoDate(currentWeek);
-      const [entryRes, techRes, torRes, erRes] = await Promise.all([
+      const [entryRes, techRes, torRes, erRes, payrollRes] = await Promise.all([
         fetch(`/api/time/entries?weekOf=${weekIso}`),
         fetch("/api/techs?activeOnly=true"),
         fetch("/api/time-off-requests"),
         fetch("/api/time/edit-requests?status=pending"),
+        fetch(`/api/time/payroll?weekStart=${weekIso}`),
       ]);
       const entryData = await entryRes.json();
       const techData = await techRes.json();
       const torData = await torRes.json().catch(() => ({ requests: [] }));
       const erData = await erRes.json().catch(() => ({ requests: [] }));
+      const payrollData = await payrollRes.json().catch(() => ({ approvals: [], reports: [] }));
 
       setEntries(entryData.entries || []);
       setTechs(techData.techs || []);
       setTimeOffRequests(torData.requests || []);
       setEditRequests(erData.requests || []);
+
+      // Build approval map
+      const approvalMap: Record<string, boolean> = {};
+      for (const a of payrollData.approvals || []) {
+        approvalMap[a.tech_id] = true;
+      }
+      setApprovals(approvalMap);
+      setPayrollSent((payrollData.reports || []).length > 0);
     } finally {
       setLoading(false);
     }
@@ -254,6 +268,61 @@ export default function AdminTimePage() {
     await loadData();
   }
 
+  async function approveTech(techId: string, techName: string, totalMinutes: number) {
+    const weekIso = isoDate(currentWeek);
+    await fetch("/api/time/payroll", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "approve", techId, techName, weekStart: weekIso, totalMinutes }),
+    });
+    setApprovals((prev) => ({ ...prev, [techId]: true }));
+  }
+
+  async function sendPayrollReport() {
+    const weekIso = isoDate(currentWeek);
+    const approvedTechs = gridData
+      .filter((row) => approvals[row.tech.id] && !row.tech.name.toLowerCase().includes("salaried"))
+      .map((row) => ({ techId: row.tech.id, techName: row.tech.name, totalMinutes: row.weekTotal }));
+
+    if (approvedTechs.length === 0) {
+      setPayrollResult("No techs approved yet. Approve each tech's hours first.");
+      return;
+    }
+
+    setSendingPayroll(true);
+    setPayrollResult("");
+    try {
+      const res = await fetch("/api/time/payroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_report", weekStart: weekIso, approvals: approvedTechs }),
+      });
+      const data = await res.json();
+
+      if (data.csv) {
+        // Download CSV
+        const blob = new Blob([data.csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `payroll-${weekIso}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      if (data.emailSent) {
+        setPayrollResult(`Report sent to ${data.sentTo} and downloaded.`);
+      } else {
+        setPayrollResult("Report downloaded. Email delivery not configured yet — forward the CSV manually.");
+      }
+      setPayrollSent(true);
+    } catch {
+      setPayrollResult("Failed to generate report. Try again.");
+    } finally {
+      setSendingPayroll(false);
+    }
+  }
+
   async function handleTimeOff(id: string, status: "approved" | "denied") {
     await fetch("/api/time-off-requests", {
       method: "PUT",
@@ -307,7 +376,7 @@ export default function AdminTimePage() {
 
         {/* Tabs */}
         <div className="px-6 flex gap-1" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          {([["timesheet", "Timesheet"], ["requests", `Edit Requests (${editRequests.length})`], ["time-off", "Time Off"]] as const).map(([tab, label]) => (
+          {([["timesheet", "Timesheet"], ["approval", "Weekly Approval"], ["requests", `Edit Requests (${editRequests.length})`], ["time-off", "Time Off"]] as const).map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className="px-4 py-2.5 text-sm font-semibold transition-colors" style={{
               borderBottom: activeTab === tab ? "2px solid #2563EB" : "2px solid transparent",
               color: activeTab === tab ? "#2563EB" : "var(--color-text-muted)",
@@ -476,6 +545,103 @@ export default function AdminTimePage() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          ) : activeTab === "approval" ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Weekly Time Approval</h2>
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Review and approve each employee's hours for {weekLabel}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {payrollResult && (
+                    <span className="text-xs font-medium" style={{ color: payrollResult.includes("sent") || payrollResult.includes("downloaded") ? "#16A34A" : "#DC2626" }}>
+                      {payrollResult}
+                    </span>
+                  )}
+                  <button
+                    onClick={sendPayrollReport}
+                    disabled={sendingPayroll || Object.keys(approvals).length === 0}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}
+                  >
+                    {sendingPayroll ? "Generating..." : payrollSent ? "Resend Payroll Report" : "Send Payroll Report"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ background: "var(--color-surface-1)" }}>
+                      <th className="text-left px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Employee</th>
+                      <th className="text-center px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Regular Hours</th>
+                      <th className="text-center px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Overtime</th>
+                      <th className="text-center px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Total</th>
+                      <th className="text-center px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Status</th>
+                      <th className="text-right px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gridData.map((row) => {
+                      const totalHrs = row.weekTotal / 60;
+                      const regularHrs = Math.min(totalHrs, 40);
+                      const overtimeHrs = Math.max(0, totalHrs - 40);
+                      const isApproved = approvals[row.tech.id];
+
+                      return (
+                        <tr key={row.tech.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full" style={{ background: row.tech.color }} />
+                              <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>{row.tech.name}</span>
+                            </div>
+                          </td>
+                          <td className="text-center px-4 py-3 text-sm" style={{ color: "var(--color-text-primary)" }}>
+                            {regularHrs.toFixed(1)}h
+                          </td>
+                          <td className="text-center px-4 py-3 text-sm font-semibold" style={{ color: overtimeHrs > 0 ? "#DC2626" : "var(--color-text-muted)" }}>
+                            {overtimeHrs > 0 ? `${overtimeHrs.toFixed(1)}h` : "—"}
+                          </td>
+                          <td className="text-center px-4 py-3 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            {totalHrs.toFixed(1)}h
+                          </td>
+                          <td className="text-center px-4 py-3">
+                            {isApproved ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>Approved</span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{ background: "rgba(245,158,11,0.12)", color: "#F59E0B" }}>Pending</span>
+                            )}
+                          </td>
+                          <td className="text-right px-4 py-3">
+                            {isApproved ? (
+                              <button onClick={() => approveTech(row.tech.id, row.tech.name, row.weekTotal)} className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                Re-approve
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => approveTech(row.tech.id, row.tech.name, row.weekTotal)}
+                                disabled={row.weekTotal === 0}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.2)" }}
+                              >
+                                Approve Hours
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {Object.keys(approvals).length > 0 && Object.keys(approvals).length === gridData.filter(r => r.weekTotal > 0).length && (
+                <div className="rounded-xl p-4 text-center" style={{ background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "#16A34A" }}>All hours approved for {weekLabel}</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Click "Send Payroll Report" to email the report to Shelly and download the CSV.</p>
                 </div>
               )}
             </div>
