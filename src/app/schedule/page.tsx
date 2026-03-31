@@ -1014,12 +1014,20 @@ export default function SchedulePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
-                    <option value="installation">Installation</option>
-                    <option value="service">Service</option>
-                    <option value="inspection">Inspection</option>
-                    <option value="cleaning">Cleaning</option>
-                    <option value="repair">Repair</option>
-                    <option value="estimate">Estimate</option>
+                    <optgroup label="Service">
+                      <option value="service">Gas Service</option>
+                      <option value="wood-service">Wood Fireplace Service</option>
+                      <option value="pellet-service">Pellet Stove Service</option>
+                    </optgroup>
+                    <optgroup label="Installation">
+                      <option value="installation">Fireplace Installation</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option value="inspection">Inspection</option>
+                      <option value="cleaning">Chimney Sweep / Cleaning</option>
+                      <option value="repair">Repair</option>
+                      <option value="estimate">Estimate / Consultation</option>
+                    </optgroup>
                   </select>
                   {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
                 </div>

@@ -555,8 +555,8 @@ export function inferChecklistTemplateId(job: { jobType?: string; fireplaceType?
   const title = String(job.title || "").toLowerCase();
 
   if (type.includes("install") || title.includes("install")) return "gas-install";
-  if (fireplaceType.includes("pellet") || title.includes("pellet")) return "pellet-clean";
-  if (fireplaceType.includes("wood") || title.includes("wood") || title.includes("chimney") || title.includes("sweep")) return "wood-clean";
+  if (type.includes("pellet") || fireplaceType.includes("pellet") || title.includes("pellet")) return "pellet-clean";
+  if (type.includes("wood") || fireplaceType.includes("wood") || title.includes("wood") || title.includes("chimney") || title.includes("sweep") || type.includes("cleaning")) return "wood-clean";
   return "gas-service";
 }
 
