@@ -389,20 +389,27 @@ export default function EstimatesPage() {
     if (!prompt.trim()) return;
     setError(null);
     try {
-      const res = await fetch("/api/estimator/ai-draft", {
+      const res = await fetch("/api/estimator/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, customerName: selectedCustomer?.name || "" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI generation failed");
-      setDraftLines((data.draftEstimate?.lines || []).map((l: any) => ({
-        description: l.description,
-        qty: Number(l.qty || 1),
-        unitPrice: Number(l.unitPrice || 0),
-        total: Number(l.total || 0),
-        source: l.source,
-      })));
+      if (data.lineItems && Array.isArray(data.lineItems)) {
+        setDraftLines(data.lineItems.map((l: any) => ({
+          description: l.partNumber ? `${l.description} (${l.partNumber})` : l.description,
+          partNumber: l.partNumber,
+          qty: Number(l.quantity || l.qty || 1),
+          unitPrice: Number(l.unitPrice || 0),
+          total: Number(l.total || 0),
+          source: "historical" as const,
+        })));
+        if (data.notes) setError(null);
+        if (data.matchCount === 0) setError("No matching past estimates found. Build manually or try different keywords.");
+      } else {
+        setError(data.notes || "No line items generated. Try being more specific.");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate draft estimate");
     }
