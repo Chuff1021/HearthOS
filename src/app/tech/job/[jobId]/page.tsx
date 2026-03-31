@@ -752,6 +752,106 @@ export default function JobDetailPage() {
                         );
                       }
 
+                      // Pass/Fail toggle
+                      if (field.type === "pass-fail") {
+                        const val = String(fieldValue || "");
+                        return (
+                          <div key={field.id} className="rounded-xl p-3" style={{ border: `1px solid ${val === "pass" ? "rgba(22,163,74,0.5)" : val === "fail" ? "rgba(220,38,38,0.5)" : "var(--color-border)"}` }}>
+                            <p className="text-sm mb-2">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </p>
+                            <div className="flex gap-2">
+                              {[["pass", "Pass", "#16A34A"], ["fail", "Fail", "#DC2626"], ["na", "N/A", "#9CA3AF"]].map(([v, lbl, color]) => (
+                                <button key={v} onClick={() => void updateChecklistForm(field.id, v)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{
+                                  background: val === v ? `${color}20` : "var(--color-surface-3)",
+                                  color: val === v ? color : "var(--color-text-muted)",
+                                  border: val === v ? `2px solid ${color}` : "1px solid var(--color-border)",
+                                }}>{lbl}</button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Measurement input with unit
+                      if (field.type === "measurement") {
+                        return (
+                          <div key={field.id} className="space-y-1">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text" inputMode="decimal"
+                                value={String(fieldValue || "")}
+                                onChange={(event) => setChecklistForm((prev) => ({
+                                  ...(prev || buildInitialChecklistForm(checklistTemplateId)),
+                                  templateId: checklistTemplateId,
+                                  values: { ...(prev?.values || {}), [field.id]: event.target.value },
+                                }))}
+                                onBlur={(event) => void updateChecklistForm(field.id, event.target.value)}
+                                placeholder={field.placeholder}
+                                className="flex-1 rounded-xl px-3 py-3 text-sm"
+                                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                              />
+                              {field.unit && <span className="text-xs font-medium px-2" style={{ color: "var(--color-text-muted)" }}>{field.unit}</span>}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Select dropdown
+                      if (field.type === "select") {
+                        return (
+                          <div key={field.id} className="space-y-1">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </label>
+                            <select
+                              value={String(fieldValue || "")}
+                              onChange={(event) => void updateChecklistForm(field.id, event.target.value)}
+                              className="w-full rounded-xl px-3 py-3 text-sm"
+                              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                            >
+                              <option value="">Select...</option>
+                              {(field.options || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          </div>
+                        );
+                      }
+
+                      // Rating selector (Good/Fair/Poor/Unsafe)
+                      if (field.type === "rating") {
+                        const val = String(fieldValue || "");
+                        const ratings = [
+                          { value: "good", label: "Good", color: "#16A34A" },
+                          { value: "fair", label: "Fair", color: "#F59E0B" },
+                          { value: "poor", label: "Poor", color: "#F97316" },
+                          { value: "unsafe", label: "Unsafe", color: "#DC2626" },
+                        ];
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </label>
+                            <div className="flex gap-2">
+                              {ratings.map((r) => (
+                                <button key={r.value} onClick={() => void updateChecklistForm(field.id, r.value)} className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors" style={{
+                                  background: val === r.value ? `${r.color}20` : "var(--color-surface-3)",
+                                  color: val === r.value ? r.color : "var(--color-text-muted)",
+                                  border: val === r.value ? `2px solid ${r.color}` : "1px solid var(--color-border)",
+                                }}>{r.label}</button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Default: text input
                       return (
                         <div key={field.id} className="space-y-2">
                           <label className="text-sm font-medium">
