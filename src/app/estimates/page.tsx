@@ -628,9 +628,9 @@ export default function EstimatesPage() {
                 {/* Table rows */}
                 {draftLines.map((line, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_60px_90px_90px_36px] gap-0 px-4 py-2 items-center" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
-                    <div className="pr-3">
-                      <input className="w-full text-sm font-medium bg-transparent outline-none" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "var(--color-text-primary)" }} />
-                      {line.partNumber && <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Part #: {line.partNumber}</div>}
+                    <div className="pr-3 min-w-0">
+                      <input className="w-full text-sm font-medium outline-none rounded px-1" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "#111827", background: "transparent" }} />
+                      {line.partNumber && <div className="text-[10px] mt-0.5 px-1" style={{ color: "#6b7280" }}>Part #: {line.partNumber}</div>}
                     </div>
                     <input type="number" className="w-full text-sm text-right bg-transparent outline-none" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
                     <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
