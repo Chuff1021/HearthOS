@@ -195,6 +195,36 @@ export default function TechApp() {
 
   const isClockedIn = !!session?.clockEntry;
 
+  // Detect lunch state from entries — if not clocked in and last entry today was "Lunch break"
+  useEffect(() => {
+    if (isClockedIn || !session?.tech?.id) {
+      if (isClockedIn) { setOnLunch(false); setLunchStartedAt(null); }
+      return;
+    }
+    // Check if we're on lunch by looking at recent entries
+    (async () => {
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const res = await fetch(`/api/time/entries?techId=${session.tech.id}&date=${today}`);
+        const data = await res.json();
+        const entries = data.entries || [];
+        // Sort by clock out time descending
+        const closed = entries
+          .filter((e: any) => e.status === "closed" && e.clockOutAt)
+          .sort((a: any, b: any) => new Date(b.clockOutAt).getTime() - new Date(a.clockOutAt).getTime());
+        const lastClosed = closed[0];
+        if (lastClosed?.editNote === "Lunch break") {
+          const clockOutTime = new Date(lastClosed.clockOutAt).getTime();
+          const elapsed = Math.floor((Date.now() - clockOutTime) / 1000);
+          if (elapsed < 45 * 60) { // within 45 min window treat as still on lunch
+            setOnLunch(true);
+            if (!lunchStartedAt) setLunchStartedAt(clockOutTime);
+          }
+        }
+      } catch {}
+    })();
+  }, [isClockedIn, session?.tech?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="flex flex-col min-h-screen pb-32">
       <header
