@@ -12,8 +12,8 @@ YOUR JOB: Look at the matching past estimates and build a new estimate using the
 RULES:
 1. Use the EXACT part numbers and item names from the past estimates
 2. Use the ACTUAL prices from past estimates — if a part was priced differently across estimates, use the most recent price
-3. Include every component needed: fireplace unit, face/facade, pipe sections (calculate footage), elbows if needed, termination cap, firestop, flashing, collars, install labor, Users Charge
-4. For pipe: 77L71 (SV45L12) is per-foot pipe. Calculate how many feet based on the run described. 77L73 is 36" pipe, 77L74 is 48" pipe.
+3. Include every component needed: fireplace unit, face/facade, pipe sections, elbows if needed, termination cap, firestop, flashing, collars, install labor, Users Charge
+4. For pipe: ALWAYS quote using the 1-foot section (77L71 / SV45L12). If the customer needs 20 feet, put quantity 20 at the per-foot price. Do NOT use the 36" (77L73) or 48" (77L74) pipe sections for estimates — those are for invoicing later. The estimate always uses the per-foot rate x number of feet.
 5. Users Charge is typically 3.5% of the subtotal
 6. If no matching past estimates are found, say so — do NOT make up part numbers or prices
 
