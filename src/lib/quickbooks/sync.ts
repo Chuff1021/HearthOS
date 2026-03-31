@@ -168,7 +168,12 @@ export async function syncItems(client: QuickBooksClient): Promise<QBItem[]> {
 }
 
 export async function syncInvoices(client: QuickBooksClient): Promise<QBInvoice[]> {
-  invoicesCache = await client.getInvoices();
+  // Get all invoices (not just 100)
+  try {
+    invoicesCache = await (client as any).queryAll('SELECT * FROM Invoice ORDERBY TxnDate DESC');
+  } catch {
+    invoicesCache = await client.getInvoices();
+  }
   syncStatus.recordsSynced.invoices = invoicesCache.length;
   addLog('invoices', 'import', invoicesCache.length, 'success');
   return invoicesCache;

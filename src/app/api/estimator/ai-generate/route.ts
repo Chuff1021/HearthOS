@@ -60,8 +60,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
 
-    // Fetch ALL QB estimates and search for matching ones
-    let matchingEstimateText = "";
+    // Load learned knowledge base from database
+    let knowledgeBase = "";
+    try {
+      const pg = (await import("postgres")).default;
+      const sql = pg(process.env.DATABASE_URL || "", { prepare: false, max: 1 });
+      const rows = await sql`SELECT type, data FROM estimator_knowledge`;
+      await sql.end();
+
+      for (const row of rows as any[]) {
+        if (row.type === "pricing") {
+          const pricing = row.data as Record<string, any>;
+          const topItems = Object.values(pricing)
+            .sort((a: any, b: any) => b.timesUsed - a.timesUsed)
+            .slice(0, 100);
+          knowledgeBase += "\n=== ITEM PRICING DATABASE (learned from invoices & estimates) ===\n";
+          for (const i of topItems as any[]) {
+            knowledgeBase += `${i.name}: $${i.avgPrice} avg ($${i.minPrice}-$${i.maxPrice}) | ${i.description || ""} | Used in: ${i.usedIn?.join(", ") || "various"}\n`;
+          }
+        }
+        if (row.type === "install-types") {
+          const guide = row.data as Record<string, string[]>;
+          knowledgeBase += "\n=== INSTALL TYPE COMPONENT GUIDE (learned from past jobs) ===\n";
+          for (const [type, components] of Object.entries(guide)) {
+            knowledgeBase += `\n${type.toUpperCase()} INSTALL typical components:\n`;
+            for (const comp of (components as string[]).slice(0, 15)) {
+              knowledgeBase += `  - ${comp}\n`;
+            }
+          }
+        }
+      }
+    } catch {}
+
+    // Also fetch matching QB estimates for this specific model
+    let matchingEstimateText = knowledgeBase;
     let matchCount = 0;
 
     try {
