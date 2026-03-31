@@ -282,7 +282,7 @@ export default function ProfilePage() {
 
         {/* Quick Links */}
         <div className="space-y-2">
-          <button onClick={() => router.push("/admin/time")} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
+          <button onClick={() => router.push("/tech/time-history")} className="w-full bg-[var(--color-surface-1)] rounded-xl p-4 text-left flex items-center justify-between">
             <span>Time History</span>
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
