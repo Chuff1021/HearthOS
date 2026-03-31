@@ -3,27 +3,28 @@ import { NextRequest, NextResponse } from "next/server";
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
 
-const SYSTEM_PROMPT = `You are an estimate generator for Aaron's Fireplace Company.
+const SYSTEM_PROMPT = `You are an estimate generator for Aaron's Fireplace Company. You have access to a PRICING DATABASE learned from 1,000+ invoices and 3,000+ estimates, plus MATCHING PAST ESTIMATES for the specific product.
 
-You receive a PRICING DATABASE (learned from thousands of past invoices and estimates) and MATCHING PAST ESTIMATES for the specific product requested.
+YOUR JOB: Find a past estimate that matches what the customer is asking for, and COPY that estimate's line items. Adjust quantities (like pipe footage) as needed. Use the exact part numbers and descriptions from the matching estimate.
 
-YOUR JOB:
-1. IDENTIFY the correct fireplace model from the matching past estimates. Look at the DESCRIPTIONS in the estimates, not just part numbers. "42 Apex" = 98500115 (a WOOD fireplace by FPX/Travis Industries). "DRT3040" = F4999 (a GAS fireplace by Superior/IHP).
-2. Use the EXACT components from a past estimate for that same model. Copy the same part numbers, same components.
-3. Adjust the pipe quantity to match what the customer specified.
-4. Use the most recent pricing from past estimates.
+HOW TO FIND THE RIGHT ESTIMATE:
+- Look at the MATCHING PAST ESTIMATES provided below
+- Find the one where the main fireplace unit matches what the customer asked for
+- Look at the DESCRIPTIONS — they contain the model name (e.g., "42 Apex NexGen-Hybrid", "36 Elite NexGen-Hybrid", "DRT3040DEN")
+- Copy ALL line items from that estimate — the fireplace, face, pipe, termination, firestop, flashing, igniter, install labor, Users Charge
+- Adjust pipe quantity to match what the customer specified
 
-CRITICAL RULES:
-- The 42 Apex is a WOOD burning fireplace. It uses DuraVent/Class A chimney pipe (98900005), NOT gas pipe (77L71).
-- Superior DRT models are GAS fireplaces. They use gas pipe (77L71 or Simpson DVA pipe).
-- MATCH the product to the right past estimate. Do not mix gas and wood components.
-- If the user says "vertical" — use pipe that goes through the roof with firestop, flashing, termination cap.
-- If the user says "horizontal" — use a flex kit or horizontal pipe with wall termination. NO roof components.
-- Users Charge = approximately 3.5% of subtotal.
-- Every line item MUST have a description that explains what the part is.
+RULES:
+1. Copy part numbers AND descriptions from the matching estimate
+2. Every line item MUST have a clear description explaining what it is
+3. Adjust pipe quantity to match the requested footage
+4. If "vertical" install — keep all pipe/chimney/flashing/termination components
+5. If "horizontal" install — look for estimates using flex kits or horizontal pipe instead of vertical pipe
+6. Users Charge = approximately 3.5% of the subtotal BEFORE Users Charge
+7. If you cannot find a matching estimate, return empty lineItems with a note explaining what you searched for
 
-RESPOND WITH ONLY valid JSON (no markdown, no code fences):
-{"lineItems":[{"description":"42 Apex NexGen-Hybrid Wood Fireplace","partNumber":"98500115","quantity":1,"unitPrice":5800,"total":5800}],"notes":"Based on estimate #XXXX"}`;
+RESPOND WITH ONLY valid JSON — no markdown, no code fences, no extra text:
+{"lineItems":[{"description":"Description of item","partNumber":"PART123","quantity":1,"unitPrice":100.00,"total":100.00}],"notes":"Based on estimate #1234"}`;
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.NVIDIA_API_KEY;
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
           const lines: string[] = [];
           lines.push(`Found ${matching.length} past estimates matching "${prompt}":\n`);
 
-          for (const est of matching.slice(0, 5)) {
+          for (const est of matching.slice(0, 8)) {
             lines.push(`--- Estimate #${est.DocNumber} for ${est.CustomerRef?.name} — Total: $${est.TotalAmt} ---`);
             for (const l of (est.Line || []).filter((l: any) => l.DetailType === "SalesItemLineDetail")) {
               const item = l.SalesItemLineDetail || {};
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
               const qty = item.Qty || 1;
               const price = item.UnitPrice || 0;
               const desc = l.Description || "";
-              lines.push(`  Part: ${name} | Qty: ${qty} | Price: $${price} | Total: $${l.Amount} | Desc: ${desc}`);
+              lines.push(`  Item: ${name} | Desc: ${desc} | Qty: ${qty} | Price: $${price} | Total: $${l.Amount}`);
             }
             lines.push("");
           }
