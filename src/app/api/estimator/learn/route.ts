@@ -246,25 +246,32 @@ export async function POST(request: NextRequest) {
       ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(samplePatterns)}::jsonb, updated_at = now()
     `;
 
-    // 7. Build PRODUCT CATALOG — invoices as primary, estimates as fallback
+    // 7. Build PRODUCT CATALOG from RAW QB data (not analyzed patterns)
     const productMap: Record<string, any> = {};
 
-    for (const txn of allTransactions) {
-      const lines = txn.items || [];
+    // Process raw invoices and estimates directly
+    const rawTransactions = [
+      ...invoices.map((inv: any) => ({ ...inv, _source: "invoice" })),
+      ...estimates.map((est: any) => ({ ...est, _source: "estimate" })),
+    ];
+
+    for (const txn of rawTransactions) {
+      const lines = (txn.Line || []).filter((l: any) => l.DetailType === "SalesItemLineDetail");
       if (lines.length === 0) continue;
 
       // Find the main unit (most expensive non-labor/pipe item)
       let mainUnit: any = null;
       let maxAmount = 0;
       for (const l of lines) {
-        const name = (l.name || "").toLowerCase();
+        const item = l.SalesItemLineDetail || {};
+        const name = (item.ItemRef?.name || "").toLowerCase();
+        const amount = l.Amount || 0;
         if (name.includes("service") || name.includes("install") || name.includes("labor")) continue;
         if (name.includes("users charge") || name.includes("charge") || name.includes("sales tax")) continue;
         if (name.includes("pipe") || name.includes("chase cover") || name.includes("stone") || name.includes("mantels") || name.includes("materials")) continue;
-        const amount = l.qty * l.price;
         if (amount > maxAmount) {
           maxAmount = amount;
-          mainUnit = l;
+          mainUnit = { name: item.ItemRef?.name || "", desc: l.Description || "", price: item.UnitPrice || 0 };
         }
       }
       if (!mainUnit || maxAmount < 100) continue;
@@ -274,15 +281,21 @@ export async function POST(request: NextRequest) {
         productMap[pn] = { partNumber: pn, descriptions: [], invoicePrices: [], estimatePrices: [], invoiceTemplates: [], estimateTemplates: [] };
       }
       const entry = productMap[pn];
-      const desc = mainUnit.desc || mainUnit.name;
-      if (desc && !entry.descriptions.includes(desc)) entry.descriptions.push(desc);
+      if (mainUnit.desc && !entry.descriptions.includes(mainUnit.desc)) entry.descriptions.push(mainUnit.desc);
 
-      const components = lines.map((l: any) => ({
-        partNumber: l.name, description: l.desc || l.name, qty: l.qty, price: l.price, amount: l.qty * l.price,
-      }));
-      const template = { docNumber: txn.docNumber, customer: txn.customer, total: txn.total, date: txn.date, components };
+      const components = lines.map((l: any) => {
+        const item = l.SalesItemLineDetail || {};
+        return {
+          partNumber: item.ItemRef?.name || "",
+          description: l.Description || item.ItemRef?.name || "",
+          qty: item.Qty || 1,
+          price: item.UnitPrice || 0,
+          amount: l.Amount || 0,
+        };
+      });
+      const template = { docNumber: txn.DocNumber, customer: txn.CustomerRef?.name || "", total: txn.TotalAmt, date: txn.TxnDate, components };
 
-      if (txn.type === "invoice") {
+      if (txn._source === "invoice") {
         entry.invoicePrices.push(mainUnit.price);
         entry.invoiceTemplates.push(template);
       } else {
