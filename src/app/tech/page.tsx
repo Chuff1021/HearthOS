@@ -117,20 +117,33 @@ export default function TechApp() {
     [session]
   );
 
-  const handleClock = async () => {
+  const handleClock = async (type?: "lunch") => {
     if (!session?.tech?.id) return;
     setBusyAction("clock");
     try {
+      const action = session.clockEntry ? "clock_out" : "clock_in";
       const res = await fetch("/api/time/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: session.clockEntry ? "clock_out" : "clock_in",
+          action,
           techId: session.tech.id,
           techName: session.tech.name,
+          ...(type === "lunch" && action === "clock_out" ? { editNote: "Lunch break" } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed to update time entry");
+      // If clocking out for lunch, tag the entry
+      if (type === "lunch" && action === "clock_out") {
+        const data = await res.json();
+        if (data.entry?.id) {
+          await fetch("/api/time/entries", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: data.entry.id, editNote: "Lunch break" }),
+          });
+        }
+      }
       window.dispatchEvent(new Event("hearth-tech-clock-changed"));
       await loadSession();
     } catch (err) {
@@ -211,14 +224,35 @@ export default function TechApp() {
                 {isClockedIn && session?.clockEntry ? `Clocked in at ${formatTime(session.clockEntry.clockInAt)}` : "Clock in to begin field tracking and job time."}
               </p>
             </div>
-            <button
-              onClick={handleClock}
-              disabled={busyAction === "clock" || loading}
-              className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
-              style={{ background: isClockedIn ? "rgba(255,68,0,0.14)" : "linear-gradient(135deg, #FF6A00, #F59E0B)", color: isClockedIn ? "#C2410C" : "#fff" }}
-            >
-              {busyAction === "clock" ? "Saving..." : isClockedIn ? "Clock Out" : "Clock In"}
-            </button>
+            {isClockedIn ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleClock("lunch")}
+                  disabled={busyAction === "clock" || loading}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
+                  style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.2)" }}
+                >
+                  {busyAction === "clock" ? "..." : "Lunch"}
+                </button>
+                <button
+                  onClick={() => handleClock()}
+                  disabled={busyAction === "clock" || loading}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
+                  style={{ background: "rgba(255,68,0,0.14)", color: "#C2410C" }}
+                >
+                  {busyAction === "clock" ? "Saving..." : "Clock Out"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleClock()}
+                disabled={busyAction === "clock" || loading}
+                className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}
+              >
+                {busyAction === "clock" ? "Saving..." : "Clock In"}
+              </button>
+            )}
           </div>
         </div>
 
