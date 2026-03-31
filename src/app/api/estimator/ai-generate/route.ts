@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           const lines: string[] = [];
           lines.push(`Found ${matching.length} past estimates matching "${prompt}":\n`);
 
-          for (const est of matching.slice(0, 15)) {
+          for (const est of matching.slice(0, 5)) {
             lines.push(`--- Estimate #${est.DocNumber} for ${est.CustomerRef?.name} — Total: $${est.TotalAmt} ---`);
             for (const l of (est.Line || []).filter((l: any) => l.DetailType === "SalesItemLineDetail")) {
               const item = l.SalesItemLineDetail || {};
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
           },
         ],
         temperature: 0.3,
-        max_tokens: 2048,
+        max_tokens: 4096,
         stream: false,
       }),
     });
@@ -163,19 +163,35 @@ export async function POST(request: NextRequest) {
     if (thinkClose !== -1) content = content.substring(thinkClose + 8).trim();
     if (!content) content = (data.choices?.[0]?.message?.content || "").replace(/<\/?think>/g, "").trim();
 
-    // Extract JSON — strip markdown code fences if present
+    // Extract JSON — strip markdown code fences and other wrapping
     content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
     let result;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*"lineItems"[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        result = JSON.parse(content);
-      }
+      // Try direct parse first
+      result = JSON.parse(content);
     } catch {
-      // If no JSON, return the text as a note
+      try {
+        // Try to find a JSON object with lineItems
+        const jsonMatch = content.match(/\{[\s\S]*"lineItems"\s*:\s*\[[\s\S]*\][\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        }
+      } catch {}
+    }
+
+    // If still no result, try to extract individual line items from partial JSON
+    if (!result || !result.lineItems) {
+      try {
+        const arrayMatch = content.match(/\[[\s\S]*\{[\s\S]*"description"[\s\S]*\}[\s\S]*\]/);
+        if (arrayMatch) {
+          const items = JSON.parse(arrayMatch[0]);
+          result = { lineItems: items, notes: "Parsed from partial response" };
+        }
+      } catch {}
+    }
+
+    if (!result || !result.lineItems || result.lineItems.length === 0) {
       return NextResponse.json({
         lineItems: [],
         notes: content.slice(0, 500),
