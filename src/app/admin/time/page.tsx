@@ -264,7 +264,10 @@ export default function AdminTimePage() {
   }
 
   const selectedEntries = selectedCell
-    ? entries.filter((e) => e.techId === selectedCell.techId && e.clockInAt.startsWith(selectedCell.date))
+    ? entries.filter((e) => {
+        if (e.techId !== selectedCell.techId) return false;
+        try { return new Date(e.clockInAt).toISOString().startsWith(selectedCell.date); } catch { return false; }
+      })
     : [];
 
   const grandTotal = gridData.reduce((sum, row) => sum + row.weekTotal, 0);
@@ -389,16 +392,12 @@ export default function AdminTimePage() {
                               const isToday = day.date === isoDate(new Date());
                               const isSelected = selectedCell?.techId === row.tech.id && selectedCell?.date === day.date;
                               return (
-                                <td key={i} className="text-center px-3 py-3" style={{ background: isSelected ? "rgba(37,99,235,0.1)" : isToday ? "rgba(37,99,235,0.03)" : undefined }}>
+                                <td key={i} className="text-center px-3 py-3 cursor-pointer hover:bg-black/5 transition-colors" onClick={() => setSelectedCell({ techId: row.tech.id, date: day.date })} style={{ background: isSelected ? "rgba(37,99,235,0.1)" : isToday ? "rgba(37,99,235,0.03)" : undefined }}>
                                   {day.minutes > 0 || day.hasOpen ? (
-                                    <button
-                                      onClick={() => setSelectedCell({ techId: row.tech.id, date: day.date })}
-                                      className="text-sm font-medium px-2 py-1 rounded-lg transition-colors hover:bg-black/5"
-                                      style={{ color: day.hasOpen ? "#F59E0B" : "var(--color-text-primary)" }}
-                                    >
+                                    <span className="text-sm font-medium" style={{ color: day.hasOpen ? "#F59E0B" : "var(--color-text-primary)" }}>
                                       {minutesToDecimal(day.minutes)}h
                                       {day.hasOpen && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" />}
-                                    </button>
+                                    </span>
                                   ) : (
                                     <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>—</span>
                                   )}
@@ -440,10 +439,23 @@ export default function AdminTimePage() {
                     <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
                       {techs.find((t) => t.id === selectedCell.techId)?.name} — {new Date(selectedCell.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
                     </h3>
-                    <button onClick={() => setSelectedCell(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const tech = techs.find((t) => t.id === selectedCell.techId);
+                          setManualForm({ techId: selectedCell.techId, date: selectedCell.date, clockIn: "08:30", clockOut: "17:00", note: "" });
+                          setShowManualEntry(true);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.2)" }}
+                      >
+                        + Add Entry
+                      </button>
+                      <button onClick={() => setSelectedCell(null)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Close</button>
+                    </div>
                   </div>
                   {selectedEntries.length === 0 ? (
-                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No entries for this day.</p>
+                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No entries for this day. Click "+ Add Entry" to create one.</p>
                   ) : (
                     <div className="space-y-2">
                       {selectedEntries.map((entry) => (
