@@ -62,6 +62,7 @@ export default function EstimatesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [prompt, setPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -388,6 +389,7 @@ export default function EstimatesPage() {
   async function generateFromAI() {
     if (!prompt.trim()) return;
     setError(null);
+    setAiGenerating(true);
     try {
       const res = await fetch("/api/estimator/ai-generate", {
         method: "POST",
@@ -405,13 +407,14 @@ export default function EstimatesPage() {
           total: Number(l.total || 0),
           source: "historical" as const,
         })));
-        if (data.notes) setError(null);
         if (data.matchCount === 0) setError("No matching past estimates found. Build manually or try different keywords.");
       } else {
         setError(data.notes || "No line items generated. Try being more specific.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate draft estimate");
+    } finally {
+      setAiGenerating(false);
     }
   }
 
@@ -584,7 +587,14 @@ export default function EstimatesPage() {
 
               <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Example: build me a bid on a 42 Apex wood fireplace with timberline face and 25 feet of pipe" className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
               <div className="mt-3 flex gap-2">
-                <button onClick={generateFromAI} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)" }}>Generate Draft</button>
+                <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
+                  {aiGenerating ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      Searching QuickBooks &amp; generating...
+                    </>
+                  ) : "Generate Estimate"}
+                </button>
                 <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                   Add Manual Line
                 </button>
