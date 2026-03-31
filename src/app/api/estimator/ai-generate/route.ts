@@ -62,14 +62,34 @@ export async function POST(request: NextRequest) {
         const qbData = await qbRes.json();
         const allEstimates = qbData.estimates || [];
 
-        // Extract keywords from the prompt to find matching estimates
-        const promptLower = prompt.toLowerCase();
-        const keywords = promptLower.split(/\s+/).filter((w: string) => w.length >= 3);
+        // Extract keywords from the prompt — smart matching for model numbers
+        const promptLower = prompt.toLowerCase().replace(/[-\/\\]/g, " ");
+        const words = promptLower.split(/\s+/).filter((w: string) => w.length >= 2);
 
-        // Find estimates that match the specific model/product
+        // Build search variants: "DRT3040" → ["drt3040", "drt 3040", "drt-3040", "3040"]
+        // Also extract model number patterns (letters+digits combos)
+        const modelPatterns: string[] = [];
+        for (const w of words) {
+          modelPatterns.push(w);
+          // Split letters from numbers: "drt3040" → "drt" + "3040"
+          const parts = w.match(/[a-z]+|[0-9]+/g);
+          if (parts && parts.length > 1) {
+            modelPatterns.push(parts.join(" ")); // "drt 3040"
+            modelPatterns.push(parts.join("-")); // "drt-3040"
+            modelPatterns.push(parts.join("")); // "drt3040"
+            // Just the number part often appears in part numbers
+            for (const p of parts) {
+              if (/\d{3,}/.test(p)) modelPatterns.push(p); // "3040"
+            }
+          }
+        }
+        // Also add longer keywords (brand names, model names)
+        const searchTerms = [...new Set([...modelPatterns, ...words.filter((w: string) => w.length >= 4)])];
+
+        // Find estimates that match — check the full JSON text for any search term
         const matchingEstimates = allEstimates.filter((est: any) => {
-          const estText = JSON.stringify(est).toLowerCase();
-          return keywords.some((kw: string) => estText.includes(kw));
+          const estText = JSON.stringify(est).toLowerCase().replace(/[-\/\\]/g, " ");
+          return searchTerms.some((term: string) => estText.includes(term));
         });
 
         // ONLY use estimates that match this specific model
