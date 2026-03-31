@@ -34,22 +34,43 @@ export default function EstimatePage() {
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim()) return;
-    
+
     setIsGenerating(true);
-    
-    // Simulate AI generation
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    // Mock AI-generated line items based on prompt
-    const mockItems: LineItem[] = [
-      { id: "1", description: "Annual Inspection Service", quantity: 1, unitPrice: 89, total: 89 },
-      { id: "2", description: "Thermocouple Replacement", quantity: 1, unitPrice: 45, total: 45 },
-      { id: "3", description: "Glass Cleaning", quantity: 1, unitPrice: 35, total: 35 },
-      { id: "4", description: "Pilot Assembly Cleaning", quantity: 1, unitPrice: 25, total: 25 },
-    ];
-    
-    setLineItems(mockItems);
-    setIsGenerating(false);
+    setActionMsg("");
+
+    try {
+      const res = await fetch("/api/estimator/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt, customerName: customer.name }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setActionMsg(data.error || "Failed to generate estimate");
+        setIsGenerating(false);
+        return;
+      }
+
+      if (data.lineItems && Array.isArray(data.lineItems)) {
+        const items: LineItem[] = data.lineItems.map((item: any, i: number) => ({
+          id: `ai-${Date.now()}-${i}`,
+          description: item.partNumber ? `${item.description} (${item.partNumber})` : item.description,
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.total) || (Number(item.quantity) || 1) * (Number(item.unitPrice) || 0),
+        }));
+        setLineItems(items);
+        if (data.notes) setActionMsg(data.notes);
+      } else {
+        setActionMsg("No line items generated. Try being more specific.");
+      }
+    } catch (err) {
+      setActionMsg("Failed to connect to AI. Try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleAddItem = () => {
