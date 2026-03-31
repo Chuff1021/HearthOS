@@ -93,10 +93,11 @@ export async function POST(request: NextRequest) {
         }
         const uniqueTerms = [...new Set(searchTerms)];
 
-        // Find matching estimates
+        // Find matching estimates — require at least one term of 4+ chars to match
+        const strongTerms = uniqueTerms.filter((t: string) => t.length >= 4);
         const matching = allEstimates.filter((est: any) => {
           const text = JSON.stringify(est).toLowerCase().replace(/[-\/\\]/g, " ");
-          return uniqueTerms.some((term: string) => term.length >= 3 && text.includes(term));
+          return strongTerms.some((term: string) => text.includes(term));
         });
 
         matchCount = matching.length;
@@ -162,7 +163,9 @@ export async function POST(request: NextRequest) {
     if (thinkClose !== -1) content = content.substring(thinkClose + 8).trim();
     if (!content) content = (data.choices?.[0]?.message?.content || "").replace(/<\/?think>/g, "").trim();
 
-    // Extract JSON
+    // Extract JSON — strip markdown code fences if present
+    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+
     let result;
     try {
       const jsonMatch = content.match(/\{[\s\S]*"lineItems"[\s\S]*\}/);
