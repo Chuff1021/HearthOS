@@ -105,6 +105,8 @@ export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
   const [activeTab, setActiveTab] = useState<"details" | "checklist" | "photos" | "customer">("details");
+  const [customerInfo, setCustomerInfo] = useState<{ phone?: string; email?: string; address?: string; name?: string } | null>(null);
+  const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Record<string, boolean>>({});
   const [checklistForm, setChecklistForm] = useState<ChecklistForm | null>(null);
   const [showEstimateModal, setShowEstimateModal] = useState(false);
@@ -467,6 +469,32 @@ export default function JobDetailPage() {
 
   const materialsTotal = materialsUsed.reduce((sum, m) => sum + m.total, 0);
   const laborRate = 89; // base labor
+  // Fetch customer info when customer tab is opened
+  useEffect(() => {
+    if (activeTab !== "customer" || customerInfo || loadingCustomer) return;
+    const customerName = job.customer || job.customerName || "";
+    if (!customerName || customerName.length < 2) return;
+    setLoadingCustomer(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(customerName)}`);
+        const data = await res.json();
+        const match = (data.customers || []).find((c: any) =>
+          (c.displayName || "").toLowerCase() === customerName.toLowerCase()
+        ) || (data.customers || [])[0];
+        if (match) {
+          setCustomerInfo({
+            name: match.displayName,
+            phone: match.phone || "",
+            email: match.email || "",
+            address: match.address ? [match.address.line1, [match.address.city, match.address.state].filter(Boolean).join(", "), match.address.zip].filter(Boolean).join(" ") : "",
+          });
+        }
+      } catch {}
+      setLoadingCustomer(false);
+    })();
+  }, [activeTab, job.customer, job.customerName]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const invoiceTotal = materialsTotal + laborRate;
   const activePhoto = lightboxIndex === null ? null : (job.photos || [])[lightboxIndex] || null;
 
@@ -1116,16 +1144,60 @@ export default function JobDetailPage() {
             {/* Customer Info */}
             <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <h3 className="font-semibold mb-3">Customer Information</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Phone</span>
-                  <a href={`tel:${job.phone}`} className="text-blue-600">{job.phone}</a>
+              {loadingCustomer ? (
+                <p className="text-sm text-gray-400">Loading customer info...</p>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Name</span>
+                    <span className="font-medium">{customerInfo?.name || job.customer || "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Phone</span>
+                    {customerInfo?.phone ? (
+                      <a href={`tel:${customerInfo.phone}`} className="flex items-center gap-2 font-medium" style={{ color: "#2563EB" }}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                        {customerInfo.phone}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">Not available</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Email</span>
+                    {customerInfo?.email ? (
+                      <a href={`mailto:${customerInfo.email}`} className="font-medium" style={{ color: "#2563EB" }}>{customerInfo.email}</a>
+                    ) : (
+                      <span className="text-gray-500">Not available</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-400">Address</span>
+                    <div className="text-right">
+                      <span>{customerInfo?.address || job.propertyAddress || "—"}</span>
+                      {(customerInfo?.address || job.propertyAddress) && (
+                        <a
+                          href={`https://maps.apple.com/?q=${encodeURIComponent(customerInfo?.address || job.propertyAddress || "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block text-xs mt-1 font-medium"
+                          style={{ color: "#2563EB" }}
+                        >
+                          Open in Maps
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  {customerInfo?.phone && (
+                    <a href={`tel:${customerInfo.phone}`} className="block w-full text-center py-3 rounded-xl text-sm font-semibold mt-2" style={{ background: "linear-gradient(135deg, #16A34A, #22C55E)", color: "#fff" }}>
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                        Call Customer
+                      </span>
+                    </a>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Email</span>
-                  <a href={`mailto:${job.email}`} className="text-blue-600">{job.email}</a>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* History */}
