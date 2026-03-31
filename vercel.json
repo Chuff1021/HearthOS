@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/cleanup-locations",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/time-reminders",
+      "schedule": "31 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron/time-reminders",
+      "schedule": "1 22 * * 1-5"
     }
   ]
 }

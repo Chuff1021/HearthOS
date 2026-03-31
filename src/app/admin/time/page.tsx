@@ -83,6 +83,7 @@ export default function AdminTimePage() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualForm, setManualForm] = useState({ techId: "", date: "", clockIn: "08:00", clockOut: "17:00", note: "" });
   const [activeTab, setActiveTab] = useState<"timesheet" | "requests" | "time-off">("timesheet");
+  const [reminders, setReminders] = useState<Array<{ id: string; tech_name: string; type: string; message: string; created_at: string }>>([]);
 
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -128,14 +129,30 @@ export default function AdminTimePage() {
   }, [currentWeek]);
 
   // Build the weekly grid data
+  const [tick, setTick] = useState(0);
+
+  // Auto-refresh running totals every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const todayIso = isoDate(new Date());
+
   const gridData = useMemo(() => {
     return techs.map((tech) => {
       const techEntries = entries.filter((e) => e.techId === tech.id);
+      const isClockedIn = techEntries.some((e) => e.status === "open");
+      const todayEntries = techEntries.filter((e) => e.clockInAt.startsWith(todayIso));
+      const todayMinutes = todayEntries.reduce((sum, e) => {
+        if (e.status === "open") return sum + Math.round((Date.now() - new Date(e.clockInAt).getTime()) / 60000);
+        return sum + (e.totalMinutes || 0);
+      }, 0);
+
       const dailyMinutes = weekDates.map((date) => {
         const dayIso = isoDate(date);
         const dayEntries = techEntries.filter((e) => e.clockInAt.startsWith(dayIso));
         const totalMin = dayEntries.reduce((sum, e) => sum + (e.totalMinutes || 0), 0);
-        // Add running time for open entries
         const openEntries = dayEntries.filter((e) => e.status === "open");
         const openMin = openEntries.reduce((sum, e) => {
           return sum + Math.round((Date.now() - new Date(e.clockInAt).getTime()) / 60000);
@@ -143,9 +160,9 @@ export default function AdminTimePage() {
         return { date: dayIso, minutes: totalMin + openMin, entryCount: dayEntries.length, hasOpen: openEntries.length > 0 };
       });
       const weekTotal = dailyMinutes.reduce((sum, d) => sum + d.minutes, 0);
-      return { tech, dailyMinutes, weekTotal };
+      return { tech, dailyMinutes, weekTotal, isClockedIn, todayMinutes };
     });
-  }, [techs, entries, weekDates]);
+  }, [techs, entries, weekDates, tick, todayIso]);
 
   function goPrevWeek() {
     const d = new Date(currentWeek);
@@ -303,9 +320,17 @@ export default function AdminTimePage() {
                   const color = hrs >= 40 ? "#DC2626" : hrs >= 35 ? "#F59E0B" : "#16A34A";
                   return (
                     <div key={row.tech.id} className="rounded-xl p-3" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{row.tech.name.split(" ")[0]}</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isClockedIn ? "#16A34A" : "#9CA3AF" }} />
+                          <span className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{row.tech.name.split(" ")[0]}</span>
+                        </div>
                         <span className="text-sm font-bold" style={{ color }}>{minutesToDecimal(row.weekTotal)}h</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px]" style={{ color: row.isClockedIn ? "#16A34A" : "var(--color-text-muted)" }}>
+                          {row.isClockedIn ? `Clocked in · ${minutesToDecimal(row.todayMinutes)}h today` : "Not clocked in"}
+                        </span>
                       </div>
                       <div className="w-full h-2 rounded-full" style={{ background: "var(--color-surface-3)" }}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
@@ -343,8 +368,13 @@ export default function AdminTimePage() {
                           <tr key={row.tech.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: row.tech.color }} />
-                                <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>{row.tech.name}</span>
+                                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isClockedIn ? "#16A34A" : row.tech.color }} title={row.isClockedIn ? "Clocked in" : "Not clocked in"} />
+                                <div>
+                                  <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>{row.tech.name}</span>
+                                  {row.isClockedIn && (
+                                    <span className="text-[10px] ml-2" style={{ color: "#16A34A" }}>{minutesToDecimal(row.todayMinutes)}h today</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             {row.dailyMinutes.map((day, i) => {
