@@ -53,15 +53,17 @@ export async function POST(request: NextRequest) {
     if (!clockInAt || !clockOutAt) {
       return NextResponse.json({ error: 'clockInAt and clockOutAt required for manual entry' }, { status: 400 });
     }
-    const { entry } = await createTimeEntry({ techId, techName });
-    // Immediately close with the provided times
-    const updated = await updateTimeEntry({
-      id: entry.id,
+    // Create entry directly via the store — do NOT use createTimeEntry
+    // because it returns existing open entries instead of creating new ones
+    const { createManualTimeEntry } = await import('@/lib/time-entry-store');
+    const entry = await createManualTimeEntry({
+      techId,
+      techName,
       clockInAt,
       clockOutAt,
       editNote: body.editNote || 'Manual entry by admin',
     });
-    return NextResponse.json({ entry: updated }, { status: 201 });
+    return NextResponse.json({ entry }, { status: 201 });
   }
 
   const entry = await closeOpenTimeEntry(techId);

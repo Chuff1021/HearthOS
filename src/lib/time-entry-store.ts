@@ -302,6 +302,51 @@ export async function closeOpenTimeEntry(techId: string) {
   return updated;
 }
 
+export async function createManualTimeEntry(input: {
+  techId: string;
+  techName?: string;
+  clockInAt: string;
+  clockOutAt: string;
+  editNote?: string;
+}): Promise<TimeEntry> {
+  const now = new Date().toISOString();
+  const totalMinutes = Math.max(0, Math.round((new Date(input.clockOutAt).getTime() - new Date(input.clockInAt).getTime()) / 60000));
+  const entry: TimeEntry = {
+    id: `te-${Date.now()}-manual`,
+    techId: input.techId,
+    techName: input.techName,
+    clockInAt: input.clockInAt,
+    clockOutAt: input.clockOutAt,
+    totalMinutes,
+    status: "closed",
+    edited: true,
+    editNote: input.editNote || "Manual entry",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const sql = getSql();
+  if (!sql) {
+    const entries = loadFileEntries();
+    saveFileEntries([entry, ...entries]);
+    return entry;
+  }
+
+  await ensureTable();
+  await sql`
+    INSERT INTO hearth_time_entries (
+      id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
+    ) VALUES (
+      ${entry.id}, ${entry.techId}, ${entry.techName || null},
+      ${entry.clockInAt}, ${entry.clockOutAt}, ${entry.totalMinutes ?? null},
+      ${entry.status}, ${true}, ${entry.editNote || null},
+      ${JSON.stringify(entry)}::jsonb, ${entry.createdAt}, ${entry.updatedAt}
+    )
+  `;
+
+  return entry;
+}
+
 export async function updateTimeEntry(input: {
   id: string;
   clockInAt?: string;
