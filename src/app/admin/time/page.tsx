@@ -152,7 +152,7 @@ export default function AdminTimePage() {
 
   // Auto-refresh running totals every 30 seconds
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 10000);
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
