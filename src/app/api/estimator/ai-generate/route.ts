@@ -40,9 +40,19 @@ export async function POST(request: NextRequest) {
 
     // STEP 1: Find the matching product by searching descriptions and aliases
     const promptLower = prompt.toLowerCase().replace(/[-\/\\]/g, " ");
-    const searchWords = promptLower.split(/\s+/).filter((w: string) => w.length >= 2);
 
-    // Score each product by how many search words match its descriptions
+    // Remove install-type and measurement words — these aren't product identifiers
+    const ignoreWords = new Set([
+      "vertical", "horizontal", "insert", "install", "installation",
+      "feet", "foot", "ft", "pipe", "with", "and", "the", "for",
+      "service", "repair", "clean", "replace", "new",
+    ]);
+    const searchWords = promptLower.split(/\s+/)
+      .filter((w: string) => w.length >= 2 && !ignoreWords.has(w))
+      // Also ignore pure numbers that look like measurements (10, 20, 30)
+      .filter((w: string) => !/^\d{1,2}$/.test(w));
+
+    // Score each product by how many search words match
     const scored = products.map((product: any) => {
       const allText = [
         product.partNumber,
@@ -52,8 +62,7 @@ export async function POST(request: NextRequest) {
 
       let score = 0;
       for (const word of searchWords) {
-        if (word.length < 3) continue;
-        if (allText.includes(word)) score += word.length; // longer matches score higher
+        if (allText.includes(word)) score += word.length * 2; // weight by word length
       }
       return { product, score };
     }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);
