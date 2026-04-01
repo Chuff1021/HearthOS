@@ -47,10 +47,16 @@ export async function POST(request: NextRequest) {
       "feet", "foot", "ft", "pipe", "with", "and", "the", "for",
       "service", "repair", "clean", "replace", "new",
     ]);
-    const searchWords = promptLower.split(/\s+/)
-      .filter((w: string) => w.length >= 2 && !ignoreWords.has(w))
-      // Also ignore pure numbers that look like measurements (10, 20, 30)
-      .filter((w: string) => !/^\d{1,2}$/.test(w));
+    // Remove measurement numbers (numbers followed by feet/ft/pipe) but keep model numbers
+    const rawWords = promptLower.split(/\s+/).filter((w: string) => w.length >= 2 && !ignoreWords.has(w));
+    const searchWords: string[] = [];
+    for (let i = 0; i < rawWords.length; i++) {
+      const w = rawWords[i];
+      const nextWord = rawWords[i + 1] || "";
+      // Skip numbers only if they're clearly measurements (followed by feet/ft/pipe or standalone large numbers like "20")
+      if (/^\d+$/.test(w) && (ignoreWords.has(nextWord) || nextWord === "" || /^(feet|foot|ft|pipe|inch)/.test(nextWord))) continue;
+      searchWords.push(w);
+    }
 
     // Score each product by how many search words match
     const scored = products.map((product: any) => {
