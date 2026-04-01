@@ -120,18 +120,38 @@ export default function TechApp() {
     [session]
   );
 
-  // Lunch countdown timer
+  // Lunch countdown timer — auto clock back in when 30 min is up
   useEffect(() => {
     if (!onLunch || !lunchStartedAt) return;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const elapsed = Math.floor((Date.now() - lunchStartedAt) / 1000);
       const remaining = Math.max(0, 30 * 60 - elapsed);
       const mins = Math.floor(remaining / 60);
       const secs = remaining % 60;
-      setLunchTimeLeft(remaining > 0 ? `${mins}:${String(secs).padStart(2, "0")}` : "Break over");
+      if (remaining > 0) {
+        setLunchTimeLeft(`${mins}:${String(secs).padStart(2, "0")}`);
+      } else {
+        // Auto clock back in
+        setLunchTimeLeft("Clocking back in...");
+        clearInterval(interval);
+        try {
+          if (session?.tech?.id) {
+            await fetch("/api/time/entries", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "clock_in", techId: session.tech.id, techName: session.tech.name }),
+            });
+            window.dispatchEvent(new Event("hearth-tech-clock-changed"));
+            setOnLunch(false);
+            setLunchStartedAt(null);
+            setLunchTimeLeft("");
+            await loadSession();
+          }
+        } catch {}
+      }
     }, 1000);
     return () => clearInterval(interval);
-  }, [onLunch, lunchStartedAt]);
+  }, [onLunch, lunchStartedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClock = async (type?: "lunch" | "back-from-lunch") => {
     if (!session?.tech?.id) return;
