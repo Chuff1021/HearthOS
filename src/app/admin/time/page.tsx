@@ -231,7 +231,7 @@ export default function AdminTimePage() {
     if (!editEntry) return;
     setSaving(true);
     try {
-      await fetch("/api/time/entries", {
+      const res = await fetch("/api/time/entries", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -241,7 +241,14 @@ export default function AdminTimePage() {
           editNote: editForm.editNote || "Edited by admin",
         }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error("Edit failed:", data.error);
+        return;
+      }
       setEditEntry(null);
+      // Wait a moment for DB to settle, then reload
+      await new Promise((r) => setTimeout(r, 500));
       await loadData();
     } finally {
       setSaving(false);

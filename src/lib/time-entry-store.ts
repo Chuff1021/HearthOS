@@ -231,8 +231,6 @@ export async function createTimeEntry(input: { techId: string; techName?: string
     )
   `;
 
-  const snapshot = await listTimeEntries();
-  saveFileEntries(snapshot);
   return { entry, alreadyOpen: false };
 }
 
@@ -297,8 +295,6 @@ export async function closeOpenTimeEntry(techId: string) {
     where id = ${updated.id}
   `;
 
-  const snapshot = await listTimeEntries();
-  saveFileEntries(snapshot);
   return updated;
 }
 
@@ -432,7 +428,6 @@ export async function updateTimeEntry(input: {
     where id = ${updated.id}
   `;
 
-  const snapshot = await listTimeEntries();
-  saveFileEntries(snapshot);
+  // Don't re-snapshot all entries after every edit — it causes race conditions
   return updated;
 }

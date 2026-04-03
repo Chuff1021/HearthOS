@@ -57,7 +57,8 @@ export default function TechRuntimeProvider() {
           setIsOwner(Boolean(data?.isOwner));
         }
       } catch {
-        if (!cancelled) setClockedIn(false);
+        // Don't change clock state on network errors — keep the last known state
+        // This prevents techs from appearing logged out during brief connectivity issues
       }
     }
 
