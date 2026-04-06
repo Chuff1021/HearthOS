@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { getOrCreateDefaultOrg } from "@/lib/org";
+import { getClientFromTokens } from "@/lib/quickbooks/sync";
+import { buildEstimatorCatalog } from "@/lib/estimator-build-catalog";
 
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
+
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.NVIDIA_API_KEY;
@@ -13,20 +18,38 @@ export async function POST(request: NextRequest) {
     const { prompt, customerName } = await request.json();
     if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
-    const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
+    const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
-    // Load all knowledge bases in parallel
+    // Load all knowledge bases
     let catalog: Record<string, any> = {};
     let pricingSummary: Record<string, any> = {};
     let installTypeGuide: Record<string, string[]> = {};
+    let autoBuilt = false;
     try {
-      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"product-catalog"}, ${"pricing"}, ${"install-types"})`;
+      const rows = await sql`SELECT id, data, updated_at FROM estimator_knowledge WHERE id IN (${"product-catalog"}, ${"pricing"}, ${"install-types"})`;
       for (const row of rows) {
         if (row.id === "product-catalog") catalog = row.data as Record<string, any>;
         if (row.id === "pricing") pricingSummary = row.data as Record<string, any>;
         if (row.id === "install-types") installTypeGuide = row.data as Record<string, string[]>;
       }
     } catch {}
+
+    // Auto-build from QuickBooks if catalog is empty (first run or never trained)
+    if (Object.keys(catalog).length === 0 && Object.keys(pricingSummary).length === 0) {
+      try {
+        const org = await getOrCreateDefaultOrg();
+        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+          const client = getClientFromTokens(org.qbAccessToken, org.qbRefreshToken, org.qbRealmId);
+          const result = await buildEstimatorCatalog(sql, client);
+          catalog = result.productCatalog;
+          pricingSummary = result.pricingSummary;
+          installTypeGuide = result.installTypeGuide;
+          autoBuilt = true;
+        }
+      } catch {
+        // If auto-build fails (e.g. QB not connected), continue with empty data
+      }
+    }
 
     // Parse pipe footage, install type, and optional add-ons from prompt
     const pipeFeetMatch = prompt.match(/(\d+)\s*(?:ft|feet|foot|')/i);
@@ -274,6 +297,7 @@ Return ONLY valid JSON, no markdown:
       basedOnInvoices,
       usingConsensus: Boolean(bestMatch?.consensusComponents?.length),
       catalogMatch: Boolean(bestMatch),
+      autoBuilt,
     });
 
   } catch (err) {
