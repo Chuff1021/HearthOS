@@ -197,6 +197,8 @@ export default function EstimatesPage() {
 
   useEffect(() => {
     loadAll();
+    // Silently rebuild catalog if it's empty or missing model names
+    fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

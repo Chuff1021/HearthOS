@@ -62,13 +62,19 @@ export async function POST(request: NextRequest) {
     const scored = products.map((product: any) => {
       const allText = [
         product.partNumber,
+        product.modelName || "",
         product.description,
         ...(product.aliases || []),
-      ].join(" ").toLowerCase().replace(/[-\/\\]/g, " ");
+      ].join(" ").toLowerCase().replace(/[-\/\\:]/g, " ");
 
       let score = 0;
       for (const word of searchWords) {
-        if (allText.includes(word)) score += word.length * 2; // weight by word length
+        if (allText.includes(word)) score += word.length * 2;
+      }
+      // Extra weight for matching the model name directly (e.g. "36 Elite")
+      const modelText = (product.modelName || "").toLowerCase();
+      for (const word of searchWords) {
+        if (modelText.includes(word)) score += word.length * 3;
       }
       return { product, score };
     }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);

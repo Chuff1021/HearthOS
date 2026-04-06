@@ -24,6 +24,18 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
+    // Skip if catalog already has model names — it's been built and doesn't need to run again
+    try {
+      const existing = await sql`SELECT data FROM estimator_knowledge WHERE id = ${"product-catalog"} LIMIT 1`;
+      if (existing.length > 0) {
+        const products = Object.values(existing[0].data as Record<string, any>);
+        if (products.length > 0 && (products[0] as any)?.modelName) {
+          await sql.end();
+          return NextResponse.json({ success: true, skipped: true, message: "Catalog already built" });
+        }
+      }
+    } catch {}
+
     // Get QB client
     const org = await getOrCreateDefaultOrg();
     if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
@@ -278,7 +290,10 @@ export async function POST(request: NextRequest) {
 
       const pn = mainUnit.name;
       if (!productMap[pn]) {
-        productMap[pn] = { partNumber: pn, descriptions: [], invoicePrices: [], estimatePrices: [], invoiceTemplates: [], estimateTemplates: [] };
+        // Extract model name from QB category path: "Gas Fireplaces:Heat & Glo:36 Elite" → "36 Elite"
+        const segments = pn.split(":").map((s: string) => s.trim()).filter(Boolean);
+        const modelName = segments[segments.length - 1] || pn;
+        productMap[pn] = { partNumber: pn, modelName, descriptions: modelName !== pn ? [modelName] : [], invoicePrices: [], estimatePrices: [], invoiceTemplates: [], estimateTemplates: [] };
       }
       const entry = productMap[pn];
       if (mainUnit.desc && !entry.descriptions.includes(mainUnit.desc)) entry.descriptions.push(mainUnit.desc);
@@ -365,6 +380,7 @@ export async function POST(request: NextRequest) {
 
       productCatalog[p.partNumber] = {
         partNumber: p.partNumber,
+        modelName: p.modelName || p.partNumber,
         description: p.descriptions[0] || "",
         aliases: p.descriptions,
         avgPrice: Number((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2)),
