@@ -105,6 +105,12 @@ export async function POST(request: NextRequest) {
       `${c.partNumber} | ${c.description} | Qty: ${c.qty} | $${c.price} | Total: $${c.amount}`
     ).join("\n");
 
+    // Detect optional add-ons mentioned in the prompt
+    const promptLower2 = prompt.toLowerCase();
+    const mentionsStone = /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b|\bsurround\b/.test(promptLower2);
+    const mentionsHearth = /\bhearth\b/.test(promptLower2);
+    const mentionsMantel = /\bmantel\b|\bmantle\b/.test(promptLower2);
+
     const aiPrompt = `You are adjusting a fireplace estimate for Aaron's Fireplace Company.
 
 Here is a TEMPLATE ESTIMATE from a past job for the same product (${bestMatch.description}):
@@ -119,8 +125,13 @@ ${pipeFeet ? `- Change pipe quantity to ${pipeFeet} feet (find the per-foot pipe
 ${isHorizontal ? "- This is a HORIZONTAL install — replace vertical pipe/flashing/termination with a flex kit or horizontal components if you see them in the pricing database" : ""}
 ${isVertical ? "- This is a VERTICAL install — keep all pipe, firestop, flashing, and vertical termination" : ""}
 - Recalculate Users Charge as 3.5% of the new subtotal (before Users Charge)
-- Keep all other components and prices the same
+- Keep all standard fireplace components and prices the same
 - Every line item MUST have a description
+
+IMPORTANT — ONLY include these add-on items if the customer's request explicitly mentions them:
+${!mentionsStone ? "- EXCLUDE any stonework, stone veneer, stone surround, or masonry items — customer did not request stone" : "- Stone/masonry work was requested — include it"}
+${!mentionsHearth ? "- EXCLUDE any hearth pad items unless standard for this product" : "- Hearth work was requested — include it"}
+${!mentionsMantel ? "- EXCLUDE any mantel items unless standard for this product" : "- Mantel was requested — include it"}
 
 Return ONLY valid JSON — no markdown, no code fences:
 {"lineItems":[{"description":"Item name","partNumber":"PART","quantity":1,"unitPrice":100,"total":100}],"notes":"Based on past estimate for ${bestMatch.description}"}`;
@@ -168,6 +179,16 @@ Return ONLY valid JSON — no markdown, no code fences:
       } catch {}
     }
 
+    // Hard filter — strip add-on items that weren't requested, regardless of what AI returned
+    if (result?.lineItems?.length) {
+      result.lineItems = result.lineItems.filter((item: any) => {
+        const desc = String(item.description || item.partNumber || "").toLowerCase();
+        if (!mentionsStone && /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b/.test(desc)) return false;
+        if (!mentionsMantel && /\bmantel\b|\bmantle\b/.test(desc)) return false;
+        return true;
+      });
+    }
+
     if (!result?.lineItems?.length) {
       // Fallback: just return the template estimate directly
       const subtotal = templateEstimate
@@ -178,6 +199,12 @@ Return ONLY valid JSON — no markdown, no code fences:
       result = {
         lineItems: templateEstimate
           .filter((c: any) => !c.partNumber?.includes("Users Charge"))
+          .filter((c: any) => {
+            const desc = String(c.description || c.partNumber || "").toLowerCase();
+            if (!mentionsStone && /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b/.test(desc)) return false;
+            if (!mentionsMantel && /\bmantel\b|\bmantle\b/.test(desc)) return false;
+            return true;
+          })
           .map((c: any) => {
             // Adjust pipe qty if specified
             const isPipe = c.qty > 5 && pipeFeet;
