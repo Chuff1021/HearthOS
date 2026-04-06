@@ -6,141 +6,207 @@ const MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });
-  }
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "No database" }, { status: 500 });
-  }
+  if (!apiKey) return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });
+  if (!process.env.DATABASE_URL) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
     const { prompt, customerName } = await request.json();
-    if (!prompt) {
-      return NextResponse.json({ error: "prompt is required" }, { status: 400 });
-    }
+    if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
     const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
 
-    // Load the product catalog from the knowledge base
+    // Load all knowledge bases in parallel
     let catalog: Record<string, any> = {};
+    let pricingSummary: Record<string, any> = {};
+    let installTypeGuide: Record<string, string[]> = {};
     try {
-      const rows = await sql`SELECT data FROM estimator_knowledge WHERE id = ${"product-catalog"}`;
-      if (rows.length > 0) catalog = rows[0].data as Record<string, any>;
+      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"product-catalog"}, ${"pricing"}, ${"install-types"})`;
+      for (const row of rows) {
+        if (row.id === "product-catalog") catalog = row.data as Record<string, any>;
+        if (row.id === "pricing") pricingSummary = row.data as Record<string, any>;
+        if (row.id === "install-types") installTypeGuide = row.data as Record<string, string[]>;
+      }
     } catch {}
 
-    const products = Object.values(catalog);
-    if (products.length === 0) {
-      await sql.end();
-      return NextResponse.json({
-        lineItems: [],
-        notes: "Product catalog not built yet. Run the learning system first (POST /api/estimator/learn).",
-        matchCount: 0,
-      });
-    }
-
-    // STEP 1: Find the matching product by searching descriptions and aliases
-    const promptLower = prompt.toLowerCase().replace(/[-\/\\]/g, " ");
-
-    // Remove install-type and measurement words — these aren't product identifiers
-    const ignoreWords = new Set([
-      "vertical", "horizontal", "insert", "install", "installation",
-      "feet", "foot", "ft", "pipe", "with", "and", "the", "for",
-      "service", "repair", "clean", "replace", "new",
-    ]);
-    // Remove measurement numbers (numbers followed by feet/ft/pipe) but keep model numbers
-    const rawWords = promptLower.split(/\s+/).filter((w: string) => w.length >= 2 && !ignoreWords.has(w));
-    const searchWords: string[] = [];
-    for (let i = 0; i < rawWords.length; i++) {
-      const w = rawWords[i];
-      const nextWord = rawWords[i + 1] || "";
-      // Skip numbers only if they're clearly measurements (followed by feet/ft/pipe or standalone large numbers like "20")
-      if (/^\d+$/.test(w) && (ignoreWords.has(nextWord) || nextWord === "" || /^(feet|foot|ft|pipe|inch)/.test(nextWord))) continue;
-      searchWords.push(w);
-    }
-
-    // Score each product by how many search words match
-    const scored = products.map((product: any) => {
-      const allText = [
-        product.partNumber,
-        product.description,
-        ...(product.aliases || []),
-      ].join(" ").toLowerCase().replace(/[-\/\\]/g, " ");
-
-      let score = 0;
-      for (const word of searchWords) {
-        if (allText.includes(word)) score += word.length * 2; // weight by word length
-      }
-      return { product, score };
-    }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);
-
-    if (scored.length === 0) {
-      await sql.end();
-      return NextResponse.json({
-        lineItems: [],
-        notes: `No products found matching "${prompt}". Try using the model name (e.g., "42 Apex", "36 Elite", "DRT3040").`,
-        matchCount: 0,
-      });
-    }
-
-    const bestMatch = scored[0].product;
-
-    // Use consensus components (built from multiple invoices) — fall back to single template
-    const baseComponents: any[] = bestMatch.consensusComponents?.length > 0
-      ? bestMatch.consensusComponents
-      : (bestMatch.templateEstimate || []);
-
-    if (baseComponents.length === 0) {
-      await sql.end();
-      return NextResponse.json({
-        lineItems: [],
-        notes: `Found ${bestMatch.description} but no estimate data available yet.`,
-        matchCount: scored.length,
-      });
-    }
-
-    const totalTemplates: number = bestMatch.totalTemplatesAnalyzed || 1;
-    const usingConsensus = bestMatch.consensusComponents?.length > 0;
-
-    // STEP 2: Parse the user's request for pipe footage and install type
+    // Parse pipe footage, install type, and optional add-ons from prompt
     const pipeFeetMatch = prompt.match(/(\d+)\s*(?:ft|feet|foot|')/i);
     const pipeFeet = pipeFeetMatch ? Number(pipeFeetMatch[1]) : null;
     const isHorizontal = /horizontal/i.test(prompt);
     const isVertical = /vertical/i.test(prompt);
+    const isInsert = /insert|liner/i.test(prompt);
+    const isService = /\b(clean|service|inspect|repair)\b/i.test(prompt);
+    const mentionsStone = /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b/.test(prompt.toLowerCase());
+    const mentionsMantel = /\bmantel\b|\bmantle\b/.test(prompt.toLowerCase());
 
-    // STEP 3: Build the component list text for the AI
-    const componentText = baseComponents.map((c: any) => {
-      const pct = usingConsensus && c.appearsInPct != null ? ` [in ${c.appearsInPct}% of jobs]` : "";
-      return `${c.partNumber} | ${c.description} | Qty: ${c.qty} | $${c.price}${pct}`;
-    }).join("\n");
+    const installType = isHorizontal ? "horizontal"
+      : isInsert ? "insert"
+      : isService ? "service"
+      : "vertical"; // default for gas fireplace installs
 
-    const aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
+    // ── STEP 1: Try to find a matching product in the catalog ──
+    const products = Object.values(catalog);
+
+    const ignoreWords = new Set([
+      "vertical", "horizontal", "insert", "install", "installation",
+      "feet", "foot", "ft", "pipe", "with", "and", "the", "for",
+      "service", "repair", "clean", "replace", "new", "of", "a",
+    ]);
+
+    const promptNorm = prompt.toLowerCase().replace(/[-\/\\]/g, " ");
+    const rawWords = promptNorm.split(/\s+/).filter((w: string) => w.length >= 2 && !ignoreWords.has(w));
+    const searchWords: string[] = [];
+    for (let i = 0; i < rawWords.length; i++) {
+      // Strip trailing/leading punctuation (e.g. "cover." → "cover")
+      const w = rawWords[i].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "");
+      if (!w || w.length < 2 || ignoreWords.has(w)) continue;
+      const nextWord = (rawWords[i + 1] || "").replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "");
+      // Skip standalone measurement numbers (20 feet, 15 ft, etc.)
+      if (/^\d+$/.test(w) && (ignoreWords.has(nextWord) || /^(feet|foot|ft|pipe|inch)/.test(nextWord))) continue;
+      searchWords.push(w);
+    }
+
+    let bestMatch: any = null;
+    if (products.length > 0 && searchWords.length > 0) {
+      const scored = products.map((product: any) => {
+        const allText = [
+          product.partNumber,
+          product.description,
+          ...(product.aliases || []),
+        ].join(" ").toLowerCase().replace(/[-\/\\:]/g, " ");
+
+        let score = 0;
+        for (const word of searchWords) {
+          if (allText.includes(word)) score += word.length * 2;
+        }
+        return { product, score };
+      }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);
+
+      if (scored.length > 0) bestMatch = scored[0].product;
+    }
+
+    // Also try searching the pricingSummary item names if catalog didn't match
+    // (handles cases where the fireplace unit is named by part number in QB)
+    if (!bestMatch && searchWords.length > 0) {
+      const pricingItems = Object.values(pricingSummary) as any[];
+      const scoredPricing = pricingItems.map((item: any) => {
+        const allText = [item.name, item.description || ""].join(" ").toLowerCase().replace(/[-\/\\:]/g, " ");
+        let score = 0;
+        for (const word of searchWords) {
+          if (allText.includes(word)) score += word.length * 2;
+        }
+        return { item, score };
+      }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);
+
+      if (scoredPricing.length > 0) {
+        // Found a matching item in pricing summary — check if there's a catalog entry for that item
+        const topItem = scoredPricing[0].item;
+        const catalogMatch = Object.values(catalog).find((p: any) => p.partNumber === topItem.name);
+        if (catalogMatch) bestMatch = catalogMatch;
+      }
+    }
+
+    await sql.end();
+
+    // ── STEP 2: Build the AI prompt ──
+    let aiPrompt: string;
+    let basedOnInvoices = 1;
+    let matchedProductName = "";
+
+    if (bestMatch) {
+      // PATH A: Use catalog consensus components
+      const baseComponents: any[] = bestMatch.consensusComponents?.length > 0
+        ? bestMatch.consensusComponents
+        : (bestMatch.templateEstimate || []);
+
+      basedOnInvoices = bestMatch.totalTemplatesAnalyzed || 1;
+      matchedProductName = bestMatch.description || bestMatch.partNumber;
+      const usingConsensus = bestMatch.consensusComponents?.length > 0;
+
+      const componentText = baseComponents.map((c: any) => {
+        const pct = usingConsensus && c.appearsInPct != null ? ` [${c.appearsInPct}% of jobs]` : "";
+        return `${c.partNumber} | ${c.description} | Qty: ${c.qty} | $${c.price}${pct}`;
+      }).join("\n");
+
+      aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
 
 ${usingConsensus
-  ? `These are the STANDARD COMPONENTS that consistently appear across ${totalTemplates} past invoices for ${bestMatch.description}. Each line shows how often it appears.`
-  : `This is a template from a past invoice for ${bestMatch.description}.`}
+  ? `Standard components from ${basedOnInvoices} past invoices for ${matchedProductName}:`
+  : `Template from a past invoice for ${matchedProductName}:`}
 
 ${componentText}
 
-The customer wants: ${prompt}
+Customer request: ${prompt}
 ${customerName ? `Customer: ${customerName}` : ""}
 
-INSTRUCTIONS:
+Instructions:
 ${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet` : "- Keep pipe quantity as shown"}
-${isHorizontal ? "- HORIZONTAL install — swap vertical pipe/flashing/termination for flex kit or horizontal components" : ""}
-${isVertical ? "- VERTICAL install — keep all pipe, firestop, flashing, and vertical termination" : ""}
-- Add a Users Charge line item equal to 3.5% of the subtotal (all items before Users Charge)
-- Only include components listed above — do not add items not shown
+${isHorizontal ? "- HORIZONTAL install: use flex kit/horizontal components, not vertical pipe" : ""}
+${isVertical ? "- VERTICAL install: keep straight pipe, firestop, flashing, vertical cap" : ""}
+- Add a Users Charge line = 3.5% of subtotal (all items before it)
+- Only include components listed above — do not invent new items
+${!mentionsStone ? "- EXCLUDE any stone/masonry/veneer items" : ""}
+${!mentionsMantel ? "- EXCLUDE any mantel items" : ""}
 - Every line item must have a description
 
-Return ONLY valid JSON — no markdown, no code fences:
-{"lineItems":[{"description":"Item name","partNumber":"PART","quantity":1,"unitPrice":100,"total":100}],"notes":"short summary"}`;
+Return ONLY valid JSON, no markdown:
+{"lineItems":[{"description":"...","partNumber":"...","quantity":1,"unitPrice":100,"total":100}],"notes":"..."}`;
 
+    } else {
+      // PATH B: No catalog match — build from install type guide + real pricing data
+      matchedProductName = `${installType} install`;
+
+      const guideItems: string[] = installTypeGuide[installType] || installTypeGuide["vertical"] || [];
+
+      const componentLines = guideItems.slice(0, 25).map((entry: string) => {
+        const name = entry.replace(/ \(used \d+ times\)$/, "");
+        const p = pricingSummary[name];
+        if (!p) return `${name} | price: unknown`;
+        const price = p.mostRecentPrice || p.avgPrice;
+        return `${name} | $${price} each | avg qty: ${p.avgQty} | used ${p.timesUsed} times`;
+      }).filter(Boolean).join("\n");
+
+      // Also look for any item in pricingSummary that matches any search word
+      const relevantItems = Object.values(pricingSummary as Record<string, any>)
+        .filter((item: any) => {
+          const text = (item.name || "").toLowerCase().replace(/[-\/\\:]/g, " ");
+          return searchWords.some((w: string) => text.includes(w));
+        })
+        .sort((a: any, b: any) => b.timesUsed - a.timesUsed)
+        .slice(0, 10)
+        .map((item: any) => `${item.name} | $${item.mostRecentPrice || item.avgPrice} each | used ${item.timesUsed} times`)
+        .join("\n");
+
+      basedOnInvoices = guideItems.length;
+
+      aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
+
+Customer request: ${prompt}
+${customerName ? `Customer: ${customerName}` : ""}
+
+Common ${installType} install components with real prices from past jobs:
+${componentLines}
+
+${relevantItems ? `Items that may specifically match this request:\n${relevantItems}\n` : ""}
+
+Build the appropriate estimate:
+${pipeFeet ? `- Include ${pipeFeet} feet of pipe at the per-foot rate` : "- Use a typical pipe quantity for this install type"}
+${isHorizontal ? "- HORIZONTAL install: use flex kit/wall termination, not vertical straight pipe" : ""}
+${isVertical ? "- VERTICAL install: use straight pipe sections, firestop, flashing, vertical cap" : ""}
+- Include the main fireplace unit if this is an install job (use realistic pricing)
+- Add a Users Charge line = 3.5% of subtotal
+- Only include what makes sense for this specific job
+${!mentionsStone ? "- Do NOT include stone/masonry/veneer" : ""}
+${!mentionsMantel ? "- Do NOT include mantel items" : ""}
+- Every line item must have a description
+
+Return ONLY valid JSON, no markdown:
+{"lineItems":[{"description":"...","partNumber":"...","quantity":1,"unitPrice":100,"total":100}],"notes":"..."}`;
+    }
+
+    // ── STEP 3: Call the AI ──
     const response = await fetch(NVIDIA_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
         messages: [
@@ -153,22 +219,15 @@ Return ONLY valid JSON — no markdown, no code fences:
       }),
     });
 
-    await sql.end();
-
-    if (!response.ok) {
-      return NextResponse.json({ error: `AI error: ${response.status}` }, { status: 502 });
-    }
+    if (!response.ok) return NextResponse.json({ error: `AI error: ${response.status}` }, { status: 502 });
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
-
-    // Strip think tags and markdown
     const thinkClose = content.indexOf("</think>");
     if (thinkClose !== -1) content = content.substring(thinkClose + 8).trim();
     content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
-    // Parse JSON
-    let result;
+    let result: any;
     try {
       result = JSON.parse(content);
     } catch {
@@ -178,44 +237,38 @@ Return ONLY valid JSON — no markdown, no code fences:
       } catch {}
     }
 
+    // Fallback: return base components directly if AI parse failed
     if (!result?.lineItems?.length) {
-      // Fallback: return the consensus components directly without AI
-      const fallbackItems = baseComponents
-        .filter((c: any) => !/users.?charge/i.test(c.partNumber || ""))
-        .map((c: any) => {
-          const isPipe = /\bpipe\b/i.test(c.description || c.partNumber || "") && pipeFeet;
-          const qty = isPipe ? pipeFeet! : (c.qty || 1);
-          const price = c.price || c.avgPrice || 0;
-          return {
-            description: c.description || c.partNumber,
-            partNumber: c.partNumber,
-            quantity: qty,
-            unitPrice: price,
-            total: Number((qty * price).toFixed(2)),
-          };
-        });
-      const subtotal = fallbackItems.reduce((sum: number, c: any) => sum + c.total, 0);
-      const usersCharge = Number((subtotal * 0.035).toFixed(2));
-      result = {
-        lineItems: [
-          ...fallbackItems,
-          { description: "Users Charge", partNumber: "Users Charge", quantity: 1, unitPrice: usersCharge, total: usersCharge },
-        ],
-        notes: `Based on ${totalTemplates} past invoice${totalTemplates !== 1 ? "s" : ""} for ${bestMatch.description}.${pipeFeet ? ` Pipe set to ${pipeFeet} ft.` : ""}`,
-      };
+      if (bestMatch) {
+        const base: any[] = bestMatch.consensusComponents?.length > 0
+          ? bestMatch.consensusComponents : (bestMatch.templateEstimate || []);
+        const fallbackItems = base
+          .filter((c: any) => !/users.?charge/i.test(c.partNumber || ""))
+          .map((c: any) => {
+            const isPipe = /\bpipe\b/i.test(c.description || c.partNumber || "") && pipeFeet;
+            const qty = isPipe ? pipeFeet! : (c.qty || 1);
+            const price = c.price || c.avgPrice || 0;
+            return { description: c.description || c.partNumber, partNumber: c.partNumber, quantity: qty, unitPrice: price, total: Number((qty * price).toFixed(2)) };
+          });
+        const subtotal = fallbackItems.reduce((s: number, c: any) => s + c.total, 0);
+        result = {
+          lineItems: [...fallbackItems, { description: "Users Charge", partNumber: "Users Charge", quantity: 1, unitPrice: Number((subtotal * 0.035).toFixed(2)), total: Number((subtotal * 0.035).toFixed(2)) }],
+          notes: `Based on ${basedOnInvoices} past invoice${basedOnInvoices !== 1 ? "s" : ""} for ${matchedProductName}.`,
+        };
+      } else {
+        return NextResponse.json({ error: "Could not build estimate. Try retraining the AI (Retrain AI button) or be more specific with the model name." }, { status: 422 });
+      }
     }
 
     return NextResponse.json({
       ...result,
-      matchCount: scored.length,
-      matchedProduct: bestMatch.description,
-      matchedPartNumber: bestMatch.partNumber,
-      basedOnInvoices: totalTemplates,
-      usingConsensus,
+      matchedProduct: matchedProductName,
+      basedOnInvoices,
+      usingConsensus: Boolean(bestMatch?.consensusComponents?.length),
+      catalogMatch: Boolean(bestMatch),
     });
+
   } catch (err) {
-    return NextResponse.json({
-      error: err instanceof Error ? err.message : "Failed to generate estimate",
-    }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to generate estimate" }, { status: 500 });
   }
 }
