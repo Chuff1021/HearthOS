@@ -63,7 +63,7 @@ export default function EstimatesPage() {
 
   const [prompt, setPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string } | null>(null);
+  const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string; catalogMatch?: boolean; usingConsensus?: boolean } | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
   const [rebuildResult, setRebuildResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
@@ -416,6 +416,8 @@ export default function EstimatesPage() {
             matchedProduct: data.matchedProduct,
             basedOnInvoices: data.basedOnInvoices || 1,
             notes: data.notes,
+            catalogMatch: data.catalogMatch,
+            usingConsensus: data.usingConsensus,
           });
         }
         if (data.matchCount === 0) setError("No matching products found. Try using the model name (e.g. '42 Apex', '36 Elite').");
@@ -634,9 +636,17 @@ export default function EstimatesPage() {
               )}
 
               {aiMatchInfo && (
-                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)" }}>
-                  <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
-                  <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
+                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: aiMatchInfo.catalogMatch ? "rgba(37,99,235,0.08)" : "rgba(234,179,8,0.1)", border: `1px solid ${aiMatchInfo.catalogMatch ? "rgba(37,99,235,0.2)" : "rgba(234,179,8,0.3)"}` }}>
+                  {aiMatchInfo.catalogMatch ? (
+                    <span className="font-semibold" style={{ color: "#2563EB" }}>
+                      ✓ Catalog match: {aiMatchInfo.matchedProduct}
+                      {aiMatchInfo.usingConsensus && ` · consensus from ${aiMatchInfo.basedOnInvoices} invoices`}
+                    </span>
+                  ) : (
+                    <span className="font-semibold" style={{ color: "#D97706" }}>
+                      ⚠ No catalog match — used install-type guide ({aiMatchInfo.matchedProduct}). Click Retrain AI to improve accuracy.
+                    </span>
+                  )}
                   {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
                 </div>
               )}

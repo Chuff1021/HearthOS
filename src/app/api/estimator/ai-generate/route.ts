@@ -178,23 +178,31 @@ Return ONLY valid JSON, no markdown:
 
       basedOnInvoices = guideItems.length;
 
+      // If we have no data at all, don't call the AI — it will hallucinate
+      if (!componentLines && !relevantItems) {
+        await sql.end();
+        return NextResponse.json({
+          error: "No pricing data found. Please click 'Retrain AI' to load your QuickBooks data first, then try again.",
+        }, { status: 422 });
+      }
+
       aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
 
 Customer request: ${prompt}
 ${customerName ? `Customer: ${customerName}` : ""}
 
+${relevantItems ? `Products matching this request (use these as the main unit):\n${relevantItems}\n` : ""}
 Common ${installType} install components with real prices from past jobs:
 ${componentLines}
 
-${relevantItems ? `Items that may specifically match this request:\n${relevantItems}\n` : ""}
-
-Build the appropriate estimate:
-${pipeFeet ? `- Include ${pipeFeet} feet of pipe at the per-foot rate` : "- Use a typical pipe quantity for this install type"}
+CRITICAL RULES:
+- ONLY use part numbers EXACTLY as they appear in the lists above — do NOT invent codes like "EV-36" or "VP-1"
+- Use the part number column value as the partNumber field in JSON
+${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet` : "- Use typical pipe quantity for this install type"}
 ${isHorizontal ? "- HORIZONTAL install: use flex kit/wall termination, not vertical straight pipe" : ""}
 ${isVertical ? "- VERTICAL install: use straight pipe sections, firestop, flashing, vertical cap" : ""}
-- Include the main fireplace unit if this is an install job (use realistic pricing)
-- Add a Users Charge line = 3.5% of subtotal
-- Only include what makes sense for this specific job
+- Add a Users Charge line = 3.5% of subtotal (all items before it)
+- Only include components that make sense for this specific job
 ${!mentionsStone ? "- Do NOT include stone/masonry/veneer" : ""}
 ${!mentionsMantel ? "- Do NOT include mantel items" : ""}
 - Every line item must have a description
