@@ -401,6 +401,17 @@ export default function EstimatesPage() {
         body: JSON.stringify({ prompt, customerName: selectedCustomerName || "" }),
       });
       const data = await res.json();
+
+      // Catalog is loading in the background — auto-retry after 35 seconds
+      if (res.status === 503 && data.error === "catalog_loading") {
+        setError("Loading your QuickBooks pricing data for the first time… retrying automatically in 35 seconds.");
+        setTimeout(() => {
+          setError(null);
+          generateFromAI();
+        }, 35000);
+        return;
+      }
+
       if (!res.ok) throw new Error(data.error || "AI generation failed");
       if (data.lineItems && Array.isArray(data.lineItems) && data.lineItems.length > 0) {
         setDraftLines(data.lineItems.map((l: any) => ({
@@ -420,7 +431,6 @@ export default function EstimatesPage() {
             usingConsensus: data.usingConsensus,
           });
         }
-        if (data.matchCount === 0) setError("No matching products found. Try using the model name (e.g. '42 Apex', '36 Elite').");
       } else {
         setError(data.notes || "No line items generated. Try being more specific with the model name.");
       }

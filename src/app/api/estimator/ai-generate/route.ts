@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
-import { getOrCreateDefaultOrg } from "@/lib/org";
-import { getClientFromTokens } from "@/lib/quickbooks/sync";
-import { buildEstimatorCatalog } from "@/lib/estimator-build-catalog";
 
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
@@ -18,15 +15,14 @@ export async function POST(request: NextRequest) {
     const { prompt, customerName } = await request.json();
     if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
-    const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
+    const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
 
     // Load all knowledge bases
     let catalog: Record<string, any> = {};
     let pricingSummary: Record<string, any> = {};
     let installTypeGuide: Record<string, string[]> = {};
-    let autoBuilt = false;
     try {
-      const rows = await sql`SELECT id, data, updated_at FROM estimator_knowledge WHERE id IN (${"product-catalog"}, ${"pricing"}, ${"install-types"})`;
+      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"product-catalog"}, ${"pricing"}, ${"install-types"})`;
       for (const row of rows) {
         if (row.id === "product-catalog") catalog = row.data as Record<string, any>;
         if (row.id === "pricing") pricingSummary = row.data as Record<string, any>;
@@ -34,29 +30,21 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    // Auto-build from QuickBooks if catalog is empty (first run or never trained)
-    if (Object.keys(catalog).length === 0 && Object.keys(pricingSummary).length === 0) {
-      let autoBuildError: string | null = null;
-      try {
-        const org = await getOrCreateDefaultOrg();
-        if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
-          autoBuildError = "QuickBooks is not connected. Please connect QuickBooks in Settings.";
-        } else {
-          const client = getClientFromTokens(org.qbAccessToken, org.qbRefreshToken, org.qbRealmId);
-          const result = await buildEstimatorCatalog(sql, client);
-          catalog = result.productCatalog;
-          pricingSummary = result.pricingSummary;
-          installTypeGuide = result.installTypeGuide;
-          autoBuilt = true;
-        }
-      } catch (err) {
-        autoBuildError = err instanceof Error ? err.message : String(err);
-      }
-      // If auto-build failed and we still have no data, return the actual error
-      if (autoBuildError && Object.keys(pricingSummary).length === 0) {
-        await sql.end();
-        return NextResponse.json({ error: `Could not load QuickBooks data: ${autoBuildError}` }, { status: 502 });
-      }
+    // If catalog is empty, kick off a background retrain (separate function invocation)
+    // and ask the user to retry — don't block the current request waiting for QB
+    if (Object.keys(pricingSummary).length === 0) {
+      await sql.end();
+      const origin = new URL(request.url).origin;
+      // Fire-and-forget: this spawns its own Vercel function invocation
+      fetch(`${origin}/api/estimator/learn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => {});
+      return NextResponse.json(
+        { error: "catalog_loading", message: "Loading your QuickBooks pricing data — please try again in 30 seconds." },
+        { status: 503 }
+      );
     }
 
     // Parse pipe footage, install type, and optional add-ons from prompt
@@ -209,20 +197,19 @@ Return ONLY valid JSON, no markdown:
 
       basedOnInvoices = guideItems.length;
 
-      // If we have no data at all, don't call the AI — it will hallucinate
-      if (!componentLines && !relevantItems) {
-        await sql.end();
-        return NextResponse.json({
-          error: "No pricing data found. Please click 'Retrain AI' to load your QuickBooks data first, then try again.",
-        }, { status: 422 });
-      }
+      // If search words matched nothing, use most-used items from QB as fallback context
+      const contextItems = relevantItems || Object.values(pricingSummary as Record<string, any>)
+        .sort((a: any, b: any) => b.timesUsed - a.timesUsed)
+        .slice(0, 15)
+        .map((item: any) => `${item.name} | $${item.mostRecentPrice || item.avgPrice} each | used ${item.timesUsed} times`)
+        .join("\n");
 
       aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
 
 Customer request: ${prompt}
 ${customerName ? `Customer: ${customerName}` : ""}
 
-${relevantItems ? `Products matching this request (use these as the main unit):\n${relevantItems}\n` : ""}
+${contextItems ? `Products matching this request (use these as the main unit):\n${contextItems}\n` : ""}
 Common ${installType} install components with real prices from past jobs:
 ${componentLines}
 
@@ -305,7 +292,6 @@ Return ONLY valid JSON, no markdown:
       basedOnInvoices,
       usingConsensus: Boolean(bestMatch?.consensusComponents?.length),
       catalogMatch: Boolean(bestMatch),
-      autoBuilt,
     });
 
   } catch (err) {
