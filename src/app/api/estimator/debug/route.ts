@@ -8,8 +8,6 @@ export async function GET(request: NextRequest) {
 
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
   try {
-    const rows = await sql`SELECT id, updated_at, jsonb_object_keys(data) as key FROM estimator_knowledge LIMIT 0`;
-    // Get all knowledge rows
     const allRows = await sql`SELECT id, updated_at, data FROM estimator_knowledge`;
 
     const result: Record<string, any> = {};

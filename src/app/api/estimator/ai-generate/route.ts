@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
       const scored = products.map((product: any) => {
         const allText = [
           product.partNumber,
+          product.modelName || "",
+          product.brandName || "",
           product.description,
           ...(product.aliases || []),
         ].join(" ").toLowerCase().replace(/[-\/\\:]/g, " ");
@@ -96,6 +98,11 @@ export async function POST(request: NextRequest) {
         let score = 0;
         for (const word of searchWords) {
           if (allText.includes(word)) score += word.length * 2;
+        }
+        // Bonus: if modelName directly contains a search word, heavily boost it
+        const modelText = (product.modelName || "").toLowerCase();
+        for (const word of searchWords) {
+          if (modelText.includes(word)) score += word.length * 5;
         }
         return { product, score };
       }).filter((s: any) => s.score > 0).sort((a: any, b: any) => b.score - a.score);

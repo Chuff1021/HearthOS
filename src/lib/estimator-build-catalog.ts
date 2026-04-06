@@ -253,10 +253,18 @@ export async function buildEstimatorCatalog(
       })
       .sort((a, b) => b.appearsIn - a.appearsIn);
 
+    // Extract model name from QB category path: "Gas Fireplaces:Heat & Glo:36 Elite" → "36 Elite"
+    // Also extract brand: "Heat & Glo", "Napoleon", "Regency", etc.
+    const pathSegments = p.partNumber.split(":").map((s: string) => s.trim()).filter(Boolean);
+    const modelName = pathSegments[pathSegments.length - 1] || p.partNumber;
+    const brandName = pathSegments.length >= 2 ? pathSegments[pathSegments.length - 2] : "";
+
     productCatalog[p.partNumber] = {
       partNumber: p.partNumber,
+      modelName,   // e.g. "36 Elite"
+      brandName,   // e.g. "Heat & Glo"
       description: p.descriptions[0] || "",
-      aliases: p.descriptions,
+      aliases: [...new Set([modelName, brandName ? `${brandName} ${modelName}` : "", ...p.descriptions].filter(Boolean))],
       avgPrice: Number((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2)),
       minPrice: Math.min(...prices),
       maxPrice: Math.max(...prices),

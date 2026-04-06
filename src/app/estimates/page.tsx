@@ -197,6 +197,24 @@ export default function EstimatesPage() {
 
   useEffect(() => {
     loadAll();
+    // Auto-refresh catalog in background if stale (>24h) or empty
+    fetch("/api/estimator/debug")
+      .then((r) => r.json())
+      .then((data) => {
+        const cat = data["product-catalog"];
+        if (!cat || cat.count === 0) {
+          // Empty — kick off a build now
+          fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+          return;
+        }
+        const updatedAt = cat.updatedAt ? new Date(cat.updatedAt) : null;
+        const ageHours = updatedAt ? (Date.now() - updatedAt.getTime()) / 3600000 : Infinity;
+        if (ageHours > 24) {
+          // Stale — refresh silently in background
+          fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
