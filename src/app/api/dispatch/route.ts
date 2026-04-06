@@ -7,6 +7,10 @@ import { updateJobRecord } from "@/lib/job-store";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
 
+function firstName(name: string) {
+  return String(name || '').trim().toLowerCase().split(/\s+/)[0] || '';
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -17,9 +21,11 @@ export async function GET(request: NextRequest) {
 
     const baseTechs = directoryTechs.map((t) => {
       const techEmail = String((t as any).email || '').toLowerCase();
+      const tFirstName = firstName(t.name);
       const loc = latestLocations.find((l) =>
         l.techId === t.id ||
-        (!!techEmail && String(l.techEmail || '').toLowerCase() === techEmail)
+        (!!techEmail && String(l.techEmail || '').toLowerCase() === techEmail) ||
+        (!!tFirstName && !!l.techName && firstName(l.techName) === tFirstName)
       );
       const isGenericName = /\bservice\s*tech(?:nician)?\b/i.test(t.name || '');
       const resolvedName = (isGenericName && loc?.techName) ? loc.techName : t.name;
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
     const mappedEmails = new Set(
       directoryTechs.map((t: any) => String(t.email || '').toLowerCase()).filter(Boolean)
     );
-    const freshWindowMs = 15 * 60 * 1000; // show only recent pings
+    const freshWindowMs = 30 * 60 * 1000; // show only recent pings
     const now = Date.now();
 
     const mappedCoordKeys = new Set(
@@ -127,6 +133,13 @@ export async function GET(request: NextRequest) {
       gpsDebug: {
         latestLocationCount: latestLocations.length,
         unmappedLiveCount: unmappedLive.length,
+        allPings: latestLocations.map((l) => ({
+          techId: l.techId,
+          techName: l.techName || null,
+          techEmail: l.techEmail || null,
+          timestamp: l.timestamp,
+          accuracy: l.accuracy ?? null,
+        })),
       },
       stats: {
         totalTechs: techPayload.length,

@@ -41,7 +41,11 @@ export default function DispatchPage() {
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const selectedTechIdRef = useRef<string>("");
   const [loading, setLoading] = useState(true);
-  const [gpsDebug, setGpsDebug] = useState<{ latestLocationCount: number; unmappedLiveCount: number } | null>(null);
+  const [gpsDebug, setGpsDebug] = useState<{
+    latestLocationCount: number;
+    unmappedLiveCount: number;
+    allPings: { techId: string; techName: string | null; techEmail: string | null; timestamp: string; accuracy: number | null }[];
+  } | null>(null);
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
   const [selectedRouteEtaMin, setSelectedRouteEtaMin] = useState<number | null>(null);
   const [selectedOffRouteMiles, setSelectedOffRouteMiles] = useState<number | null>(null);
@@ -545,6 +549,42 @@ export default function DispatchPage() {
                 }) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
               </div>
             </div>
+
+            {gpsDebug && (
+              <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
+                <h3 className="font-semibold mb-2">GPS Signal Diagnostic</h3>
+                <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                  {gpsDebug.latestLocationCount === 0
+                    ? 'No GPS pings received in the last 24 hours.'
+                    : `${gpsDebug.latestLocationCount} device(s) pinging in last 24h`}
+                </p>
+                {gpsDebug.allPings.length > 0 ? (
+                  <div className="space-y-1">
+                    {gpsDebug.allPings.map((p, i) => {
+                      const ageMs = Date.now() - new Date(p.timestamp).getTime();
+                      const matched = techs.some((t) => t.location?.timestamp === p.timestamp);
+                      return (
+                        <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded" style={{ background: 'var(--color-surface-3)' }}>
+                          <span style={{ color: matched ? '#16A34A' : '#F59E0B' }}>
+                            {matched ? '✓' : '!'} {p.techName || p.techEmail || p.techId}
+                          </span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{formatAge(p.timestamp)}</span>
+                        </div>
+                      );
+                    })}
+                    {gpsDebug.allPings.some((p) => !techs.some((t) => t.location?.timestamp === p.timestamp)) && (
+                      <p className="text-[11px] mt-1" style={{ color: '#F59E0B' }}>
+                        ! = pinging but not matched to a team member. Check that their email in Settings matches their login.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    No pings yet. Techs must be clocked in with GPS permission granted.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
               <h3 className="font-semibold mb-2">Mileage Tracking</h3>
