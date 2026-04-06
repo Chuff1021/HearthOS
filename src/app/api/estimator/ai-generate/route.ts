@@ -91,16 +91,19 @@ export async function POST(request: NextRequest) {
 
     const matchedUnit = scoredUnits[0]?.item || null;
 
-    // ── Build component list from installTypeGuide ──
-    const guideItems: string[] = installTypeGuide[installType] || installTypeGuide["vertical"] || [];
-    const componentLines = guideItems
-      .map((entry: string) => {
-        const name = entry.replace(/ \(used \d+ times\)$/, "");
+    // ── Build component list from the matched unit's own invoice history ──
+    // Use commonlyWith: items that actually appeared WITH this fireplace on real invoices
+    // Fall back to installTypeGuide only if no history exists for this unit
+    const unitComponents: string[] = matchedUnit?.commonlyWith?.length > 0
+      ? matchedUnit.commonlyWith
+      : (installTypeGuide[installType] || installTypeGuide["vertical"] || []).map((e: string) => e.replace(/ \(used \d+ times\)$/, ""));
+
+    const componentLines = unitComponents
+      .map((name: string) => {
         const p = pricingSummary[name];
         if (!p) return null;
         const price = p.mostRecentPrice || p.avgPrice || 0;
         if (price === 0) return null;
-        // Skip stone/mantel unless mentioned
         const nameLower = name.toLowerCase();
         if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer") || nameLower.includes("masonry"))) return null;
         if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) return null;
@@ -172,7 +175,7 @@ Return ONLY valid JSON, no markdown:
       } catch {}
     }
 
-    // Fallback: build directly from guide items without AI
+    // Fallback: build directly from invoice-history components without AI
     if (!result?.lineItems?.length) {
       const fallbackLines: any[] = [];
       if (matchedUnit) {
@@ -184,8 +187,7 @@ Return ONLY valid JSON, no markdown:
           total: matchedUnit.mostRecentPrice || matchedUnit.avgPrice,
         });
       }
-      for (const entry of guideItems.slice(0, 15)) {
-        const name = entry.replace(/ \(used \d+ times\)$/, "");
+      for (const name of unitComponents.slice(0, 15)) {
         const p = pricingSummary[name];
         if (!p || (p.mostRecentPrice || p.avgPrice || 0) === 0) continue;
         const nameLower = name.toLowerCase();
