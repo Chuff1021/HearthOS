@@ -107,7 +107,8 @@ export async function POST(request: NextRequest) {
         const nameLower = name.toLowerCase();
         if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer") || nameLower.includes("masonry"))) return null;
         if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) return null;
-        return `${name} | $${price} each | qty typically ${p.avgQty}`;
+        const desc = p.description ? ` | ${p.description}` : "";
+        return `${name}${desc} | $${price} each | qty typically ${p.avgQty}`;
       })
       .filter(Boolean)
       .slice(0, 20)
@@ -130,8 +131,8 @@ ${componentLines}
 
 RULES — read carefully:
 - Use part numbers EXACTLY as shown above. Do NOT invent new part numbers.
-- The partNumber field must be the exact name from the list (e.g. "Gas Pipe Simpson:46DVA-12")
-- The description field should be a plain human-readable label
+- The partNumber field must be the exact QB name from the list (e.g. "Gas Pipe Simpson:46DVA-12")
+- The description field must be the human-readable label shown after the | separator (e.g. "Simpson 6\" Straight Pipe 12\""). If no label is shown, use the last segment of the part number.
 ${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet total (split across pipe sections as needed)` : "- Use typical pipe quantity for this install"}
 ${isHorizontal ? "- HORIZONTAL install: use flex kit / wall termination components, not vertical straight pipe" : ""}
 - Add a line: Users Charge = 3.5% of subtotal (all other items combined)
@@ -198,7 +199,7 @@ Return ONLY valid JSON, no markdown:
         const qty = isPipe && pipeFeet ? pipeFeet : Math.round(p.avgQty || 1);
         const price = p.mostRecentPrice || p.avgPrice;
         fallbackLines.push({
-          description: name.split(":").pop() || name,
+          description: p.description || name.split(":").pop() || name,
           partNumber: name,
           quantity: qty,
           unitPrice: price,
