@@ -307,8 +307,61 @@ export async function POST(request: NextRequest) {
     const productCatalog: Record<string, any> = {};
     for (const p of Object.values(productMap) as any[]) {
       const prices = p.invoicePrices.length > 0 ? p.invoicePrices : p.estimatePrices;
-      const templates = p.invoiceTemplates.length > 0 ? p.invoiceTemplates : p.estimateTemplates;
+      // Prefer invoices; fall back to estimates
+      const templates: any[] = p.invoiceTemplates.length > 0 ? p.invoiceTemplates : p.estimateTemplates;
       if (prices.length === 0 || templates.length === 0) continue;
+
+      // Build consensus: tally every component across ALL templates for this product
+      const componentTally: Record<string, {
+        description: string;
+        prices: number[];
+        qtys: number[];
+        appearances: number;
+      }> = {};
+
+      for (const tmpl of templates) {
+        for (const comp of (tmpl.components || [])) {
+          const key = comp.partNumber || comp.description || "";
+          if (!key) continue;
+          if (!componentTally[key]) {
+            componentTally[key] = { description: comp.description || comp.partNumber || "", prices: [], qtys: [], appearances: 0 };
+          }
+          componentTally[key].appearances++;
+          if (comp.price > 0) componentTally[key].prices.push(comp.price);
+          if (comp.qty > 0) componentTally[key].qtys.push(comp.qty);
+          // Prefer the most descriptive description
+          if ((comp.description || "").length > componentTally[key].description.length) {
+            componentTally[key].description = comp.description;
+          }
+        }
+      }
+
+      const totalTemplates = templates.length;
+      // Keep components that appear in at least 2 jobs OR at least 50% of jobs
+      const minAppearances = totalTemplates === 1 ? 1 : Math.max(2, Math.ceil(totalTemplates * 0.4));
+
+      const consensusComponents = Object.entries(componentTally)
+        .filter(([, data]) => data.appearances >= minAppearances)
+        .map(([partNumber, data]) => {
+          const avgPrice = data.prices.length > 0
+            ? Number((data.prices.reduce((a, b) => a + b, 0) / data.prices.length).toFixed(2))
+            : 0;
+          const mostRecentPrice = data.prices[0] ?? 0;
+          const avgQty = data.qtys.length > 0
+            ? Number((data.qtys.reduce((a, b) => a + b, 0) / data.qtys.length).toFixed(1))
+            : 1;
+          return {
+            partNumber,
+            description: data.description,
+            qty: avgQty,
+            price: mostRecentPrice || avgPrice,
+            avgPrice,
+            amount: Number(((mostRecentPrice || avgPrice) * avgQty).toFixed(2)),
+            appearsIn: data.appearances,
+            appearsInPct: Math.round((data.appearances / totalTemplates) * 100),
+          };
+        })
+        .sort((a, b) => b.appearsIn - a.appearsIn);
 
       productCatalog[p.partNumber] = {
         partNumber: p.partNumber,
@@ -320,8 +373,10 @@ export async function POST(request: NextRequest) {
         invoiceCount: p.invoiceTemplates.length,
         estimateCount: p.estimateTemplates.length,
         priceSource: p.invoicePrices.length > 0 ? "invoice" : "estimate",
+        consensusComponents,
+        totalTemplatesAnalyzed: totalTemplates,
+        // Keep single template as fallback for products with only 1 invoice
         templateEstimate: templates[0]?.components || [],
-        templateSource: (p.invoiceTemplates.length > 0 ? "invoice" : "estimate") + " #" + (templates[0]?.docNumber || "?"),
       };
     }
 

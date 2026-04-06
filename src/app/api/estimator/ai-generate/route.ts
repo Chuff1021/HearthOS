@@ -83,16 +83,23 @@ export async function POST(request: NextRequest) {
     }
 
     const bestMatch = scored[0].product;
-    const templateEstimate = bestMatch.templateEstimate || [];
 
-    if (templateEstimate.length === 0) {
+    // Use consensus components (built from multiple invoices) — fall back to single template
+    const baseComponents: any[] = bestMatch.consensusComponents?.length > 0
+      ? bestMatch.consensusComponents
+      : (bestMatch.templateEstimate || []);
+
+    if (baseComponents.length === 0) {
       await sql.end();
       return NextResponse.json({
         lineItems: [],
-        notes: `Found ${bestMatch.description} but no template estimate available.`,
+        notes: `Found ${bestMatch.description} but no estimate data available yet.`,
         matchCount: scored.length,
       });
     }
+
+    const totalTemplates: number = bestMatch.totalTemplatesAnalyzed || 1;
+    const usingConsensus = bestMatch.consensusComponents?.length > 0;
 
     // STEP 2: Parse the user's request for pipe footage and install type
     const pipeFeetMatch = prompt.match(/(\d+)\s*(?:ft|feet|foot|')/i);
@@ -100,41 +107,33 @@ export async function POST(request: NextRequest) {
     const isHorizontal = /horizontal/i.test(prompt);
     const isVertical = /vertical/i.test(prompt);
 
-    // STEP 3: Send the template estimate to the AI to adjust based on the prompt
-    const templateText = templateEstimate.map((c: any) =>
-      `${c.partNumber} | ${c.description} | Qty: ${c.qty} | $${c.price} | Total: $${c.amount}`
-    ).join("\n");
+    // STEP 3: Build the component list text for the AI
+    const componentText = baseComponents.map((c: any) => {
+      const pct = usingConsensus && c.appearsInPct != null ? ` [in ${c.appearsInPct}% of jobs]` : "";
+      return `${c.partNumber} | ${c.description} | Qty: ${c.qty} | $${c.price}${pct}`;
+    }).join("\n");
 
-    // Detect optional add-ons mentioned in the prompt
-    const promptLower2 = prompt.toLowerCase();
-    const mentionsStone = /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b|\bsurround\b/.test(promptLower2);
-    const mentionsHearth = /\bhearth\b/.test(promptLower2);
-    const mentionsMantel = /\bmantel\b|\bmantle\b/.test(promptLower2);
+    const aiPrompt = `You are building a fireplace estimate for Aaron's Fireplace Company.
 
-    const aiPrompt = `You are adjusting a fireplace estimate for Aaron's Fireplace Company.
+${usingConsensus
+  ? `These are the STANDARD COMPONENTS that consistently appear across ${totalTemplates} past invoices for ${bestMatch.description}. Each line shows how often it appears.`
+  : `This is a template from a past invoice for ${bestMatch.description}.`}
 
-Here is a TEMPLATE ESTIMATE from a past job for the same product (${bestMatch.description}):
-
-${templateText}
+${componentText}
 
 The customer wants: ${prompt}
 ${customerName ? `Customer: ${customerName}` : ""}
 
-ADJUSTMENTS NEEDED:
-${pipeFeet ? `- Change pipe quantity to ${pipeFeet} feet (find the per-foot pipe item and set qty to ${pipeFeet})` : "- Keep pipe quantity as-is"}
-${isHorizontal ? "- This is a HORIZONTAL install — replace vertical pipe/flashing/termination with a flex kit or horizontal components if you see them in the pricing database" : ""}
-${isVertical ? "- This is a VERTICAL install — keep all pipe, firestop, flashing, and vertical termination" : ""}
-- Recalculate Users Charge as 3.5% of the new subtotal (before Users Charge)
-- Keep all standard fireplace components and prices the same
-- Every line item MUST have a description
-
-IMPORTANT — ONLY include these add-on items if the customer's request explicitly mentions them:
-${!mentionsStone ? "- EXCLUDE any stonework, stone veneer, stone surround, or masonry items — customer did not request stone" : "- Stone/masonry work was requested — include it"}
-${!mentionsHearth ? "- EXCLUDE any hearth pad items unless standard for this product" : "- Hearth work was requested — include it"}
-${!mentionsMantel ? "- EXCLUDE any mantel items unless standard for this product" : "- Mantel was requested — include it"}
+INSTRUCTIONS:
+${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet` : "- Keep pipe quantity as shown"}
+${isHorizontal ? "- HORIZONTAL install — swap vertical pipe/flashing/termination for flex kit or horizontal components" : ""}
+${isVertical ? "- VERTICAL install — keep all pipe, firestop, flashing, and vertical termination" : ""}
+- Add a Users Charge line item equal to 3.5% of the subtotal (all items before Users Charge)
+- Only include components listed above — do not add items not shown
+- Every line item must have a description
 
 Return ONLY valid JSON — no markdown, no code fences:
-{"lineItems":[{"description":"Item name","partNumber":"PART","quantity":1,"unitPrice":100,"total":100}],"notes":"Based on past estimate for ${bestMatch.description}"}`;
+{"lineItems":[{"description":"Item name","partNumber":"PART","quantity":1,"unitPrice":100,"total":100}],"notes":"short summary"}`;
 
     const response = await fetch(NVIDIA_URL, {
       method: "POST",
@@ -179,51 +178,30 @@ Return ONLY valid JSON — no markdown, no code fences:
       } catch {}
     }
 
-    // Hard filter — strip add-on items that weren't requested, regardless of what AI returned
-    if (result?.lineItems?.length) {
-      result.lineItems = result.lineItems.filter((item: any) => {
-        const desc = String(item.description || item.partNumber || "").toLowerCase();
-        if (!mentionsStone && /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b/.test(desc)) return false;
-        if (!mentionsMantel && /\bmantel\b|\bmantle\b/.test(desc)) return false;
-        return true;
-      });
-    }
-
     if (!result?.lineItems?.length) {
-      // Fallback: just return the template estimate directly
-      const subtotal = templateEstimate
-        .filter((c: any) => !c.partNumber?.includes("Users Charge"))
-        .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+      // Fallback: return the consensus components directly without AI
+      const fallbackItems = baseComponents
+        .filter((c: any) => !/users.?charge/i.test(c.partNumber || ""))
+        .map((c: any) => {
+          const isPipe = /\bpipe\b/i.test(c.description || c.partNumber || "") && pipeFeet;
+          const qty = isPipe ? pipeFeet! : (c.qty || 1);
+          const price = c.price || c.avgPrice || 0;
+          return {
+            description: c.description || c.partNumber,
+            partNumber: c.partNumber,
+            quantity: qty,
+            unitPrice: price,
+            total: Number((qty * price).toFixed(2)),
+          };
+        });
+      const subtotal = fallbackItems.reduce((sum: number, c: any) => sum + c.total, 0);
       const usersCharge = Number((subtotal * 0.035).toFixed(2));
-
       result = {
-        lineItems: templateEstimate
-          .filter((c: any) => !c.partNumber?.includes("Users Charge"))
-          .filter((c: any) => {
-            const desc = String(c.description || c.partNumber || "").toLowerCase();
-            if (!mentionsStone && /\bstone\b|\bstonework\b|\bmasonry\b|\bveneer\b/.test(desc)) return false;
-            if (!mentionsMantel && /\bmantel\b|\bmantle\b/.test(desc)) return false;
-            return true;
-          })
-          .map((c: any) => {
-            // Adjust pipe qty if specified
-            const isPipe = c.qty > 5 && pipeFeet;
-            return {
-              description: c.description || c.partNumber,
-              partNumber: c.partNumber,
-              quantity: isPipe ? pipeFeet : c.qty,
-              unitPrice: c.price,
-              total: isPipe ? pipeFeet * c.price : c.amount,
-            };
-          })
-          .concat([{
-            description: "Users Charge",
-            partNumber: "Users Charge",
-            quantity: 1,
-            unitPrice: usersCharge,
-            total: usersCharge,
-          }]),
-        notes: `Based on past estimate for ${bestMatch.description}. ${pipeFeet ? `Pipe adjusted to ${pipeFeet} feet.` : ""}`,
+        lineItems: [
+          ...fallbackItems,
+          { description: "Users Charge", partNumber: "Users Charge", quantity: 1, unitPrice: usersCharge, total: usersCharge },
+        ],
+        notes: `Based on ${totalTemplates} past invoice${totalTemplates !== 1 ? "s" : ""} for ${bestMatch.description}.${pipeFeet ? ` Pipe set to ${pipeFeet} ft.` : ""}`,
       };
     }
 
@@ -232,6 +210,8 @@ Return ONLY valid JSON — no markdown, no code fences:
       matchCount: scored.length,
       matchedProduct: bestMatch.description,
       matchedPartNumber: bestMatch.partNumber,
+      basedOnInvoices: totalTemplates,
+      usingConsensus,
     });
   } catch (err) {
     return NextResponse.json({
