@@ -64,8 +64,6 @@ export default function EstimatesPage() {
   const [prompt, setPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string; catalogMatch?: boolean; usingConsensus?: boolean } | null>(null);
-  const [rebuilding, setRebuilding] = useState(false);
-  const [rebuildResult, setRebuildResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -197,20 +195,13 @@ export default function EstimatesPage() {
 
   useEffect(() => {
     loadAll();
-    // Auto-refresh catalog in background if stale (>24h) or empty
+    // Build catalog once if empty or missing model fields — runs silently in background
     fetch("/api/estimator/debug")
       .then((r) => r.json())
       .then((data) => {
         const cat = data["product-catalog"];
-        if (!cat || cat.count === 0) {
-          // Empty — kick off a build now
-          fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
-          return;
-        }
-        const updatedAt = cat.updatedAt ? new Date(cat.updatedAt) : null;
-        const ageHours = updatedAt ? (Date.now() - updatedAt.getTime()) / 3600000 : Infinity;
-        if (ageHours > 24) {
-          // Stale — refresh silently in background
+        const needsBuild = !cat || cat.count === 0 || !cat.products?.[0]?.modelName;
+        if (needsBuild) {
           fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
         }
       })
@@ -459,20 +450,6 @@ export default function EstimatesPage() {
     }
   }
 
-  async function rebuildAI() {
-    setRebuilding(true);
-    setRebuildResult(null);
-    try {
-      const res = await fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Rebuild failed");
-      setRebuildResult({ ok: true, msg: `Rebuilt from ${data.analyzed?.totalTransactions || 0} transactions — ${data.analyzed?.productsCataloged || 0} products cataloged.` });
-    } catch (e) {
-      setRebuildResult({ ok: false, msg: e instanceof Error ? e.message : "Rebuild failed" });
-    } finally {
-      setRebuilding(false);
-    }
-  }
 
   function assignItemPricing(idx: number, itemId: string) {
     const item = items.find((i) => i.Id === itemId);
@@ -654,28 +631,14 @@ export default function EstimatesPage() {
                 <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                   + Add Line
                 </button>
-                <button onClick={rebuildAI} disabled={rebuilding} className="ml-auto px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }} title="Re-analyze all QuickBooks invoices to update AI pricing">
-                  {rebuilding ? "Retraining..." : "Retrain AI"}
-                </button>
               </div>
 
-              {rebuildResult && (
-                <p className="mt-2 text-xs font-medium" style={{ color: rebuildResult.ok ? "#16A34A" : "#DC2626" }}>{rebuildResult.msg}</p>
-              )}
-
-              {aiMatchInfo && (
-                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: aiMatchInfo.catalogMatch ? "rgba(37,99,235,0.08)" : "rgba(234,179,8,0.1)", border: `1px solid ${aiMatchInfo.catalogMatch ? "rgba(37,99,235,0.2)" : "rgba(234,179,8,0.3)"}` }}>
-                  {aiMatchInfo.catalogMatch ? (
-                    <span className="font-semibold" style={{ color: "#2563EB" }}>
-                      ✓ Catalog match: {aiMatchInfo.matchedProduct}
-                      {aiMatchInfo.usingConsensus && ` · consensus from ${aiMatchInfo.basedOnInvoices} invoices`}
-                    </span>
-                  ) : (
-                    <span className="font-semibold" style={{ color: "#D97706" }}>
-                      ⚠ No catalog match — used install-type guide ({aiMatchInfo.matchedProduct}). Click Retrain AI to improve accuracy.
-                    </span>
-                  )}
-                  {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
+              {aiMatchInfo?.catalogMatch && (
+                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)" }}>
+                  <span className="font-semibold" style={{ color: "#2563EB" }}>
+                    ✓ {aiMatchInfo.matchedProduct}
+                    {aiMatchInfo.usingConsensus && ` · from ${aiMatchInfo.basedOnInvoices} past invoices`}
+                  </span>
                 </div>
               )}
 
