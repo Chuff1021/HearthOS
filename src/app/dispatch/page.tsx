@@ -84,6 +84,13 @@ export default function DispatchPage() {
     return (fallback || '?').slice(0, 2).toUpperCase();
   }
 
+  function formatAge(timestamp: string) {
+    const sec = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+    if (sec < 60) return `${sec}s ago`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m ago`;
+  }
+
   function markerHtml(color: string, active: boolean, initials: string) {
     const size = active ? 26 : 22;
     const ring = active ? "rgba(255,68,0,0.35)" : "rgba(37,99,235,0.30)";
@@ -265,7 +272,7 @@ export default function DispatchPage() {
         existing.setIcon(icon);
       } else {
         const marker = L.marker(latlng, { icon })
-          .bindTooltip(`${displayTechName(t)} (${t.location!.lat.toFixed(4)}, ${t.location!.lng.toFixed(4)})`);
+          .bindTooltip(`${displayTechName(t)} · ${formatAge(t.location!.timestamp)} · ±${Math.round(t.location!.accuracy || 0)}m`);
         addLayer(marker);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
@@ -490,35 +497,52 @@ export default function DispatchPage() {
                 ))}
               </select>
               <div className="mt-3 space-y-1 max-h-40 overflow-auto">
-                {techs.map((t) => (
-                  <div key={t.id} className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{displayTechName(t)}:</span>{' '}
-                    {t.location ? `${t.location.lat.toFixed(4)}, ${t.location.lng.toFixed(4)} (±${Math.round(t.location.accuracy || 0)}m)` : 'No GPS ping yet'}
-                  </div>
-                ))}
+                {techs.map((t) => {
+                  const ageMs = t.location ? Date.now() - new Date(t.location.timestamp).getTime() : null;
+                  const stale = ageMs !== null && ageMs > 5 * 60 * 1000;
+                  return (
+                    <div key={t.id} className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{displayTechName(t)}:</span>{' '}
+                      {t.location
+                        ? <span style={{ color: stale ? '#F59E0B' : 'inherit' }}>
+                            {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)} · {formatAge(t.location.timestamp)}
+                          </span>
+                        : 'No GPS ping'}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
               <h3 className="font-semibold mb-2">Live GPS Feed</h3>
               <div className="space-y-2 max-h-36 overflow-auto">
-                {liveTechs.length > 0 ? liveTechs.map((t) => (
-                  <div key={`gps-${t.id}`} className="p-2 rounded-lg" style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)' }}>
-                    <div className="text-xs font-semibold">{displayTechName(t)}</div>
-                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                      {t.location!.lat.toFixed(5)}, {t.location!.lng.toFixed(5)} · ±{Math.round(t.location!.accuracy || 0)}m
+                {liveTechs.length > 0 ? liveTechs.map((t) => {
+                  const ageMs = t.location ? Date.now() - new Date(t.location!.timestamp).getTime() : 0;
+                  const stale = ageMs > 5 * 60 * 1000;
+                  return (
+                    <div key={`gps-${t.id}`} className="p-2 rounded-lg" style={{ background: 'var(--color-surface-3)', border: `1px solid ${stale ? 'rgba(245,158,11,0.4)' : 'var(--color-border)'}` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold">{displayTechName(t)}</div>
+                        <div className="text-[10px] font-semibold" style={{ color: stale ? '#F59E0B' : '#16A34A' }}>
+                          {formatAge(t.location!.timestamp)}
+                        </div>
+                      </div>
+                      <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                        {t.location!.lat.toFixed(5)}, {t.location!.lng.toFixed(5)} · ±{Math.round(t.location!.accuracy || 0)}m
+                      </div>
+                      <a
+                        href={`https://maps.apple.com/?ll=${t.location!.lat},${t.location!.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px]"
+                        style={{ color: '#2563EB' }}
+                      >
+                        Open in Maps
+                      </a>
                     </div>
-                    <a
-                      href={`https://maps.apple.com/?ll=${t.location!.lat},${t.location!.lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px]"
-                      style={{ color: '#2563EB' }}
-                    >
-                      Open in Maps
-                    </a>
-                  </div>
-                )) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
+                  );
+                }) : <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No live pings yet.</p>}
               </div>
             </div>
 

@@ -65,6 +65,12 @@ function formatHours(minutes: number) {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+function toLocalDatetimeInput(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function minutesToDecimal(minutes: number) {
   return (minutes / 60).toFixed(1);
 }
@@ -80,6 +86,7 @@ export default function AdminTimePage() {
   const [editEntry, setEditEntry] = useState<TimeEntry | null>(null);
   const [editForm, setEditForm] = useState({ clockInAt: "", clockOutAt: "", editNote: "" });
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualForm, setManualForm] = useState({ techId: "", date: "", clockIn: "08:00", clockOut: "17:00", note: "" });
   const [activeTab, setActiveTab] = useState<"timesheet" | "approval" | "requests" | "time-off">("timesheet");
@@ -220,15 +227,29 @@ export default function AdminTimePage() {
 
   function openEdit(entry: TimeEntry) {
     setEditEntry(entry);
+    setEditError("");
     setEditForm({
-      clockInAt: entry.clockInAt ? new Date(entry.clockInAt).toISOString().slice(0, 16) : "",
-      clockOutAt: entry.clockOutAt ? new Date(entry.clockOutAt).toISOString().slice(0, 16) : "",
+      clockInAt: entry.clockInAt ? toLocalDatetimeInput(entry.clockInAt) : "",
+      clockOutAt: entry.clockOutAt ? toLocalDatetimeInput(entry.clockOutAt) : "",
       editNote: "",
     });
   }
 
   async function saveEdit() {
     if (!editEntry) return;
+    if (!editForm.clockInAt) {
+      setEditError("Clock in time is required.");
+      return;
+    }
+    if (editForm.clockOutAt) {
+      const inMs = new Date(editForm.clockInAt).getTime();
+      const outMs = new Date(editForm.clockOutAt).getTime();
+      if (outMs <= inMs) {
+        setEditError("Clock out must be after clock in.");
+        return;
+      }
+    }
+    setEditError("");
     setSaving(true);
     try {
       const res = await fetch("/api/time/entries", {
@@ -236,20 +257,20 @@ export default function AdminTimePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: editEntry.id,
-          clockInAt: editForm.clockInAt ? new Date(editForm.clockInAt).toISOString() : undefined,
+          clockInAt: new Date(editForm.clockInAt).toISOString(),
           clockOutAt: editForm.clockOutAt ? new Date(editForm.clockOutAt).toISOString() : undefined,
           editNote: editForm.editNote || "Edited by admin",
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        console.error("Edit failed:", data.error);
+        setEditError(data.error || "Save failed. Try again.");
         return;
       }
       setEditEntry(null);
-      // Wait a moment for DB to settle, then reload
-      await new Promise((r) => setTimeout(r, 500));
       await loadData();
+    } catch {
+      setEditError("Network error. Try again.");
     } finally {
       setSaving(false);
     }
@@ -737,33 +758,43 @@ export default function AdminTimePage() {
 
       {/* Edit Entry Modal */}
       {editEntry && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setEditEntry(null)}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setEditEntry(null); setEditError(""); }}>
           <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-4" style={{ color: "var(--color-text-primary)" }}>Edit Time Entry</h2>
+            <h2 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Edit Time Entry</h2>
+            <p className="text-sm mb-4 mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+              {techs.find((t) => t.id === editEntry.techId)?.name || editEntry.techId}
+              {" — "}
+              {new Date(editEntry.clockInAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            </p>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Clock In</label>
-                <input type="datetime-local" value={editForm.clockInAt} onChange={(e) => setEditForm({ ...editForm, clockInAt: e.target.value })} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                <input type="datetime-local" value={editForm.clockInAt} onChange={(e) => { setEditForm({ ...editForm, clockInAt: e.target.value }); setEditError(""); }} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
               </div>
               <div>
-                <label className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Clock Out</label>
-                <input type="datetime-local" value={editForm.clockOutAt} onChange={(e) => setEditForm({ ...editForm, clockOutAt: e.target.value })} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                <label className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+                  Clock Out{editEntry.status === "open" && <span className="ml-1 text-yellow-500">(currently open — set a time to close)</span>}
+                </label>
+                <input type="datetime-local" value={editForm.clockOutAt} onChange={(e) => { setEditForm({ ...editForm, clockOutAt: e.target.value }); setEditError(""); }} className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
               </div>
               <div>
                 <label className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Reason for edit</label>
-                <input type="text" value={editForm.editNote} onChange={(e) => setEditForm({ ...editForm, editNote: e.target.value })} placeholder="Why is this being changed?" className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                <input type="text" value={editForm.editNote} onChange={(e) => setEditForm({ ...editForm, editNote: e.target.value })} placeholder="e.g. forgot to clock out" className="w-full mt-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
               </div>
-              {editForm.clockInAt && editForm.clockOutAt && (
+              {editForm.clockInAt && editForm.clockOutAt && new Date(editForm.clockOutAt) > new Date(editForm.clockInAt) && (
                 <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
                   Total: {formatHours(Math.max(0, Math.round((new Date(editForm.clockOutAt).getTime() - new Date(editForm.clockInAt).getTime()) / 60000)))}
                 </p>
               )}
+              {editError && (
+                <p className="text-sm font-semibold" style={{ color: "#DC2626" }}>{editError}</p>
+              )}
             </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}>
+              <button onClick={saveEdit} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}>
                 {saving ? "Saving..." : "Save Changes"}
               </button>
-              <button onClick={() => setEditEntry(null)} className="px-4 py-2.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Cancel</button>
+              <button onClick={() => { setEditEntry(null); setEditError(""); }} className="px-4 py-2.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Cancel</button>
             </div>
           </div>
         </div>
