@@ -102,7 +102,7 @@ export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
     select distinct on (tech_id)
       tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
     from tech_locations_live
-    where ts >= now() - interval '4 hours'
+    where ts >= now() - interval '24 hours'
     order by tech_id, ts desc;
   `;
 
