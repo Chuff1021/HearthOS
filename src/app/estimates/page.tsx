@@ -63,6 +63,9 @@ export default function EstimatesPage() {
 
   const [prompt, setPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string } | null>(null);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [rebuildResult, setRebuildResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -389,6 +392,7 @@ export default function EstimatesPage() {
   async function generateFromAI() {
     if (!prompt.trim()) return;
     setError(null);
+    setAiMatchInfo(null);
     setAiGenerating(true);
     try {
       const res = await fetch("/api/estimator/ai-generate", {
@@ -398,7 +402,7 @@ export default function EstimatesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI generation failed");
-      if (data.lineItems && Array.isArray(data.lineItems)) {
+      if (data.lineItems && Array.isArray(data.lineItems) && data.lineItems.length > 0) {
         setDraftLines(data.lineItems.map((l: any) => ({
           description: l.partNumber ? `${l.description} (${l.partNumber})` : l.description,
           partNumber: l.partNumber,
@@ -407,14 +411,36 @@ export default function EstimatesPage() {
           total: Number(l.total || 0),
           source: "historical" as const,
         })));
-        if (data.matchCount === 0) setError("No matching past estimates found. Build manually or try different keywords.");
+        if (data.matchedProduct) {
+          setAiMatchInfo({
+            matchedProduct: data.matchedProduct,
+            basedOnInvoices: data.basedOnInvoices || 1,
+            notes: data.notes,
+          });
+        }
+        if (data.matchCount === 0) setError("No matching products found. Try using the model name (e.g. '42 Apex', '36 Elite').");
       } else {
-        setError(data.notes || "No line items generated. Try being more specific.");
+        setError(data.notes || "No line items generated. Try being more specific with the model name.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate draft estimate");
+      setError(e instanceof Error ? e.message : "Failed to generate estimate");
     } finally {
       setAiGenerating(false);
+    }
+  }
+
+  async function rebuildAI() {
+    setRebuilding(true);
+    setRebuildResult(null);
+    try {
+      const res = await fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Rebuild failed");
+      setRebuildResult({ ok: true, msg: `Rebuilt from ${data.analyzed?.totalTransactions || 0} transactions — ${data.analyzed?.productsCataloged || 0} products cataloged.` });
+    } catch (e) {
+      setRebuildResult({ ok: false, msg: e instanceof Error ? e.message : "Rebuild failed" });
+    } finally {
+      setRebuilding(false);
     }
   }
 
@@ -586,19 +612,34 @@ export default function EstimatesPage() {
               {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
 
               <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Example: build me a bid on a 42 Apex wood fireplace with timberline face and 25 feet of pipe" className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-2 flex-wrap">
                 <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
                   {aiGenerating ? (
                     <>
                       <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                      Searching QuickBooks &amp; generating...
+                      Generating...
                     </>
                   ) : "Generate Estimate"}
                 </button>
                 <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                  Add Manual Line
+                  + Add Line
+                </button>
+                <button onClick={rebuildAI} disabled={rebuilding} className="ml-auto px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }} title="Re-analyze all QuickBooks invoices to update AI pricing">
+                  {rebuilding ? "Retraining..." : "Retrain AI"}
                 </button>
               </div>
+
+              {rebuildResult && (
+                <p className="mt-2 text-xs font-medium" style={{ color: rebuildResult.ok ? "#16A34A" : "#DC2626" }}>{rebuildResult.msg}</p>
+              )}
+
+              {aiMatchInfo && (
+                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)" }}>
+                  <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
+                  <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
+                  {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
+                </div>
+              )}
 
               <div className="mt-5">
                 <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
