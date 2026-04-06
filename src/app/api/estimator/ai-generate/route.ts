@@ -36,9 +36,12 @@ export async function POST(request: NextRequest) {
 
     // Auto-build from QuickBooks if catalog is empty (first run or never trained)
     if (Object.keys(catalog).length === 0 && Object.keys(pricingSummary).length === 0) {
+      let autoBuildError: string | null = null;
       try {
         const org = await getOrCreateDefaultOrg();
-        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+        if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
+          autoBuildError = "QuickBooks is not connected. Please connect QuickBooks in Settings.";
+        } else {
           const client = getClientFromTokens(org.qbAccessToken, org.qbRefreshToken, org.qbRealmId);
           const result = await buildEstimatorCatalog(sql, client);
           catalog = result.productCatalog;
@@ -46,8 +49,13 @@ export async function POST(request: NextRequest) {
           installTypeGuide = result.installTypeGuide;
           autoBuilt = true;
         }
-      } catch {
-        // If auto-build fails (e.g. QB not connected), continue with empty data
+      } catch (err) {
+        autoBuildError = err instanceof Error ? err.message : String(err);
+      }
+      // If auto-build failed and we still have no data, return the actual error
+      if (autoBuildError && Object.keys(pricingSummary).length === 0) {
+        await sql.end();
+        return NextResponse.json({ error: `Could not load QuickBooks data: ${autoBuildError}` }, { status: 502 });
       }
     }
 
