@@ -28,6 +28,7 @@ const HEARTBEAT_INTERVAL = 60_000; // 60s — send a ping even when stationary
 const RETRY_DELAY_BASE = 5_000; // 5s initial retry
 const RETRY_DELAY_MAX = 30_000; // 30s max backoff
 const MAX_RETRIES_BEFORE_BACKOFF = 5;
+const KEEPALIVE_INTERVAL = 90_000; // restart dead watcher every 90s
 
 export default function TechRuntimeProvider() {
   const { isLoaded } = useUser();
@@ -40,6 +41,8 @@ export default function TechRuntimeProvider() {
   const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cache identity so visibility-change restarts don't need to re-fetch
+  const identityRef = useRef<{ techId: string; techName?: string; techEmail?: string } | null>(null);
 
   // Poll clock state
   useEffect(() => {
@@ -58,13 +61,10 @@ export default function TechRuntimeProvider() {
         }
       } catch {
         // Don't change clock state on network errors — keep the last known state
-        // This prevents techs from appearing logged out during brief connectivity issues
       }
     }
 
-    const refresh = () => {
-      void loadClockState();
-    };
+    const refresh = () => { void loadClockState(); };
 
     refresh();
     window.addEventListener("hearth-tech-clock-changed", refresh as EventListener);
@@ -90,121 +90,178 @@ export default function TechRuntimeProvider() {
 
     let cancelled = false;
 
-    async function startWatcher() {
-      // Get tech identity
-      let techId: string | undefined;
-      let techName: string | undefined;
-      let techEmail: string | undefined;
+    function initWatch(techId: string, techName?: string, techEmail?: string) {
+      if (cancelled) return;
 
-      try {
-        const res = await fetch("/api/tech/me", { cache: "no-store" });
-        if (!res.ok || cancelled) return;
-        const data = await res.json().catch(() => null);
-        techId = data?.tech?.id;
-        techName = data?.tech?.name;
-        techEmail = data?.tech?.email;
-      } catch {
-        if (!cancelled) gps.update({ error: "Failed to load tech identity" });
-        return;
+      // Clear any existing watcher before creating a new one
+      if (watchRef.current !== null) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
       }
 
-      if (!techId || cancelled) return;
+      watchRef.current = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const { latitude, longitude, accuracy, speed, heading } = pos.coords;
 
-      function initWatch() {
-        if (cancelled) return;
+          // Update context with latest accuracy
+          gps.update({ accuracy, gpsPermission: "granted" });
 
-        watchRef.current = navigator.geolocation.watchPosition(
-          async (pos) => {
-            const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+          // Accuracy gate — skip bad readings
+          if (accuracy > ACCURACY_THRESHOLD) return;
 
-            // Update context with latest accuracy
-            gps.update({ accuracy, gpsPermission: "granted" });
-
-            // Accuracy gate — skip bad readings
-            if (accuracy > ACCURACY_THRESHOLD) return;
-
-            // Min-distance + heartbeat gate
-            const now = Date.now();
-            const last = lastSentRef.current;
-            if (last) {
-              const dist = distanceMeters(last.lat, last.lng, latitude, longitude);
-              const elapsed = now - last.time;
-              if (dist < MIN_DISTANCE && elapsed < HEARTBEAT_INTERVAL) return;
-            }
-
-            // Send the ping
-            try {
-              await fetch("/api/tech/locations", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  techId,
-                  techName,
-                  techEmail,
-                  lat: latitude,
-                  lng: longitude,
-                  accuracy,
-                  speed,
-                  heading,
-                  timestamp: new Date(pos.timestamp).toISOString(),
-                }),
-              });
-
-              lastSentRef.current = { lat: latitude, lng: longitude, time: now };
-              retryCountRef.current = 0;
-              gps.update({
-                isTracking: true,
-                lastPingAt: new Date().toISOString(),
-                error: null,
-              });
-            } catch {
-              // POST failed — still tracking, just couldn't send
-            }
-          },
-          (err) => {
-            if (cancelled) return;
-
-            if (err.code === err.PERMISSION_DENIED) {
-              gps.update({
-                error: "Location permission denied",
-                isTracking: false,
-                gpsPermission: "denied",
-              });
-              return;
-            }
-
-            // POSITION_UNAVAILABLE or TIMEOUT — retry with backoff
-            gps.update({ error: `GPS error: ${err.message}` });
-
-            if (watchRef.current !== null) {
-              navigator.geolocation.clearWatch(watchRef.current);
-              watchRef.current = null;
-            }
-
-            retryCountRef.current += 1;
-            const delay =
-              retryCountRef.current > MAX_RETRIES_BEFORE_BACKOFF
-                ? RETRY_DELAY_MAX
-                : RETRY_DELAY_BASE;
-
-            retryTimerRef.current = setTimeout(() => {
-              initWatch();
-            }, delay);
-          },
-          {
-            enableHighAccuracy: true,
-            maximumAge: 10_000,
-            timeout: 20_000,
+          // Min-distance + heartbeat gate
+          const now = Date.now();
+          const last = lastSentRef.current;
+          if (last) {
+            const dist = distanceMeters(last.lat, last.lng, latitude, longitude);
+            const elapsed = now - last.time;
+            if (dist < MIN_DISTANCE && elapsed < HEARTBEAT_INTERVAL) return;
           }
-        );
 
-        gps.update({ isTracking: true, error: null });
-      }
+          // Send the ping
+          try {
+            await fetch("/api/tech/locations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                techId,
+                techName,
+                techEmail,
+                lat: latitude,
+                lng: longitude,
+                accuracy,
+                speed,
+                heading,
+                timestamp: new Date(pos.timestamp).toISOString(),
+              }),
+            });
 
-      initWatch();
+            lastSentRef.current = { lat: latitude, lng: longitude, time: now };
+            retryCountRef.current = 0;
+            gps.update({
+              isTracking: true,
+              lastPingAt: new Date().toISOString(),
+              error: null,
+            });
+          } catch {
+            // POST failed — still tracking, just couldn't send
+          }
+        },
+        (err) => {
+          if (cancelled) return;
+
+          if (err.code === err.PERMISSION_DENIED) {
+            gps.update({
+              error: "location_denied",
+              isTracking: false,
+              gpsPermission: "denied",
+            });
+            // Don't retry on denial — permission change listener handles recovery
+            return;
+          }
+
+          // POSITION_UNAVAILABLE or TIMEOUT — retry with backoff
+          gps.update({ error: `GPS error: ${err.message}`, isTracking: false });
+
+          if (watchRef.current !== null) {
+            navigator.geolocation.clearWatch(watchRef.current);
+            watchRef.current = null;
+          }
+
+          retryCountRef.current += 1;
+          const delay =
+            retryCountRef.current > MAX_RETRIES_BEFORE_BACKOFF
+              ? RETRY_DELAY_MAX
+              : RETRY_DELAY_BASE;
+
+          retryTimerRef.current = setTimeout(() => {
+            if (!cancelled) initWatch(techId, techName, techEmail);
+          }, delay);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0, // always request a fresh position
+          timeout: 20_000,
+        }
+      );
+
+      gps.update({ isTracking: true, error: null });
     }
 
-    startWatcher();
+    async function startWatcher() {
+      if (cancelled) return;
+
+      // Use cached identity if available, otherwise fetch
+      if (!identityRef.current) {
+        try {
+          const res = await fetch("/api/tech/me", { cache: "no-store" });
+          if (!res.ok || cancelled) return;
+          const data = await res.json().catch(() => null);
+          const techId = data?.tech?.id;
+          if (!techId || cancelled) return;
+          identityRef.current = {
+            techId,
+            techName: data?.tech?.name,
+            techEmail: data?.tech?.email,
+          };
+        } catch {
+          if (!cancelled) gps.update({ error: "Failed to load tech identity" });
+          return;
+        }
+      }
+
+      const { techId, techName, techEmail } = identityRef.current!;
+      initWatch(techId, techName, techEmail);
+    }
+
+    // Restart watcher when app comes back into view (handles mobile backgrounding)
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && !cancelled && watchRef.current === null) {
+        retryCountRef.current = 0;
+        void startWatcher();
+      }
+    }
+
+    // Also handle window focus (desktop tab switching)
+    function handleFocus() {
+      if (!cancelled && watchRef.current === null) {
+        retryCountRef.current = 0;
+        void startWatcher();
+      }
+    }
+
+    // Keepalive: if the watcher died silently, restart it every 90 seconds
+    const keepaliveId = setInterval(() => {
+      if (!cancelled && watchRef.current === null && document.visibilityState === "visible") {
+        retryCountRef.current = 0;
+        void startWatcher();
+      }
+    }, KEEPALIVE_INTERVAL);
+
+    // Listen for permission changes (e.g., user enables location in browser settings)
+    let permissionStatus: PermissionStatus | null = null;
+    function handlePermissionChange() {
+      if (!cancelled && permissionStatus?.state === "granted" && watchRef.current === null) {
+        retryCountRef.current = 0;
+        gps.update({ error: null, gpsPermission: "granted" });
+        void startWatcher();
+      }
+    }
+    navigator.permissions
+      ?.query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (!cancelled) {
+          permissionStatus = status;
+          status.addEventListener("change", handlePermissionChange);
+        }
+      })
+      .catch(() => {});
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    // Initial start
+    void startWatcher();
 
     return () => {
       cancelled = true;
@@ -216,8 +273,13 @@ export default function TechRuntimeProvider() {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
+      clearInterval(keepaliveId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      permissionStatus?.removeEventListener("change", handlePermissionChange);
       lastSentRef.current = null;
       retryCountRef.current = 0;
+      identityRef.current = null;
     };
   }, [clockedIn, isLoaded, isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
 

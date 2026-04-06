@@ -263,16 +263,20 @@ export default function TechApp() {
             </p>
           </div>
           <div className="text-right">
-            <div className="flex items-center justify-end gap-1 text-xs" style={{ color: gps.isTracking ? "#15803D" : "var(--color-text-muted)" }}>
+            <div className="flex items-center justify-end gap-1 text-xs" style={{ color: gps.isTracking ? "#15803D" : gps.error === "location_denied" ? "#DC2626" : "var(--color-text-muted)" }}>
               <div
                 className={`w-2 h-2 rounded-full ${gps.isTracking ? "animate-pulse" : ""}`}
-                style={{ background: gps.isTracking ? "#16A34A" : "var(--color-text-muted)" }}
+                style={{ background: gps.isTracking ? "#16A34A" : gps.error === "location_denied" ? "#DC2626" : "var(--color-text-muted)" }}
               />
-              {gps.isTracking ? "GPS Live" : "GPS Off"}
+              {gps.isTracking ? "GPS Live" : gps.error === "location_denied" ? "GPS Blocked" : "GPS Off"}
             </div>
-            {gps.lastPingAt ? (
+            {gps.isTracking && gps.lastPingAt ? (
               <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
                 Last ping {formatTime(gps.lastPingAt)}
+              </p>
+            ) : gps.error === "location_denied" ? (
+              <p className="text-[11px] mt-1 font-semibold" style={{ color: "#DC2626" }}>
+                Allow location in browser settings
               </p>
             ) : null}
           </div>
