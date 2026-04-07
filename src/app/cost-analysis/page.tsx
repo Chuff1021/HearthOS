@@ -63,6 +63,8 @@ export default function CostAnalysisPage() {
   const [pullResult, setPullResult] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
   const [updateResult, setUpdateResult] = useState<any>(null);
+  const [updatingRows, setUpdatingRows] = useState<Set<string>>(new Set());
+  const [rowResults, setRowResults] = useState<Record<string, { ok: boolean; cost?: number; error?: string }>>({});
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -104,14 +106,16 @@ export default function CostAnalysisPage() {
     }
   }
 
-  async function updateNoCostItems() {
+  // Generic update — pass item names to update, or empty for no-cost-only
+  async function updateItems(names?: string[]) {
     setUpdating(true);
     setUpdateResult(null);
     try {
+      const body = names ? { items: names } : {};
       const res = await fetch("/api/cost-analysis/update-costs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Update failed");
@@ -121,6 +125,28 @@ export default function CostAnalysisPage() {
       setError(e.message);
     } finally {
       setUpdating(false);
+    }
+  }
+
+  function updateNoCostItems() { return updateItems(undefined); }
+
+  async function updateSingleItem(name: string) {
+    setUpdatingRows((prev) => new Set(prev).add(name));
+    try {
+      const res = await fetch("/api/cost-analysis/update-costs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: [name] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      const r = data.results?.[0];
+      setRowResults((prev) => ({ ...prev, [name]: r || { ok: false, error: "No result" } }));
+      if (r?.ok) await loadData();
+    } catch (e: any) {
+      setRowResults((prev) => ({ ...prev, [name]: { ok: false, error: e.message } }));
+    } finally {
+      setUpdatingRows((prev) => { const s = new Set(prev); s.delete(name); return s; });
     }
   }
 
@@ -337,6 +363,40 @@ export default function CostAnalysisPage() {
             </div>
           )}
 
+          {/* Critical / High bulk update banner */}
+          {stats.critical + stats.high > 0 && (
+            <div className="mb-5 px-4 py-3 rounded-lg flex items-start justify-between gap-4 flex-wrap"
+              style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.25)" }}>
+              <div>
+                <div className="text-sm font-semibold mb-0.5" style={{ color: "#DC2626" }}>
+                  {stats.critical + stats.high} item{stats.critical + stats.high !== 1 ? "s" : ""} where QB cost is significantly understated (Critical + High)
+                </div>
+                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  Will update QB PurchaseCost to the average price you actually paid on vendor bills.
+                </div>
+                {updateResult && updating === false && updateResult.results?.some((r: any) => r.ok) && (
+                  <div className="mt-1 text-xs" style={{ color: "#16A34A", fontWeight: 600 }}>
+                    {updateResult.updated} item{updateResult.updated !== 1 ? "s" : ""} updated in QB
+                    {updateResult.failed > 0 && <span style={{ color: "#D97706" }}> · {updateResult.failed} failed</span>}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  const names = items
+                    .filter((i) => statusInfo(i).priority <= 2) // critical + high
+                    .map((i) => i.name);
+                  updateItems(names);
+                }}
+                disabled={updating}
+                className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
+                style={{ background: updating ? "var(--color-surface-2)" : "#DC2626", color: "#fff", opacity: updating ? 0.6 : 1 }}
+              >
+                {updating ? "Updating QB..." : `Update ${stats.critical + stats.high} Item${stats.critical + stats.high !== 1 ? "s" : ""} in QB`}
+              </button>
+            </div>
+          )}
+
           {/* Overpaying banner */}
           {stats.totalOverpaying > 100 && (
             <div className="mb-5 px-4 py-3 rounded-lg text-sm" style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)" }}>
@@ -478,10 +538,32 @@ export default function CostAnalysisPage() {
                     </div>
 
                     {/* Status */}
-                    <div>
+                    <div className="flex flex-col gap-1 items-start">
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>
                         {s.label}
                       </span>
+                      {s.priority <= 2 && !rowResults[item.name] && (
+                        <button
+                          onClick={() => updateSingleItem(item.name)}
+                          disabled={updatingRows.has(item.name)}
+                          className="text-xs px-2 py-0.5 rounded font-semibold"
+                          style={{
+                            background: updatingRows.has(item.name) ? "var(--color-surface-3)" : "rgba(37,99,235,0.12)",
+                            color: "#2563EB",
+                            border: "1px solid rgba(37,99,235,0.3)",
+                            opacity: updatingRows.has(item.name) ? 0.6 : 1,
+                          }}
+                        >
+                          {updatingRows.has(item.name) ? "Saving..." : "Update QB"}
+                        </button>
+                      )}
+                      {rowResults[item.name] && (
+                        <span className="text-xs font-semibold" style={{ color: rowResults[item.name].ok ? "#16A34A" : "#DC2626" }}>
+                          {rowResults[item.name].ok
+                            ? `✓ Set ${fmt(rowResults[item.name].cost)}`
+                            : `✗ ${rowResults[item.name].error?.slice(0, 30) || "Failed"}`}
+                        </span>
+                      )}
                     </div>
 
                     {/* QB Cost */}
@@ -552,7 +634,7 @@ export default function CostAnalysisPage() {
                 <li className="flex gap-2">
                   <span className="font-bold" style={{ color: "#DC2626", minWidth: 20 }}>2.</span>
                   <span>
-                    <span style={{ color: "var(--color-text)", fontWeight: 600 }}>Fix {stats.critical + stats.high} Critical/High items</span> — in QB go to Products &amp; Services, find each item, and update the Cost field to match the "Avg Paid" column.
+                    <span style={{ color: "var(--color-text)", fontWeight: 600 }}>Fix {stats.critical + stats.high} Critical/High items</span> — click "Update {stats.critical + stats.high} Items in QB" above to push the average paid price to all of them at once, or click "Update QB" on individual rows.
                   </span>
                 </li>
                 <li className="flex gap-2">
