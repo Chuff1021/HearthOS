@@ -161,8 +161,16 @@ export async function POST() {
       }
     }
 
+    // Helper: extract top-level category from QB FullyQualifiedName
+    function extractCategory(fullName: string): string {
+      const parts = fullName.split(":");
+      return parts.length > 1 ? parts[0].trim() : "Other";
+    }
+
     // ── 4. Build cost summary with variance vs QB PurchaseCost ──
     const costSummary: Record<string, any> = {};
+
+    // First: items found in paid bills
     for (const [name, data] of Object.entries(rawHistory)) {
       if (data.costs.length === 0) continue;
 
@@ -171,17 +179,14 @@ export async function POST() {
       );
       const minCost = Math.min(...data.costs);
       const maxCost = Math.max(...data.costs);
-      const mostRecentCost = data.costs[0]; // sorted date desc from QB
+      const mostRecentCost = data.costs[0];
 
       const info = itemInfoMap[name] || { purchaseCost: 0, salePrice: 0, sku: "", fullName: name };
 
-      // positive variance = paying MORE than QB thinks (QB cost is too low)
       const variance = Number((avgCost - info.purchaseCost).toFixed(2));
       const variancePct = info.purchaseCost > 0
         ? Number(((variance / info.purchaseCost) * 100).toFixed(1))
         : null;
-
-      // gross margin using avg actual cost vs sale price
       const margin = info.salePrice > 0 && avgCost > 0
         ? Number((((info.salePrice - avgCost) / info.salePrice) * 100).toFixed(1))
         : null;
@@ -190,6 +195,8 @@ export async function POST() {
         name,
         sku: info.sku,
         fullName: info.fullName,
+        category: extractCategory(info.fullName),
+        hasBillHistory: true,
         avgCost,
         minCost,
         maxCost,
@@ -201,6 +208,39 @@ export async function POST() {
         salePrice: info.salePrice,
         variance,
         variancePct,
+        margin,
+      };
+    }
+
+    // Second: ALL remaining QB items that had no bill history — so user can see full inventory
+    for (const item of qbItems) {
+      const name = item.Name || "";
+      if (!name || costSummary[name]) continue; // skip if already have bill data
+
+      const fullName = item.FullyQualifiedName || name;
+      const purchaseCost = Number(item.PurchaseCost || 0);
+      const salePrice = Number(item.UnitPrice || 0);
+      const margin = salePrice > 0 && purchaseCost > 0
+        ? Number((((salePrice - purchaseCost) / salePrice) * 100).toFixed(1))
+        : null;
+
+      costSummary[name] = {
+        name,
+        sku: item.Sku || "",
+        fullName,
+        category: extractCategory(fullName),
+        hasBillHistory: false,
+        avgCost: null,
+        minCost: null,
+        maxCost: null,
+        mostRecentCost: null,
+        lastPurchaseDate: null,
+        timesOrdered: 0,
+        vendors: [],
+        qbCurrentCost: purchaseCost,
+        salePrice,
+        variance: 0,
+        variancePct: null,
         margin,
       };
     }
@@ -244,6 +284,8 @@ export async function POST() {
         costUnderstated: items.filter((i) => i.variance > 0 && Math.abs(i.variancePct ?? 0) >= 5).length,
         costOverstated: items.filter((i) => i.variance < 0 && Math.abs(i.variancePct ?? 0) >= 5).length,
         noQbCost: items.filter((i) => i.qbCurrentCost === 0 && i.avgCost > 0).length,
+        noHistory: items.filter((i) => !i.hasBillHistory).length,
+        totalQbItems: qbItems.length,
       },
     });
 
