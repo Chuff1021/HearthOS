@@ -213,6 +213,24 @@ export default function TechApp() {
     }
   };
 
+  const handleReopenJob = async (job: TechJob) => {
+    setBusyAction(job.id + "-reopen");
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: job.id, status: "in_progress" }),
+      });
+      if (!res.ok) throw new Error("Failed to reopen job");
+      await loadSession();
+      setTab("active");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reopen job");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const isClockedIn = !!session?.clockEntry;
 
   // Detect lunch state from entries — if not clocked in and last entry today was "Lunch break"
@@ -542,17 +560,33 @@ export default function TechApp() {
                         </p>
                       ) : null}
 
-                      <Link
-                        href={`/tech/job/${job.id}`}
-                        className="block text-center py-2 rounded-lg text-sm font-medium transition-colors"
-                        style={{
-                          background: "var(--color-surface-3)",
-                          color: "var(--color-text-primary)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        View Details
-                      </Link>
+                      <div className="flex gap-2">
+                        {job.status === "completed" && (
+                          <button
+                            onClick={() => handleReopenJob(job)}
+                            disabled={busyAction === job.id + "-reopen"}
+                            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
+                            style={{
+                              background: busyAction === job.id + "-reopen" ? "var(--color-surface-3)" : "rgba(234,88,12,0.12)",
+                              color: busyAction === job.id + "-reopen" ? "var(--color-text-muted)" : "#EA580C",
+                              border: "1px solid rgba(234,88,12,0.3)",
+                            }}
+                          >
+                            {busyAction === job.id + "-reopen" ? "Reopening..." : "Reopen Job"}
+                          </button>
+                        )}
+                        <Link
+                          href={`/tech/job/${job.id}`}
+                          className="flex-1 block text-center py-2 rounded-lg text-sm font-medium transition-colors"
+                          style={{
+                            background: "var(--color-surface-3)",
+                            color: "var(--color-text-primary)",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        >
+                          View Details
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>
