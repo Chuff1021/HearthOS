@@ -58,6 +58,8 @@ export default function CostAnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
+  const [updateResult, setUpdateResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("variance");
   const [sortDesc, setSortDesc] = useState(true);
@@ -94,6 +96,22 @@ export default function CostAnalysisPage() {
       setError(e.message);
     } finally {
       setPulling(false);
+    }
+  }
+
+  async function updateNoCostItems() {
+    setUpdating(true);
+    setUpdateResult(null);
+    try {
+      const res = await fetch("/api/cost-analysis/update-costs", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      setUpdateResult(data);
+      await loadData(); // refresh table to show updated costs
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -250,6 +268,52 @@ export default function CostAnalysisPage() {
                   <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* No QB Cost — update button */}
+          {stats.noQbCost > 0 && (
+            <div className="mb-5 px-4 py-3 rounded-lg flex items-start justify-between gap-4 flex-wrap"
+              style={{ background: "rgba(147,51,234,0.08)", border: "1px solid rgba(147,51,234,0.25)" }}>
+              <div>
+                <div className="text-sm font-semibold mb-0.5" style={{ color: "#9333EA" }}>
+                  {stats.noQbCost} item{stats.noQbCost !== 1 ? "s" : ""} have no cost set in QuickBooks
+                </div>
+                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  These will be updated to the most recent price you actually paid on a vendor bill.
+                </div>
+                {updateResult && (
+                  <div className="mt-2 text-xs space-y-0.5">
+                    {updateResult.error ? (
+                      <span style={{ color: "#DC2626" }}>{updateResult.error}</span>
+                    ) : (
+                      <>
+                        <span style={{ color: "#16A34A", fontWeight: 600 }}>
+                          {updateResult.updated} item{updateResult.updated !== 1 ? "s" : ""} updated in QuickBooks
+                        </span>
+                        {updateResult.failed > 0 && (
+                          <span style={{ color: "#D97706" }} className="ml-2">
+                            · {updateResult.failed} failed
+                          </span>
+                        )}
+                        {updateResult.results?.filter((r: any) => !r.ok).map((r: any) => (
+                          <div key={r.name} style={{ color: "#DC2626" }}>
+                            {r.name}: {r.error}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={updateNoCostItems}
+                disabled={updating}
+                className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
+                style={{ background: updating ? "var(--color-surface-2)" : "#9333EA", color: "#fff", opacity: updating ? 0.6 : 1 }}
+              >
+                {updating ? "Updating QB..." : `Update ${stats.noQbCost} Item${stats.noQbCost !== 1 ? "s" : ""} in QB`}
+              </button>
             </div>
           )}
 
