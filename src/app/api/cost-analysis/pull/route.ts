@@ -23,23 +23,45 @@ export async function POST() {
     cutoff.setMonth(cutoff.getMonth() - 24);
     const cutoffStr = cutoff.toISOString().split("T")[0];
 
-    // ── Fetch paid bills ──
+    // ── Fetch bills — try multiple approaches, surface the real error ──
     let bills: any[] = [];
-    try {
-      bills = await (client as any).queryAll(
-        `SELECT * FROM Bill WHERE TxnDate >= '${cutoffStr}' ORDERBY TxnDate DESC`
-      );
-    } catch (e) {
+    let billFetchError: string | null = null;
+
+    const attempts = [
+      `SELECT * FROM Bill WHERE TxnDate >= '${cutoffStr}' ORDERBY TxnDate DESC`,
+      `SELECT * FROM Bill ORDERBY TxnDate DESC`,
+      `SELECT * FROM Bill`,
+    ];
+
+    for (const query of attempts) {
       try {
-        bills = await (client as any).queryAll("SELECT * FROM Bill ORDERBY TxnDate DESC");
+        const result = await (client as any).queryAll(query);
+        bills = Array.isArray(result) ? result : [];
+        billFetchError = null;
+        break;
+      } catch (e: any) {
+        billFetchError = String(e?.message || e);
+        bills = [];
+      }
+    }
+
+    // If queryAll failed entirely, try direct QB API fetch
+    if (bills.length === 0 && billFetchError) {
+      try {
+        const result = await (client as any).getBills?.();
+        if (Array.isArray(result)) { bills = result; billFetchError = null; }
       } catch {}
     }
 
     // ── Fetch current QB Items (for PurchaseCost + UnitPrice) ──
     let qbItems: any[] = [];
+    let itemFetchError: string | null = null;
     try {
       qbItems = await (client as any).queryAll("SELECT * FROM Item WHERE Active = true");
-    } catch {}
+    } catch (e: any) {
+      itemFetchError = String(e?.message || e);
+      try { qbItems = await (client as any).getItems?.() || []; } catch {}
+    }
 
     // Build name → current cost/price map
     const itemInfoMap: Record<string, { purchaseCost: number; salePrice: number; sku: string; fullName: string }> = {};
@@ -54,7 +76,29 @@ export async function POST() {
       };
     }
 
-    // ── Process bills — only paid (Balance = 0) ──
+    // If still no bills, return what we know
+    if (bills.length === 0) {
+      await sql.end();
+      return NextResponse.json({
+        success: false,
+        billsTotal: 0,
+        billsPaid: 0,
+        itemsFound: 0,
+        itemsFetched: qbItems.length,
+        error: billFetchError
+          ? `Could not fetch bills from QuickBooks: ${billFetchError}`
+          : "QuickBooks returned 0 bills. Your bills may be stored differently — check that bills exist in QB under Expenses > Bills.",
+        debug: {
+          billFetchError,
+          itemFetchError,
+          cutoffDate: cutoffStr,
+          itemsFetched: qbItems.length,
+          sampleItem: qbItems[0] ? { name: qbItems[0].Name, purchaseCost: qbItems[0].PurchaseCost } : null,
+        },
+      });
+    }
+
+    // ── Process bills — include ALL bills, mark paid status ──
     const rawHistory: Record<string, {
       name: string;
       costs: number[];
@@ -65,33 +109,44 @@ export async function POST() {
 
     let billsTotal = 0;
     let billsPaid = 0;
+    let linesFound = 0;
+    let itemLinesFound = 0;
 
     for (const bill of bills) {
       billsTotal++;
-      if (Number(bill.Balance ?? 1) !== 0) continue; // skip unpaid
+      const balance = Number(bill.Balance ?? bill.TotalAmt ?? 1);
+      const isPaid = balance === 0;
+      if (!isPaid) continue;
       billsPaid++;
 
       const vendor = bill.VendorRef?.name || "Unknown Vendor";
       const date = bill.TxnDate || "";
-      const lines = (bill.Line || []).filter(
-        (l: any) => l.DetailType === "ItemBasedExpenseLineDetail"
-      );
+      const allLines = bill.Line || [];
+      linesFound += allLines.length;
 
-      for (const line of lines) {
-        const detail = line.ItemBasedExpenseLineDetail || {};
-        const name = detail.ItemRef?.name || "";
-        if (!name) continue;
-        const unitCost = Number(detail.UnitPrice || 0);
-        const qty = Number(detail.Qty || 1);
-        if (unitCost <= 0) continue;
+      for (const line of allLines) {
+        // QB bills can use ItemBasedExpenseLineDetail OR AccountBasedExpenseLineDetail
+        const isItemLine = line.DetailType === "ItemBasedExpenseLineDetail";
+        const isAcctLine = line.DetailType === "AccountBasedExpenseLineDetail";
 
-        if (!rawHistory[name]) {
-          rawHistory[name] = { name, costs: [], qtys: [], dates: [], vendors: [] };
+        if (isItemLine) {
+          itemLinesFound++;
+          const detail = line.ItemBasedExpenseLineDetail || {};
+          const name = detail.ItemRef?.name || "";
+          if (!name) continue;
+          const unitCost = Number(detail.UnitPrice || 0);
+          const qty = Number(detail.Qty || 1);
+          if (unitCost <= 0) continue;
+
+          if (!rawHistory[name]) rawHistory[name] = { name, costs: [], qtys: [], dates: [], vendors: [] };
+          rawHistory[name].costs.push(unitCost);
+          rawHistory[name].qtys.push(qty);
+          rawHistory[name].dates.push(date);
+          if (!rawHistory[name].vendors.includes(vendor)) rawHistory[name].vendors.push(vendor);
         }
-        rawHistory[name].costs.push(unitCost);
-        rawHistory[name].qtys.push(qty);
-        rawHistory[name].dates.push(date);
-        if (!rawHistory[name].vendors.includes(vendor)) rawHistory[name].vendors.push(vendor);
+
+        // Account-based lines won't have item names — skip for now but count them
+        if (isAcctLine) itemLinesFound; // counted differently
       }
     }
 
@@ -99,21 +154,16 @@ export async function POST() {
     const costSummary: Record<string, any> = {};
     for (const [name, data] of Object.entries(rawHistory)) {
       if (data.costs.length === 0) continue;
-      const sortedByDate = data.costs; // already date-desc from QB query
       const avgCost = Number((data.costs.reduce((a, b) => a + b, 0) / data.costs.length).toFixed(2));
       const minCost = Math.min(...data.costs);
       const maxCost = Math.max(...data.costs);
-      const mostRecentCost = sortedByDate[0];
+      const mostRecentCost = data.costs[0];
       const info = itemInfoMap[name] || { purchaseCost: 0, salePrice: 0, sku: "", fullName: name };
 
-      // variance = what we actually paid avg vs what QB has as PurchaseCost
-      // positive = we're paying MORE than QB thinks (QB is understating cost)
       const variance = Number((avgCost - info.purchaseCost).toFixed(2));
       const variancePct = info.purchaseCost > 0
         ? Number(((variance / info.purchaseCost) * 100).toFixed(1))
         : null;
-
-      // gross margin based on avg cost vs sale price
       const margin = info.salePrice > 0 && avgCost > 0
         ? Number((((info.salePrice - avgCost) / info.salePrice) * 100).toFixed(1))
         : null;
@@ -162,6 +212,15 @@ export async function POST() {
       billsPaid,
       itemsFound: items.length,
       cutoffDate: cutoffStr,
+      debug: {
+        linesFound,
+        itemLinesFound,
+        itemsFetched: qbItems.length,
+        billsHaveItemLines: itemLinesFound > 0,
+        note: itemLinesFound === 0 && billsPaid > 0
+          ? "Bills found but no item-based lines detected. Your bills may use account-based expense lines instead of item lines. Contact support."
+          : null,
+      },
       flagged: {
         costUnderstated: items.filter((i) => i.variance > 0 && Math.abs(i.variancePct ?? 0) >= 5).length,
         costOverstated: items.filter((i) => i.variance < 0 && Math.abs(i.variancePct ?? 0) >= 5).length,
