@@ -558,10 +558,14 @@ export default function CostAnalysisPage() {
                         </button>
                       )}
                       {rowResults[item.name] && (
-                        <span className="text-xs font-semibold" style={{ color: rowResults[item.name].ok ? "#16A34A" : "#DC2626" }}>
+                        <span
+                          className="text-xs font-semibold cursor-help"
+                          style={{ color: rowResults[item.name].ok ? "#16A34A" : "#DC2626" }}
+                          title={rowResults[item.name].error || undefined}
+                        >
                           {rowResults[item.name].ok
                             ? `✓ Set ${fmt(rowResults[item.name].cost)}`
-                            : `✗ ${rowResults[item.name].error?.slice(0, 30) || "Failed"}`}
+                            : `✗ ${rowResults[item.name].error?.slice(0, 60) || "Failed"}`}
                         </span>
                       )}
                     </div>
