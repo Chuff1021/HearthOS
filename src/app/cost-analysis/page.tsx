@@ -208,27 +208,21 @@ export default function CostAnalysisPage() {
                 background: pullResult.success ? "rgba(44,160,28,0.1)" : "rgba(220,38,38,0.08)",
                 border: `1px solid ${pullResult.success ? "rgba(44,160,28,0.3)" : "rgba(220,38,38,0.3)"}`,
               }}>
-              {pullResult.success ? (
-                <>
-                  <div>
-                    Pulled <strong>{pullResult.billsPaid}</strong> paid bills (of {pullResult.billsTotal} total) ·{" "}
-                    <strong>{pullResult.itemsFound}</strong> unique products ·{" "}
-                    <span style={{ color: "#DC2626", fontWeight: 600 }}>{pullResult.flagged?.costUnderstated} items where QB cost is too low</span>
-                    {pullResult.flagged?.noQbCost > 0 && <span style={{ color: "#9333EA" }}> · {pullResult.flagged.noQbCost} with no QB cost set</span>}
-                  </div>
-                  {pullResult.debug?.note && (
-                    <div style={{ color: "#D97706" }}>{pullResult.debug.note}</div>
-                  )}
-                </>
+              {pullResult.error ? (
+                <div style={{ color: "#DC2626", fontWeight: 600 }}>{pullResult.error}</div>
               ) : (
                 <>
-                  <div style={{ color: "#DC2626", fontWeight: 600 }}>{pullResult.error}</div>
-                  {pullResult.debug && (
-                    <div className="mt-2 text-xs space-y-0.5" style={{ color: "var(--color-text-muted)" }}>
-                      <div>QB Items fetched: {pullResult.debug.itemsFetched ?? 0}</div>
-                      {pullResult.debug.billFetchError && <div>Bill fetch error: {pullResult.debug.billFetchError}</div>}
-                      {pullResult.debug.itemFetchError && <div>Item fetch error: {pullResult.debug.itemFetchError}</div>}
-                    </div>
+                  <div>
+                    Pulled <strong>{pullResult.billsPaid}</strong> paid bills (of <strong>{pullResult.billsTotal}</strong> total) ·{" "}
+                    <strong>{pullResult.itemsFound}</strong> unique inventory items found ·{" "}
+                    <span style={{ color: "#DC2626", fontWeight: 600 }}>{pullResult.flagged?.costUnderstated ?? 0} items where QB cost is too low</span>
+                    {pullResult.flagged?.noQbCost > 0 && <span style={{ color: "#9333EA" }}> · {pullResult.flagged.noQbCost} with no QB cost set</span>}
+                  </div>
+                  {pullResult.warning && (
+                    <div className="mt-1" style={{ color: "#D97706" }}>{pullResult.warning}</div>
+                  )}
+                  {pullResult.billError && (
+                    <div className="mt-1 text-xs" style={{ color: "#D97706" }}>Bill fetch note: {pullResult.billError}</div>
                   )}
                 </>
               )}
