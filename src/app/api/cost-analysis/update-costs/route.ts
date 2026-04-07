@@ -7,10 +7,6 @@ import postgres from "postgres";
 
 export const maxDuration = 120;
 
-const QB_BASE_URL = process.env.QUICKBOOKS_ENVIRONMENT === "production"
-  ? "https://quickbooks.api.intuit.com"
-  : "https://sandbox-quickbooks.api.intuit.com";
-
 async function getClientWithRefresh() {
   const org = await getOrCreateDefaultOrg();
   if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
@@ -23,6 +19,7 @@ async function getClientWithRefresh() {
     try {
       return await fn(client);
     } catch {
+      // Token expired — refresh once and retry
       const tokens = await client.refreshAccessToken();
       token = tokens.access_token;
       refresh = tokens.refresh_token;
@@ -37,10 +34,10 @@ async function getClientWithRefresh() {
     }
   }
 
-  return { run, getToken: () => token, getRealmId: () => realmId };
+  return { run };
 }
 
-// Paginate through ALL active QB Items — no hard cap
+// Paginate through ALL active QB Items — no hard 1000-item cap
 async function fetchAllQBItems(
   run: <T>(fn: (c: any) => Promise<T>) => Promise<T>
 ): Promise<any[]> {
@@ -61,53 +58,22 @@ async function fetchAllQBItems(
   return all;
 }
 
-// Parse a QB API error body into a human-readable string
-function parseQBError(raw: string): string {
-  try {
-    const json = JSON.parse(raw);
-    const errors: any[] = json?.Fault?.Error || [];
-    if (errors.length > 0) {
-      const e = errors[0];
-      const detail = e.Detail || e.Message || "";
-      const code = e.code ? ` (code ${e.code})` : "";
-      return `${detail}${code}`.trim() || raw.slice(0, 300);
-    }
-  } catch {}
-  return raw.slice(0, 300);
-}
-
-// POST a sparse update to QB — only changes PurchaseCost
-// Requires a fresh item fetch so the SyncToken is never stale
-async function updateItemCost(
-  accessToken: string,
-  realmId: string,
-  freshItem: { Id: string; SyncToken: string; Name: string },
-  newCost: number
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`${QB_BASE_URL}/v3/company/${realmId}/item`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        Id: freshItem.Id,
-        SyncToken: freshItem.SyncToken,
-        Name: freshItem.Name,       // QB Items require Name even in sparse updates
-        sparse: true,
-        PurchaseCost: newCost,
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, error: parseQBError(text) };
-    }
-    return { ok: true };
-  } catch (e: any) {
-    return { ok: false, error: String(e?.message || e) };
+// Extract a readable message from a QB API error thrown by the client
+function readQBError(e: any): string {
+  const raw = String(e?.message || e);
+  // The client wraps QB errors as: "QuickBooks API error: {JSON}"
+  const jsonStart = raw.indexOf("{");
+  if (jsonStart !== -1) {
+    try {
+      const json = JSON.parse(raw.slice(jsonStart));
+      const errors: any[] = json?.Fault?.Error || [];
+      if (errors.length > 0) {
+        const err = errors[0];
+        return (err.Detail || err.Message || raw).trim();
+      }
+    } catch {}
   }
+  return raw.slice(0, 400);
 }
 
 // POST — update QB PurchaseCost for selected items
@@ -128,7 +94,10 @@ export async function POST(request: NextRequest) {
     `;
     if (rows.length === 0) {
       await sql.end();
-      return NextResponse.json({ error: "No cost history found. Pull QB data first." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No cost history found. Click 'Pull Latest QB Data' first." },
+        { status: 400 }
+      );
     }
 
     const costHistory: Record<string, any> =
@@ -145,79 +114,78 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ updated: 0, message: "No items need cost updates." });
     }
 
-    const { run, getToken, getRealmId } = await getClientWithRefresh();
+    const { run } = await getClientWithRefresh();
 
-    // Fetch ALL QB items (paginated — no 1000-item cap) to build name → QB ID map
+    // Fetch ALL QB items (paginated) to build name → QB ID map
     let qbItems: any[] = [];
     try {
       qbItems = await fetchAllQBItems(run);
     } catch (e: any) {
       await sql.end();
-      return NextResponse.json({ error: `Failed to fetch QB items: ${e?.message || e}` }, { status: 500 });
+      return NextResponse.json(
+        { error: `Failed to fetch QB item list: ${readQBError(e)}` },
+        { status: 500 }
+      );
     }
 
-    // Index by both short Name AND FullyQualifiedName
-    // Bills use the full path as item name; QB Items have the short Name
-    const qbItemMap: Record<string, { id: string }> = {};
+    // Index by both short Name AND FullyQualifiedName so we match
+    // regardless of whether the bill line used the short or full path
+    const qbItemMap: Record<string, string> = {}; // name → QB Id
     for (const item of qbItems) {
-      const name = item.Name || "";
-      const fullName = item.FullyQualifiedName || name;
-      if (name) qbItemMap[name] = { id: item.Id };
-      if (fullName && fullName !== name) qbItemMap[fullName] = { id: item.Id };
+      const name = (item.Name || "").trim();
+      const fullName = (item.FullyQualifiedName || name).trim();
+      if (name) qbItemMap[name] = item.Id;
+      if (fullName && fullName !== name) qbItemMap[fullName] = item.Id;
     }
 
     const results: Array<{ name: string; cost: number; ok: boolean; error?: string }> = [];
 
     for (const item of toUpdate) {
-      const qbRef = qbItemMap[item.name];
-      if (!qbRef) {
+      const qbId = qbItemMap[item.name] || qbItemMap[(item.fullName || "").trim()];
+
+      if (!qbId) {
         results.push({
           name: item.name,
           cost: 0,
           ok: false,
-          error: `Not found in QB catalog (${qbItems.length} items checked). Name may not match QB exactly.`,
+          error: `Not found in QB (searched ${qbItems.length} active items by Name and FullyQualifiedName)`,
         });
         continue;
       }
 
-      const costToSet = item.mostRecentCost || item.avgCost;
-
-      // Fetch the item fresh from QB right before updating.
-      // This guarantees we have the current SyncToken — stale tokens cause 5010 errors.
-      let freshItem: any;
-      try {
-        freshItem = await run((c) => c.getItem(qbRef.id));
-      } catch (e: any) {
-        results.push({
-          name: item.name,
-          cost: costToSet,
-          ok: false,
-          error: `Failed to read item from QB: ${e?.message || e}`,
-        });
-        continue;
-      }
-
-      const result = await updateItemCost(
-        getToken(),
-        getRealmId(),
-        { Id: freshItem.Id, SyncToken: freshItem.SyncToken, Name: freshItem.Name },
-        costToSet
+      // Use the most recent actual price paid; fall back to average
+      const costToSet = Number(
+        (item.mostRecentCost > 0 ? item.mostRecentCost : item.avgCost).toFixed(2)
       );
 
-      results.push({ name: item.name, cost: costToSet, ok: result.ok, error: result.error });
+      // client.updateItem():
+      //   1. Fetches the full item fresh from QB → guaranteed current SyncToken
+      //   2. Merges our change into the full object
+      //   3. POSTs back with sparse:true
+      // This is identical to how updateCustomer / updateInvoice work.
+      try {
+        await run((c) => c.updateItem(qbId, { PurchaseCost: costToSet }));
 
-      // Reflect the update locally so the page refreshes correctly
-      if (result.ok) {
+        results.push({ name: item.name, cost: costToSet, ok: true });
+
+        // Reflect in local cost history so the page refreshes accurately
         costHistory[item.name] = {
           ...costHistory[item.name],
           qbCurrentCost: costToSet,
           variance: 0,
           variancePct: 0,
         };
+      } catch (e: any) {
+        results.push({
+          name: item.name,
+          cost: costToSet,
+          ok: false,
+          error: readQBError(e),
+        });
       }
     }
 
-    // Persist updated cost history
+    // Persist updated cost history back to DB
     await sql`
       UPDATE estimator_knowledge
       SET data = ${JSON.stringify(costHistory)}::jsonb, updated_at = now()
@@ -232,6 +200,6 @@ export async function POST(request: NextRequest) {
 
   } catch (err: any) {
     try { await sql.end(); } catch {}
-    return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
+    return NextResponse.json({ error: readQBError(err) }, { status: 500 });
   }
 }
