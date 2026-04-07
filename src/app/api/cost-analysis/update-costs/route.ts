@@ -119,12 +119,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Failed to fetch QB items: ${e?.message || e}` }, { status: 500 });
     }
 
-    // Build name → { Id, SyncToken } map
+    // Build name → { Id, SyncToken } map — index by BOTH short Name AND FullyQualifiedName
+    // Bills use the full path as the item name, QB Items use the short name
     const qbItemMap: Record<string, { id: string; syncToken: string }> = {};
     for (const item of qbItems) {
-      if (item.Name) {
-        qbItemMap[item.Name] = { id: item.Id, syncToken: item.SyncToken };
-      }
+      const name = item.Name || "";
+      const fullName = item.FullyQualifiedName || name;
+      if (name) qbItemMap[name] = { id: item.Id, syncToken: item.SyncToken };
+      if (fullName && fullName !== name) qbItemMap[fullName] = { id: item.Id, syncToken: item.SyncToken };
     }
 
     // Update each item in QB

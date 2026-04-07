@@ -98,22 +98,31 @@ export async function POST() {
       } catch {}
     }
 
-    // Build item info map: Name → { purchaseCost, salePrice, sku, fullName }
+    // Build item info map indexed by BOTH short Name AND FullyQualifiedName
+    // Bills return ItemRef.name as the full path (e.g. "864 Gas Fireplaces:98500178")
+    // but QB Item entities have Name = "98500178" and FullyQualifiedName = "864 Gas Fireplaces:98500178"
     const itemInfoMap: Record<string, {
       purchaseCost: number;
       salePrice: number;
       sku: string;
       fullName: string;
+      qbId: string;
+      syncToken: string;
     }> = {};
     for (const item of qbItems) {
       const name = item.Name || "";
+      const fullName = item.FullyQualifiedName || name;
       if (!name) continue;
-      itemInfoMap[name] = {
+      const entry = {
         purchaseCost: Number(item.PurchaseCost || 0),
         salePrice: Number(item.UnitPrice || 0),
         sku: item.Sku || "",
-        fullName: item.FullyQualifiedName || name,
+        fullName,
+        qbId: item.Id || "",
+        syncToken: item.SyncToken || "",
       };
+      itemInfoMap[name] = entry;
+      if (fullName && fullName !== name) itemInfoMap[fullName] = entry;
     }
 
     // ── 3. Process Bills — only paid (Balance = 0) ──
@@ -215,9 +224,9 @@ export async function POST() {
     // Second: ALL remaining QB items that had no bill history — so user can see full inventory
     for (const item of qbItems) {
       const name = item.Name || "";
-      if (!name || costSummary[name]) continue; // skip if already have bill data
-
       const fullName = item.FullyQualifiedName || name;
+      // Skip if already captured under either the short name or full path
+      if (!name || costSummary[name] || costSummary[fullName]) continue;
       const purchaseCost = Number(item.PurchaseCost || 0);
       const salePrice = Number(item.UnitPrice || 0);
       const margin = salePrice > 0 && purchaseCost > 0
