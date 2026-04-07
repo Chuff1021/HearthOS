@@ -261,14 +261,24 @@ export class QuickBooksClient {
   }
 
   // Fetch the current item, merge the update, and POST back with sparse:true.
-  // Matching the same pattern as updateCustomer / updateInvoice so the
-  // SyncToken is always fresh and all required fields are present.
+  // Same pattern as updateCustomer / updateInvoice.
   async updateItem(id: string, updates: Record<string, unknown>): Promise<QBItem> {
     const existing = await this.getItem(id);
     const response = await this.request<{ Item: QBItem }>(
       'POST',
       '/item',
       { ...existing, ...updates, Id: id, sparse: true }
+    );
+    return response.Item;
+  }
+
+  // POST an update using an already-fetched fresh item — avoids a second getItem call.
+  // The caller must pass a freshly fetched QB Item object (with current SyncToken).
+  async patchItem(freshItem: Record<string, unknown>, updates: Record<string, unknown>): Promise<QBItem> {
+    const response = await this.request<{ Item: QBItem }>(
+      'POST',
+      '/item',
+      { ...freshItem, ...updates, Id: freshItem.Id, sparse: true }
     );
     return response.Item;
   }

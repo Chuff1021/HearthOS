@@ -19,7 +19,6 @@ async function getClientWithRefresh() {
     try {
       return await fn(client);
     } catch {
-      // Token expired — refresh once and retry
       const tokens = await client.refreshAccessToken();
       token = tokens.access_token;
       refresh = tokens.refresh_token;
@@ -37,7 +36,7 @@ async function getClientWithRefresh() {
   return { run };
 }
 
-// Paginate through ALL active QB Items — no hard 1000-item cap
+// Paginate through ALL active QB Items — no hard cap
 async function fetchAllQBItems(
   run: <T>(fn: (c: any) => Promise<T>) => Promise<T>
 ): Promise<any[]> {
@@ -58,10 +57,9 @@ async function fetchAllQBItems(
   return all;
 }
 
-// Extract a readable message from a QB API error thrown by the client
+// Parse QB Fault JSON out of a thrown client error
 function readQBError(e: any): string {
   const raw = String(e?.message || e);
-  // The client wraps QB errors as: "QuickBooks API error: {JSON}"
   const jsonStart = raw.indexOf("{");
   if (jsonStart !== -1) {
     try {
@@ -76,8 +74,6 @@ function readQBError(e: any): string {
   return raw.slice(0, 400);
 }
 
-// POST — update QB PurchaseCost for selected items
-// Body: { items?: string[] }  — if omitted, updates all where qbCurrentCost === 0
 export async function POST(request: NextRequest) {
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database" }, { status: 500 });
@@ -88,7 +84,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const specificItems: string[] | null = Array.isArray(body.items) ? body.items : null;
 
-    // Load cost history from DB
+    // Load stored cost history
     const rows = await sql`
       SELECT data FROM estimator_knowledge WHERE id = ${"cost-history"}
     `;
@@ -116,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     const { run } = await getClientWithRefresh();
 
-    // Fetch ALL QB items (paginated) to build name → QB ID map
+    // Fetch ALL QB items (paginated) to build the name → ID map
     let qbItems: any[] = [];
     try {
       qbItems = await fetchAllQBItems(run);
@@ -128,53 +124,136 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Index by both short Name AND FullyQualifiedName so we match
-    // regardless of whether the bill line used the short or full path
-    const qbItemMap: Record<string, string> = {}; // name → QB Id
-    for (const item of qbItems) {
-      const name = (item.Name || "").trim();
-      const fullName = (item.FullyQualifiedName || name).trim();
-      if (name) qbItemMap[name] = item.Id;
-      if (fullName && fullName !== name) qbItemMap[fullName] = item.Id;
+    // Index by both short Name AND FullyQualifiedName
+    const qbItemMap: Record<string, string> = {};
+    for (const qi of qbItems) {
+      const n = (qi.Name || "").trim();
+      const fn = (qi.FullyQualifiedName || n).trim();
+      if (n) qbItemMap[n] = qi.Id;
+      if (fn && fn !== n) qbItemMap[fn] = qi.Id;
     }
 
-    const results: Array<{ name: string; cost: number; ok: boolean; error?: string }> = [];
+    // ─────────────────────────────────────────────────────────────────────────
+    // Key insight: QB only stores PurchaseCost if the item has ExpenseAccountRef
+    // set (i.e. "I purchase this from a vendor" is checked in QB).
+    // If ExpenseAccountRef is missing, QB accepts the API call (200 OK) but
+    // silently ignores PurchaseCost — which is why the pull shows the same items
+    // again.
+    //
+    // Fix: find the ExpenseAccountRef used by items in the same category that
+    // already have purchase costs configured. Use that as the default when the
+    // target item is missing it. This is safe because we're borrowing an account
+    // that's already in use for the same type of product in their own catalog.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Build: category → most common ExpenseAccountRef among items with a cost set
+    const categoryAccountMap: Record<string, { ref: any; count: number }> = {};
+    let globalBestRef: any = null;
+    let globalBestCount = 0;
+
+    for (const qi of qbItems) {
+      if (!qi.ExpenseAccountRef) continue;
+      if (Number(qi.PurchaseCost || 0) <= 0) continue;
+
+      const cat = (qi.FullyQualifiedName || qi.Name || "").split(":")[0].trim();
+      const refKey = qi.ExpenseAccountRef.value;
+
+      if (!categoryAccountMap[cat]) {
+        categoryAccountMap[cat] = { ref: qi.ExpenseAccountRef, count: 0 };
+      }
+      // Keep the most frequent one per category
+      if (categoryAccountMap[cat].ref.value === refKey) {
+        categoryAccountMap[cat].count++;
+      } else if (categoryAccountMap[cat].count === 0) {
+        categoryAccountMap[cat] = { ref: qi.ExpenseAccountRef, count: 1 };
+      }
+
+      // Track global fallback
+      if (categoryAccountMap[cat].count > globalBestCount) {
+        globalBestCount = categoryAccountMap[cat].count;
+        globalBestRef = qi.ExpenseAccountRef;
+      }
+    }
+
+    const results: Array<{
+      name: string;
+      cost: number;
+      ok: boolean;
+      error?: string;
+      skipped?: boolean;
+    }> = [];
 
     for (const item of toUpdate) {
-      const qbId = qbItemMap[item.name] || qbItemMap[(item.fullName || "").trim()];
+      const qbId =
+        qbItemMap[item.name] ||
+        qbItemMap[(item.fullName || "").trim()];
 
       if (!qbId) {
         results.push({
           name: item.name,
           cost: 0,
           ok: false,
-          error: `Not found in QB (searched ${qbItems.length} active items by Name and FullyQualifiedName)`,
+          error: `Not found in QB catalog (${qbItems.length} items checked)`,
         });
         continue;
       }
 
-      // Use the most recent actual price paid; fall back to average
       const costToSet = Number(
         (item.mostRecentCost > 0 ? item.mostRecentCost : item.avgCost).toFixed(2)
       );
 
-      // client.updateItem():
-      //   1. Fetches the full item fresh from QB → guaranteed current SyncToken
-      //   2. Merges our change into the full object
-      //   3. POSTs back with sparse:true
-      // This is identical to how updateCustomer / updateInvoice work.
+      // Fetch the item fresh — guaranteed current SyncToken, full field set
+      let freshItem: any;
       try {
-        await run((c) => c.updateItem(qbId, { PurchaseCost: costToSet }));
+        freshItem = await run((c) => c.getItem(qbId));
+      } catch (e: any) {
+        results.push({
+          name: item.name,
+          cost: costToSet,
+          ok: false,
+          error: `Could not read item from QB: ${readQBError(e)}`,
+        });
+        continue;
+      }
 
-        results.push({ name: item.name, cost: costToSet, ok: true });
+      // QB Category items cannot have purchase costs — skip them
+      if (freshItem.Type === "Category") {
+        results.push({
+          name: item.name,
+          cost: costToSet,
+          ok: false,
+          skipped: true,
+          error: "QB Category items cannot have a purchase cost",
+        });
+        continue;
+      }
 
-        // Reflect in local cost history so the page refreshes accurately
-        costHistory[item.name] = {
-          ...costHistory[item.name],
-          qbCurrentCost: costToSet,
-          variance: 0,
-          variancePct: 0,
-        };
+      // Build the update payload
+      const updatePayload: Record<string, unknown> = {
+        PurchaseCost: costToSet,
+      };
+
+      // If the item has no ExpenseAccountRef, QB will silently ignore PurchaseCost.
+      // Set one from the same category, or fall back to the global most-common one.
+      if (!freshItem.ExpenseAccountRef) {
+        const itemCat = (freshItem.FullyQualifiedName || freshItem.Name || "")
+          .split(":")[0]
+          .trim();
+        const catRef = categoryAccountMap[itemCat]?.ref || globalBestRef;
+        if (catRef) {
+          updatePayload.ExpenseAccountRef = catRef;
+        }
+        // If we have no reference at all we'll still try — QB may handle it
+      }
+
+      // POST the update using the fresh item we already have.
+      // patchItem spreads the full QB object so SyncToken and all required fields
+      // are present — no second round-trip to getItem.
+      let updatedItem: any;
+      try {
+        updatedItem = await run((c) =>
+          c.patchItem(freshItem, updatePayload)
+        );
       } catch (e: any) {
         results.push({
           name: item.name,
@@ -182,10 +261,45 @@ export async function POST(request: NextRequest) {
           ok: false,
           error: readQBError(e),
         });
+        continue;
       }
+
+      // ── Verify QB actually stored the new cost ──────────────────────────────
+      // QB silently ignores PurchaseCost if the item isn't set up as purchasable.
+      // The only way to know is to check the value QB echoes back in the response.
+      const storedCost = Number((updatedItem as any).PurchaseCost || 0);
+      const tolerance = 0.02;
+
+      if (Math.abs(storedCost - costToSet) > tolerance) {
+        // QB returned a different value — it didn't persist our change
+        const hint = !freshItem.ExpenseAccountRef && !updatePayload.ExpenseAccountRef
+          ? " No expense account could be found to assign — open this item in QB and enable 'I purchase this product/service from a vendor'."
+          : " QB did not save the cost despite the update succeeding — check the item's purchase settings in QB.";
+        results.push({
+          name: item.name,
+          cost: costToSet,
+          ok: false,
+          error: `QB stored $${storedCost.toFixed(2)} instead of $${costToSet.toFixed(2)}.${hint}`,
+        });
+        continue;
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
+      results.push({ name: item.name, cost: costToSet, ok: true });
+
+      // Update local cost history to match what QB now holds
+      costHistory[item.name] = {
+        ...costHistory[item.name],
+        qbCurrentCost: storedCost,
+        variance: Number((item.avgCost - storedCost).toFixed(2)),
+        variancePct:
+          storedCost > 0
+            ? Number((((item.avgCost - storedCost) / storedCost) * 100).toFixed(1))
+            : null,
+      };
     }
 
-    // Persist updated cost history back to DB
+    // Save updated cost history
     await sql`
       UPDATE estimator_knowledge
       SET data = ${JSON.stringify(costHistory)}::jsonb, updated_at = now()

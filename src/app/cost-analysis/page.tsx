@@ -334,66 +334,97 @@ export default function CostAnalysisPage() {
 
           {/* No QB cost — update button */}
           {stats.noQbCost > 0 && (
-            <div className="mb-5 px-4 py-3 rounded-lg flex items-start justify-between gap-4 flex-wrap"
-              style={{ background: "rgba(147,51,234,0.08)", border: "1px solid rgba(147,51,234,0.25)" }}>
-              <div>
-                <div className="text-sm font-semibold mb-0.5" style={{ color: "#9333EA" }}>
-                  {stats.noQbCost} item{stats.noQbCost !== 1 ? "s" : ""} have no cost set in QuickBooks
-                </div>
-                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  Will be set to the most recent price paid on a vendor bill.
-                </div>
-                {updateResult && (
-                  <div className="mt-2 text-xs">
-                    {updateResult.error
-                      ? <span style={{ color: "#DC2626" }}>{updateResult.error}</span>
-                      : <span style={{ color: "#16A34A", fontWeight: 600 }}>{updateResult.updated} item{updateResult.updated !== 1 ? "s" : ""} updated in QB{updateResult.failed > 0 ? ` · ${updateResult.failed} failed` : ""}</span>
-                    }
+            <div className="mb-5 rounded-lg overflow-hidden"
+              style={{ border: "1px solid rgba(147,51,234,0.25)" }}>
+              <div className="px-4 py-3 flex items-start justify-between gap-4 flex-wrap"
+                style={{ background: "rgba(147,51,234,0.08)" }}>
+                <div>
+                  <div className="text-sm font-semibold mb-0.5" style={{ color: "#9333EA" }}>
+                    {stats.noQbCost} item{stats.noQbCost !== 1 ? "s" : ""} have no cost set in QuickBooks
                   </div>
-                )}
+                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    Will be set to the most recent price paid on a vendor bill.
+                  </div>
+                  {updateResult && !updating && (
+                    <div className="mt-1 text-xs font-semibold">
+                      {updateResult.error
+                        ? <span style={{ color: "#DC2626" }}>{updateResult.error}</span>
+                        : <>
+                            {updateResult.updated > 0 && <span style={{ color: "#16A34A" }}>{updateResult.updated} updated in QB · </span>}
+                            {updateResult.failed > 0 && <span style={{ color: "#DC2626" }}>{updateResult.failed} failed — see details below</span>}
+                          </>
+                      }
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setUpdateResult(null); updateNoCostItems(); }}
+                  disabled={updating}
+                  className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
+                  style={{ background: updating ? "var(--color-surface-2)" : "#9333EA", color: "#fff", opacity: updating ? 0.6 : 1 }}
+                >
+                  {updating ? "Updating QB..." : `Update ${stats.noQbCost} Item${stats.noQbCost !== 1 ? "s" : ""} in QB`}
+                </button>
               </div>
-              <button
-                onClick={updateNoCostItems}
-                disabled={updating}
-                className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
-                style={{ background: updating ? "var(--color-surface-2)" : "#9333EA", color: "#fff", opacity: updating ? 0.6 : 1 }}
-              >
-                {updating ? "Updating QB..." : `Update ${stats.noQbCost} Item${stats.noQbCost !== 1 ? "s" : ""} in QB`}
-              </button>
+              {updateResult && !updating && updateResult.results?.filter((r: any) => !r.ok).length > 0 && (
+                <div className="px-4 py-3 space-y-1.5" style={{ background: "rgba(147,51,234,0.04)", borderTop: "1px solid rgba(147,51,234,0.15)" }}>
+                  <div className="text-xs font-bold mb-2" style={{ color: "#9333EA" }}>Failed items — why QB rejected them:</div>
+                  {updateResult.results.filter((r: any) => !r.ok).map((r: any) => (
+                    <div key={r.name} className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      <span className="font-semibold" style={{ color: "var(--color-text)" }}>{r.name}</span>
+                      {" — "}{r.error || "Unknown error"}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Critical / High bulk update banner */}
           {stats.critical + stats.high > 0 && (
-            <div className="mb-5 px-4 py-3 rounded-lg flex items-start justify-between gap-4 flex-wrap"
-              style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.25)" }}>
-              <div>
-                <div className="text-sm font-semibold mb-0.5" style={{ color: "#DC2626" }}>
-                  {stats.critical + stats.high} item{stats.critical + stats.high !== 1 ? "s" : ""} where QB cost is significantly understated (Critical + High)
-                </div>
-                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  Will update QB PurchaseCost to the average price you actually paid on vendor bills.
-                </div>
-                {updateResult && updating === false && updateResult.results?.some((r: any) => r.ok) && (
-                  <div className="mt-1 text-xs" style={{ color: "#16A34A", fontWeight: 600 }}>
-                    {updateResult.updated} item{updateResult.updated !== 1 ? "s" : ""} updated in QB
-                    {updateResult.failed > 0 && <span style={{ color: "#D97706" }}> · {updateResult.failed} failed</span>}
+            <div className="mb-5 rounded-lg overflow-hidden"
+              style={{ border: "1px solid rgba(220,38,38,0.25)" }}>
+              <div className="px-4 py-3 flex items-start justify-between gap-4 flex-wrap"
+                style={{ background: "rgba(220,38,38,0.07)" }}>
+                <div>
+                  <div className="text-sm font-semibold mb-0.5" style={{ color: "#DC2626" }}>
+                    {stats.critical + stats.high} item{stats.critical + stats.high !== 1 ? "s" : ""} where QB cost is significantly understated (Critical + High)
                   </div>
-                )}
+                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    Will update QB PurchaseCost to the average price actually paid on vendor bills.
+                  </div>
+                  {updateResult && !updating && (
+                    <div className="mt-1 text-xs font-semibold">
+                      {updateResult.updated > 0 && <span style={{ color: "#16A34A" }}>{updateResult.updated} updated in QB · </span>}
+                      {updateResult.failed > 0 && <span style={{ color: "#DC2626" }}>{updateResult.failed} failed — see details below</span>}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setUpdateResult(null);
+                    const names = items.filter((i) => statusInfo(i).priority <= 2).map((i) => i.name);
+                    updateItems(names);
+                  }}
+                  disabled={updating}
+                  className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
+                  style={{ background: updating ? "var(--color-surface-2)" : "#DC2626", color: "#fff", opacity: updating ? 0.6 : 1 }}
+                >
+                  {updating ? "Updating QB..." : `Update ${stats.critical + stats.high} Item${stats.critical + stats.high !== 1 ? "s" : ""} in QB`}
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  const names = items
-                    .filter((i) => statusInfo(i).priority <= 2) // critical + high
-                    .map((i) => i.name);
-                  updateItems(names);
-                }}
-                disabled={updating}
-                className="px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
-                style={{ background: updating ? "var(--color-surface-2)" : "#DC2626", color: "#fff", opacity: updating ? 0.6 : 1 }}
-              >
-                {updating ? "Updating QB..." : `Update ${stats.critical + stats.high} Item${stats.critical + stats.high !== 1 ? "s" : ""} in QB`}
-              </button>
+              {/* Failed items detail */}
+              {updateResult && !updating && updateResult.results?.filter((r: any) => !r.ok).length > 0 && (
+                <div className="px-4 py-3 space-y-1.5" style={{ background: "rgba(220,38,38,0.04)", borderTop: "1px solid rgba(220,38,38,0.15)" }}>
+                  <div className="text-xs font-bold mb-2" style={{ color: "#DC2626" }}>Failed items — why QB rejected them:</div>
+                  {updateResult.results.filter((r: any) => !r.ok).map((r: any) => (
+                    <div key={r.name} className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      <span className="font-semibold" style={{ color: "var(--color-text)" }}>{r.name}</span>
+                      {" — "}{r.error || "Unknown error"}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
