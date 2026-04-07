@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     // Load pricing summary and install type guide — these are always populated
     let pricingSummary: Record<string, any> = {};
     let installTypeGuide: Record<string, string[]> = {};
+    let patterns: any[] = [];
     try {
-      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"pricing"}, ${"install-types"})`;
+      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"pricing"}, ${"install-types"}, ${"patterns"})`;
       for (const row of rows) {
         if (row.id === "pricing") {
           pricingSummary = (typeof row.data === "string" ? JSON.parse(row.data) : row.data) as Record<string, any>;
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
         if (row.id === "install-types") {
           const raw = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
           installTypeGuide = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, string[]>;
+        }
+        if (row.id === "patterns") {
+          patterns = (typeof row.data === "string" ? JSON.parse(row.data) : row.data) as any[];
         }
       }
     } catch {}
@@ -46,6 +50,7 @@ export async function POST(request: NextRequest) {
     const isService = /\b(clean|service|inspect|repair)\b/i.test(prompt);
     const mentionsStone = /\bstone\b|\bveneer\b|\bmasonry\b/.test(prompt.toLowerCase());
     const mentionsMantel = /\bmantel\b|\bmantle\b/.test(prompt.toLowerCase());
+    const isChasecover = /chase\s*cover/i.test(prompt);
 
     const installType = isHorizontal ? "horizontal"
       : isInsert ? "insert"
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
       "vertical", "horizontal", "insert", "install", "installation",
       "feet", "foot", "ft", "pipe", "with", "and", "the", "for", "of", "a",
       "service", "repair", "clean", "replace", "new",
+      "chase", "cover", "delivers", "flashing",
     ]);
     const rawTokens = prompt.toLowerCase().replace(/[-\/\\:]/g, " ").split(/\s+/);
     const searchWords: string[] = [];
@@ -82,6 +88,16 @@ export async function POST(request: NextRequest) {
       const nameLower = (item.name || "").toLowerCase();
       if (nameLower.includes("users charge") || nameLower.includes("sales tax")) return { item, score: 0 };
       if (nameLower.includes("services:") || nameLower.startsWith("services")) return { item, score: 0 };
+      // Skip components/accessories — these can never be the main fireplace unit
+      if (nameLower.includes("pipe") || nameLower.includes("chase") || nameLower.includes("flashing") ||
+          nameLower.includes("cap") || nameLower.includes("flex kit") || nameLower.includes("termination") ||
+          nameLower.includes("firestop") || nameLower.includes("liner") || nameLower.includes("gasket") ||
+          nameLower.includes("connector") || nameLower.includes("bracket") || nameLower.includes("trim")) {
+        return { item, score: 0 };
+      }
+      // Must cost at least $800 to be a fireplace unit
+      const itemPrice = item.mostRecentPrice || item.avgPrice || 0;
+      if (itemPrice < 800) return { item, score: 0 };
       return { item, score };
     }).filter(s => s.score > 0).sort((a, b) => {
       // Primary: score; tiebreak: higher price = more likely a fireplace unit
@@ -90,6 +106,20 @@ export async function POST(request: NextRequest) {
     });
 
     const matchedUnit = scoredUnits[0]?.item || null;
+
+    // ── Find source invoices that included this fireplace unit ──
+    const sourceInvoices = matchedUnit
+      ? patterns
+          .filter((p: any) => (p.items || []).some((line: string) => line.startsWith(matchedUnit.name + ":")))
+          .slice(0, 8)
+          .map((p: any) => ({
+            docNumber: p.docNumber,
+            customer: p.customer,
+            date: p.date,
+            total: p.total,
+            type: p.type,
+          }))
+      : [];
 
     // ── Build component list from the matched unit's own invoice history ──
     // Use commonlyWith: items that actually appeared WITH this fireplace on real invoices
@@ -102,21 +132,32 @@ export async function POST(request: NextRequest) {
       .map((name: string) => {
         const p = pricingSummary[name];
         if (!p) return null;
-        const price = p.mostRecentPrice || p.avgPrice || 0;
-        if (price === 0) return null;
         const nameLower = name.toLowerCase();
+        const isLabor = /services?[:/]|install|labor|clean|repair/i.test(nameLower);
+        // Use average for labor (varies by job), most recent for parts (price changes over time)
+        const price = isLabor ? (p.avgPrice || p.mostRecentPrice || 0) : (p.mostRecentPrice || p.avgPrice || 0);
+        if (price === 0) return null;
         if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer") || nameLower.includes("masonry"))) return null;
         if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) return null;
+        // When chase cover is used, skip flashing — the chase cover replaces it
+        if (isChasecover && nameLower.includes("flashing")) return null;
         const desc = p.description ? ` | ${p.description}` : "";
-        return `${name}${desc} | $${price} each | qty typically ${p.avgQty}`;
+        const priceLabel = isLabor ? `avg $${price} across ${p.timesUsed} past jobs` : `$${price} each`;
+        return `${name}${desc} | ${priceLabel} | qty typically ${p.avgQty}`;
       })
       .filter(Boolean)
       .slice(0, 20)
       .join("\n");
 
+    // Chase cover: fixed $650 line, injected after components are built
+    const chaseCoverLine = isChasecover
+      ? `Chase Cover | Chase Cover | $650 each | qty typically 1`
+      : null;
+
     // ── Build the AI prompt ──
+    const unitPartNumber = matchedUnit?.sku || matchedUnit?.name || "";
     const unitLine = matchedUnit
-      ? `Fireplace unit: ${matchedUnit.name} | $${matchedUnit.mostRecentPrice || matchedUnit.avgPrice} each`
+      ? `Fireplace unit: ${matchedUnit.name}${matchedUnit.sku ? ` | SKU/Part#: ${matchedUnit.sku}` : ""} | $${matchedUnit.mostRecentPrice || matchedUnit.avgPrice} each`
       : `(No specific unit matched — use best judgment for the ${installType} fireplace)`;
 
     const aiPrompt = `You are building a fireplace installation estimate for Aaron's Fireplace Company.
@@ -128,16 +169,20 @@ ${unitLine}
 
 ${installType.toUpperCase()} INSTALL COMPONENTS (from past jobs, real prices):
 ${componentLines}
+${chaseCoverLine ? chaseCoverLine : ""}
 
 RULES — read carefully:
 - Use part numbers EXACTLY as shown above. Do NOT invent new part numbers.
-- The partNumber field must be the exact QB name from the list (e.g. "Gas Pipe Simpson:46DVA-12")
-- The description field must be the human-readable label shown after the | separator (e.g. "Simpson 6\" Straight Pipe 12\""). If no label is shown, use the last segment of the part number.
+- Use the EXACT prices shown above. Do NOT change, round, or estimate any price — copy the number exactly.
+- The partNumber field for the FIREPLACE UNIT must be its SKU/Part# if shown (e.g. "GRND36"); otherwise use the QB name exactly.
+- The partNumber field for all OTHER items must be the exact QB name from the list (e.g. "Gas Pipe Simpson:46DVA-12")
+- The description field must be the human-readable label shown after the | separator. If no label is shown, use the last segment of the part number.
 ${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet total (split across pipe sections as needed)` : "- Use typical pipe quantity for this install"}
 ${isHorizontal ? "- HORIZONTAL install: use flex kit / wall termination components, not vertical straight pipe" : ""}
-- Add a line: Users Charge = 3.5% of subtotal (all other items combined)
+- Add a line: Users Charge = 4.22% of the materials subtotal ONLY (exclude any labor, install, or service line items from the base)
 - Include the fireplace unit as the first line item
 - Only include items listed above
+${isChasecover ? "- Include Chase Cover at exactly $650 (already listed above). Do NOT include flashing." : ""}
 ${!mentionsStone ? "- Do NOT include stone, veneer, or masonry items" : ""}
 ${!mentionsMantel ? "- Do NOT include mantel items" : ""}
 
@@ -182,7 +227,7 @@ Return ONLY valid JSON, no markdown:
       if (matchedUnit) {
         fallbackLines.push({
           description: matchedUnit.name.split(":").pop() || matchedUnit.name,
-          partNumber: matchedUnit.name,
+          partNumber: matchedUnit.sku || matchedUnit.name,
           quantity: 1,
           unitPrice: matchedUnit.mostRecentPrice || matchedUnit.avgPrice,
           total: matchedUnit.mostRecentPrice || matchedUnit.avgPrice,
@@ -195,9 +240,11 @@ Return ONLY valid JSON, no markdown:
         if (nameLower.includes("users charge") || nameLower.includes("sales tax")) continue;
         if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer"))) continue;
         if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) continue;
+        if (isChasecover && nameLower.includes("flashing")) continue;
         const isPipe = /\bpipe\b/i.test(name);
         const qty = isPipe && pipeFeet ? pipeFeet : Math.round(p.avgQty || 1);
-        const price = p.mostRecentPrice || p.avgPrice;
+        const isLabor = /services?[:/]|install|labor|clean|repair/i.test(nameLower);
+        const price = isLabor ? (p.avgPrice || p.mostRecentPrice) : (p.mostRecentPrice || p.avgPrice);
         fallbackLines.push({
           description: p.description || name.split(":").pop() || name,
           partNumber: name,
@@ -206,8 +253,13 @@ Return ONLY valid JSON, no markdown:
           total: Number((qty * price).toFixed(2)),
         });
       }
-      const subtotal = fallbackLines.reduce((s, l) => s + l.total, 0);
-      const uc = Number((subtotal * 0.035).toFixed(2));
+      if (isChasecover) {
+        fallbackLines.push({ description: "Chase Cover", partNumber: "Chase Cover", quantity: 1, unitPrice: 650, total: 650 });
+      }
+      const materialsSubtotal = fallbackLines
+        .filter((l: any) => !/(services?[:\/]|install|labor|clean|repair)/i.test(l.partNumber || ""))
+        .reduce((s: number, l: any) => s + l.total, 0);
+      const uc = Number((materialsSubtotal * 0.0422).toFixed(2));
       fallbackLines.push({ description: "Users Charge", partNumber: "Users Charge", quantity: 1, unitPrice: uc, total: uc });
       result = { lineItems: fallbackLines, notes: `Built from ${installType} install history.` };
     }
@@ -218,6 +270,7 @@ Return ONLY valid JSON, no markdown:
       basedOnInvoices: matchedUnit?.timesUsed || 0,
       catalogMatch: Boolean(matchedUnit),
       usingConsensus: false,
+      sourceInvoices,
     });
 
   } catch (err) {

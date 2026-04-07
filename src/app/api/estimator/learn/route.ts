@@ -24,14 +24,14 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
-    // Skip if catalog already has model names — it's been built and doesn't need to run again
+    // Skip if pricing already has sku data (means QB Items were fetched)
     try {
-      const existing = await sql`SELECT data FROM estimator_knowledge WHERE id = ${"product-catalog"} LIMIT 1`;
+      const existing = await sql`SELECT data FROM estimator_knowledge WHERE id = ${"pricing"} LIMIT 1`;
       if (existing.length > 0) {
-        const products = Object.values(existing[0].data as Record<string, any>);
-        if (products.length > 0 && (products[0] as any)?.modelName) {
+        const items = Object.values(existing[0].data as Record<string, any>);
+        if (items.length > 0 && "sku" in (items[0] as any)) {
           await sql.end();
-          return NextResponse.json({ success: true, skipped: true, message: "Catalog already built" });
+          return NextResponse.json({ success: true, skipped: true, message: "Catalog already built with SKUs" });
         }
       }
     } catch {}
@@ -67,6 +67,20 @@ export async function POST(request: NextRequest) {
         estimates = await (client as any).getEstimates();
       }
     }
+
+    // Fetch QB Items to get real SKU/part numbers
+    const itemSkuMap: Record<string, string> = {};
+    const itemFullNameMap: Record<string, string> = {};
+    try {
+      const qbItems = await (client as any).queryAll("SELECT * FROM Item WHERE Active = true");
+      for (const item of qbItems) {
+        const name = item.Name || "";
+        if (name) {
+          itemSkuMap[name] = item.Sku || "";
+          itemFullNameMap[name] = item.FullyQualifiedName || name;
+        }
+      }
+    } catch {}
 
     // Combine — invoices first (primary truth), then estimates
     const allTransactions = [
@@ -178,6 +192,8 @@ export async function POST(request: NextRequest) {
       if (prices.length === 0) continue;
       pricingSummary[name] = {
         name: data.name,
+        sku: itemSkuMap[name] || "",
+        fullName: itemFullNameMap[name] || name,
         description: data.descriptions[0] || "",
         avgPrice: Number((prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2)),
         minPrice: Math.min(...prices),

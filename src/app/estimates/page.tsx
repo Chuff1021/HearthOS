@@ -63,7 +63,7 @@ export default function EstimatesPage() {
 
   const [prompt, setPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string } | null>(null);
+  const [aiMatchInfo, setAiMatchInfo] = useState<{ matchedProduct: string; basedOnInvoices: number; notes?: string; sourceInvoices?: Array<{ docNumber: string; customer: string; date: string; total: number; type: string }> } | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -416,6 +416,7 @@ export default function EstimatesPage() {
             matchedProduct: data.matchedProduct,
             basedOnInvoices: data.basedOnInvoices || 1,
             notes: data.notes,
+            sourceInvoices: data.sourceInvoices || [],
           });
         }
         if (data.matchCount === 0) setError("No matching products found. Try using the model name (e.g. '42 Apex', '36 Elite').");
@@ -613,10 +614,26 @@ export default function EstimatesPage() {
               </div>
 
               {aiMatchInfo && (
-                <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)" }}>
-                  <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
-                  <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
-                  {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
+                <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid rgba(37,99,235,0.2)" }}>
+                  <div className="px-3 py-2 text-xs" style={{ background: "rgba(37,99,235,0.08)" }}>
+                    <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
+                    <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
+                    {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
+                  </div>
+                  {aiMatchInfo.sourceInvoices && aiMatchInfo.sourceInvoices.length > 0 && (
+                    <div className="px-3 py-2" style={{ background: "rgba(37,99,235,0.04)", borderTop: "1px solid rgba(37,99,235,0.15)" }}>
+                      <div className="text-xs font-semibold mb-1.5" style={{ color: "#2563EB" }}>Invoices used to build this estimate</div>
+                      <div className="grid gap-1">
+                        {aiMatchInfo.sourceInvoices.map((inv, i) => (
+                          <div key={i} className="grid text-xs" style={{ gridTemplateColumns: "80px 1fr 80px", gap: "8px", color: "var(--color-text-muted)" }}>
+                            <span className="font-mono font-semibold" style={{ color: "var(--color-text)" }}>#{inv.docNumber}</span>
+                            <span className="truncate">{inv.customer}</span>
+                            <span className="text-right">{inv.date ? new Date(inv.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
