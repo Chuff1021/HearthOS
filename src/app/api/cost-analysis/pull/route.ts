@@ -150,7 +150,8 @@ export async function POST() {
         if (line.DetailType === "ItemBasedExpenseLineDetail") {
           const detail = line.ItemBasedExpenseLineDetail || {};
           const name = detail.ItemRef?.name || "";
-          if (!name) continue;
+          // QB appends "(deleted)" to names of deleted items — skip them, they're not in the active catalog
+          if (!name || name.includes("(deleted)")) continue;
           const unitCost = Number(detail.UnitPrice || 0);
           const qty = Number(detail.Qty || 1);
           if (unitCost <= 0) continue;
@@ -179,9 +180,10 @@ export async function POST() {
     // ── 4. Build cost summary with variance vs QB PurchaseCost ──
     const costSummary: Record<string, any> = {};
 
-    // First: items found in paid bills
+    // First: items found in paid bills (skip deleted items — already filtered above, but belt-and-suspenders)
     for (const [name, data] of Object.entries(rawHistory)) {
       if (data.costs.length === 0) continue;
+      if (name.includes("(deleted)")) continue;
 
       const avgCost = Number(
         (data.costs.reduce((a, b) => a + b, 0) / data.costs.length).toFixed(2)
@@ -225,8 +227,9 @@ export async function POST() {
     for (const item of qbItems) {
       const name = item.Name || "";
       const fullName = item.FullyQualifiedName || name;
-      // Skip if already captured under either the short name or full path
-      if (!name || costSummary[name] || costSummary[fullName]) continue;
+      // Skip categories (no costs possible), deleted items, and items already captured
+      if (!name || item.Type === "Category" || name.includes("(deleted)")) continue;
+      if (costSummary[name] || costSummary[fullName]) continue;
       const purchaseCost = Number(item.PurchaseCost || 0);
       const salePrice = Number(item.UnitPrice || 0);
       const margin = salePrice > 0 && purchaseCost > 0

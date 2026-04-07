@@ -99,8 +99,10 @@ export async function POST(request: NextRequest) {
     const costHistory: Record<string, any> =
       typeof rows[0].data === "string" ? JSON.parse(rows[0].data) : rows[0].data;
 
-    // Determine which items to update
+    // Determine which items to update — exclude deleted items (QB name contains "(deleted)")
+    // and any item that has no actual cost data to push
     const toUpdate = Object.values(costHistory).filter((item: any) => {
+      if (item.name?.includes("(deleted)")) return false;
       if (specificItems) return specificItems.includes(item.name);
       return item.qbCurrentCost === 0 && item.avgCost > 0;
     });
