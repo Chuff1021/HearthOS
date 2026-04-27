@@ -434,7 +434,7 @@ export const vendors = pgTable('vendors', {
   addressLine1: text('address_line1'),
   addressLine2: text('address_line2'),
   city: varchar('city', { length: 100 }),
-  state: varchar('state', { length: 2 }),
+  state: varchar('state', { length: 50 }),
   zip: varchar('zip', { length: 10 }),
   accountNumber: varchar('account_number', { length: 100 }),
   taxId: varchar('tax_id', { length: 50 }),
