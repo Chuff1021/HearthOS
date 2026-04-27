@@ -372,6 +372,7 @@ export const payments = pgTable('payments', {
 }, (table) => ({
   orgIdx: index('idx_payments_org_id').on(table.orgId),
   invoiceIdx: index('idx_payments_invoice_id').on(table.invoiceId),
+  qbInvoiceUnique: uniqueIndex('payments_qb_payment_invoice_unique').on(table.qbPaymentId, table.invoiceId),
 }));
 
 // Service Plans (recurring service contracts)
@@ -398,7 +399,7 @@ export const servicePlans = pgTable('service_plans', {
 export const inventoryItems = pgTable('inventory_items', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  qbItemId: varchar('qb_item_id', { length: 50 }), // QuickBooks Item.Id
+  qbItemId: varchar('qb_item_id', { length: 50 }).unique(), // QuickBooks Item.Id
   name: varchar('name', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 100 }),
   description: text('description'),

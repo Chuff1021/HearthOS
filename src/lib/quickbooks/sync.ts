@@ -26,7 +26,7 @@ import {
   bills,
   billLineItems,
 } from '@/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 // In-memory sync status (in production, use database)
@@ -134,12 +134,11 @@ function splitName(displayName: string | undefined): [string, string] {
 }
 
 export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustomer[]): Promise<number> {
-  let written = 0;
   const now = new Date();
-  for (const c of qbCustomers) {
-    if (!c.Id) continue;
+  const rows = qbCustomers.flatMap((c) => {
+    if (!c.Id) return [];
     const [fallbackFirst, fallbackLast] = splitName(c.DisplayName);
-    const values = {
+    return [{
       orgId,
       qbCustomerId: c.Id,
       firstName: c.GivenName || fallbackFirst || c.DisplayName || 'Unknown',
@@ -151,45 +150,38 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
       isActive: c.Active !== false,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
+
+  let written = 0;
+  for (const part of chunk(rows, 500)) {
     try {
-      await db
-        .insert(customers)
-        .values(values)
-        .onConflictDoUpdate({
-          target: customers.qbCustomerId,
-          set: {
-            firstName: values.firstName,
-            lastName: values.lastName,
-            companyName: values.companyName,
-            email: values.email,
-            phone: values.phone,
-            isActive: values.isActive,
-            lastSyncedAt: now,
-            updatedAt: now,
-          },
-        });
-      written++;
+      const ret = await db.insert(customers).values(part).onConflictDoUpdate({
+        target: customers.qbCustomerId,
+        set: {
+          firstName: sql`excluded.first_name`,
+          lastName: sql`excluded.last_name`,
+          companyName: sql`excluded.company_name`,
+          email: sql`excluded.email`,
+          phone: sql`excluded.phone`,
+          isActive: sql`excluded.is_active`,
+          lastSyncedAt: now,
+          updatedAt: now,
+        },
+      }).returning({ id: customers.id });
+      written += ret.length;
     } catch (err) {
-      console.error(`Failed to persist customer ${c.Id}:`, err);
+      console.error(`Failed bulk-persist customers (chunk ${part.length}):`, err);
     }
   }
   return written;
 }
 
 export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promise<number> {
-  let written = 0;
   const now = new Date();
-  for (const i of qbItems) {
-    if (!i.Id) continue;
-    // Manual upsert (qbItemId has an index but no unique constraint on the existing schema)
-    const existing = await db
-      .select({ id: inventoryItems.id })
-      .from(inventoryItems)
-      .where(and(eq(inventoryItems.orgId, orgId), eq(inventoryItems.qbItemId, i.Id)))
-      .limit(1);
-
-    const values = {
+  const rows = qbItems.flatMap((i) => {
+    if (!i.Id) return [];
+    return [{
       orgId,
       qbItemId: i.Id,
       name: i.Name || i.FullyQualifiedName || `QB Item ${i.Id}`,
@@ -202,41 +194,40 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
       isActive: i.Active !== false,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
 
+  let written = 0;
+  for (const part of chunk(rows, 500)) {
     try {
-      if (existing.length > 0) {
-        await db.update(inventoryItems)
-          .set({
-            name: values.name,
-            sku: values.sku,
-            description: values.description,
-            category: values.category,
-            unitPrice: values.unitPrice,
-            cost: values.cost,
-            quantityOnHand: values.quantityOnHand,
-            isActive: values.isActive,
-            lastSyncedAt: now,
-            updatedAt: now,
-          })
-          .where(eq(inventoryItems.id, existing[0].id));
-      } else {
-        await db.insert(inventoryItems).values(values);
-      }
-      written++;
+      const ret = await db.insert(inventoryItems).values(part).onConflictDoUpdate({
+        target: inventoryItems.qbItemId,
+        set: {
+          name: sql`excluded.name`,
+          sku: sql`excluded.sku`,
+          description: sql`excluded.description`,
+          category: sql`excluded.category`,
+          unitPrice: sql`excluded.unit_price`,
+          cost: sql`excluded.cost`,
+          quantityOnHand: sql`excluded.quantity_on_hand`,
+          isActive: sql`excluded.is_active`,
+          lastSyncedAt: now,
+          updatedAt: now,
+        },
+      }).returning({ id: inventoryItems.id });
+      written += ret.length;
     } catch (err) {
-      console.error(`Failed to persist item ${i.Id}:`, err);
+      console.error(`Failed bulk-persist items (chunk ${part.length}):`, err);
     }
   }
   return written;
 }
 
 export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): Promise<number> {
-  let written = 0;
   const now = new Date();
-  for (const v of qbVendors) {
-    if (!v.Id) continue;
-    const values = {
+  const rows = qbVendors.flatMap((v) => {
+    if (!v.Id) return [];
+    return [{
       orgId,
       qbVendorId: v.Id,
       displayName: v.DisplayName || v.CompanyName || `Vendor ${v.Id}`,
@@ -260,43 +251,52 @@ export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): 
       isActive: v.Active !== false,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
+
+  let written = 0;
+  for (const part of chunk(rows, 500)) {
     try {
-      await db
-        .insert(vendors)
-        .values(values)
-        .onConflictDoUpdate({
-          target: vendors.qbVendorId,
-          set: {
-            displayName: values.displayName,
-            companyName: values.companyName,
-            firstName: values.firstName,
-            lastName: values.lastName,
-            email: values.email,
-            phone: values.phone,
-            phoneAlt: values.phoneAlt,
-            website: values.website,
-            addressLine1: values.addressLine1,
-            addressLine2: values.addressLine2,
-            city: values.city,
-            state: values.state,
-            zip: values.zip,
-            accountNumber: values.accountNumber,
-            taxId: values.taxId,
-            is1099: values.is1099,
-            paymentTerms: values.paymentTerms,
-            balance: values.balance,
-            isActive: values.isActive,
-            lastSyncedAt: now,
-            updatedAt: now,
-          },
-        });
-      written++;
+      const ret = await db.insert(vendors).values(part).onConflictDoUpdate({
+        target: vendors.qbVendorId,
+        set: {
+          displayName: sql`excluded.display_name`,
+          companyName: sql`excluded.company_name`,
+          firstName: sql`excluded.first_name`,
+          lastName: sql`excluded.last_name`,
+          email: sql`excluded.email`,
+          phone: sql`excluded.phone`,
+          phoneAlt: sql`excluded.phone_alt`,
+          website: sql`excluded.website`,
+          addressLine1: sql`excluded.address_line1`,
+          addressLine2: sql`excluded.address_line2`,
+          city: sql`excluded.city`,
+          state: sql`excluded.state`,
+          zip: sql`excluded.zip`,
+          accountNumber: sql`excluded.account_number`,
+          taxId: sql`excluded.tax_id`,
+          is1099: sql`excluded.is_1099`,
+          paymentTerms: sql`excluded.payment_terms`,
+          balance: sql`excluded.balance`,
+          isActive: sql`excluded.is_active`,
+          lastSyncedAt: now,
+          updatedAt: now,
+        },
+      }).returning({ id: vendors.id });
+      written += ret.length;
     } catch (err) {
-      console.error(`Failed to persist vendor ${v.Id}:`, err);
+      console.error(`Failed bulk-persist vendors (chunk ${part.length}):`, err);
     }
   }
   return written;
+}
+
+// === Bulk write helper ===
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 }
 
 // === Lookup helpers (qb*Id → local UUID) ===
@@ -342,18 +342,13 @@ function deriveInvoiceStatus(qb: QBInvoice): 'draft' | 'sent' | 'paid' | 'void' 
 }
 
 export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]): Promise<number> {
-  let written = 0;
   const now = new Date();
   const custMap = await customerIdMap(orgId);
 
-  for (const inv of qbInvoices) {
-    if (!inv.Id) continue;
+  const parents = qbInvoices.flatMap((inv) => {
+    if (!inv.Id) return [];
     const localCustomerId = custMap.get(inv.CustomerRef?.value || '');
-    if (!localCustomerId) {
-      console.warn(`Skipping invoice ${inv.Id}: customer ${inv.CustomerRef?.value} not in local DB`);
-      continue;
-    }
-
+    if (!localCustomerId) return [];
     const lineRows = (inv.Line || []).filter(
       (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
     );
@@ -361,8 +356,7 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
     const taxAmount = inv.TxnTaxDetail?.TotalTax ?? 0;
     const totalAmount = inv.TotalAmt ?? subtotal + taxAmount;
     const balance = inv.Balance ?? totalAmount;
-
-    const values = {
+    return [{
       orgId,
       customerId: localCustomerId,
       qbInvoiceId: inv.Id,
@@ -376,112 +370,112 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
       balance: String(balance),
       notes: inv.PrivateNote,
       updatedAt: now,
-    };
+    }];
+  });
 
-    try {
-      const [row] = await db
-        .insert(invoices)
-        .values(values)
-        .onConflictDoUpdate({
-          target: invoices.qbInvoiceId,
-          set: {
-            customerId: values.customerId,
-            invoiceNumber: values.invoiceNumber,
-            status: values.status,
-            issueDate: values.issueDate,
-            dueDate: values.dueDate,
-            subtotal: values.subtotal,
-            taxAmount: values.taxAmount,
-            totalAmount: values.totalAmount,
-            balance: values.balance,
-            notes: values.notes,
-            updatedAt: now,
-          },
-        })
-        .returning({ id: invoices.id });
+  if (parents.length === 0) return 0;
 
-      // Replace line items
-      await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, row.id));
-      const lineValues = lineRows.map((l, idx) => ({
-        invoiceId: row.id,
-        qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
-        description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
-        quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
-        unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
-        total: String(l.Amount ?? 0),
-        order: l.LineNum ?? idx + 1,
-      }));
-      if (lineValues.length > 0) await db.insert(invoiceLineItems).values(lineValues);
-      written++;
-    } catch (err) {
-      console.error(`Failed to persist invoice ${inv.Id}:`, err);
-    }
+  // Bulk upsert parents → returns local UUIDs keyed by qbInvoiceId
+  const idByQb = new Map<string, string>();
+  for (const part of chunk(parents, 500)) {
+    const ret = await db.insert(invoices).values(part).onConflictDoUpdate({
+      target: invoices.qbInvoiceId,
+      set: {
+        customerId: sql`excluded.customer_id`,
+        invoiceNumber: sql`excluded.invoice_number`,
+        status: sql`excluded.status`,
+        issueDate: sql`excluded.issue_date`,
+        dueDate: sql`excluded.due_date`,
+        subtotal: sql`excluded.subtotal`,
+        taxAmount: sql`excluded.tax_amount`,
+        totalAmount: sql`excluded.total_amount`,
+        balance: sql`excluded.balance`,
+        notes: sql`excluded.notes`,
+        updatedAt: now,
+      },
+    }).returning({ id: invoices.id, qbId: invoices.qbInvoiceId });
+    for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
   }
-  return written;
+
+  // Replace line items in bulk
+  const allLocalIds = [...idByQb.values()];
+  for (const part of chunk(allLocalIds, 1000)) {
+    await db.delete(invoiceLineItems).where(inArray(invoiceLineItems.invoiceId, part));
+  }
+  const lineValues = qbInvoices.flatMap((inv) => {
+    const localId = inv.Id ? idByQb.get(inv.Id) : undefined;
+    if (!localId) return [];
+    const lineRows = (inv.Line || []).filter(
+      (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
+    );
+    return lineRows.map((l, idx) => ({
+      invoiceId: localId,
+      qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
+      description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
+      quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
+      unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
+      total: String(l.Amount ?? 0),
+      order: l.LineNum ?? idx + 1,
+    }));
+  });
+  for (const part of chunk(lineValues, 1000)) {
+    if (part.length) await db.insert(invoiceLineItems).values(part);
+  }
+
+  return idByQb.size;
 }
 
 // === Payments ===
 
 export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]): Promise<number> {
-  let written = 0;
   const now = new Date();
   const invMap = await invoiceIdMap(orgId);
 
-  for (const pmt of qbPayments) {
-    if (!pmt.Id) continue;
-
-    // QB returns Payment.Line[].LinkedTxn as an array; some single-link cases come back as an object.
-    type FlatLink = { Amount: number; TxnId: string; TxnType: string };
-    const flatLinks: FlatLink[] = [];
+  const rows = qbPayments.flatMap((pmt) => {
+    if (!pmt.Id) return [];
+    const out: {
+      orgId: string;
+      invoiceId: string;
+      qbPaymentId: string;
+      amount: string;
+      paymentMethod?: string;
+      paidAt: Date;
+    }[] = [];
     for (const ln of pmt.Line || []) {
       const linkedArr = Array.isArray(ln.LinkedTxn) ? ln.LinkedTxn : ln.LinkedTxn ? [ln.LinkedTxn] : [];
       for (const lt of linkedArr) {
-        if (lt.TxnType === 'Invoice') {
-          flatLinks.push({ Amount: ln.Amount, TxnId: lt.TxnId, TxnType: lt.TxnType });
-        }
+        if (lt.TxnType !== 'Invoice') continue;
+        const localInvoiceId = invMap.get(lt.TxnId);
+        if (!localInvoiceId) continue;
+        out.push({
+          orgId,
+          invoiceId: localInvoiceId,
+          qbPaymentId: pmt.Id,
+          amount: String(ln.Amount ?? 0),
+          paymentMethod: pmt.PaymentMethodRef?.name?.toLowerCase(),
+          paidAt: pmt.TxnDate ? new Date(pmt.TxnDate) : now,
+        });
       }
     }
-    if (flatLinks.length === 0) continue;
+    return out;
+  });
 
-    for (const link of flatLinks) {
-      const localInvoiceId = invMap.get(link.TxnId);
-      if (!localInvoiceId) {
-        console.warn(`Skipping payment ${pmt.Id}: invoice ${link.TxnId} not in local DB`);
-        continue;
-      }
+  if (rows.length === 0) return 0;
 
-      // Manual upsert by (qbPaymentId, invoiceId) since payments table has no unique on qbPaymentId
-      const existing = await db
-        .select({ id: payments.id })
-        .from(payments)
-        .where(and(
-          eq(payments.orgId, orgId),
-          eq(payments.qbPaymentId, pmt.Id),
-          eq(payments.invoiceId, localInvoiceId),
-        ))
-        .limit(1);
-
-      const values = {
-        orgId,
-        invoiceId: localInvoiceId,
-        qbPaymentId: pmt.Id,
-        amount: String(link.Amount ?? 0),
-        paymentMethod: pmt.PaymentMethodRef?.name?.toLowerCase(),
-        paidAt: pmt.TxnDate ? new Date(pmt.TxnDate) : now,
-      };
-
-      try {
-        if (existing.length > 0) {
-          await db.update(payments)
-            .set({ amount: values.amount, paymentMethod: values.paymentMethod, paidAt: values.paidAt })
-            .where(eq(payments.id, existing[0].id));
-        } else {
-          await db.insert(payments).values(values);
-        }
-        written++;
-      } catch (err) {
-        console.error(`Failed to persist payment ${pmt.Id} → invoice ${link.TxnId}:`, err);
-      }
+  let written = 0;
+  for (const part of chunk(rows, 1000)) {
+    try {
+      const ret = await db.insert(payments).values(part).onConflictDoUpdate({
+        target: [payments.qbPaymentId, payments.invoiceId],
+        set: {
+          amount: sql`excluded.amount`,
+          paymentMethod: sql`excluded.payment_method`,
+          paidAt: sql`excluded.paid_at`,
+        },
+      }).returning({ id: payments.id });
+      written += ret.length;
+    } catch (err) {
+      console.error(`Failed to bulk-persist ${part.length} payments:`, err);
     }
   }
   return written;
@@ -501,26 +495,20 @@ function deriveEstimateStatus(qb: QBEstimate): 'pending' | 'accepted' | 'decline
 }
 
 export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimate[]): Promise<number> {
-  let written = 0;
   const now = new Date();
   const custMap = await customerIdMap(orgId);
 
-  for (const est of qbEstimates) {
-    if (!est.Id) continue;
+  const parents = qbEstimates.flatMap((est) => {
+    if (!est.Id) return [];
     const localCustomerId = custMap.get(est.CustomerRef?.value || '');
-    if (!localCustomerId) {
-      console.warn(`Skipping estimate ${est.Id}: customer ${est.CustomerRef?.value} not in local DB`);
-      continue;
-    }
-
+    if (!localCustomerId) return [];
     const lineRows = (est.Line || []).filter(
       (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
     );
     const subtotal = lineRows.reduce((sum, l) => sum + (l.Amount || 0), 0);
     const taxAmount = est.TxnTaxDetail?.TotalTax ?? 0;
     const totalAmount = est.TotalAmt ?? subtotal + taxAmount;
-
-    const values = {
+    return [{
       orgId,
       customerId: localCustomerId,
       qbEstimateId: est.Id,
@@ -538,81 +526,85 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
       billEmail: est.BillEmail?.Address,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
 
-    try {
-      const [row] = await db
-        .insert(estimates)
-        .values(values)
-        .onConflictDoUpdate({
-          target: estimates.qbEstimateId,
-          set: {
-            customerId: values.customerId,
-            estimateNumber: values.estimateNumber,
-            status: values.status,
-            issueDate: values.issueDate,
-            expirationDate: values.expirationDate,
-            acceptedDate: values.acceptedDate,
-            subtotal: values.subtotal,
-            taxAmount: values.taxAmount,
-            totalAmount: values.totalAmount,
-            customerMemo: values.customerMemo,
-            privateNote: values.privateNote,
-            emailStatus: values.emailStatus,
-            billEmail: values.billEmail,
-            lastSyncedAt: now,
-            updatedAt: now,
-          },
-        })
-        .returning({ id: estimates.id });
+  if (parents.length === 0) return 0;
 
-      await db.delete(estimateLineItems).where(eq(estimateLineItems.estimateId, row.id));
-      const lineValues = lineRows.map((l, idx) => ({
-        estimateId: row.id,
-        qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
-        description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
-        quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
-        unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
-        total: String(l.Amount ?? 0),
-        order: l.LineNum ?? idx + 1,
-      }));
-      if (lineValues.length > 0) await db.insert(estimateLineItems).values(lineValues);
-      written++;
-    } catch (err) {
-      console.error(`Failed to persist estimate ${est.Id}:`, err);
-    }
+  const idByQb = new Map<string, string>();
+  for (const part of chunk(parents, 500)) {
+    const ret = await db.insert(estimates).values(part).onConflictDoUpdate({
+      target: estimates.qbEstimateId,
+      set: {
+        customerId: sql`excluded.customer_id`,
+        estimateNumber: sql`excluded.estimate_number`,
+        status: sql`excluded.status`,
+        issueDate: sql`excluded.issue_date`,
+        expirationDate: sql`excluded.expiration_date`,
+        acceptedDate: sql`excluded.accepted_date`,
+        subtotal: sql`excluded.subtotal`,
+        taxAmount: sql`excluded.tax_amount`,
+        totalAmount: sql`excluded.total_amount`,
+        customerMemo: sql`excluded.customer_memo`,
+        privateNote: sql`excluded.private_note`,
+        emailStatus: sql`excluded.email_status`,
+        billEmail: sql`excluded.bill_email`,
+        lastSyncedAt: now,
+        updatedAt: now,
+      },
+    }).returning({ id: estimates.id, qbId: estimates.qbEstimateId });
+    for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
   }
-  return written;
+
+  const allLocalIds = [...idByQb.values()];
+  for (const part of chunk(allLocalIds, 1000)) {
+    await db.delete(estimateLineItems).where(inArray(estimateLineItems.estimateId, part));
+  }
+
+  const lineValues = qbEstimates.flatMap((est) => {
+    const localId = est.Id ? idByQb.get(est.Id) : undefined;
+    if (!localId) return [];
+    const lineRows = (est.Line || []).filter(
+      (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
+    );
+    return lineRows.map((l, idx) => ({
+      estimateId: localId,
+      qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
+      description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
+      quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
+      unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
+      total: String(l.Amount ?? 0),
+      order: l.LineNum ?? idx + 1,
+    }));
+  });
+  for (const part of chunk(lineValues, 1000)) {
+    if (part.length) await db.insert(estimateLineItems).values(part);
+  }
+
+  return idByQb.size;
 }
 
 // === Purchase Orders ===
 
 export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchaseOrder[]): Promise<number> {
-  let written = 0;
   const now = new Date();
   const vendMap = await vendorIdMap(orgId);
 
-  for (const po of qbPOs) {
-    if (!po.Id) continue;
+  const parents = qbPOs.flatMap((po) => {
+    if (!po.Id) return [];
     const localVendorId = vendMap.get(po.VendorRef?.value || '');
-    if (!localVendorId) {
-      console.warn(`Skipping PO ${po.Id}: vendor ${po.VendorRef?.value} not in local DB`);
-      continue;
-    }
-
+    if (!localVendorId) return [];
     const lineRows = (po.Line || []).filter(
       (l) => l.DetailType === 'ItemBasedExpenseLineDetail' || l.DetailType === 'AccountBasedExpenseLineDetail'
     );
     const subtotal = lineRows.reduce((sum, l) => sum + (l.Amount || 0), 0);
     const taxAmount = po.TxnTaxDetail?.TotalTax ?? 0;
     const totalAmount = po.TotalAmt ?? subtotal + taxAmount;
-
     const shipAddr = po.ShipAddr
       ? [po.ShipAddr.Line1, po.ShipAddr.City, po.ShipAddr.CountrySubDivisionCode, po.ShipAddr.PostalCode]
           .filter(Boolean).join(', ')
       : null;
-
-    const values = {
+    return [{
       orgId,
       vendorId: localVendorId,
       qbPurchaseOrderId: po.Id,
@@ -629,55 +621,66 @@ export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchase
       emailStatus: po.EmailStatus,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
 
-    try {
-      const [row] = await db
-        .insert(purchaseOrders)
-        .values(values)
-        .onConflictDoUpdate({
-          target: purchaseOrders.qbPurchaseOrderId,
-          set: {
-            vendorId: values.vendorId,
-            poNumber: values.poNumber,
-            status: values.status,
-            issueDate: values.issueDate,
-            expectedDate: values.expectedDate,
-            subtotal: values.subtotal,
-            taxAmount: values.taxAmount,
-            totalAmount: values.totalAmount,
-            shipAddress: values.shipAddress,
-            vendorMessage: values.vendorMessage,
-            privateNote: values.privateNote,
-            emailStatus: values.emailStatus,
-            lastSyncedAt: now,
-            updatedAt: now,
-          },
-        })
-        .returning({ id: purchaseOrders.id });
+  if (parents.length === 0) return 0;
 
-      await db.delete(purchaseOrderLineItems).where(eq(purchaseOrderLineItems.purchaseOrderId, row.id));
-      const lineValues = lineRows.map((l, idx) => {
-        const itemDetail = l.ItemBasedExpenseLineDetail;
-        const acctDetail = l.AccountBasedExpenseLineDetail;
-        return {
-          purchaseOrderId: row.id,
-          qbItemId: itemDetail?.ItemRef?.value,
-          qbAccountId: acctDetail?.AccountRef?.value,
-          description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
-          quantity: String(itemDetail?.Qty ?? 1),
-          unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
-          total: String(l.Amount ?? 0),
-          order: l.LineNum ?? idx + 1,
-        };
-      });
-      if (lineValues.length > 0) await db.insert(purchaseOrderLineItems).values(lineValues);
-      written++;
-    } catch (err) {
-      console.error(`Failed to persist PO ${po.Id}:`, err);
-    }
+  const idByQb = new Map<string, string>();
+  for (const part of chunk(parents, 500)) {
+    const ret = await db.insert(purchaseOrders).values(part).onConflictDoUpdate({
+      target: purchaseOrders.qbPurchaseOrderId,
+      set: {
+        vendorId: sql`excluded.vendor_id`,
+        poNumber: sql`excluded.po_number`,
+        status: sql`excluded.status`,
+        issueDate: sql`excluded.issue_date`,
+        expectedDate: sql`excluded.expected_date`,
+        subtotal: sql`excluded.subtotal`,
+        taxAmount: sql`excluded.tax_amount`,
+        totalAmount: sql`excluded.total_amount`,
+        shipAddress: sql`excluded.ship_address`,
+        vendorMessage: sql`excluded.vendor_message`,
+        privateNote: sql`excluded.private_note`,
+        emailStatus: sql`excluded.email_status`,
+        lastSyncedAt: now,
+        updatedAt: now,
+      },
+    }).returning({ id: purchaseOrders.id, qbId: purchaseOrders.qbPurchaseOrderId });
+    for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
   }
-  return written;
+
+  const allLocalIds = [...idByQb.values()];
+  for (const part of chunk(allLocalIds, 1000)) {
+    await db.delete(purchaseOrderLineItems).where(inArray(purchaseOrderLineItems.purchaseOrderId, part));
+  }
+
+  const lineValues = qbPOs.flatMap((po) => {
+    const localId = po.Id ? idByQb.get(po.Id) : undefined;
+    if (!localId) return [];
+    const lineRows = (po.Line || []).filter(
+      (l) => l.DetailType === 'ItemBasedExpenseLineDetail' || l.DetailType === 'AccountBasedExpenseLineDetail'
+    );
+    return lineRows.map((l, idx) => {
+      const itemDetail = l.ItemBasedExpenseLineDetail;
+      const acctDetail = l.AccountBasedExpenseLineDetail;
+      return {
+        purchaseOrderId: localId,
+        qbItemId: itemDetail?.ItemRef?.value,
+        qbAccountId: acctDetail?.AccountRef?.value,
+        description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
+        quantity: String(itemDetail?.Qty ?? 1),
+        unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
+        total: String(l.Amount ?? 0),
+        order: l.LineNum ?? idx + 1,
+      };
+    });
+  });
+  for (const part of chunk(lineValues, 1000)) {
+    if (part.length) await db.insert(purchaseOrderLineItems).values(part);
+  }
+
+  return idByQb.size;
 }
 
 // === Bills ===
@@ -694,19 +697,14 @@ function deriveBillStatus(qb: QBBill): 'open' | 'paid' | 'overdue' {
 }
 
 export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promise<number> {
-  let written = 0;
   const now = new Date();
   const vendMap = await vendorIdMap(orgId);
   const custMap = await customerIdMap(orgId);
 
-  for (const bill of qbBills) {
-    if (!bill.Id) continue;
+  const parents = qbBills.flatMap((bill) => {
+    if (!bill.Id) return [];
     const localVendorId = vendMap.get(bill.VendorRef?.value || '');
-    if (!localVendorId) {
-      console.warn(`Skipping bill ${bill.Id}: vendor ${bill.VendorRef?.value} not in local DB`);
-      continue;
-    }
-
+    if (!localVendorId) return [];
     const lineRows = (bill.Line || []).filter(
       (l) => l.DetailType === 'ItemBasedExpenseLineDetail' || l.DetailType === 'AccountBasedExpenseLineDetail'
     );
@@ -714,8 +712,7 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
     const taxAmount = bill.TxnTaxDetail?.TotalTax ?? 0;
     const totalAmount = bill.TotalAmt ?? subtotal + taxAmount;
     const balance = bill.Balance ?? totalAmount;
-
-    const values = {
+    return [{
       orgId,
       vendorId: localVendorId,
       qbBillId: bill.Id,
@@ -731,58 +728,69 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
       paymentTerms: bill.SalesTermRef?.name,
       lastSyncedAt: now,
       updatedAt: now,
-    };
+    }];
+  });
 
-    try {
-      const [row] = await db
-        .insert(bills)
-        .values(values)
-        .onConflictDoUpdate({
-          target: bills.qbBillId,
-          set: {
-            vendorId: values.vendorId,
-            billNumber: values.billNumber,
-            status: values.status,
-            issueDate: values.issueDate,
-            dueDate: values.dueDate,
-            subtotal: values.subtotal,
-            taxAmount: values.taxAmount,
-            totalAmount: values.totalAmount,
-            balance: values.balance,
-            privateNote: values.privateNote,
-            paymentTerms: values.paymentTerms,
-            lastSyncedAt: now,
-            updatedAt: now,
-          },
-        })
-        .returning({ id: bills.id });
+  if (parents.length === 0) return 0;
 
-      await db.delete(billLineItems).where(eq(billLineItems.billId, row.id));
-      const lineValues = lineRows.map((l, idx) => {
-        const itemDetail = l.ItemBasedExpenseLineDetail;
-        const acctDetail = l.AccountBasedExpenseLineDetail;
-        const billable = (itemDetail?.BillableStatus || acctDetail?.BillableStatus) === 'Billable';
-        const customerRef = itemDetail?.CustomerRef?.value || acctDetail?.CustomerRef?.value;
-        return {
-          billId: row.id,
-          qbItemId: itemDetail?.ItemRef?.value,
-          qbAccountId: acctDetail?.AccountRef?.value,
-          description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
-          quantity: String(itemDetail?.Qty ?? 1),
-          unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
-          amount: String(l.Amount ?? 0),
-          billable,
-          customerId: customerRef ? custMap.get(customerRef) : undefined,
-          order: l.LineNum ?? idx + 1,
-        };
-      });
-      if (lineValues.length > 0) await db.insert(billLineItems).values(lineValues);
-      written++;
-    } catch (err) {
-      console.error(`Failed to persist bill ${bill.Id}:`, err);
-    }
+  const idByQb = new Map<string, string>();
+  for (const part of chunk(parents, 500)) {
+    const ret = await db.insert(bills).values(part).onConflictDoUpdate({
+      target: bills.qbBillId,
+      set: {
+        vendorId: sql`excluded.vendor_id`,
+        billNumber: sql`excluded.bill_number`,
+        status: sql`excluded.status`,
+        issueDate: sql`excluded.issue_date`,
+        dueDate: sql`excluded.due_date`,
+        subtotal: sql`excluded.subtotal`,
+        taxAmount: sql`excluded.tax_amount`,
+        totalAmount: sql`excluded.total_amount`,
+        balance: sql`excluded.balance`,
+        privateNote: sql`excluded.private_note`,
+        paymentTerms: sql`excluded.payment_terms`,
+        lastSyncedAt: now,
+        updatedAt: now,
+      },
+    }).returning({ id: bills.id, qbId: bills.qbBillId });
+    for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
   }
-  return written;
+
+  const allLocalIds = [...idByQb.values()];
+  for (const part of chunk(allLocalIds, 1000)) {
+    await db.delete(billLineItems).where(inArray(billLineItems.billId, part));
+  }
+
+  const lineValues = qbBills.flatMap((bill) => {
+    const localId = bill.Id ? idByQb.get(bill.Id) : undefined;
+    if (!localId) return [];
+    const lineRows = (bill.Line || []).filter(
+      (l) => l.DetailType === 'ItemBasedExpenseLineDetail' || l.DetailType === 'AccountBasedExpenseLineDetail'
+    );
+    return lineRows.map((l, idx) => {
+      const itemDetail = l.ItemBasedExpenseLineDetail;
+      const acctDetail = l.AccountBasedExpenseLineDetail;
+      const billable = (itemDetail?.BillableStatus || acctDetail?.BillableStatus) === 'Billable';
+      const customerRef = itemDetail?.CustomerRef?.value || acctDetail?.CustomerRef?.value;
+      return {
+        billId: localId,
+        qbItemId: itemDetail?.ItemRef?.value,
+        qbAccountId: acctDetail?.AccountRef?.value,
+        description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
+        quantity: String(itemDetail?.Qty ?? 1),
+        unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
+        amount: String(l.Amount ?? 0),
+        billable,
+        customerId: customerRef ? custMap.get(customerRef) : undefined,
+        order: l.LineNum ?? idx + 1,
+      };
+    });
+  });
+  for (const part of chunk(lineValues, 1000)) {
+    if (part.length) await db.insert(billLineItems).values(part);
+  }
+
+  return idByQb.size;
 }
 
 async function resolveOrgId(orgId?: string): Promise<string> {
