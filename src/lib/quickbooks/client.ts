@@ -293,6 +293,10 @@ export class QuickBooksClient {
     return this.query<any>(`SELECT * FROM Estimate ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
   }
 
+  async getAllEstimates(pageSize = 500): Promise<any[]> {
+    return this.queryAll<any>('SELECT * FROM Estimate ORDERBY TxnDate DESC', pageSize);
+  }
+
   async createEstimate(estimate: any): Promise<any> {
     const response = await this.request<{ Estimate: any }>(
       'POST',
@@ -332,6 +336,10 @@ export class QuickBooksClient {
 
   async getInvoices(maxResults = 100): Promise<QBInvoice[]> {
     return this.query<QBInvoice>(`SELECT * FROM Invoice ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
+  }
+
+  async getAllInvoices(pageSize = 500): Promise<QBInvoice[]> {
+    return this.queryAll<QBInvoice>('SELECT * FROM Invoice ORDERBY TxnDate DESC', pageSize);
   }
 
   async getInvoicesForCustomer(customerId: string, pageSize = 500): Promise<QBInvoice[]> {
@@ -384,6 +392,10 @@ export class QuickBooksClient {
     return this.query<QBPayment>(`SELECT * FROM Payment ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
   }
 
+  async getAllPayments(pageSize = 500): Promise<QBPayment[]> {
+    return this.queryAll<QBPayment>('SELECT * FROM Payment ORDERBY TxnDate DESC', pageSize);
+  }
+
   async getPaymentsForCustomer(customerId: string, pageSize = 500): Promise<QBPayment[]> {
     return this.queryAll<QBPayment>(
       `SELECT * FROM Payment WHERE CustomerRef = '${customerId}' ORDERBY TxnDate DESC`,
@@ -422,6 +434,16 @@ export class QuickBooksClient {
 
   async getPurchaseOrders(maxResults = 200): Promise<any[]> {
     return this.query<any>(`SELECT * FROM PurchaseOrder ORDERBY TxnDate DESC MAXRESULTS ${maxResults}`);
+  }
+
+  async getAllPurchaseOrders(pageSize = 500): Promise<any[]> {
+    return this.queryAll<any>('SELECT * FROM PurchaseOrder ORDERBY TxnDate DESC', pageSize);
+  }
+
+  // === BILLS ===
+
+  async getAllBills(pageSize = 500): Promise<any[]> {
+    return this.queryAll<any>('SELECT * FROM Bill ORDERBY TxnDate DESC', pageSize);
   }
 
   async getPurchaseOrder(id: string): Promise<any> {

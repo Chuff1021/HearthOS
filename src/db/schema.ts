@@ -7,6 +7,9 @@ export const jobTypeEnum = pgEnum('job_type', ['installation', 'service', 'inspe
 export const priorityEnum = pgEnum('priority', ['low', 'normal', 'high', 'urgent']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'partial', 'paid', 'overdue']);
 export const invoiceStatusEnum = pgEnum('invoice_status', ['draft', 'sent', 'paid', 'void']);
+export const estimateStatusEnum = pgEnum('estimate_status', ['draft', 'pending', 'accepted', 'declined', 'expired', 'converted']);
+export const purchaseOrderStatusEnum = pgEnum('purchase_order_status', ['open', 'partial', 'closed', 'cancelled']);
+export const billStatusEnum = pgEnum('bill_status', ['open', 'partial', 'paid', 'overdue', 'void']);
 
 // Organizations
 export const organizations = pgTable('organizations', {
@@ -449,6 +452,134 @@ export const vendors = pgTable('vendors', {
   nameIdx: index('idx_vendors_display_name').on(table.displayName),
 }));
 
+// Estimates (proposals to customers; can be converted to invoices)
+export const estimates = pgTable('estimates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  customerId: uuid('customer_id').references(() => customers.id),
+  jobId: uuid('job_id').references(() => jobs.id),
+  qbEstimateId: varchar('qb_estimate_id', { length: 50 }).unique(),
+  estimateNumber: varchar('estimate_number', { length: 30 }),
+  status: estimateStatusEnum('status').default('pending'),
+  issueDate: date('issue_date'),
+  expirationDate: date('expiration_date'),
+  acceptedDate: date('accepted_date'),
+  subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0'),
+  taxAmount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).default('0'),
+  customerMemo: text('customer_memo'),
+  privateNote: text('private_note'),
+  convertedInvoiceId: uuid('converted_invoice_id'),
+  emailStatus: varchar('email_status', { length: 50 }),
+  billEmail: varchar('bill_email', { length: 255 }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_estimates_org_id').on(table.orgId),
+  customerIdx: index('idx_estimates_customer_id').on(table.customerId),
+  qbIdx: index('idx_estimates_qb_id').on(table.qbEstimateId),
+  statusIdx: index('idx_estimates_status').on(table.status),
+}));
+
+export const estimateLineItems = pgTable('estimate_line_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  estimateId: uuid('estimate_id').references(() => estimates.id, { onDelete: 'cascade' }).notNull(),
+  qbItemId: varchar('qb_item_id', { length: 50 }),
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 12, scale: 4 }).default('1'),
+  unitPrice: decimal('unit_price', { precision: 12, scale: 4 }).default('0'),
+  total: decimal('total', { precision: 12, scale: 2 }).default('0'),
+  order: integer('order').default(0),
+}, (table) => ({
+  estimateIdx: index('idx_estimate_line_items_estimate_id').on(table.estimateId),
+}));
+
+// Purchase Orders (orders TO vendors)
+export const purchaseOrders = pgTable('purchase_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  vendorId: uuid('vendor_id').references(() => vendors.id),
+  qbPurchaseOrderId: varchar('qb_purchase_order_id', { length: 50 }).unique(),
+  poNumber: varchar('po_number', { length: 30 }),
+  status: purchaseOrderStatusEnum('status').default('open'),
+  issueDate: date('issue_date'),
+  expectedDate: date('expected_date'),
+  receivedDate: date('received_date'),
+  subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0'),
+  taxAmount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).default('0'),
+  shipAddress: text('ship_address'),
+  vendorMessage: text('vendor_message'),
+  privateNote: text('private_note'),
+  emailStatus: varchar('email_status', { length: 50 }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_purchase_orders_org_id').on(table.orgId),
+  vendorIdx: index('idx_purchase_orders_vendor_id').on(table.vendorId),
+  qbIdx: index('idx_purchase_orders_qb_id').on(table.qbPurchaseOrderId),
+  statusIdx: index('idx_purchase_orders_status').on(table.status),
+}));
+
+export const purchaseOrderLineItems = pgTable('purchase_order_line_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  purchaseOrderId: uuid('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'cascade' }).notNull(),
+  qbItemId: varchar('qb_item_id', { length: 50 }),
+  qbAccountId: varchar('qb_account_id', { length: 50 }),
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 12, scale: 4 }).default('1'),
+  unitCost: decimal('unit_cost', { precision: 12, scale: 4 }).default('0'),
+  total: decimal('total', { precision: 12, scale: 2 }).default('0'),
+  receivedQty: decimal('received_qty', { precision: 12, scale: 4 }).default('0'),
+  order: integer('order').default(0),
+}, (table) => ({
+  poIdx: index('idx_po_line_items_po_id').on(table.purchaseOrderId),
+}));
+
+// Bills (vendor bills / accounts payable)
+export const bills = pgTable('bills', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  vendorId: uuid('vendor_id').references(() => vendors.id),
+  qbBillId: varchar('qb_bill_id', { length: 50 }).unique(),
+  billNumber: varchar('bill_number', { length: 30 }),
+  status: billStatusEnum('status').default('open'),
+  issueDate: date('issue_date'),
+  dueDate: date('due_date'),
+  subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0'),
+  taxAmount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).default('0'),
+  balance: decimal('balance', { precision: 12, scale: 2 }).default('0'),
+  privateNote: text('private_note'),
+  paymentTerms: varchar('payment_terms', { length: 100 }),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_bills_org_id').on(table.orgId),
+  vendorIdx: index('idx_bills_vendor_id').on(table.vendorId),
+  qbIdx: index('idx_bills_qb_id').on(table.qbBillId),
+  statusIdx: index('idx_bills_status').on(table.status),
+}));
+
+export const billLineItems = pgTable('bill_line_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  billId: uuid('bill_id').references(() => bills.id, { onDelete: 'cascade' }).notNull(),
+  qbItemId: varchar('qb_item_id', { length: 50 }),
+  qbAccountId: varchar('qb_account_id', { length: 50 }),
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 12, scale: 4 }).default('1'),
+  unitCost: decimal('unit_cost', { precision: 12, scale: 4 }).default('0'),
+  amount: decimal('amount', { precision: 12, scale: 2 }).default('0'),
+  billable: boolean('billable').default(false),
+  customerId: uuid('customer_id').references(() => customers.id),
+  order: integer('order').default(0),
+}, (table) => ({
+  billIdx: index('idx_bill_line_items_bill_id').on(table.billId),
+}));
+
 // Audit Logs
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -580,6 +711,18 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
 export type Vendor = typeof vendors.$inferSelect;
 export type NewVendor = typeof vendors.$inferInsert;
+export type Estimate = typeof estimates.$inferSelect;
+export type NewEstimate = typeof estimates.$inferInsert;
+export type EstimateLineItem = typeof estimateLineItems.$inferSelect;
+export type NewEstimateLineItem = typeof estimateLineItems.$inferInsert;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type NewPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type PurchaseOrderLineItem = typeof purchaseOrderLineItems.$inferSelect;
+export type NewPurchaseOrderLineItem = typeof purchaseOrderLineItems.$inferInsert;
+export type Bill = typeof bills.$inferSelect;
+export type NewBill = typeof bills.$inferInsert;
+export type BillLineItem = typeof billLineItems.$inferSelect;
+export type NewBillLineItem = typeof billLineItems.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type QBSyncStatus = typeof qbSyncStatus.$inferSelect;
