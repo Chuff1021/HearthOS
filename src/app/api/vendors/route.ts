@@ -135,7 +135,64 @@ export async function GET(req: NextRequest) {
       { vendors: 0, balance: 0, openBills: 0, openPOs: 0 }
     );
 
-    return NextResponse.json({ items, totals });
+    // Money bar — overall AP picture, ignores list filter so it reflects the
+    // business-wide situation (overdue, YTD spend, etc.).
+    const today = new Date().toISOString().slice(0, 10);
+    const yearStart = `${new Date().getFullYear()}-01-01`;
+
+    const [openAP] = await db
+      .select({
+        totalOwed: sql<number>`COALESCE(SUM(${bills.balance}), 0)::numeric(14,2)`,
+        openCount: sql<number>`count(*) FILTER (WHERE ${bills.balance} > 0)::int`,
+      })
+      .from(bills)
+      .where(eq(bills.orgId, org.id));
+
+    const [overdue] = await db
+      .select({
+        amount: sql<number>`COALESCE(SUM(${bills.balance}), 0)::numeric(14,2)`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(bills)
+      .where(and(
+        eq(bills.orgId, org.id),
+        sql`${bills.balance} > 0`,
+        sql`${bills.dueDate} IS NOT NULL AND ${bills.dueDate} < ${today}::date`,
+      ));
+
+    const [openPO] = await db
+      .select({
+        value: sql<number>`COALESCE(SUM(${purchaseOrders.totalAmount}), 0)::numeric(14,2)`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(purchaseOrders)
+      .where(and(eq(purchaseOrders.orgId, org.id), eq(purchaseOrders.status, 'open')));
+
+    const [ytd] = await db
+      .select({
+        amount: sql<number>`COALESCE(SUM(${bills.totalAmount}), 0)::numeric(14,2)`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(bills)
+      .where(and(
+        eq(bills.orgId, org.id),
+        sql`${bills.issueDate} >= ${yearStart}::date`,
+      ));
+
+    return NextResponse.json({
+      items,
+      totals,
+      moneyBar: {
+        totalOwed: Number(openAP?.totalOwed || 0),
+        openBillCount: openAP?.openCount || 0,
+        overdueAmount: Number(overdue?.amount || 0),
+        overdueCount: overdue?.count || 0,
+        openPOValue: Number(openPO?.value || 0),
+        openPOCount: openPO?.count || 0,
+        ytdSpend: Number(ytd?.amount || 0),
+        ytdBillCount: ytd?.count || 0,
+      },
+    });
   } catch (err: any) {
     console.error('Vendor list failed:', err);
     return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 });
