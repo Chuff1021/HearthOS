@@ -251,7 +251,7 @@ export default function InventoryPage() {
                       <Th onClick={headerSort("unit_price")} active={sort === "unit_price"} dir={dir} className="text-right">Sale Price</Th>
                       <Th onClick={headerSort("cost")} active={sort === "cost"} dir={dir} className="text-right">Current Cost</Th>
                       <Th className="text-right">Last Paid</Th>
-                      <Th className="text-right">Avg 12mo</Th>
+                      <Th className="text-right">Avg Paid</Th>
                       <Th className="text-right">Margin</Th>
                       <Th>Location</Th>
                     </tr>
@@ -495,7 +495,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
 
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
             <Stat label="Last paid" value={fmtMoney(cs.lastPaidCost)} hint={cs.lastPaidVendorName ? `${cs.lastPaidVendorName} · ${fmtDate(cs.lastPaidDate)}` : fmtDate(cs.lastPaidDate)} />
-            <Stat label="Avg (12 mo)" value={fmtMoney(cs.avg12mCost)} />
+            <Stat label="Avg paid" value={fmtMoney(cs.avg12mCost)} />
             <Stat label="Margin" value={fmtPct(item.margin)} hint={item.margin != null && item.margin < 0 ? "losing money" : undefined} tone={item.margin != null && item.margin < 0 ? "danger" : undefined} />
             <Stat label="Min ever" value={fmtMoney(cs.minCostEver)} />
             <Stat label="Max ever" value={fmtMoney(cs.maxCostEver)} />

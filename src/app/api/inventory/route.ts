@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
     if (category) where.push(eq(inventoryItems.category, category));
     if (filter === 'active') where.push(eq(inventoryItems.isActive, true));
     if (filter === 'inactive') where.push(eq(inventoryItems.isActive, false));
-    if (filter === 'low_stock') where.push(sql`${inventoryItems.quantityOnHand} <= COALESCE(${inventoryItems.reorderLevel}, 0)`);
+    // Low stock = a reorder level has been explicitly set AND we're at or below it.
+    // Items with no reorder level shouldn't be considered "low" just because qty=0.
+    if (filter === 'low_stock') where.push(sql`${inventoryItems.reorderLevel} > 0 AND ${inventoryItems.quantityOnHand} <= ${inventoryItems.reorderLevel}`);
     if (filter === 'no_cost') where.push(or(isNull(inventoryItems.cost), eq(inventoryItems.cost, '0')));
 
     // Main paginated query
@@ -74,7 +76,7 @@ export async function GET(request: NextRequest) {
     }>();
 
     if (qbItemIds.length > 0) {
-      // Aggregated per qbItemId — count + 12-month avg
+      // Aggregated per qbItemId — full history, not just last year.
       const agg = await db
         .select({
           qbItemId: billLineItems.qbItemId,
@@ -86,7 +88,6 @@ export async function GET(request: NextRequest) {
         .where(and(
           eq(bills.orgId, org.id),
           inArray(billLineItems.qbItemId, qbItemIds),
-          sql`${bills.issueDate} >= (CURRENT_DATE - INTERVAL '365 days')`,
         ))
         .groupBy(billLineItems.qbItemId);
 
@@ -141,6 +142,7 @@ export async function GET(request: NextRequest) {
       const margin = sale && cost && sale > 0 ? ((sale - cost) / sale) * 100 : null;
       const reorderLevel = r.reorderLevel ?? 0;
       const onHand = r.quantityOnHand ?? 0;
+      const isLowStock = reorderLevel > 0 && onHand <= reorderLevel;
       return {
         id: r.id,
         qbItemId: r.qbItemId,
@@ -154,7 +156,7 @@ export async function GET(request: NextRequest) {
         margin,
         quantityOnHand: onHand,
         reorderLevel,
-        isLowStock: onHand <= reorderLevel,
+        isLowStock,
         isActive: r.isActive ?? true,
         lastSyncedAt: r.lastSyncedAt,
         updatedAt: r.updatedAt,
@@ -174,7 +176,7 @@ export async function GET(request: NextRequest) {
       .where(and(
         eq(inventoryItems.orgId, org.id),
         eq(inventoryItems.isActive, true),
-        sql`${inventoryItems.quantityOnHand} <= COALESCE(${inventoryItems.reorderLevel}, 0)`,
+        sql`${inventoryItems.reorderLevel} > 0 AND ${inventoryItems.quantityOnHand} <= ${inventoryItems.reorderLevel}`,
       ));
 
     const [{ noCostCount }] = await db
