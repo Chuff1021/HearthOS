@@ -4,6 +4,10 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
 import { syncAllFromQuickBooks, getSyncStatus } from '@/lib/quickbooks/sync';
 
+// Full-tenant QB sync touches thousands of records; default 60s isn't enough.
+// Vercel Pro caps at 300s; Hobby caps at 60s and will silently shorten this.
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     // Check for tokens in cookies first
