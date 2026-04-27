@@ -457,34 +457,40 @@ type AuditRow = {
   sku: string | null;
   category: string | null;
   currentCost: number;
-  poCost: number;
+  vendorCost: number;
   delta: number;
   pctDelta: number;
   isTracked: boolean;
   noCostSet: boolean;
   vendorName: string | null;
   vendorId: string | null;
-  poId: string;
-  poNumber: string | null;
-  poDate: string | null;
+  sourceType: "bill" | "po";
+  sourceId: string;
+  sourceNumber: string | null;
+  sourceDate: string | null;
   unitPrice: number | null;
   newMargin: number | null;
 };
 
+type AuditSource = "bills" | "pos" | "either";
+
 type AuditResponse = {
   window: { monthsBack: number; cutoff: string };
+  source: AuditSource;
   thresholds: { minVariancePct: number; minVarianceAmt: number };
   itemsConsidered: number;
-  itemsWithRecentPO: number;
+  itemsWithData: number;
   itemsFlagged: number;
   noCostSetCount: number;
   goingUpCount: number;
   goingDownCount: number;
+  bySourceType: { bill: number; po: number };
   totalAdjustment: number;
   rows: AuditRow[];
 };
 
 function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplied: () => void }) {
+  const [source, setSource] = useState<AuditSource>("bills");
   const [monthsBack, setMonthsBack] = useState(24);
   const [minPct, setMinPct] = useState(1);
   const [includeRetired, setIncludeRetired] = useState(false);
@@ -499,6 +505,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({
+        source,
         monthsBack: String(monthsBack),
         minVariancePct: String(minPct),
         includeRetired: includeRetired ? "true" : "false",
@@ -514,7 +521,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
     } finally {
       setLoading(false);
     }
-  }, [monthsBack, minPct, includeRetired]);
+  }, [source, monthsBack, minPct, includeRetired]);
 
   useEffect(() => { run(); }, [run]);
 
@@ -534,7 +541,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
     try {
       const corrections = data.rows
         .filter((r) => selected.has(r.id))
-        .map((r) => ({ id: r.id, newCost: r.poCost }));
+        .map((r) => ({ id: r.id, newCost: r.vendorCost }));
       const res = await fetch("/api/inventory/price-audit/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -574,6 +581,34 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
 
           {/* Controls */}
           <div className="flex flex-wrap gap-4 mt-4 items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Compare against</span>
+              {([
+                { id: "bills" as const, label: "Bills paid" },
+                { id: "pos" as const, label: "POs" },
+                { id: "either" as const, label: "Either" },
+              ]).map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setSource(opt.id)}
+                  className="px-2.5 py-1 rounded-lg text-xs"
+                  style={{
+                    background: source === opt.id ? "#FF4400" : "var(--color-surface-2)",
+                    color: source === opt.id ? "white" : "var(--color-text-secondary)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                  title={
+                    opt.id === "bills"
+                      ? "What you actually paid on vendor bills"
+                      : opt.id === "pos"
+                        ? "What you ordered on purchase orders"
+                        : "Whichever document is more recent per item"
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Window</span>
               {[12, 18, 24, 36].map((m) => (
@@ -618,7 +653,14 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
           {data && !loading && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4 text-xs">
               <SummaryStat label="Considered" value={data.itemsConsidered.toLocaleString()} />
-              <SummaryStat label="With recent PO" value={data.itemsWithRecentPO.toLocaleString()} />
+              <SummaryStat
+                label={
+                  data.source === "bills" ? "With recent bill" :
+                  data.source === "pos" ? "With recent PO" :
+                  "With recent doc"
+                }
+                value={data.itemsWithData.toLocaleString()}
+              />
               <SummaryStat label="Flagged" value={data.itemsFlagged.toLocaleString()} tone="warn" />
               <SummaryStat label="Going up" value={data.goingUpCount.toLocaleString()} tone="danger" />
               <SummaryStat label="Going down" value={data.goingDownCount.toLocaleString()} tone="good" />
@@ -653,7 +695,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Item</th>
                   <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Current</th>
-                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>From PO</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>From vendor</th>
                   <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Δ</th>
                   <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>%</th>
                   <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>New margin</th>
@@ -688,7 +730,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-secondary)" }}>{fmtMoney(r.currentCost)}</td>
-                      <td className="px-3 py-2 text-right font-medium" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(r.poCost)}</td>
+                      <td className="px-3 py-2 text-right font-medium" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(r.vendorCost)}</td>
                       <td className="px-3 py-2 text-right font-medium" style={{ color: deltaColor }}>
                         {r.delta > 0 ? "+" : ""}{fmtMoney(r.delta)}
                       </td>
@@ -700,12 +742,16 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                       </td>
                       <td className="px-3 py-2">
                         <button
-                          onClick={() => setDocDrill({ type: "purchase-order", id: r.poId })}
+                          onClick={() => setDocDrill({
+                            type: r.sourceType === "bill" ? "bill" : "purchase-order",
+                            id: r.sourceId,
+                          })}
                           className="text-left hover:opacity-80"
                         >
                           <div style={{ color: "var(--color-text-secondary)" }}>{r.vendorName || "—"}</div>
                           <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                            {r.poNumber ? `#${r.poNumber} · ` : ""}{fmtDate(r.poDate)}
+                            <span className="uppercase mr-1" style={{ color: "var(--color-text-muted)" }}>{r.sourceType === "bill" ? "Bill" : "PO"}</span>
+                            {r.sourceNumber ? `#${r.sourceNumber} · ` : ""}{fmtDate(r.sourceDate)}
                           </div>
                         </button>
                       </td>
