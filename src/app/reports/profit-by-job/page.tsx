@@ -31,15 +31,21 @@ type ListResponse = {
   page: number;
   limit: number;
   totalCount: number;
-  stats: {
-    totalInvoices: number;
-    totalRevenue: number;
-    pageRevenue: number;
-    pageCogs: number;
-    pageBillable: number;
-    pageProfit: number;
-    avgMargin: number | null;
+  windowStats: {
+    invoiceCount: number;
+    revenue: number;
+    tax: number;
+    billed: number;
+    cogs: number;
+    billable: number;
+    totalCost: number;
+    profit: number;
+    margin: number | null;
+    avgMarginPerInvoice: number | null;
     unprofitableCount: number;
+    balance: number;
+    bestProfit: number | null;
+    worstProfit: number | null;
   };
 };
 
@@ -241,18 +247,12 @@ export default function ProfitByJobPage() {
               <ProfitPill label="Negative margin" value="negativeMargin" current={profitFilter} onClick={setProfitFilter} />
             </div>
 
-            {/* Stats banner */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Stat label="Page revenue" value={fmtMoney(data?.stats.pageRevenue ?? 0)} />
-              <Stat label="Page material cost" value={fmtMoney(data?.stats.pageCogs ?? 0)} tone="warn" />
-              <Stat label="Page other costs" value={fmtMoney(data?.stats.pageBillable ?? 0)} tone="warn" />
-              <Stat
-                label="Page profit"
-                value={fmtSignedMoney(data?.stats.pageProfit ?? 0)}
-                tone={(data?.stats.pageProfit ?? 0) < 0 ? "danger" : "good"}
-              />
-              <Stat label="Avg margin (page)" value={fmtPct(data?.stats.avgMargin ?? null)} />
-            </div>
+            {/* Window stats banner — totals across the WHOLE filter range, not just the page */}
+            <WindowStatsBanner
+              data={data}
+              preset={preset}
+              loading={loading}
+            />
 
             {/* Table */}
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
@@ -333,6 +333,77 @@ export default function ProfitByJobPage() {
           onClose={() => setSelectedId(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Window stats banner
+// ───────────────────────────────────────────────────────────────────────────
+const presetLabel = (p: string) => ({
+  "30": "Last 30 days",
+  "90": "Last 90 days",
+  "365": "Last 365 days",
+  ytd: "Year to date",
+  all: "All time",
+}[p] || "Window");
+
+function WindowStatsBanner({ data, preset, loading }: { data: ListResponse | null; preset: string; loading: boolean }) {
+  const w = data?.windowStats;
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+    >
+      <div className="flex items-baseline justify-between mb-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>
+            P&amp;L · {presetLabel(preset)}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+            {w
+              ? `${w.invoiceCount.toLocaleString()} invoices · ${w.unprofitableCount} unprofitable`
+              : loading ? "Calculating…" : "—"}
+          </p>
+        </div>
+        {w && w.balance > 0 && (
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Open A/R</p>
+            <p className="text-sm font-semibold" style={{ color: "#F59E0B" }}>{fmtMoney(w.balance)}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <BannerStat label="Revenue" value={fmtMoney(w?.revenue ?? 0)} />
+        <BannerStat label="Material cost" value={fmtMoney(w?.cogs ?? 0)} tone="warn" />
+        <BannerStat label="Other costs" value={fmtMoney(w?.billable ?? 0)} tone="warn" />
+        <BannerStat
+          label="Profit"
+          value={fmtSignedMoney(w?.profit ?? 0)}
+          tone={(w?.profit ?? 0) < 0 ? "danger" : "good"}
+          big
+        />
+        <BannerStat
+          label="Margin"
+          value={fmtPct(w?.margin ?? null)}
+          hint={w?.avgMarginPerInvoice != null ? `Avg ${fmtPct(w.avgMarginPerInvoice)} per job` : undefined}
+          tone={
+            w?.margin == null ? undefined : w.margin < 0 ? "danger" : w.margin < 15 ? "warn" : "good"
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function BannerStat({ label, value, hint, tone, big }: { label: string; value: string; hint?: string; tone?: "good" | "warn" | "danger"; big?: boolean }) {
+  const color = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : tone === "good" ? "#16A34A" : "var(--color-text-primary)";
+  return (
+    <div className="p-3 rounded-lg" style={{ background: "var(--color-surface-2)" }}>
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className={(big ? "text-2xl" : "text-xl") + " font-bold mt-0.5"} style={{ color }}>{value}</p>
+      {hint && <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{hint}</p>}
     </div>
   );
 }

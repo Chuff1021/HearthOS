@@ -8,23 +8,17 @@ import {
   bills,
   billLineItems,
 } from '@/db';
-import { and, eq, sql, desc, asc, ilike, or, inArray, isNotNull, gte, lte } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, ilike, or, inArray, gte, lte } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 // GET /api/reports/profit-by-job
-// Per-invoice P&L. Each invoice represents one "job" — the unit of customer
-// work. For each invoice we compute:
-//   revenue       : sum of line totals (pre-tax)
-//   tax           : invoice tax amount
-//   billed        : revenue + tax (what the customer owes)
-//   cogs          : sum of (line.qty × inventory.cost) where the line has a qbItemId
-//   billable      : sum of bill_line_items.amount where bill.vendor was paid for an
-//                   item attributed to this customer with bill date in [issue-30d, issue+60d]
-//   profit        : revenue − cogs − billable
-//   margin        : profit / revenue
+// Returns BOTH the paginated page (for the table) AND aggregate stats over
+// the entire filtered window (for the banner).
 //
-// Note: labor cost isn't yet attributed (time entries aren't linked to invoices).
-// We'll layer that in once tech rates + per-job time tracking exist.
+// The window roll-up uses the same per-invoice attribution as the table — sum
+// of line totals for revenue, sum of (line.qty × inventory.cost) for COGS,
+// and sum of customer-tagged vendor bills in [issue-30d, issue+60d] for
+// "other expenses" — just summed across every matching invoice.
 
 const SORTS = {
   date: invoices.issueDate,
@@ -33,15 +27,119 @@ const SORTS = {
   total: invoices.totalAmount,
 } as const;
 
+type InvoiceLite = {
+  id: string;
+  customerId: string | null;
+  issueDate: string | null;
+};
+
+// Compute per-invoice revenue + cogs + billable for a set of invoices.
+async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
+  type PerInvoice = { revenue: number; cogs: number; billable: number };
+  const perInv = new Map<string, PerInvoice>();
+  for (const i of invs) perInv.set(i.id, { revenue: 0, cogs: 0, billable: 0 });
+  if (invs.length === 0) return perInv;
+
+  const invoiceIds = invs.map((i) => i.id);
+  const customerIds = [...new Set(invs.map((i) => i.customerId).filter(Boolean) as string[])];
+
+  // Bulk pull line items for these invoices
+  const lineRows = await db
+    .select({
+      invoiceId: invoiceLineItems.invoiceId,
+      qbItemId: invoiceLineItems.qbItemId,
+      quantity: invoiceLineItems.quantity,
+      total: invoiceLineItems.total,
+    })
+    .from(invoiceLineItems)
+    .where(inArray(invoiceLineItems.invoiceId, invoiceIds));
+
+  // Cost map for the qbItemIds touched
+  const qbItemIds = [...new Set(lineRows.map((l) => l.qbItemId).filter(Boolean) as string[])];
+  const costRows = qbItemIds.length > 0
+    ? await db
+        .select({ qbItemId: inventoryItems.qbItemId, cost: inventoryItems.cost })
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.orgId, orgId), inArray(inventoryItems.qbItemId, qbItemIds)))
+    : [];
+  const costByQb = new Map<string, number>();
+  for (const c of costRows) {
+    if (c.qbItemId) costByQb.set(c.qbItemId, c.cost != null ? Number(c.cost) : 0);
+  }
+
+  // Per-invoice revenue + cogs from line items
+  for (const li of lineRows) {
+    const inv = perInv.get(li.invoiceId);
+    if (!inv) continue;
+    inv.revenue += Number(li.total ?? 0);
+    const qty = Number(li.quantity ?? 0);
+    const cost = li.qbItemId ? (costByQb.get(li.qbItemId) ?? 0) : 0;
+    inv.cogs += qty * cost;
+  }
+
+  // Bills attributed: bucket bills by customer once, then for each invoice
+  // sum bills for that customer in [issueDate-30d, issueDate+60d].
+  if (customerIds.length > 0) {
+    const issueDates = invs.map((i) => i.issueDate).filter(Boolean) as string[];
+    if (issueDates.length > 0) {
+      const minDate = new Date(issueDates.reduce((a, b) => (a < b ? a : b)));
+      const maxDate = new Date(issueDates.reduce((a, b) => (a > b ? a : b)));
+      const windowFrom = new Date(minDate); windowFrom.setDate(windowFrom.getDate() - 30);
+      const windowTo = new Date(maxDate); windowTo.setDate(windowTo.getDate() + 60);
+
+      const billRows = await db
+        .select({
+          customerId: billLineItems.customerId,
+          amount: billLineItems.amount,
+          issueDate: bills.issueDate,
+        })
+        .from(billLineItems)
+        .innerJoin(bills, eq(bills.id, billLineItems.billId))
+        .where(and(
+          eq(bills.orgId, orgId),
+          inArray(billLineItems.customerId, customerIds),
+          gte(bills.issueDate, windowFrom.toISOString().slice(0, 10)),
+          lte(bills.issueDate, windowTo.toISOString().slice(0, 10)),
+        ));
+
+      // Bucket bills by customer
+      const billsByCust = new Map<string, Array<{ ts: number; amount: number }>>();
+      for (const b of billRows) {
+        if (!b.customerId || !b.issueDate) continue;
+        const ts = new Date(b.issueDate).getTime();
+        const arr = billsByCust.get(b.customerId) || [];
+        arr.push({ ts, amount: Number(b.amount ?? 0) });
+        billsByCust.set(b.customerId, arr);
+      }
+
+      // For each invoice, sum bills for that customer in the +/- window
+      for (const i of invs) {
+        if (!i.customerId || !i.issueDate) continue;
+        const arr = billsByCust.get(i.customerId);
+        if (!arr) continue;
+        const its = new Date(i.issueDate).getTime();
+        const lo = its - 30 * 86400_000;
+        const hi = its + 60 * 86400_000;
+        const inv = perInv.get(i.id)!;
+        for (const b of arr) {
+          if (b.ts >= lo && b.ts <= hi) inv.billable += b.amount;
+        }
+      }
+    }
+  }
+
+  return perInv;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();
-    const status = searchParams.get('status') || ''; // draft / sent / paid / void
+    const status = searchParams.get('status') || '';
     const customerId = searchParams.get('customerId') || '';
-    const since = searchParams.get('since') || ''; // YYYY-MM-DD
+    const since = searchParams.get('since') || '';
     const until = searchParams.get('until') || '';
-    const profitFilter = searchParams.get('profitFilter') || 'all'; // all / unprofitable / negativeMargin
+    const profitFilter = searchParams.get('profitFilter') || 'all';
     const sort = (searchParams.get('sort') || 'date') as keyof typeof SORTS;
     const dir = (searchParams.get('dir') || 'desc').toLowerCase() === 'asc' ? asc : desc;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -56,15 +154,62 @@ export async function GET(req: NextRequest) {
     if (until) where.push(lte(invoices.issueDate, until));
     if (q) {
       const like = `%${q}%`;
-      where.push(or(
-        ilike(invoices.invoiceNumber, like),
-        ilike(invoices.notes, like),
-      ));
+      where.push(or(ilike(invoices.invoiceNumber, like), ilike(invoices.notes, like)));
     }
 
-    // Page of invoices
+    // ALL invoices in the filter — used for the window totals
+    const allInWindow = await db
+      .select({
+        id: invoices.id,
+        customerId: invoices.customerId,
+        issueDate: invoices.issueDate,
+        subtotal: invoices.subtotal,
+        taxAmount: invoices.taxAmount,
+        balance: invoices.balance,
+      })
+      .from(invoices)
+      .where(and(...where));
+
+    const totalCount = allInWindow.length;
+
+    // Compute P&L for the entire filter window (for banner)
+    const windowPL = await enrichWithPL(
+      org.id,
+      allInWindow.map((i) => ({ id: i.id, customerId: i.customerId, issueDate: i.issueDate })),
+    );
+
+    let windowRevenue = 0;
+    let windowCogs = 0;
+    let windowBillable = 0;
+    let windowTax = 0;
+    let windowBalance = 0;
+    let unprofitableCount = 0;
+    let marginCount = 0;
+    let marginSum = 0;
+    let bestProfit = -Infinity;
+    let worstProfit = Infinity;
+    for (const inv of allInWindow) {
+      const pl = windowPL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0 };
+      windowRevenue += pl.revenue;
+      windowCogs += pl.cogs;
+      windowBillable += pl.billable;
+      windowTax += Number(inv.taxAmount ?? 0);
+      windowBalance += Number(inv.balance ?? 0);
+      const profit = pl.revenue - pl.cogs - pl.billable;
+      if (profit < 0) unprofitableCount++;
+      if (profit > bestProfit) bestProfit = profit;
+      if (profit < worstProfit) worstProfit = profit;
+      if (pl.revenue > 0) {
+        marginCount++;
+        marginSum += (profit / pl.revenue) * 100;
+      }
+    }
+    const windowProfit = windowRevenue - windowCogs - windowBillable;
+    const windowMargin = windowRevenue > 0 ? (windowProfit / windowRevenue) * 100 : null;
+
+    // Now the paginated table rows
     const sortCol = SORTS[sort] ?? invoices.issueDate;
-    const rows = await db
+    const pageRows = await db
       .select({
         invoice: invoices,
         customerId: customers.id,
@@ -77,115 +222,18 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset((page - 1) * limit);
 
-    const [{ totalCount }] = await db
-      .select({ totalCount: sql<number>`count(*)::int` })
-      .from(invoices)
-      .where(and(...where));
+    // Per-row P&L for the page rows (using the same enrich function but only
+    // for the page subset — fewer queries than re-running the whole thing)
+    const pagePL = await enrichWithPL(
+      org.id,
+      pageRows.map((r) => ({ id: r.invoice.id, customerId: r.invoice.customerId, issueDate: r.invoice.issueDate })),
+    );
 
-    if (rows.length === 0) {
-      return NextResponse.json({
-        items: [],
-        page, limit, totalCount,
-        stats: { totalInvoices: 0, totalRevenue: 0, totalCogs: 0, totalBillable: 0, totalProfit: 0, avgMargin: null, unprofitableCount: 0 },
-      });
-    }
-
-    const invoiceIds = rows.map((r) => r.invoice.id);
-    const customerIds = [...new Set(rows.map((r) => r.invoice.customerId).filter(Boolean) as string[])];
-
-    // Pull line items for these invoices in one query, then aggregate per invoice in JS
-    const lineRows = await db
-      .select({
-        invoiceId: invoiceLineItems.invoiceId,
-        qbItemId: invoiceLineItems.qbItemId,
-        quantity: invoiceLineItems.quantity,
-        total: invoiceLineItems.total,
-      })
-      .from(invoiceLineItems)
-      .where(inArray(invoiceLineItems.invoiceId, invoiceIds));
-
-    // Pull cost map for the qbItemIds we encountered
-    const qbItemIds = [...new Set(lineRows.map((l) => l.qbItemId).filter(Boolean) as string[])];
-    const costRows = qbItemIds.length > 0
-      ? await db
-          .select({ qbItemId: inventoryItems.qbItemId, cost: inventoryItems.cost })
-          .from(inventoryItems)
-          .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, qbItemIds)))
-      : [];
-    const costByQb = new Map<string, number>();
-    for (const c of costRows) {
-      if (c.qbItemId) costByQb.set(c.qbItemId, c.cost != null ? Number(c.cost) : 0);
-    }
-
-    // Aggregate revenue + cogs per invoice
-    const perInv = new Map<string, { revenue: number; cogs: number }>();
-    for (const li of lineRows) {
-      const inv = perInv.get(li.invoiceId) || { revenue: 0, cogs: 0 };
-      inv.revenue += Number(li.total ?? 0);
-      const qty = Number(li.quantity ?? 0);
-      const cost = li.qbItemId ? (costByQb.get(li.qbItemId) ?? 0) : 0;
-      inv.cogs += qty * cost;
-      perInv.set(li.invoiceId, inv);
-    }
-
-    // Billable bill expenses: bills attributed to the same customer with date
-    // in [issue-30d, issue+60d]. We pull them in one query for the customers
-    // touched on this page, then bucket per-invoice in JS.
-    type BillRow = { invoiceCustomerId: string | null; amount: number; issueDate: string | null };
-    let billRows: BillRow[] = [];
-    if (customerIds.length > 0) {
-      // Get a wide window — earliest invoice date - 30d, latest invoice date + 60d
-      const dates = rows.map((r) => r.invoice.issueDate).filter(Boolean) as string[];
-      const minDate = dates.reduce((a, b) => (a < b ? a : b), dates[0]);
-      const maxDate = dates.reduce((a, b) => (a > b ? a : b), dates[0]);
-      const windowFrom = new Date(minDate); windowFrom.setDate(windowFrom.getDate() - 30);
-      const windowTo = new Date(maxDate); windowTo.setDate(windowTo.getDate() + 60);
-
-      const raw = await db
-        .select({
-          invoiceCustomerId: billLineItems.customerId,
-          amount: billLineItems.amount,
-          issueDate: bills.issueDate,
-        })
-        .from(billLineItems)
-        .innerJoin(bills, eq(bills.id, billLineItems.billId))
-        .where(and(
-          eq(bills.orgId, org.id),
-          inArray(billLineItems.customerId, customerIds),
-          gte(bills.issueDate, windowFrom.toISOString().slice(0, 10)),
-          lte(bills.issueDate, windowTo.toISOString().slice(0, 10)),
-        ));
-      billRows = raw.map((b) => ({
-        invoiceCustomerId: b.invoiceCustomerId ?? null,
-        amount: Number(b.amount ?? 0),
-        issueDate: b.issueDate ?? null,
-      }));
-    }
-
-    // For each invoice, sum bill amounts for that customer in [issueDate-30d, issueDate+60d]
-    const billByInv = new Map<string, number>();
-    for (const r of rows) {
-      if (!r.invoice.customerId || !r.invoice.issueDate) continue;
-      const ts = new Date(r.invoice.issueDate).getTime();
-      const lo = ts - 30 * 86400_000;
-      const hi = ts + 60 * 86400_000;
-      let sum = 0;
-      for (const b of billRows) {
-        if (b.invoiceCustomerId !== r.invoice.customerId) continue;
-        if (!b.issueDate) continue;
-        const bts = new Date(b.issueDate).getTime();
-        if (bts >= lo && bts <= hi) sum += b.amount;
-      }
-      billByInv.set(r.invoice.id, sum);
-    }
-
-    const items = rows.map(({ invoice: inv, customerId: cid, customerName }) => {
-      const agg = perInv.get(inv.id) || { revenue: 0, cogs: 0 };
-      const billable = billByInv.get(inv.id) ?? 0;
+    let items = pageRows.map(({ invoice: inv, customerId: cid, customerName }) => {
+      const pl = pagePL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0 };
       const tax = Number(inv.taxAmount ?? 0);
-      const billed = agg.revenue + tax;
-      const profit = agg.revenue - agg.cogs - billable;
-      const margin = agg.revenue > 0 ? (profit / agg.revenue) * 100 : null;
+      const profit = pl.revenue - pl.cogs - pl.billable;
+      const margin = pl.revenue > 0 ? (profit / pl.revenue) * 100 : null;
       return {
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
@@ -193,50 +241,40 @@ export async function GET(req: NextRequest) {
         status: inv.status,
         customerId: cid,
         customerName,
-        revenue: agg.revenue,
+        revenue: pl.revenue,
         tax,
-        billed,
-        cogs: agg.cogs,
-        billable,
+        billed: pl.revenue + tax,
+        cogs: pl.cogs,
+        billable: pl.billable,
         profit,
         margin,
         balance: Number(inv.balance ?? 0),
       };
     });
 
-    // Filter by profit if requested (post-compute)
-    let filteredItems = items;
-    if (profitFilter === 'unprofitable') filteredItems = items.filter((i) => i.profit < 0);
-    if (profitFilter === 'negativeMargin') filteredItems = items.filter((i) => i.margin != null && i.margin < 0);
-
-    // Aggregate stats — for the FULL filter set, not just this page
-    // (Compute approximate aggregate over the whole filter window via a separate sum query.)
-    const allFiltered = await db
-      .select({
-        invoiceCount: sql<number>`count(*)::int`,
-        totalSubtotal: sql<number>`COALESCE(SUM(${invoices.subtotal}), 0)::numeric(14,2)`,
-      })
-      .from(invoices)
-      .where(and(...where));
+    if (profitFilter === 'unprofitable') items = items.filter((i) => i.profit < 0);
+    if (profitFilter === 'negativeMargin') items = items.filter((i) => i.margin != null && i.margin < 0);
 
     return NextResponse.json({
-      items: filteredItems,
+      items,
       page,
       limit,
-      totalCount: profitFilter === 'all' ? totalCount : filteredItems.length, // approximate — accurate filter count requires more compute
-      stats: {
-        totalInvoices: allFiltered[0].invoiceCount,
-        totalRevenue: Number(allFiltered[0].totalSubtotal),
-        // Page-only roll-ups (cheap)
-        pageRevenue: items.reduce((s, x) => s + x.revenue, 0),
-        pageCogs: items.reduce((s, x) => s + x.cogs, 0),
-        pageBillable: items.reduce((s, x) => s + x.billable, 0),
-        pageProfit: items.reduce((s, x) => s + x.profit, 0),
-        unprofitableCount: items.filter((x) => x.profit < 0).length,
-        avgMargin: items.length > 0
-          ? items.filter((x) => x.margin != null).reduce((s, x) => s + (x.margin || 0), 0) /
-            (items.filter((x) => x.margin != null).length || 1)
-          : null,
+      totalCount,
+      windowStats: {
+        invoiceCount: allInWindow.length,
+        revenue: windowRevenue,
+        tax: windowTax,
+        billed: windowRevenue + windowTax,
+        cogs: windowCogs,
+        billable: windowBillable,
+        totalCost: windowCogs + windowBillable,
+        profit: windowProfit,
+        margin: windowMargin,
+        avgMarginPerInvoice: marginCount > 0 ? marginSum / marginCount : null,
+        unprofitableCount,
+        balance: windowBalance,
+        bestProfit: bestProfit === -Infinity ? null : bestProfit,
+        worstProfit: worstProfit === Infinity ? null : worstProfit,
       },
     });
   } catch (err: any) {
