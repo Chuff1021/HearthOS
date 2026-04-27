@@ -1,197 +1,156 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import DocumentDrawer, { type DocumentType } from "@/components/documents/DocumentDrawer";
 
-type Vendor = { Id: string; DisplayName: string; CompanyName?: string; PrimaryEmailAddr?: { Address?: string } };
-type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
-type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { value?: string; name?: string }; TotalAmt?: number };
-type PurchaseOrderDetail = PO & {
-  Memo?: string;
-  PrivateNote?: string;
-  ShipAddr?: { Line1?: string; City?: string; CountrySubDivisionCode?: string; PostalCode?: string };
-  Line?: Array<{
-    Id?: string;
-    Description?: string;
-    Amount?: number;
-    ItemBasedExpenseLineDetail?: {
-      Qty?: number;
-      UnitPrice?: number;
-      ItemRef?: { value?: string; name?: string };
-    };
-  }>;
+// ───────────────────────────────────────────────────────────────────────────
+// Types
+// ───────────────────────────────────────────────────────────────────────────
+type VendorRow = {
+  id: string;
+  qbVendorId: string | null;
+  displayName: string;
+  companyName: string | null;
+  email: string | null;
+  phone: string | null;
+  is1099: boolean;
+  isActive: boolean;
+  addressLine1: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  accountNumber: string | null;
+  paymentTerms: string | null;
+  balance: number;
+  billCount: number;
+  openBillCount: number;
+  poCount: number;
+  openPOCount: number;
+  lastActivity: string | null;
 };
 
+type ListResponse = {
+  items: VendorRow[];
+  totals: { vendors: number; balance: number; openBills: number; openPOs: number };
+};
+
+type Txn = {
+  type: "bill" | "po";
+  id: string;
+  number: string | null;
+  date: string | null;
+  status: string | null;
+  total: number;
+  balance: number;
+};
+
+type DetailResponse = {
+  vendor: VendorRow & { notes: string | null };
+  summary: {
+    billCount: number;
+    openBillCount: number;
+    billOpenBalance: number;
+    billTotalBilled: number;
+    poCount: number;
+    openPOCount: number;
+    poOpenValue: number;
+    lastActivity: string | null;
+  };
+  transactions: Txn[];
+};
+
+type FilterKey = "active" | "all" | "with_balance" | "1099" | "inactive";
+type SortKey = "name" | "balance" | "activity";
+type Tab = "transactions" | "bills" | "pos" | "profile";
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────
+const fmtMoney = (n: number | null | undefined) =>
+  n == null || isNaN(Number(n)) ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const fmtDate = (s: string | null | undefined) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const relTime = (s: string | null | undefined) => {
+  if (!s) return "Never";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "—";
+  const days = Math.floor((Date.now() - d.getTime()) / 86400_000);
+  if (days < 1) return "Today";
+  if (days < 2) return "Yesterday";
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+};
+
+function useDebounced<T>(value: T, ms = 250): T {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
+  return v;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Page
+// ───────────────────────────────────────────────────────────────────────────
 export default function VendorsPage() {
+  return (
+    <Suspense fallback={null}>
+      <VendorsPageInner />
+    </Suspense>
+  );
+}
+
+function VendorsPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
+
+  const [search, setSearch] = useState("");
+  const debounced = useDebounced(search, 250);
+  const [filter, setFilter] = useState<FilterKey>("active");
+  const [sort, setSort] = useState<SortKey>("name");
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
+
+  const [list, setList] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState("");
-  const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrderDetail | null>(null);
-  const [loadingPurchaseOrder, setLoadingPurchaseOrder] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("vendorId") || null);
 
-  const [vendorQuery, setVendorQuery] = useState("");
-  const [selectedVendorId, setSelectedVendorId] = useState("");
-  const [memo, setMemo] = useState("");
-  const [lines, setLines] = useState([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
-  const purchaseOrderIdFromUrl = searchParams.get("purchaseOrderId");
-  const vendorIdFromUrl = searchParams.get("vendorId");
-
-  async function loadAll() {
+  const fetchList = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    const params = new URLSearchParams({ q: debounced, filter, sort, dir });
     try {
-      const [vRes, iRes, pRes] = await Promise.all([
-        fetch("/api/quickbooks/vendors"),
-        fetch("/api/quickbooks/items?sync=true"),
-        fetch("/api/quickbooks/purchase-orders"),
-      ]);
-      const vData = await vRes.json();
-      const iData = await iRes.json();
-      const pData = await pRes.json();
-
-      if (!vRes.ok) throw new Error(vData.error || "Failed vendors load");
-      if (!iRes.ok) throw new Error(iData.error || "Failed items load");
-      if (!pRes.ok) throw new Error(pData.error || "Failed purchase orders load");
-
-      setVendors(vData.vendors || []);
-      setItems(iData.items || []);
-      setPurchaseOrders(pData.purchaseOrders || []);
-
-      if (vendorIdFromUrl && vData.vendors?.some((vendor: Vendor) => vendor.Id === vendorIdFromUrl)) {
-        setSelectedVendorId(vendorIdFromUrl);
-      } else if (!selectedVendorId && vData.vendors?.length) {
-        setSelectedVendorId(vData.vendors[0].Id);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load vendor data");
+      const r = await fetch(`/api/vendors?${params}`);
+      const j = await r.json();
+      if (r.ok) setList(j);
     } finally {
       setLoading(false);
     }
-  }
+  }, [debounced, filter, sort, dir]);
 
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  // Auto-select first vendor on load if URL had no vendorId
   useEffect(() => {
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!selectedId && list && list.items.length > 0) {
+      setSelectedId(list.items[0].id);
+    }
+  }, [list, selectedId]);
 
-  const filteredVendors = useMemo(() => {
-    const q = vendorQuery.trim().toLowerCase();
-    if (!q) return vendors;
-    return vendors.filter((v) =>
-      v.DisplayName?.toLowerCase().includes(q) ||
-      v.CompanyName?.toLowerCase().includes(q) ||
-      v.PrimaryEmailAddr?.Address?.toLowerCase().includes(q)
-    );
-  }, [vendors, vendorQuery]);
-
-  const selectedVendor = vendors.find((v) => v.Id === selectedVendorId);
-
-  const vendorPOs = useMemo(() => {
-    if (!selectedVendorId) return purchaseOrders;
-    return purchaseOrders.filter((po) => po.VendorRef?.value === selectedVendorId || po.VendorRef?.name === selectedVendor?.DisplayName);
-  }, [purchaseOrders, selectedVendorId, selectedVendor?.DisplayName]);
-
-  const subtotal = useMemo(() => {
-    return lines.reduce((sum, l) => sum + Number(l.qty || 0) * Number(l.unitPrice || 0), 0);
-  }, [lines]);
-
+  // Keep URL in sync with selection (without scrolling)
   useEffect(() => {
-    if (purchaseOrderIdFromUrl) {
-      setSelectedPurchaseOrderId(purchaseOrderIdFromUrl);
+    if (!selectedId) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (params.get("vendorId") !== selectedId) {
+      params.set("vendorId", selectedId);
+      router.replace(`/vendors?${params.toString()}`, { scroll: false });
     }
-  }, [purchaseOrderIdFromUrl]);
-
-  useEffect(() => {
-    if (!selectedPurchaseOrderId) {
-      setSelectedPurchaseOrder(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadPurchaseOrder() {
-      setLoadingPurchaseOrder(true);
-      try {
-        const res = await fetch(`/api/quickbooks/purchase-orders?id=${encodeURIComponent(selectedPurchaseOrderId)}`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
-        if (!cancelled) {
-          if (!res.ok) throw new Error(data.error || "Failed to load purchase order");
-          setSelectedPurchaseOrder(data.purchaseOrder || null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setSelectedPurchaseOrder(null);
-          setError(e instanceof Error ? e.message : "Failed to load purchase order");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingPurchaseOrder(false);
-        }
-      }
-    }
-
-    loadPurchaseOrder();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPurchaseOrderId]);
-
-  useEffect(() => {
-    if (selectedPurchaseOrder?.VendorRef?.value) {
-      setSelectedVendorId(selectedPurchaseOrder.VendorRef.value);
-    }
-  }, [selectedPurchaseOrder?.VendorRef?.value]);
-
-  function updateLine(idx: number, patch: Partial<(typeof lines)[number]>) {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  }
-
-  async function createPO() {
-    if (!selectedVendorId) return setError("Select a vendor first.");
-    const normalized = lines
-      .filter((l) => l.itemId || l.description)
-      .map((l) => ({
-        itemId: l.itemId || undefined,
-        description: l.description || undefined,
-        qty: Number(l.qty || 0),
-        unitPrice: Number(l.unitPrice || 0),
-        amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
-      }))
-      .filter((l) => l.amount > 0);
-
-    if (!normalized.length) return setError("Add at least one PO line with quantity and price.");
-
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/quickbooks/purchase-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorId: selectedVendorId, memo: memo || undefined, lines: normalized }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
-
-      setMemo("");
-      setLines([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
-      setSelectedPurchaseOrderId(data.purchaseOrder?.Id || "");
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create purchase order");
-    } finally {
-      setSaving(false);
-    }
-  }
+  }, [selectedId, router, searchParams]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -199,160 +158,108 @@ export default function VendorsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div>
-            <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Vendors</h1>
-            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Search vendors, review recent purchase orders, and create new POs</p>
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {/* Top toolbar */}
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
+            <div>
+              <h1 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Vendors</h1>
+              {list && (
+                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  {list.totals.vendors.toLocaleString()} vendors · {fmtMoney(list.totals.balance)} owed · {list.totals.openBills} open bills · {list.totals.openPOs} open POs
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={async () => {
+                  await fetch("/api/quickbooks/sync/vendors", { method: "POST" });
+                  fetchList();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+              >
+                Sync from QuickBooks
+              </button>
+              <button onClick={fetchList} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+                Refresh
+              </button>
+            </div>
           </div>
-          <button onClick={loadAll} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
-        </div>
 
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <div className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">Vendor Search</h2>
-              <input
-                value={vendorQuery}
-                onChange={(e) => setVendorQuery(e.target.value)}
-                placeholder="Search vendor"
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-              />
+          {/* Two-pane layout */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Vendor list */}
+            <div className="w-full md:w-[360px] flex flex-col" style={{ borderRight: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
+              <div className="p-3 space-y-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                <input
+                  type="text"
+                  placeholder="Search vendors…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg outline-none text-sm focus:ring-2 focus:ring-orange-500"
+                  style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+                />
+                <div className="flex gap-1 overflow-x-auto pb-1">
+                  <Pill label="Active" v="active" cur={filter} on={setFilter} />
+                  <Pill label="Owed $" v="with_balance" cur={filter} on={setFilter} />
+                  <Pill label="1099" v="1099" cur={filter} on={setFilter} />
+                  <Pill label="All" v="all" cur={filter} on={setFilter} />
+                  <Pill label="Inactive" v="inactive" cur={filter} on={setFilter} />
+                </div>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span style={{ color: "var(--color-text-muted)" }}>Sort:</span>
+                  <SortBtn label="Name" v="name" cur={sort} on={setSort} dir={dir} setDir={setDir} />
+                  <SortBtn label="Balance" v="balance" cur={sort} on={setSort} dir={dir} setDir={setDir} />
+                  <SortBtn label="Activity" v="activity" cur={sort} on={setSort} dir={dir} setDir={setDir} />
+                </div>
+              </div>
 
-              <div className="mt-3 space-y-2 max-h-[620px] overflow-auto pr-1">
-                {(loading ? [] : filteredVendors).map((v) => (
+              <div className="flex-1 overflow-y-auto">
+                {loading && <p className="p-4 text-xs" style={{ color: "var(--color-text-muted)" }}>Loading…</p>}
+                {!loading && list?.items.length === 0 && (
+                  <p className="p-4 text-xs" style={{ color: "var(--color-text-muted)" }}>No vendors match.</p>
+                )}
+                {list?.items.map((v) => (
                   <button
-                    key={v.Id}
-                    onClick={() => setSelectedVendorId(v.Id)}
-                    className="w-full text-left p-3 rounded-lg"
+                    key={v.id}
+                    onClick={() => setSelectedId(v.id)}
+                    className="w-full text-left px-3 py-2.5 transition-colors"
                     style={{
-                      background: selectedVendorId === v.Id ? "rgba(37,99,235,0.12)" : "var(--color-surface-3)",
-                      border: `1px solid ${selectedVendorId === v.Id ? "rgba(37,99,235,0.35)" : "var(--color-border)"}`,
+                      background: selectedId === v.id ? "var(--color-surface-2)" : "transparent",
+                      borderBottom: "1px solid var(--color-border)",
+                      borderLeft: selectedId === v.id ? "3px solid #FF4400" : "3px solid transparent",
                     }}
                   >
-                    <div className="text-sm font-semibold">{v.DisplayName}</div>
-                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{v.PrimaryEmailAddr?.Address || v.CompanyName || "—"}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+                          {v.displayName}
+                          {v.is1099 && <span className="ml-1 text-[9px] uppercase tracking-wide opacity-60">1099</span>}
+                        </div>
+                        <div className="text-[11px] mt-0.5 flex items-center gap-2" style={{ color: "var(--color-text-muted)" }}>
+                          {v.openBillCount > 0 && <span>{v.openBillCount} open bill{v.openBillCount === 1 ? "" : "s"}</span>}
+                          {v.openPOCount > 0 && <span>{v.openPOCount} open PO{v.openPOCount === 1 ? "" : "s"}</span>}
+                          {v.openBillCount === 0 && v.openPOCount === 0 && <span>{relTime(v.lastActivity)}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {v.balance > 0 ? (
+                          <div className="text-sm font-semibold" style={{ color: "#F59E0B" }}>{fmtMoney(v.balance)}</div>
+                        ) : (
+                          <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>$0</div>
+                        )}
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="xl:col-span-2 rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-4">Create Purchase Order {selectedVendor ? `· ${selectedVendor.DisplayName}` : ""}</h2>
-              {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
-
-              <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo / note" className="w-full px-3 py-2 rounded-lg text-sm mb-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-
-              <div className="space-y-2">
-                {lines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                    <select
-                      value={line.itemId}
-                      onChange={(e) => {
-                        const item = items.find((it) => it.Id === e.target.value);
-                        updateLine(idx, {
-                          itemId: e.target.value,
-                          description: item ? `${item.Name}${getItemPartNumber(item) ? ` | Part: ${getItemPartNumber(item)}` : ""}` : line.description,
-                          unitPrice: Number(item?.UnitPrice || line.unitPrice || 0),
-                        });
-                      }}
-                      className="col-span-4 px-2 py-2 rounded-lg text-sm"
-                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                    >
-                        <option value="">Item</option>
-                        {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name} · {getItemPartNumber(i)}</option>)}
-                      </select>
-                    <input value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} className="col-span-4 px-2 py-2 rounded-lg text-sm" placeholder="Description" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input type="number" min={1} value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 1) })} className="col-span-1 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <input type="number" step="0.01" min={0} value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} className="col-span-2 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                    <button onClick={() => setLines((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx))} className="col-span-1 px-2 py-2 rounded-lg text-xs" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>✕</button>
-                  </div>
-                ))}
-              </div>
-
-              <button onClick={() => setLines((prev) => [...prev, { itemId: "", description: "", qty: 1, unitPrice: 0 }])} className="mt-3 px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>+ Add line</button>
-
-              <div className="mt-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
-                <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Subtotal</div>
-                <div className="text-lg font-bold">${subtotal.toFixed(2)}</div>
-              </div>
-
-              <button disabled={saving || !selectedVendorId} onClick={createPO} className="mt-3 w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)", opacity: saving ? 0.7 : 1 }}>
-                {saving ? "Sending to QuickBooks..." : "Create Purchase Order"}
-              </button>
-            </div>
-
-            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">Recent Purchase Orders</h2>
-              {loading ? <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p> : (
-                <div className="space-y-2 max-h-[620px] overflow-auto pr-1">
-                  {vendorPOs.slice(0, 40).map((po) => (
-                    <button
-                      key={po.Id}
-                      onClick={() => setSelectedPurchaseOrderId(po.Id)}
-                      className="w-full text-left p-3 rounded-lg"
-                      style={{
-                        background: "var(--color-surface-3)",
-                        border: `1px solid ${selectedPurchaseOrderId === po.Id ? "rgba(37,99,235,0.35)" : "var(--color-border)"}`,
-                      }}
-                    >
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
-                      <div className="text-sm font-semibold">{po.VendorRef?.name || "Vendor"}</div>
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.TxnDate || "—"}</div>
-                      <div className="text-sm font-semibold mt-1">${Number(po.TotalAmt || 0).toFixed(2)}</div>
-                    </button>
-                  ))}
-                  {vendorPOs.length === 0 && <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No POs for this vendor yet.</p>}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">Purchase Order Detail</h2>
-              {loadingPurchaseOrder ? (
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading purchase order...</p>
-              ) : !selectedPurchaseOrder ? (
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select a purchase order to inspect the actual QuickBooks document.</p>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPurchaseOrder.DocNumber || `PO ${selectedPurchaseOrder.Id}`}</div>
-                    <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedPurchaseOrder.VendorRef?.name || "Vendor"}</div>
-                    <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{selectedPurchaseOrder.TxnDate || "—"}</div>
-                  </div>
-
-                  {(selectedPurchaseOrder.Memo || selectedPurchaseOrder.PrivateNote) && (
-                    <div className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                      <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>Memo</div>
-                      <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedPurchaseOrder.Memo || selectedPurchaseOrder.PrivateNote}</div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    {(selectedPurchaseOrder.Line || []).map((line, idx) => (
-                      <div key={`${selectedPurchaseOrder.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                          {line.Description || line.ItemBasedExpenseLineDetail?.ItemRef?.name || "PO line"}
-                        </div>
-                        <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                          {Number(line.ItemBasedExpenseLineDetail?.Qty || 1)} x ${Number(line.ItemBasedExpenseLineDetail?.UnitPrice || 0).toFixed(2)}
-                        </div>
-                        <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
-                          ${Number(line.Amount || 0).toFixed(2)}
-                        </div>
-                      </div>
-                    ))}
-                    {(selectedPurchaseOrder.Line || []).length === 0 && (
-                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No purchase-order lines found.</p>
-                    )}
-                  </div>
-
-                  <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total</span>
-                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(selectedPurchaseOrder.TotalAmt || 0).toFixed(2)}</span>
-                    </div>
-                  </div>
+            {/* Vendor detail */}
+            <div className="flex-1 hidden md:block overflow-y-auto" style={{ background: "var(--color-bg)" }}>
+              {selectedId ? <VendorDetail vendorId={selectedId} /> : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select a vendor to see their bills, POs, and balance.</p>
                 </div>
               )}
             </div>
@@ -362,6 +269,257 @@ export default function VendorsPage() {
     </div>
   );
 }
-  function getItemPartNumber(item: Item | undefined) {
-    return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
+
+// ───────────────────────────────────────────────────────────────────────────
+// Vendor detail pane
+// ───────────────────────────────────────────────────────────────────────────
+function VendorDetail({ vendorId }: { vendorId: string }) {
+  const [data, setData] = useState<DetailResponse | null>(null);
+  const [tab, setTab] = useState<Tab>("transactions");
+  const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
+
+  useEffect(() => {
+    setData(null);
+    fetch(`/api/vendors/${vendorId}`)
+      .then((r) => r.json())
+      .then((j) => setData(j));
+  }, [vendorId]);
+
+  if (!data) {
+    return <p className="p-6 text-sm" style={{ color: "var(--color-text-muted)" }}>Loading…</p>;
   }
+  if (!data.vendor) return null;
+
+  const v = data.vendor;
+  const txns = data.transactions;
+  const bills = txns.filter((t) => t.type === "bill");
+  const pos = txns.filter((t) => t.type === "po");
+
+  const visible = tab === "bills" ? bills : tab === "pos" ? pos : tab === "transactions" ? txns : [];
+
+  return (
+    <div>
+      {/* Vendor header */}
+      <div className="p-5" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+              {v.displayName}
+              {v.is1099 && <span className="ml-2 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>1099</span>}
+              {!v.isActive && <span className="ml-2 text-[10px] uppercase tracking-wide opacity-60">inactive</span>}
+            </h2>
+            {v.companyName && v.companyName !== v.displayName && (
+              <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>{v.companyName}</p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+              {v.email && <span>📧 {v.email}</span>}
+              {v.phone && <span>📞 {v.phone}</span>}
+              {v.addressLine1 && <span>📍 {v.addressLine1}{v.city ? `, ${v.city}` : ""}{v.state ? `, ${v.state}` : ""} {v.zip || ""}</span>}
+              {v.accountNumber && <span>Account #{v.accountNumber}</span>}
+              {v.paymentTerms && <span>Terms: {v.paymentTerms}</span>}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Balance owed</p>
+            <p className="text-3xl font-bold" style={{ color: data.summary.billOpenBalance > 0 ? "#F59E0B" : "var(--color-text-primary)" }}>
+              {fmtMoney(data.summary.billOpenBalance)}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+          <MiniStat label="Open bills" value={data.summary.openBillCount.toString()} hint={fmtMoney(data.summary.billOpenBalance)} tone={data.summary.openBillCount > 0 ? "warn" : undefined} />
+          <MiniStat label="Total billed" value={fmtMoney(data.summary.billTotalBilled)} hint={`${data.summary.billCount} bills`} />
+          <MiniStat label="Open POs" value={data.summary.openPOCount.toString()} hint={fmtMoney(data.summary.poOpenValue)} tone={data.summary.openPOCount > 0 ? "good" : undefined} />
+          <MiniStat label="Last activity" value={relTime(data.summary.lastActivity)} hint={fmtDate(data.summary.lastActivity)} />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="px-5 pt-3 flex gap-1 sticky top-0 z-10" style={{ background: "var(--color-bg)", borderBottom: "1px solid var(--color-border)" }}>
+        <Tab v="transactions" cur={tab} on={setTab} count={txns.length}>Transactions</Tab>
+        <Tab v="bills" cur={tab} on={setTab} count={bills.length}>Bills</Tab>
+        <Tab v="pos" cur={tab} on={setTab} count={pos.length}>Purchase Orders</Tab>
+        <Tab v="profile" cur={tab} on={setTab}>Profile</Tab>
+      </div>
+
+      {/* Tab content */}
+      <div className="p-5">
+        {tab === "profile" ? (
+          <ProfileTab vendor={v} />
+        ) : visible.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            No {tab === "bills" ? "bills" : tab === "pos" ? "purchase orders" : "transactions"} for this vendor.
+          </p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <table className="w-full text-sm">
+              <thead style={{ background: "var(--color-surface-2)" }}>
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Type</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Date</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Number</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Status</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Total</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((t) => {
+                  const isOpen = t.balance > 0 || (t.type === "po" && t.status === "open");
+                  return (
+                    <tr
+                      key={`${t.type}-${t.id}`}
+                      onClick={() => setDocDrill({ type: t.type === "bill" ? "bill" : "purchase-order", id: t.id })}
+                      className="cursor-pointer"
+                      style={{ borderTop: "1px solid var(--color-border)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                    >
+                      <td className="px-3 py-2">
+                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{
+                          background: t.type === "bill" ? "rgba(245,158,11,0.15)" : "rgba(255,68,0,0.15)",
+                          color: t.type === "bill" ? "#F59E0B" : "#FF4400",
+                        }}>
+                          {t.type === "bill" ? "Bill" : "PO"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>{fmtDate(t.date)}</td>
+                      <td className="px-3 py-2 font-mono text-xs" style={{ color: "var(--color-text-primary)" }}>{t.number || "—"}</td>
+                      <td className="px-3 py-2 text-xs uppercase" style={{ color: isOpen ? "#F59E0B" : "var(--color-text-muted)" }}>
+                        {t.status || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(t.total)}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: t.balance > 0 ? "#F59E0B" : "var(--color-text-muted)" }}>
+                        {t.balance > 0 ? fmtMoney(t.balance) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {docDrill && (
+        <DocumentDrawer
+          type={docDrill.type}
+          id={docDrill.id}
+          onClose={() => setDocDrill(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Subcomponents
+// ───────────────────────────────────────────────────────────────────────────
+function Pill<V extends string>({ label, v, cur, on }: { label: string; v: V; cur: V; on: (v: V) => void }) {
+  const active = cur === v;
+  return (
+    <button
+      onClick={() => on(v)}
+      className="px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap"
+      style={{
+        background: active ? "#FF4400" : "var(--color-surface-2)",
+        color: active ? "white" : "var(--color-text-secondary)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SortBtn<V extends string>({ label, v, cur, on, dir, setDir }: { label: string; v: V; cur: V; on: (v: V) => void; dir: "asc" | "desc"; setDir: (d: "asc" | "desc") => void }) {
+  const active = cur === v;
+  return (
+    <button
+      onClick={() => {
+        if (active) setDir(dir === "asc" ? "desc" : "asc");
+        else { on(v); setDir(v === "name" ? "asc" : "desc"); }
+      }}
+      className="px-1.5 py-0.5 rounded"
+      style={{ color: active ? "var(--color-text-primary)" : "var(--color-text-muted)", fontWeight: active ? 600 : 400 }}
+    >
+      {label}{active && (dir === "asc" ? " ▲" : " ▼")}
+    </button>
+  );
+}
+
+function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) => void; count?: number; children: React.ReactNode }) {
+  const active = cur === v;
+  return (
+    <button
+      onClick={() => on(v)}
+      className="px-4 py-2 rounded-t-lg text-sm font-medium relative"
+      style={{
+        color: active ? "var(--color-text-primary)" : "var(--color-text-muted)",
+        borderBottom: active ? "2px solid #FF4400" : "2px solid transparent",
+        marginBottom: "-1px",
+      }}
+    >
+      {children}
+      {typeof count === "number" && (
+        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function MiniStat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "warn" }) {
+  const color = tone === "warn" ? "#F59E0B" : tone === "good" ? "#16A34A" : "var(--color-text-primary)";
+  return (
+    <div className="p-3 rounded-lg" style={{ background: "var(--color-surface-2)" }}>
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-lg font-bold mt-0.5" style={{ color }}>{value}</p>
+      {hint && <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{hint}</p>}
+    </div>
+  );
+}
+
+function ProfileTab({ vendor }: { vendor: VendorRow & { notes?: string | null } }) {
+  return (
+    <div className="rounded-xl p-5 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+      <Section title="Contact">
+        <Field label="Email" value={vendor.email} />
+        <Field label="Phone" value={vendor.phone} />
+      </Section>
+      <Section title="Address">
+        <Field label="Street" value={vendor.addressLine1} />
+        <Field label="City" value={vendor.city} />
+        <Field label="State" value={vendor.state} />
+        <Field label="ZIP" value={vendor.zip} />
+      </Section>
+      <Section title="Account">
+        <Field label="Account #" value={vendor.accountNumber} />
+        <Field label="Payment terms" value={vendor.paymentTerms} />
+        <Field label="1099" value={vendor.is1099 ? "Yes" : "No"} />
+        <Field label="Active" value={vendor.isActive ? "Yes" : "No"} />
+      </Section>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--color-text-secondary)" }}>{title}</h3>
+      <div className="grid grid-cols-2 gap-3">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-sm mt-0.5" style={{ color: "var(--color-text-primary)" }}>{value || "—"}</p>
+    </div>
+  );
+}
