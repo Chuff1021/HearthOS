@@ -1,0 +1,178 @@
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  db,
+  invoices,
+  invoiceLineItems,
+  customers,
+  inventoryItems,
+  bills,
+  billLineItems,
+  vendors,
+} from '@/db';
+import { and, eq, sql, desc, asc, inArray, gte, lte } from 'drizzle-orm';
+import { getOrCreateDefaultOrg } from '@/lib/org';
+
+// Detail P&L for a single invoice ("job")
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const org = await getOrCreateDefaultOrg();
+
+    const [row] = await db
+      .select({
+        invoice: invoices,
+        customerId: customers.id,
+        customerFirst: customers.firstName,
+        customerLast: customers.lastName,
+        customerCompany: customers.companyName,
+        customerEmail: customers.email,
+        customerPhone: customers.phone,
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(customers.id, invoices.customerId))
+      .where(and(eq(invoices.orgId, org.id), eq(invoices.id, id)))
+      .limit(1);
+
+    if (!row) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    const inv = row.invoice;
+
+    // Pull line items + per-item cost
+    const lines = await db
+      .select()
+      .from(invoiceLineItems)
+      .where(eq(invoiceLineItems.invoiceId, id))
+      .orderBy(asc(invoiceLineItems.order));
+
+    const qbItemIds = [...new Set(lines.map((l) => l.qbItemId).filter(Boolean) as string[])];
+    const itemRows = qbItemIds.length > 0
+      ? await db
+          .select()
+          .from(inventoryItems)
+          .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, qbItemIds)))
+      : [];
+    const itemByQb = new Map(itemRows.map((i) => [i.qbItemId!, i]));
+
+    let totalRevenue = 0;
+    let totalCogs = 0;
+    const lineDetail = lines.map((l) => {
+      const qty = Number(l.quantity ?? 0);
+      const unitPrice = Number(l.unitPrice ?? 0);
+      const lineTotal = Number(l.total ?? 0);
+      const item = l.qbItemId ? itemByQb.get(l.qbItemId) : undefined;
+      const unitCost = item?.cost != null ? Number(item.cost) : 0;
+      const lineCost = qty * unitCost;
+      const lineProfit = lineTotal - lineCost;
+      const lineMargin = lineTotal > 0 ? (lineProfit / lineTotal) * 100 : null;
+      totalRevenue += lineTotal;
+      totalCogs += lineCost;
+      return {
+        id: l.id,
+        order: l.order ?? 0,
+        description: l.description,
+        qbItemId: l.qbItemId,
+        itemName: item?.name ?? null,
+        itemSku: item?.sku ?? null,
+        quantity: qty,
+        unitPrice,
+        unitCost,
+        total: lineTotal,
+        cost: lineCost,
+        profit: lineProfit,
+        margin: lineMargin,
+      };
+    });
+
+    // Customer-attributed bills in [issueDate-30d, issueDate+60d]
+    type BillExp = {
+      billId: string; billNumber: string | null; issueDate: string | null;
+      vendorId: string | null; vendorName: string | null;
+      description: string | null; amount: number; qbItemId: string | null;
+      lineId: string;
+    };
+    let billExpenses: BillExp[] = [];
+    if (inv.customerId && inv.issueDate) {
+      const ts = new Date(inv.issueDate);
+      const lo = new Date(ts); lo.setDate(lo.getDate() - 30);
+      const hi = new Date(ts); hi.setDate(hi.getDate() + 60);
+      const raw = await db
+        .select({
+          billId: bills.id,
+          billNumber: bills.billNumber,
+          issueDate: bills.issueDate,
+          vendorId: vendors.id,
+          vendorName: vendors.displayName,
+          description: billLineItems.description,
+          amount: billLineItems.amount,
+          qbItemId: billLineItems.qbItemId,
+          lineId: billLineItems.id,
+        })
+        .from(billLineItems)
+        .innerJoin(bills, eq(bills.id, billLineItems.billId))
+        .leftJoin(vendors, eq(vendors.id, bills.vendorId))
+        .where(and(
+          eq(bills.orgId, org.id),
+          eq(billLineItems.customerId, inv.customerId),
+          gte(bills.issueDate, lo.toISOString().slice(0, 10)),
+          lte(bills.issueDate, hi.toISOString().slice(0, 10)),
+        ))
+        .orderBy(desc(bills.issueDate));
+      billExpenses = raw.map((r) => ({
+        billId: r.billId,
+        billNumber: r.billNumber,
+        issueDate: r.issueDate,
+        vendorId: r.vendorId,
+        vendorName: r.vendorName,
+        description: r.description,
+        amount: Number(r.amount ?? 0),
+        qbItemId: r.qbItemId,
+        lineId: r.lineId,
+      }));
+    }
+    const totalBillable = billExpenses.reduce((s, b) => s + b.amount, 0);
+
+    const tax = Number(inv.taxAmount ?? 0);
+    const billed = totalRevenue + tax;
+    const totalCost = totalCogs + totalBillable;
+    const profit = totalRevenue - totalCost;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : null;
+
+    const customerName =
+      row.customerCompany ||
+      (row.customerFirst ? `${row.customerFirst} ${row.customerLast || ''}`.trim() : null);
+
+    return NextResponse.json({
+      invoice: {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        issueDate: inv.issueDate,
+        dueDate: inv.dueDate,
+        status: inv.status,
+        balance: Number(inv.balance ?? 0),
+        notes: inv.notes,
+      },
+      customer: row.customerId ? {
+        id: row.customerId,
+        name: customerName,
+        email: row.customerEmail,
+        phone: row.customerPhone,
+      } : null,
+      lines: lineDetail,
+      billExpenses,
+      summary: {
+        revenue: totalRevenue,
+        tax,
+        billed,
+        cogs: totalCogs,
+        billable: totalBillable,
+        totalCost,
+        profit,
+        margin,
+        balance: Number(inv.balance ?? 0),
+      },
+    });
+  } catch (err: any) {
+    console.error('Profit-by-job detail failed:', err);
+    return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 });
+  }
+}
