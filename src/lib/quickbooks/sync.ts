@@ -135,6 +135,7 @@ function splitName(displayName: string | undefined): [string, string] {
 
 export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustomer[]): Promise<number> {
   const now = new Date();
+  qbCustomers = dedupeBy(qbCustomers, (c) => c.Id);
   const rows = qbCustomers.flatMap((c) => {
     if (!c.Id) return [];
     const [fallbackFirst, fallbackLast] = splitName(c.DisplayName);
@@ -179,6 +180,7 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
 
 export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promise<number> {
   const now = new Date();
+  qbItems = dedupeBy(qbItems, (i) => i.Id);
   const rows = qbItems.flatMap((i) => {
     if (!i.Id) return [];
     return [{
@@ -225,6 +227,7 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
 
 export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): Promise<number> {
   const now = new Date();
+  qbVendors = dedupeBy(qbVendors, (v) => v.Id);
   const rows = qbVendors.flatMap((v) => {
     if (!v.Id) return [];
     return [{
@@ -299,6 +302,26 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+// Postgres rejects ON CONFLICT DO UPDATE when the same conflict target appears twice
+// in a single INSERT, and QB occasionally returns the same Id twice across paginated
+// results. Keep the last occurrence so the freshest data wins.
+function dedupeBy<T>(rows: T[], key: (r: T) => string | undefined): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows) {
+    const k = key(r);
+    if (!k) continue;
+    map.set(k, r);
+  }
+  return [...map.values()];
+}
+
+// Same idea but for composite keys (used by payments).
+function dedupeByComposite<T>(rows: T[], key: (r: T) => string): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows) map.set(key(r), r);
+  return [...map.values()];
+}
+
 // === Lookup helpers (qb*Id → local UUID) ===
 
 async function buildIdMap<T extends { id: string; qbId: string | null }>(rows: T[]): Promise<Map<string, string>> {
@@ -344,6 +367,7 @@ function deriveInvoiceStatus(qb: QBInvoice): 'draft' | 'sent' | 'paid' | 'void' 
 export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]): Promise<number> {
   const now = new Date();
   const custMap = await customerIdMap(orgId);
+  qbInvoices = dedupeBy(qbInvoices, (inv) => inv.Id);
 
   const parents = qbInvoices.flatMap((inv) => {
     if (!inv.Id) return [];
@@ -460,10 +484,13 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
     return out;
   });
 
-  if (rows.length === 0) return 0;
+  // Dedupe within this batch on (qbPaymentId, invoiceId) — same composite that the unique
+  // constraint enforces, so PG won't choke on duplicates inside a single INSERT.
+  const deduped = dedupeByComposite(rows, (r) => `${r.qbPaymentId}::${r.invoiceId}`);
+  if (deduped.length === 0) return 0;
 
   let written = 0;
-  for (const part of chunk(rows, 1000)) {
+  for (const part of chunk(deduped, 1000)) {
     try {
       const ret = await db.insert(payments).values(part).onConflictDoUpdate({
         target: [payments.qbPaymentId, payments.invoiceId],
@@ -497,6 +524,7 @@ function deriveEstimateStatus(qb: QBEstimate): 'pending' | 'accepted' | 'decline
 export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimate[]): Promise<number> {
   const now = new Date();
   const custMap = await customerIdMap(orgId);
+  qbEstimates = dedupeBy(qbEstimates, (est) => est.Id);
 
   const parents = qbEstimates.flatMap((est) => {
     if (!est.Id) return [];
@@ -589,6 +617,7 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
 export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchaseOrder[]): Promise<number> {
   const now = new Date();
   const vendMap = await vendorIdMap(orgId);
+  qbPOs = dedupeBy(qbPOs, (po) => po.Id);
 
   const parents = qbPOs.flatMap((po) => {
     if (!po.Id) return [];
@@ -700,6 +729,7 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
   const now = new Date();
   const vendMap = await vendorIdMap(orgId);
   const custMap = await customerIdMap(orgId);
+  qbBills = dedupeBy(qbBills, (bill) => bill.Id);
 
   const parents = qbBills.flatMap((bill) => {
     if (!bill.Id) return [];
