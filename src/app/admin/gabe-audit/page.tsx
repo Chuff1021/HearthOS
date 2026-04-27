@@ -153,7 +153,7 @@ export default function GabeAuditPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Avg Rating</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>{(stats.avgRating || 0).toFixed(1)} ⭐</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#f8971f" }}>{(stats.avgRating || 0).toFixed(1)} ⭐</p>
               </div>
             </div>
 
@@ -166,7 +166,7 @@ export default function GabeAuditPage() {
                     {testStats.passed}/{testStats.total}
                   </span>
                 </div>
-                <p className="text-2xl font-bold mt-1" style={{ color: testStats.accuracy >= 90 ? "#98CD00" : "#FF4400" }}>
+                <p className="text-2xl font-bold mt-1" style={{ color: testStats.accuracy >= 90 ? "#98CD00" : "#f8971f" }}>
                   {testStats.accuracy.toFixed(1)}%
                 </p>
                 <div className="mt-2 text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
@@ -182,7 +182,7 @@ export default function GabeAuditPage() {
                     <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No current insights.</p>
                   ) : reviewInsights.slice(0, 4).map((i) => (
                     <div key={i.id} className="text-xs rounded-lg p-2" style={{ background: "var(--color-surface-2)" }}>
-                      <div className="font-semibold" style={{ color: "#FF4400" }}>{i.detectedIssue}</div>
+                      <div className="font-semibold" style={{ color: "#f8971f" }}>{i.detectedIssue}</div>
                       <div style={{ color: "var(--color-text-secondary)" }}>{i.suggestion}</div>
                     </div>
                   ))}
@@ -368,7 +368,7 @@ export default function GabeAuditPage() {
                     key={star}
                     onClick={() => handleRating(selectedMessage.id, star)}
                     className="text-xl hover:scale-110 transition-transform"
-                    style={{ color: star <= (selectedMessage.rating || 0) ? "#FF4400" : "#4b5563" }}
+                    style={{ color: star <= (selectedMessage.rating || 0) ? "#f8971f" : "#4b5563" }}
                   >
                     ⭐
                   </button>

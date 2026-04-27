@@ -428,7 +428,7 @@ function ProfitPill({ label, value, current, onClick }: { label: string; value: 
       onClick={() => onClick(value)}
       className="px-3 py-2 rounded-lg text-xs font-medium"
       style={{
-        background: active ? "#FF4400" : "var(--color-surface-1)",
+        background: active ? "#f8971f" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}

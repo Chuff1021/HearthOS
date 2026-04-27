@@ -105,31 +105,34 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-[1600px] mx-auto p-6 space-y-6">
 
-            {/* Hero card — premium feel */}
+            {/* Hero card — Forge & Flame palette: pure white card on warm cream page,
+                subtle ember-glow gradient bleeding from the top-left. */}
             <div
-              className="rounded-2xl p-8 relative overflow-hidden"
+              className="rounded-xl p-8 relative overflow-hidden"
               style={{
-                background: "linear-gradient(135deg, rgba(255,68,0,0.04) 0%, rgba(255,68,0,0.0) 60%), var(--color-surface-1)",
+                background:
+                  "radial-gradient(circle at 0% 0%, rgba(248,151,31,0.06) 0%, rgba(248,151,31,0) 40%), var(--color-surface-1)",
                 border: "1px solid var(--color-border)",
               }}
             >
               <div className="flex items-start justify-between gap-6 flex-wrap">
                 <div>
-                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{todayLabel()}</p>
+                  <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "var(--color-ff-taupe)" }}>
+                    {todayLabel()}
+                  </p>
                   <h1
-                    className="mt-1"
+                    className="mt-2"
                     style={{
-                      fontFamily: "var(--font-family-display)",
-                      fontSize: "2.5rem",
+                      fontSize: "2.25rem",
                       lineHeight: 1.1,
-                      fontWeight: 500,
+                      fontWeight: 700,
                       letterSpacing: "-0.02em",
-                      color: "var(--color-text-primary)",
+                      color: "var(--color-ff-charcoal)",
                     }}
                   >
                     {greeting()}, {displayName}.
                   </h1>
-                  <p className="text-base mt-2 max-w-xl" style={{ color: "var(--color-text-secondary)" }}>
+                  <p className="text-base mt-3 max-w-xl" style={{ color: "var(--color-text-secondary)" }}>
                     Your year-to-date pulse — revenue, profit, what&apos;s owed to you, and what you owe.
                   </p>
                 </div>
@@ -143,21 +146,21 @@ export default function DashboardPage() {
                 label="Revenue YTD"
                 value={ws ? fmtMoneyShort(ws.revenue) : "—"}
                 sublabel={ws ? `${ws.invoiceCount.toLocaleString()} invoices` : ""}
-                accent="#16A34A"
+                accent="#4f7d3a"
                 href="/reports/profit-by-job?preset=ytd"
               />
               <KpiCard
                 label="Profit YTD"
                 value={ws ? fmtMoneyShort(ws.profit) : "—"}
                 sublabel={ws?.margin != null ? `${ws.margin.toFixed(1)}% margin` : ""}
-                accent={ws && ws.profit < 0 ? "#FF204E" : "#FF4400"}
+                accent={ws && ws.profit < 0 ? "#c44545" : "#f8971f"}
                 href="/reports/profit-by-job?preset=ytd"
               />
               <KpiCard
                 label="Owed to you"
                 value={cm ? fmtMoneyShort(cm.totalDue) : "—"}
                 sublabel={cm ? `${cm.openInvoiceCount} open · ${cm.overdueCount} overdue` : ""}
-                accent="#F59E0B"
+                accent="#eaa23f"
                 tone={cm && cm.overdueCount > 0 ? "warn" : undefined}
                 href="/reports/ar-aging"
               />
@@ -165,7 +168,7 @@ export default function DashboardPage() {
                 label="You owe"
                 value={vm ? fmtMoneyShort(vm.totalOwed) : "—"}
                 sublabel={vm ? `${vm.openBillCount} open · ${vm.overdueCount} overdue` : ""}
-                accent="#0EA5E9"
+                accent="#332e2d"
                 tone={vm && vm.overdueCount > 0 ? "danger" : undefined}
                 href="/vendors"
               />
@@ -201,26 +204,25 @@ export default function DashboardPage() {
 function KpiCard({ label, value, sublabel, accent, tone, href }: { label: string; value: string; sublabel?: string; accent: string; tone?: "warn" | "danger"; href?: string }) {
   const Tag: any = href ? Link : "div";
   const props: any = href ? { href } : {};
-  const accentColor = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : accent;
+  const accentColor = tone === "danger" ? "#c44545" : tone === "warn" ? "#eaa23f" : accent;
   return (
     <Tag
       {...props}
-      className={`p-5 rounded-2xl block relative transition-all ${href ? "hover:translate-y-[-1px] hover:shadow-md" : ""}`}
+      className={`p-5 rounded-xl block relative transition-all ${href ? "hover:-translate-y-[1px]" : ""}`}
       style={{
         background: "var(--color-surface-1)",
         border: "1px solid var(--color-border)",
         borderTop: `3px solid ${accentColor}`,
       }}
     >
-      <p className="text-[10px] uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: "var(--color-ff-taupe)" }}>{label}</p>
       <p
-        className="mt-2"
+        className="mt-3"
         style={{
-          fontFamily: "var(--font-family-display)",
           fontSize: "2rem",
-          fontWeight: 600,
+          fontWeight: 700,
           lineHeight: 1,
-          letterSpacing: "-0.01em",
+          letterSpacing: "-0.025em",
           color: accentColor,
         }}
       >

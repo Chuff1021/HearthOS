@@ -745,7 +745,7 @@ export default function EstimatesPage() {
                           onClick={(event) => { event.stopPropagation(); convertEstimateToInvoice(e); }}
                           disabled={convertingEstimateId === e.Id}
                           className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
-                          style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
+                          style={{ background: "linear-gradient(135deg, #f8971f, #f8971f)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
                         >
                           {convertingEstimateId === e.Id ? "Converting..." : "Convert to Invoice"}
                         </button>

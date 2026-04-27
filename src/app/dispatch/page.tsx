@@ -265,7 +265,7 @@ export default function DispatchPage() {
 
     for (const t of liveTechs) {
       const active = t.id === selectedTechId;
-      const color = active ? '#FF4400' : '#2563EB';
+      const color = active ? '#f8971f' : '#2563EB';
       const initials = deriveInitials(displayTechName(t), t.initials);
       const icon = L.divIcon({ html: markerHtml(color, active, initials), className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
       const latlng: [number, number] = [t.location!.lat, t.location!.lng];
@@ -405,7 +405,7 @@ export default function DispatchPage() {
           current,
           dest,
         ],
-        { color: '#FF4400', weight: 3, opacity: 0.8, dashArray: '8 6' }
+        { color: '#f8971f', weight: 3, opacity: 0.8, dashArray: '8 6' }
       ).addTo(map);
     }
 

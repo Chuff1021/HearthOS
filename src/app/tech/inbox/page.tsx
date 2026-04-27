@@ -69,7 +69,7 @@ export default function TechInboxPage() {
 
       <div className="p-4 space-y-3">
         {note && (
-          <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(255,68,0,0.12)', border: '1px solid rgba(255,68,0,0.35)', color: '#FF4400' }}>
+          <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(255,68,0,0.12)', border: '1px solid rgba(255,68,0,0.35)', color: '#f8971f' }}>
             {note}
           </div>
         )}
@@ -92,7 +92,7 @@ export default function TechInboxPage() {
                     {todo.dueDate ? ` · Due: ${todo.dueDate}` : ''}
                   </div>
                 </div>
-                <span className="px-2 py-1 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(255,68,0,0.12)', color: '#FF4400' }}>
+                <span className="px-2 py-1 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(255,68,0,0.12)', color: '#f8971f' }}>
                   {todo.priority.toUpperCase()}
                 </span>
               </div>

@@ -1276,7 +1276,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handlePayNow(selectedInvoice)}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
-                      style={{ background: "linear-gradient(135deg, #FF4400, #FF4400)", color: "white" }}
+                      style={{ background: "linear-gradient(135deg, #f8971f, #f8971f)", color: "white" }}
                     >
                       Pay Now (Square)
                     </button>

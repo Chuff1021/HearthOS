@@ -93,7 +93,7 @@ export default async function AdminSettingsPage() {
               <label className="text-xs text-neutral-400">Primary Brand Color</label>
               <input
                 name="brandPrimary"
-                defaultValue={settings.brandPrimary || "#FF4400"}
+                defaultValue={settings.brandPrimary || "#f8971f"}
                 className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm"
               />
             </div>

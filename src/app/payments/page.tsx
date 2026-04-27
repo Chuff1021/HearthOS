@@ -244,7 +244,7 @@ export default function PaymentsPage() {
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "#FF4400" }}>${totalPending.toLocaleString()}</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: "#f8971f" }}>${totalPending.toLocaleString()}</p>
               </div>
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>This Month</p>

@@ -313,7 +313,7 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
       className="px-4 py-2.5 text-sm font-medium relative transition-colors"
       style={{
         color: active ? "var(--color-text-primary)" : "var(--color-text-muted)",
-        borderBottom: active ? "2px solid #FF4400" : "2px solid transparent",
+        borderBottom: active ? "2px solid #f8971f" : "2px solid transparent",
         marginBottom: "-1px",
       }}
     >
@@ -322,7 +322,7 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
         <span
           className="ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold"
           style={{
-            background: active ? "#FF4400" : "var(--color-surface-2)",
+            background: active ? "#f8971f" : "var(--color-surface-2)",
             color: active ? "white" : "var(--color-text-muted)",
           }}
         >

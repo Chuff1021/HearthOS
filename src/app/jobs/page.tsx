@@ -91,7 +91,7 @@ type SelectedRelatedDocument =
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
-  in_progress: { bg: "rgba(255,68,0,0.12)", text: "#FF4400", border: "rgba(255,68,0,0.25)" },
+  in_progress: { bg: "rgba(255,68,0,0.12)", text: "#f8971f", border: "rgba(255,68,0,0.25)" },
   completed: { bg: "rgba(152,205,0,0.12)", text: "#98CD00", border: "rgba(152,205,0,0.25)" },
   cancelled: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
   on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
@@ -100,7 +100,7 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 const priorityColors: Record<string, { bg: string; text: string }> = {
   low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
   normal: { bg: "rgba(29,78,216,0.12)", text: "#2563EB" },
-  high: { bg: "rgba(255,68,0,0.12)", text: "#FF4400" },
+  high: { bg: "rgba(255,68,0,0.12)", text: "#f8971f" },
   urgent: { bg: "rgba(255,32,78,0.12)", text: "#FF204E" },
 };
 

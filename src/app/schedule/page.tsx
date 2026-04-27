@@ -976,7 +976,7 @@ export default function SchedulePage() {
                 />
                 {formErrors.customerName && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.customerName}</p>}
                 {customerLoading && <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Looking up customers...</p>}
-                {customerLookupError && <p className="text-xs mt-1" style={{ color: "#FF4400" }}>{customerLookupError}</p>}
+                {customerLookupError && <p className="text-xs mt-1" style={{ color: "#f8971f" }}>{customerLookupError}</p>}
                 {customerResults.length > 0 && !selectedCustomer && (
                   <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     {customerResults.slice(0, 6).map((c) => (

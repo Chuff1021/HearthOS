@@ -1,44 +1,60 @@
 @import "tailwindcss";
 
 :root {
+  /* ─────────────────────────────────────────────────────────────────────
+   * Forge & Flame brand palette — ripped from forgenflame.com's CSS vars
+   *   accent-1 (108,104,102)  warm taupe     #6c6866
+   *   accent-2 (248,151,31)   ember orange   #f8971f   ← primary brand
+   *   accent-3 (51,46,45)     charcoal-brown #332e2d
+   *   accent-4 (234,162,63)   warm amber     #eaa23f
+   *   bg-1 (255,255,255)      white
+   *   bg-2 (247,246,243)      warm cream     #f7f6f3
+   * ───────────────────────────────────────────────────────────────────── */
+
   /* Brand */
-  /* Primary Accent Option in use: Luxury Tech Blue */
-  --color-ember: #2563EB;
-  --color-ember-dark: #2563EB;
-  --color-ember-light: #2563EB;
-  --color-ember-glow: rgba(29, 78, 216, 0.25);
+  --color-ember: #f8971f;
+  --color-ember-dark: #c47214;
+  --color-ember-light: #eaa23f;
+  --color-ember-glow: rgba(248, 151, 31, 0.22);
 
-  /* Alternate accents (quick switch if wanted)
-     Premium Ember: #FF4400 / #FF4400
-     Electric Teal: #98CD00 / #98CD00
-  */
-  --color-accent-violet: #2563EB;
-  --color-accent-cyan: #2563EB;
+  /* Forge & Flame colors as standalone tokens */
+  --color-ff-ember: #f8971f;
+  --color-ff-amber: #eaa23f;
+  --color-ff-taupe: #6c6866;
+  --color-ff-charcoal: #332e2d;
+  --color-ff-cream: #f7f6f3;
+  --color-ff-cream-button: #d3d1c3;
 
-  /* Premium light neutral palette */
-  --color-bg: #f6f5f3;
-  --color-surface: #fcfbf9;
-  --color-surface-1: #fcfbf9;
-  --color-surface-2: #f8f7f5;
-  --color-surface-3: #f1f3f6;
-  --color-surface-4: #e8ebf0;
-  --color-border: rgba(30, 41, 59, 0.10);
-  --color-border-hover: rgba(30, 41, 59, 0.18);
+  /* Legacy aliases — kept around so older components don't blow up. */
+  --color-accent-violet: #eaa23f;
+  --color-accent-cyan: #f8971f;
 
-  /* Text (AA-friendly contrast on light surfaces) */
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #374151;
-  --color-text-muted: #6b7280;
+  /* Surfaces — pure white cards on warm cream page bg, like F&F */
+  --color-bg: #f7f6f3;
+  --color-surface: #ffffff;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f7f6f3;
+  --color-surface-3: #efece6;
+  --color-surface-4: #e6e2d8;
 
-  /* Status */
-  --color-success: #98CD00;
-  --color-warning: #FF4400;
-  --color-danger: #FF204E;
-  --color-info: #2563EB;
+  /* Borders — desaturated taupe with low alpha so they recede */
+  --color-border: rgba(108, 104, 102, 0.14);
+  --color-border-hover: rgba(108, 104, 102, 0.28);
 
-  /* QuickBooks */
-  --color-qb: #98CD00;
-  --color-qb-dark: #98CD00;
+  /* Text — F&F uses warm taupe everywhere; we layer in deeper charcoal for primary headings */
+  --color-text-primary: #332e2d;
+  --color-text-secondary: #5b5754;
+  --color-text-muted: #8a8682;
+
+  /* Status — keep semantic but warm them slightly */
+  --color-success: #4f7d3a;
+  --color-warning: #f8971f;
+  --color-danger: #c44545;
+  --color-info: #6c6866;
+
+  /* QuickBooks integration accent (kept distinct so it doesn't blend with brand) */
+  --color-qb: #4f7d3a;
+  --color-qb-dark: #3f6630;
 
   /* Type scale */
   --font-size-xs: 0.75rem;
@@ -57,43 +73,24 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
 
-  /* Radii + elevation */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px rgba(15, 23, 42, 0.06);
-  --shadow-elevated: 0 16px 38px rgba(15, 23, 42, 0.10);
+  /* Radii — F&F uses 0px, but a SaaS dashboard needs SOME softness for usability;
+     compromise on 8/10/14 for sm/md/lg so it still feels crisp without being brutalist */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
 
-  /* Display font for hero KPIs and section headlines (Fraunces — warm serif) */
-  --font-family-display: var(--font-display), "Fraunces", Georgia, "Times New Roman", serif;
+  /* Shadows — warm taupe shadow, very subtle (matches F&F's near-flat look) */
+  --shadow-subtle: 0 1px 2px rgba(108, 104, 102, 0.04), 0 8px 20px rgba(108, 104, 102, 0.06);
+  --shadow-elevated: 0 12px 32px rgba(108, 104, 102, 0.10);
 
-  /* Backdrop tokens */
-  --bg-dot-color: rgba(15, 23, 42, 0.018);
-  --bg-fade-top: rgba(255,255,255,0.35);
-  --bg-fade-bottom: rgba(255,255,255,0);
-}
+  /* Display font — same Montserrat family that F&F uses, just a heavier weight */
+  --font-family-display: var(--font-display), "Montserrat", -apple-system, BlinkMacSystemFont, sans-serif;
 
-:root[data-theme="dark"] {
-  --color-bg: #0a0f1e;
-  --color-surface: #0f1629;
-  --color-surface-1: #0f1629;
-  --color-surface-2: #141d35;
-  --color-surface-3: #1a2540;
-  --color-surface-4: #1f2d4a;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.14);
-
-  --color-text-primary: #eef2ff;
-  --color-text-secondary: #c7d2fe;
-  --color-text-muted: #8b9cc8;
-
-  --shadow-subtle: 0 1px 2px rgba(2, 6, 23, 0.25), 0 10px 24px rgba(2, 6, 23, 0.32);
-  --shadow-elevated: 0 16px 38px rgba(2, 6, 23, 0.45);
-
-  --bg-dot-color: rgba(148, 163, 184, 0.08);
-  --bg-fade-top: rgba(15, 23, 42, 0.24);
-  --bg-fade-bottom: rgba(15, 23, 42, 0);
+  /* Backdrop tokens — drop the dot pattern; F&F is flat */
+  --bg-dot-color: transparent;
+  --bg-fade-top: transparent;
+  --bg-fade-bottom: transparent;
 }
 
 * {
@@ -101,7 +98,7 @@
 }
 
 html {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans), "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -110,43 +107,27 @@ html {
 body {
   margin: 0;
   background-color: var(--color-bg);
-  background-image:
-    radial-gradient(var(--bg-dot-color) 0.6px, transparent 0.6px),
-    linear-gradient(180deg, var(--bg-fade-top), var(--bg-fade-bottom));
-  background-size: 2px 2px, 100% 100%;
   color: var(--color-text-primary);
   line-height: 1.5;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1, h2, h3, h4, h5, h6 {
   margin: 0;
   color: var(--color-text-primary);
   letter-spacing: -0.01em;
+  font-weight: 700;
 }
 
-h1 {
-  font-size: var(--font-size-2xl);
-}
-
-h2 {
-  font-size: var(--font-size-xl);
-}
-
-h3 {
-  font-size: var(--font-size-lg);
-}
+h1 { font-size: var(--font-size-2xl); }
+h2 { font-size: var(--font-size-xl); }
+h3 { font-size: var(--font-size-lg); }
 
 p {
   margin: 0;
   color: var(--color-text-secondary);
 }
 
-/* Scrollbar */
+/* Scrollbar — warm taupe */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -155,28 +136,25 @@ p {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cfd8e6;
+  background: rgba(108, 104, 102, 0.25);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b9c6da;
+  background: rgba(108, 104, 102, 0.45);
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* Glass-lite card (restrained + clarity-first) */
+/* Card variants */
 .glass-card {
-  background: color-mix(in srgb, var(--color-surface-1) 94%, transparent);
+  background: var(--color-surface-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-subtle);
-  backdrop-filter: blur(2px);
 }
 
 .shell-card {
@@ -187,23 +165,23 @@ p {
 }
 
 .shell-input {
-  background: var(--color-surface-3);
+  background: var(--color-surface-2);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
 }
 
 .shell-btn-secondary {
-  background: var(--color-surface-3);
+  background: var(--color-surface-2);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
 }
 
 .shell-table th {
   color: var(--color-text-muted);
   font-weight: 600;
-  background: var(--color-surface-3);
+  background: var(--color-surface-2);
 }
 
 .shell-table td {
@@ -229,7 +207,7 @@ p {
 }
 
 .ui-card-muted {
-  background: var(--color-surface-3);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
@@ -237,7 +215,7 @@ p {
 .ui-input,
 .ui-select,
 .ui-textarea {
-  background: var(--color-surface-3);
+  background: var(--color-surface-1);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -247,21 +225,23 @@ p {
 .ui-select:focus,
 .ui-textarea:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--color-ember) 45%, var(--color-border));
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
+  border-color: var(--color-ember);
+  box-shadow: 0 0 0 3px var(--color-ember-glow);
 }
 
 .ui-btn-primary {
-  background: linear-gradient(135deg, var(--color-ember), var(--color-ember-dark));
+  background: var(--color-ember);
   color: #fff;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(29, 78, 216, 0.2);
+}
+.ui-btn-primary:hover {
+  background: var(--color-ember-dark);
 }
 
 .ui-btn-secondary {
-  background: var(--color-surface-3);
+  background: var(--color-surface-2);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -269,9 +249,9 @@ p {
 }
 
 .ui-btn-danger {
-  background: rgba(255, 32, 78, 0.1);
-  color: #FF204E;
-  border: 1px solid rgba(255, 32, 78, 0.28);
+  background: rgba(196, 69, 69, 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(196, 69, 69, 0.28);
   border-radius: var(--radius-md);
   font-weight: 600;
 }
@@ -280,7 +260,7 @@ p {
   text-align: center;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-surface-3) 72%, transparent);
+  background: var(--color-surface-2);
 }
 
 .shell-badge {
@@ -294,20 +274,16 @@ p {
   line-height: 1;
 }
 
-/* Accent button */
 .btn-ember {
-  background: linear-gradient(135deg, var(--color-ember), var(--color-ember-dark));
+  background: var(--color-ember);
   color: #fff;
   font-weight: 600;
   border-radius: var(--radius-md);
-  box-shadow: 0 2px 10px var(--color-ember-glow);
 }
 .btn-ember:hover {
-  box-shadow: 0 4px 16px rgba(29, 78, 216, 0.28);
-  transform: translateY(-1px);
+  background: var(--color-ember-dark);
 }
 
-/* Subtle accent text */
 .gradient-text {
   background: linear-gradient(135deg, var(--color-ember), var(--color-ember-light));
   -webkit-background-clip: text;
@@ -317,14 +293,7 @@ p {
 
 /* Motion-safe transitions */
 @media (prefers-reduced-motion: no-preference) {
-  a,
-  button,
-  input,
-  select,
-  textarea,
-  [role="button"],
-  .btn-ember,
-  .glass-card {
+  a, button, input, select, textarea, [role="button"], .btn-ember, .glass-card {
     transition:
       background-color 160ms ease,
       border-color 160ms ease,
@@ -339,34 +308,25 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }
 
-/* Animated pulse dot */
 @keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(0.9);
-  }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.9); }
 }
 
-/* Luxury-tech accent remap for legacy Tailwind orange utilities */
+/* Tailwind orange utility remap → ember */
 .bg-orange-500 { background-color: var(--color-ember) !important; }
 .hover\:bg-orange-600:hover { background-color: var(--color-ember-dark) !important; }
+.bg-orange-600 { background-color: var(--color-ember-dark) !important; }
 .text-orange-500 { color: var(--color-ember) !important; }
-.text-orange-400 { color: color-mix(in srgb, var(--color-ember) 78%, white) !important; }
+.text-orange-400 { color: var(--color-ember-light) !important; }
 .border-orange-500 { border-color: var(--color-ember) !important; }
-.ring-orange-500 { --tw-ring-color: color-mix(in srgb, var(--color-ember) 62%, transparent) !important; }
+.ring-orange-500 { --tw-ring-color: var(--color-ember-glow) !important; }
 .focus\:border-orange-500:focus { border-color: var(--color-ember) !important; }
-.focus\:ring-orange-500:focus { --tw-ring-color: color-mix(in srgb, var(--color-ember) 62%, transparent) !important; }
+.focus\:ring-orange-500:focus { --tw-ring-color: var(--color-ember-glow) !important; }

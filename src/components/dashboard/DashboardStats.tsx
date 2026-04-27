@@ -70,7 +70,7 @@ export default function DashboardStats() {
       sub: s ? `${s.sentCount + s.overdueCount} invoices pending` : "Loading...",
       trend: s ? `${s.overdueCount} overdue` : "",
       trendUp: false,
-      accentColor: "#FF4400",
+      accentColor: "#f8971f",
       accentBg: "rgba(255,68,0,0.12)",
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">

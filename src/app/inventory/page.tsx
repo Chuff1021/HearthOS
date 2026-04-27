@@ -311,7 +311,7 @@ export default function InventoryPage() {
                 );
               })}
               {searching && (
-                <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ background: "rgba(255,68,0,0.15)", color: "#FF6633" }}>
+                <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ background: "rgba(255,68,0,0.15)", color: "#eaa23f" }}>
                   Searching all
                 </span>
               )}
@@ -593,7 +593,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setSource(opt.id)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: source === opt.id ? "#FF4400" : "var(--color-surface-2)",
+                    background: source === opt.id ? "#f8971f" : "var(--color-surface-2)",
                     color: source === opt.id ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -617,7 +617,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMonthsBack(m)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: monthsBack === m ? "#FF4400" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -634,7 +634,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMinPct(p)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: minPct === p ? "#FF4400" : "var(--color-surface-2)",
+                    background: minPct === p ? "#f8971f" : "var(--color-surface-2)",
                     color: minPct === p ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -831,7 +831,7 @@ function FilterPill<V extends string>({ label, value, current, onClick }: { labe
       onClick={() => onClick(value)}
       className="px-3 py-2 rounded-lg text-xs font-medium transition-colors"
       style={{
-        background: active ? "#FF4400" : "var(--color-surface-1)",
+        background: active ? "#f8971f" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}
@@ -956,7 +956,7 @@ function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () 
                   onClick={() => setMonthsBack(m)}
                   className="px-3 py-1.5 rounded-lg text-sm"
                   style={{
-                    background: monthsBack === m ? "#FF4400" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -1172,7 +1172,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
             <button
               onClick={applySuggestedCost}
               className="mt-3 px-3 py-2 rounded-lg text-xs font-medium"
-              style={{ background: "rgba(255, 68, 0, 0.15)", color: "#FF6633", border: "1px solid #FF4400" }}
+              style={{ background: "rgba(255, 68, 0, 0.15)", color: "#eaa23f", border: "1px solid #f8971f" }}
             >
               Update current cost to match last paid: {fmtMoney(cs.lastPaidCost)}
             </button>

@@ -306,7 +306,7 @@ export default function TodosPage() {
                 style={getFilterCardStyle("pending", filter === "pending")}
               >
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
-                <p className="text-2xl font-bold" style={{ color: "#FF4400" }}>{stats.pending}</p>
+                <p className="text-2xl font-bold" style={{ color: "#f8971f" }}>{stats.pending}</p>
               </button>
               <button
                 onClick={() => setFilter("in_progress")}
