@@ -77,9 +77,6 @@ export default function TechApp() {
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState<"clock" | string | null>(null);
   const [tab, setTab] = useState<"active" | "history">("active");
-  const [onLunch, setOnLunch] = useState(false);
-  const [lunchStartedAt, setLunchStartedAt] = useState<number | null>(null);
-  const [lunchTimeLeft, setLunchTimeLeft] = useState("");
   const gps = useGpsStatus();
 
   const loadSession = async () => {
@@ -120,40 +117,7 @@ export default function TechApp() {
     [session]
   );
 
-  // Lunch countdown timer — auto clock back in when 30 min is up
-  useEffect(() => {
-    if (!onLunch || !lunchStartedAt) return;
-    const interval = setInterval(async () => {
-      const elapsed = Math.floor((Date.now() - lunchStartedAt) / 1000);
-      const remaining = Math.max(0, 30 * 60 - elapsed);
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      if (remaining > 0) {
-        setLunchTimeLeft(`${mins}:${String(secs).padStart(2, "0")}`);
-      } else {
-        // Auto clock back in
-        setLunchTimeLeft("Clocking back in...");
-        clearInterval(interval);
-        try {
-          if (session?.tech?.id) {
-            await fetch("/api/time/entries", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "clock_in", techId: session.tech.id, techName: session.tech.name }),
-            });
-            window.dispatchEvent(new Event("hearth-tech-clock-changed"));
-            setOnLunch(false);
-            setLunchStartedAt(null);
-            setLunchTimeLeft("");
-            await loadSession();
-          }
-        } catch {}
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [onLunch, lunchStartedAt]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleClock = async (type?: "lunch" | "back-from-lunch") => {
+  const handleClock = async () => {
     if (!session?.tech?.id) return;
     setBusyAction("clock");
     try {
@@ -165,27 +129,9 @@ export default function TechApp() {
           action,
           techId: session.tech.id,
           techName: session.tech.name,
-          ...(type === "lunch" && action === "clock_out" ? { editNote: "Lunch break" } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed to update time entry");
-      // Tag lunch break entry
-      if (type === "lunch" && action === "clock_out") {
-        const data = await res.json();
-        if (data.entry?.id) {
-          await fetch("/api/time/entries", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: data.entry.id, editNote: "Lunch break" }),
-          });
-        }
-        setOnLunch(true);
-        setLunchStartedAt(Date.now());
-      } else {
-        setOnLunch(false);
-        setLunchStartedAt(null);
-        setLunchTimeLeft("");
-      }
       window.dispatchEvent(new Event("hearth-tech-clock-changed"));
       await loadSession();
     } catch (err) {
@@ -233,35 +179,16 @@ export default function TechApp() {
 
   const isClockedIn = !!session?.clockEntry;
 
-  // Detect lunch state from entries — if not clocked in and last entry today was "Lunch break"
+  // Re-fetch session when app returns from background (tab switch, phone lock, etc.)
   useEffect(() => {
-    if (isClockedIn || !session?.tech?.id) {
-      if (isClockedIn) { setOnLunch(false); setLunchStartedAt(null); }
-      return;
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        void loadSession();
+      }
     }
-    // Check if we're on lunch by looking at recent entries
-    (async () => {
-      try {
-        const today = new Date().toISOString().split("T")[0];
-        const res = await fetch(`/api/time/entries?techId=${session.tech.id}&date=${today}`);
-        const data = await res.json();
-        const entries = data.entries || [];
-        // Sort by clock out time descending
-        const closed = entries
-          .filter((e: any) => e.status === "closed" && e.clockOutAt)
-          .sort((a: any, b: any) => new Date(b.clockOutAt).getTime() - new Date(a.clockOutAt).getTime());
-        const lastClosed = closed[0];
-        if (lastClosed?.editNote === "Lunch break") {
-          const clockOutTime = new Date(lastClosed.clockOutAt).getTime();
-          const elapsed = Math.floor((Date.now() - clockOutTime) / 1000);
-          if (elapsed < 45 * 60) { // within 45 min window treat as still on lunch
-            setOnLunch(true);
-            if (!lunchStartedAt) setLunchStartedAt(clockOutTime);
-          }
-        }
-      } catch {}
-    })();
-  }, [isClockedIn, session?.tech?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-col min-h-screen pb-32">
@@ -312,51 +239,26 @@ export default function TechApp() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                {onLunch ? "On lunch break" : isClockedIn ? "You are clocked in" : "Ready to start your shift?"}
+                {isClockedIn ? "You are clocked in" : "Ready to start your shift?"}
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                {onLunch && lunchTimeLeft ? (
-                  <span style={{ color: lunchTimeLeft === "Break over" ? "#DC2626" : "#2563EB", fontWeight: 600 }}>
-                    {lunchTimeLeft === "Break over" ? "30 min break is over — clock back in" : `${lunchTimeLeft} remaining`}
-                  </span>
-                ) : isClockedIn && session?.clockEntry ? (
-                  `Clocked in at ${formatTime(session.clockEntry.clockInAt)}`
-                ) : (
-                  "Clock in to begin field tracking and job time."
-                )}
+                {isClockedIn && session?.clockEntry
+                  ? `Clocked in at ${formatTime(session.clockEntry.clockInAt)}`
+                  : "Clock in to begin field tracking and job time."}
               </p>
             </div>
             {isClockedIn ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleClock("lunch")}
-                  disabled={busyAction === "clock" || loading}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
-                  style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.2)" }}
-                >
-                  {busyAction === "clock" ? "..." : "Lunch"}
-                </button>
-                <button
-                  onClick={() => handleClock()}
-                  disabled={busyAction === "clock" || loading}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-60"
-                  style={{ background: "rgba(255,68,0,0.14)", color: "#C2410C" }}
-                >
-                  {busyAction === "clock" ? "Saving..." : "Clock Out"}
-                </button>
-              </div>
-            ) : onLunch ? (
               <button
-                onClick={() => handleClock("back-from-lunch")}
+                onClick={handleClock}
                 disabled={busyAction === "clock" || loading}
                 className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "#fff" }}
+                style={{ background: "rgba(255,68,0,0.14)", color: "#C2410C" }}
               >
-                {busyAction === "clock" ? "Saving..." : "Back from Lunch"}
+                {busyAction === "clock" ? "Saving..." : "Clock Out"}
               </button>
             ) : (
               <button
-                onClick={() => handleClock()}
+                onClick={handleClock}
                 disabled={busyAction === "clock" || loading}
                 className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60"
                 style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}

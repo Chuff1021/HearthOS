@@ -128,7 +128,8 @@ async function ingestManualPdf(manualId, brand, model, url) {
     const pdfBuffer = Buffer.from(await pdfRes.arrayBuffer());
 
     // Parse with pdf-parse
-    const pdfParse = (await import("pdf-parse")).default;
+    const pdfParseModule = await import("pdf-parse");
+    const pdfParse = pdfParseModule.default || pdfParseModule;
     const pages = new Map();
 
     await pdfParse(pdfBuffer, {

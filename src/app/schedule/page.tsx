@@ -737,7 +737,7 @@ export default function SchedulePage() {
                           )}
                         </div>
                         <div className="space-y-0.5">
-                          {dayJobs.slice(0, 3).map((job) => (
+                          {dayJobs.map((job) => (
                             <div
                               key={job.id}
                               className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] leading-tight truncate"
@@ -754,11 +754,6 @@ export default function SchedulePage() {
                               </span>
                             </div>
                           ))}
-                          {dayJobs.length > 3 && (
-                            <div className="text-[10px] font-medium px-1.5" style={{ color: "var(--color-text-muted)" }}>
-                              +{dayJobs.length - 3} more
-                            </div>
-                          )}
                         </div>
                       </div>
                     );

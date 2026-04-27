@@ -170,23 +170,9 @@ export default function AdminTimePage() {
       const techEntries = entries.filter((e) => e.techId === tech.id);
       const isClockedIn = techEntries.some((e) => e.status === "open");
 
-      // Detect lunch status: last entry today is closed with "Lunch break" note and no open entry
       const isOnDate = (clockInAt: string, dateStr: string) => {
         try { return new Date(clockInAt).toISOString().startsWith(dateStr); } catch { return false; }
       };
-      const todayClosedEntries = techEntries
-        .filter((e) => isOnDate(e.clockInAt, todayIso) && e.status === "closed")
-        .sort((a, b) => new Date(b.clockOutAt || "").getTime() - new Date(a.clockOutAt || "").getTime());
-      const lastClosedToday = todayClosedEntries[0];
-      const isOnLunch = !isClockedIn && lastClosedToday?.editNote === "Lunch break";
-      const lunchStartedAt = isOnLunch && lastClosedToday?.clockOutAt ? new Date(lastClosedToday.clockOutAt).getTime() : null;
-      const lunchElapsedSec = lunchStartedAt ? Math.floor((Date.now() - lunchStartedAt) / 1000) : 0;
-      const lunchRemainingSec = Math.max(0, 30 * 60 - lunchElapsedSec);
-      const lunchTimeLeft = isOnLunch
-        ? lunchRemainingSec > 0
-          ? `${Math.floor(lunchRemainingSec / 60)}:${String(lunchRemainingSec % 60).padStart(2, "0")}`
-          : "over"
-        : "";
 
       const todayEntries = techEntries.filter((e) => isOnDate(e.clockInAt, todayIso));
       const todayMinutes = todayEntries.reduce((sum, e) => {
@@ -205,7 +191,7 @@ export default function AdminTimePage() {
         return { date: dayIso, minutes: totalMin + openMin, entryCount: dayEntries.length, hasOpen: openEntries.length > 0 };
       });
       const weekTotal = dailyMinutes.reduce((sum, d) => sum + d.minutes, 0);
-      return { tech, dailyMinutes, weekTotal, isClockedIn, todayMinutes, isOnLunch, lunchTimeLeft };
+      return { tech, dailyMinutes, weekTotal, isClockedIn, todayMinutes };
     });
   }, [techs, entries, weekDates, tick, todayIso]);
 
@@ -446,18 +432,16 @@ export default function AdminTimePage() {
                     <div key={row.tech.id} className="rounded-xl p-3" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
-                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isOnLunch ? "#2563EB" : row.isClockedIn ? "#16A34A" : "#9CA3AF" }} />
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isClockedIn ? "#16A34A" : "#9CA3AF" }} />
                           <span className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{row.tech.name.split(" ")[0]}</span>
                         </div>
                         <span className="text-sm font-bold" style={{ color }}>{minutesToDecimal(row.weekTotal)}h</span>
                       </div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px]" style={{ color: row.isOnLunch ? "#2563EB" : row.isClockedIn ? "#16A34A" : "var(--color-text-muted)" }}>
-                          {row.isOnLunch
-                            ? `On lunch · ${row.lunchTimeLeft === "over" ? "break over!" : row.lunchTimeLeft + " left"}`
-                            : row.isClockedIn
-                              ? `Clocked in · ${minutesToDecimal(row.todayMinutes)}h today`
-                              : "Not clocked in"}
+                        <span className="text-[10px]" style={{ color: row.isClockedIn ? "#16A34A" : "var(--color-text-muted)" }}>
+                          {row.isClockedIn
+                            ? `Clocked in · ${minutesToDecimal(row.todayMinutes)}h today`
+                            : "Not clocked in"}
                         </span>
                       </div>
                       <div className="w-full h-2 rounded-full" style={{ background: "var(--color-surface-3)" }}>
@@ -496,14 +480,10 @@ export default function AdminTimePage() {
                           <tr key={row.tech.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isOnLunch ? "#2563EB" : row.isClockedIn ? "#16A34A" : row.tech.color }} title={row.isOnLunch ? "On lunch" : row.isClockedIn ? "Clocked in" : "Not clocked in"} />
+                                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${row.isClockedIn ? "animate-pulse" : ""}`} style={{ background: row.isClockedIn ? "#16A34A" : row.tech.color }} title={row.isClockedIn ? "Clocked in" : "Not clocked in"} />
                                 <div>
                                   <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>{row.tech.name}</span>
-                                  {row.isOnLunch ? (
-                                    <span className="text-[10px] ml-2 font-semibold" style={{ color: "#2563EB" }}>
-                                      Lunch {row.lunchTimeLeft === "over" ? "— break over!" : `· ${row.lunchTimeLeft}`}
-                                    </span>
-                                  ) : row.isClockedIn ? (
+                                  {row.isClockedIn ? (
                                     <span className="text-[10px] ml-2" style={{ color: "#16A34A" }}>{minutesToDecimal(row.todayMinutes)}h today</span>
                                   ) : null}
                                 </div>
