@@ -135,6 +135,7 @@ export default function InventoryPage() {
   const [scope, setScope] = useState<ScopeKey>("active");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [trimOpen, setTrimOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("name");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
@@ -206,10 +207,18 @@ export default function InventoryPage() {
                   Refresh
                 </button>
                 <button
+                  onClick={() => setAuditOpen(true)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}
+                  title="Compare each item's cost to its most recent PO and auto-correct"
+                >
+                  Price audit…
+                </button>
+                <button
                   onClick={() => setTrimOpen(true)}
                   className="px-3 py-2 rounded-lg text-sm font-medium"
                   style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}
-                  title="Mark items with no recent activity as untracked"
+                  title="Mark items with no recent activity as retired"
                 >
                   Trim inventory…
                 </button>
@@ -427,6 +436,326 @@ export default function InventoryPage() {
           onApplied={() => { setTrimOpen(false); fetchList(); }}
         />
       )}
+
+      {auditOpen && (
+        <PriceAuditModal
+          onClose={() => setAuditOpen(false)}
+          onApplied={() => fetchList()}
+        />
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Price audit modal
+// ───────────────────────────────────────────────────────────────────────────
+type AuditRow = {
+  id: string;
+  qbItemId: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  currentCost: number;
+  poCost: number;
+  delta: number;
+  pctDelta: number;
+  isTracked: boolean;
+  noCostSet: boolean;
+  vendorName: string | null;
+  vendorId: string | null;
+  poId: string;
+  poNumber: string | null;
+  poDate: string | null;
+  unitPrice: number | null;
+  newMargin: number | null;
+};
+
+type AuditResponse = {
+  window: { monthsBack: number; cutoff: string };
+  thresholds: { minVariancePct: number; minVarianceAmt: number };
+  itemsConsidered: number;
+  itemsWithRecentPO: number;
+  itemsFlagged: number;
+  noCostSetCount: number;
+  goingUpCount: number;
+  goingDownCount: number;
+  totalAdjustment: number;
+  rows: AuditRow[];
+};
+
+function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplied: () => void }) {
+  const [monthsBack, setMonthsBack] = useState(24);
+  const [minPct, setMinPct] = useState(1);
+  const [includeRetired, setIncludeRetired] = useState(false);
+  const [data, setData] = useState<AuditResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [applying, setApplying] = useState(false);
+  const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
+
+  const run = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const params = new URLSearchParams({
+        monthsBack: String(monthsBack),
+        minVariancePct: String(minPct),
+        includeRetired: includeRetired ? "true" : "false",
+      });
+      const r = await fetch(`/api/inventory/price-audit?${params}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      setData(j);
+      // Default-select every flagged row so 'Auto-correct all' is one click.
+      setSelected(new Set(j.rows.map((row: AuditRow) => row.id)));
+    } catch (e: any) {
+      setError(e?.message || "Failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [monthsBack, minPct, includeRetired]);
+
+  useEffect(() => { run(); }, [run]);
+
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = data && data.rows.length > 0 && selected.size === data.rows.length;
+
+  const apply = async () => {
+    if (!data) return;
+    setApplying(true);
+    try {
+      const corrections = data.rows
+        .filter((r) => selected.has(r.id))
+        .map((r) => ({ id: r.id, newCost: r.poCost }));
+      const res = await fetch("/api/inventory/price-audit/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corrections }),
+      });
+      if (res.ok) {
+        onApplied();
+        await run(); // refresh list — applied rows should drop out
+      }
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const totalDelta = data
+    ? data.rows.filter((r) => selected.has(r.id)).reduce((s, r) => s + Math.abs(r.delta), 0)
+    : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div
+        className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
+        style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Price audit</h2>
+              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                Compare each item&apos;s current cost against its most recent purchase order. Auto-correct any drift.
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--color-text-muted)" }}>✕</button>
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-wrap gap-4 mt-4 items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Window</span>
+              {[12, 18, 24, 36].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMonthsBack(m)}
+                  className="px-2.5 py-1 rounded-lg text-xs"
+                  style={{
+                    background: monthsBack === m ? "#FF4400" : "var(--color-surface-2)",
+                    color: monthsBack === m ? "white" : "var(--color-text-secondary)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  {m} mo
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Min variance</span>
+              {[1, 2, 5, 10].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setMinPct(p)}
+                  className="px-2.5 py-1 rounded-lg text-xs"
+                  style={{
+                    background: minPct === p ? "#FF4400" : "var(--color-surface-2)",
+                    color: minPct === p ? "white" : "var(--color-text-secondary)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  {p}%
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-xs ml-auto" style={{ color: "var(--color-text-secondary)" }}>
+              <input type="checkbox" checked={includeRetired} onChange={(e) => setIncludeRetired(e.target.checked)} />
+              Include retired items
+            </label>
+          </div>
+
+          {/* Summary stats */}
+          {data && !loading && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4 text-xs">
+              <SummaryStat label="Considered" value={data.itemsConsidered.toLocaleString()} />
+              <SummaryStat label="With recent PO" value={data.itemsWithRecentPO.toLocaleString()} />
+              <SummaryStat label="Flagged" value={data.itemsFlagged.toLocaleString()} tone="warn" />
+              <SummaryStat label="Going up" value={data.goingUpCount.toLocaleString()} tone="danger" />
+              <SummaryStat label="Going down" value={data.goingDownCount.toLocaleString()} tone="good" />
+            </div>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-auto">
+          {loading && <p className="p-5 text-sm" style={{ color: "var(--color-text-muted)" }}>Auditing…</p>}
+          {error && <p className="p-5 text-sm" style={{ color: "#FF204E" }}>{error}</p>}
+          {data && !loading && data.rows.length === 0 && (
+            <div className="p-8 text-center">
+              <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                No cost discrepancies found at the {minPct}% threshold over the last {monthsBack} months. 🎉
+              </p>
+            </div>
+          )}
+          {data && !loading && data.rows.length > 0 && (
+            <table className="w-full text-xs">
+              <thead className="sticky top-0" style={{ background: "var(--color-surface-2)" }}>
+                <tr>
+                  <th className="px-3 py-2 text-left">
+                    <input
+                      type="checkbox"
+                      checked={!!allSelected}
+                      onChange={() => {
+                        if (allSelected) setSelected(new Set());
+                        else setSelected(new Set(data.rows.map((r) => r.id)));
+                      }}
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Item</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Current</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>From PO</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Δ</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>%</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>New margin</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Vendor / PO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => {
+                  const checked = selected.has(r.id);
+                  const deltaColor = r.noCostSet ? "#F59E0B" : r.delta > 0 ? "#FF204E" : "#16A34A";
+                  return (
+                    <tr key={r.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                      <td className="px-3 py-2">
+                        <input type="checkbox" checked={checked} onChange={() => toggle(r.id)} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium" style={{ color: "var(--color-text-primary)" }}>
+                          {r.name}
+                          {r.noCostSet && (
+                            <span className="ml-2 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}>
+                              no cost set
+                            </span>
+                          )}
+                          {!r.isTracked && (
+                            <span className="ml-2 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
+                              retired
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                          {r.sku || "—"}{r.category ? ` · ${r.category}` : ""}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-secondary)" }}>{fmtMoney(r.currentCost)}</td>
+                      <td className="px-3 py-2 text-right font-medium" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(r.poCost)}</td>
+                      <td className="px-3 py-2 text-right font-medium" style={{ color: deltaColor }}>
+                        {r.delta > 0 ? "+" : ""}{fmtMoney(r.delta)}
+                      </td>
+                      <td className="px-3 py-2 text-right" style={{ color: deltaColor }}>
+                        {r.noCostSet ? "—" : `${r.pctDelta > 0 ? "+" : ""}${r.pctDelta.toFixed(1)}%`}
+                      </td>
+                      <td className="px-3 py-2 text-right" style={{ color: r.newMargin != null && r.newMargin < 0 ? "#FF204E" : "var(--color-text-muted)" }}>
+                        {r.newMargin != null ? `${r.newMargin.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => setDocDrill({ type: "purchase-order", id: r.poId })}
+                          className="text-left hover:opacity-80"
+                        >
+                          <div style={{ color: "var(--color-text-secondary)" }}>{r.vendorName || "—"}</div>
+                          <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                            {r.poNumber ? `#${r.poNumber} · ` : ""}{fmtDate(r.poDate)}
+                          </div>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 flex items-center gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+          {data && data.rows.length > 0 && (
+            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              {selected.size} selected · ${totalDelta.toFixed(2)} total absolute adjustment
+            </span>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}>
+              Cancel
+            </button>
+            <button
+              disabled={applying || !data || selected.size === 0}
+              onClick={apply}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-50"
+            >
+              {applying ? "Correcting…" : `Auto-correct ${selected.size > 0 ? `(${selected.size})` : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {docDrill && (
+        <DocumentDrawer
+          type={docDrill.type}
+          id={docDrill.id}
+          onClose={() => setDocDrill(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, tone }: { label: string; value: string; tone?: "good" | "warn" | "danger" }) {
+  const color = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : tone === "good" ? "#16A34A" : "var(--color-text-primary)";
+  return (
+    <div className="px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-2)" }}>
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-sm font-semibold mt-0.5" style={{ color }}>{value}</p>
     </div>
   );
 }
