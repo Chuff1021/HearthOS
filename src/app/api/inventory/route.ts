@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
         reorderLevel,
         isLowStock,
         isActive: r.isActive ?? true,
+        isTracked: r.isTracked ?? true,
         lastSyncedAt: r.lastSyncedAt,
         updatedAt: r.updatedAt,
         ...stats,

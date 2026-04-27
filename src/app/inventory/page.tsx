@@ -23,6 +23,7 @@ type InventoryItem = {
   reorderLevel: number;
   isLowStock: boolean;
   isActive: boolean;
+  isTracked: boolean;
   lastPaidCost: number | null;
   lastPaidDate: string | null;
   lastPaidVendorId: string | null;
@@ -117,19 +118,32 @@ function useDebounced<T>(value: T, ms = 300): T {
 // ───────────────────────────────────────────────────────────────────────────
 // Main page
 // ───────────────────────────────────────────────────────────────────────────
-type FilterKey = "tracked" | "untracked" | "all" | "low_stock" | "no_cost" | "active" | "inactive";
+type ScopeKey = "active" | "retired" | "all";
+type FilterKey = "all" | "low_stock" | "no_cost";
+
+// Map UI scope → API filter param
+const scopeToApiFilter = (scope: ScopeKey): string => {
+  if (scope === "active") return "tracked";
+  if (scope === "retired") return "untracked";
+  return "all";
+};
 type SortKey = "name" | "qty" | "unit_price" | "cost" | "updated";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 250);
-  const [filter, setFilter] = useState<FilterKey>("tracked");
+  const [scope, setScope] = useState<ScopeKey>("active");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [trimOpen, setTrimOpen] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("name");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const limit = 100;
+  // When the user types a query, search spans both active and retired so
+  // retired items remain findable without forcing them to switch tabs.
+  const searching = debounced.trim().length > 0;
+  const effectiveScope: ScopeKey = searching ? "all" : scope;
 
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,9 +151,12 @@ export default function InventoryPage() {
 
   const fetchList = useCallback(async () => {
     setLoading(true);
+    // Combine scope + secondary filter into the single API filter param.
+    // If a secondary filter is set (low_stock, no_cost), it wins; otherwise use scope.
+    const apiFilter = filter !== "all" ? filter : scopeToApiFilter(effectiveScope);
     const params = new URLSearchParams({
       q: debounced,
-      filter,
+      filter: apiFilter,
       category,
       sort,
       dir,
@@ -156,9 +173,9 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [debounced, filter, category, sort, dir, page]);
+  }, [debounced, filter, effectiveScope, category, sort, dir, page]);
 
-  useEffect(() => { setPage(1); }, [debounced, filter, category, sort, dir]);
+  useEffect(() => { setPage(1); }, [debounced, filter, scope, category, sort, dir]);
   useEffect(() => { fetchList(); }, [fetchList]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.limit)) : 1;
@@ -210,19 +227,19 @@ export default function InventoryPage() {
             </div>
 
             {/* Stats banner */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard
-                label="Tracked"
+                label="Active inventory"
                 value={data?.stats.trackedItems ?? 0}
-                onClick={() => setFilter("tracked")}
-                active={filter === "tracked"}
+                onClick={() => setScope("active")}
+                active={scope === "active" && !searching}
               />
               <StatCard
-                label="Untracked"
+                label="Retired"
                 value={data?.stats.untrackedItems ?? 0}
                 tone="warn"
-                onClick={() => setFilter("untracked")}
-                active={filter === "untracked"}
+                onClick={() => setScope("retired")}
+                active={scope === "retired" && !searching}
               />
               <StatCard
                 label="Low Stock"
@@ -231,21 +248,14 @@ export default function InventoryPage() {
                 onClick={() => setFilter("low_stock")}
                 active={filter === "low_stock"}
               />
-              <StatCard
-                label="No Cost Set"
-                value={data?.stats.noCostCount ?? 0}
-                tone={(data?.stats.noCostCount ?? 0) > 0 ? "warn" : "good"}
-                onClick={() => setFilter("no_cost")}
-                active={filter === "no_cost"}
-              />
-              <StatCard label="Tracked Value" value={fmtMoney(data?.stats.totalValue ?? 0)} />
+              <StatCard label="Active value" value={fmtMoney(data?.stats.totalValue ?? 0)} />
             </div>
 
-            {/* Filters row */}
+            {/* Search + category */}
             <div className="flex flex-wrap gap-2 items-center">
               <input
                 type="text"
-                placeholder="Search by name, SKU, description, category…"
+                placeholder={searching ? "Searching all inventory…" : "Search by name, SKU, description, category…"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 min-w-[280px] px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
@@ -260,11 +270,42 @@ export default function InventoryPage() {
                 <option value="">All categories</option>
                 {data?.categories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              <FilterPill label="Tracked" value="tracked" current={filter} onClick={setFilter} />
-              <FilterPill label="Untracked" value="untracked" current={filter} onClick={setFilter} />
-              <FilterPill label="All" value="all" current={filter} onClick={setFilter} />
+              <FilterPill label="No filter" value="all" current={filter} onClick={setFilter} />
               <FilterPill label="Low stock" value="low_stock" current={filter} onClick={setFilter} />
               <FilterPill label="No cost set" value="no_cost" current={filter} onClick={setFilter} />
+            </div>
+
+            {/* Scope tabs — primary working set selector */}
+            <div className="flex items-center gap-1 px-1 py-1 rounded-xl w-fit" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              {([
+                { id: "active", label: "Active inventory", count: data?.stats.trackedItems },
+                { id: "retired", label: "Retired", count: data?.stats.untrackedItems },
+                { id: "all", label: "All", count: data?.stats.totalItems },
+              ] as const).map((tab) => {
+                const isActive = !searching && scope === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setScope(tab.id); setSearch(""); }}
+                    className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    style={{
+                      background: isActive ? "var(--color-surface-1)" : "transparent",
+                      color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                      border: isActive ? "1px solid var(--color-border)" : "1px solid transparent",
+                    }}
+                  >
+                    {tab.label}
+                    {typeof tab.count === "number" && (
+                      <span className="ml-2 text-xs" style={{ color: "var(--color-text-muted)" }}>{tab.count.toLocaleString()}</span>
+                    )}
+                  </button>
+                );
+              })}
+              {searching && (
+                <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ background: "rgba(255,68,0,0.15)", color: "#FF6633" }}>
+                  Searching all
+                </span>
+              )}
             </div>
 
             {/* Table */}
@@ -289,6 +330,7 @@ export default function InventoryPage() {
                     {data?.items.map((item) => {
                       const trend = trendArrow(item.lastPaidCost, item.avgPaidCost);
                       const costMismatch = item.cost != null && item.lastPaidCost != null && Math.abs(Number(item.cost) - item.lastPaidCost) / Math.max(item.lastPaidCost, 0.01) > 0.1;
+                      const isRetired = (item as any).isTracked === false;
                       return (
                         <tr
                           key={item.id}
@@ -299,9 +341,12 @@ export default function InventoryPage() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                         >
                           <td className="px-3 py-2">
-                            <div className="font-medium" style={{ color: "var(--color-text-primary)" }}>
+                            <div className="font-medium flex items-center gap-2" style={{ color: "var(--color-text-primary)", opacity: isRetired ? 0.7 : 1 }}>
                               {item.name}
-                              {!item.isActive && <span className="ml-2 text-[10px] uppercase opacity-60">inactive</span>}
+                              {isRetired && (
+                                <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>retired</span>
+                              )}
+                              {!item.isActive && <span className="text-[9px] uppercase opacity-60">qb-inactive</span>}
                             </div>
                             <div className="text-[11px] font-mono mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                               {item.sku || "—"}
@@ -404,7 +449,7 @@ function StatCard({ label, value, tone, onClick, active }: { label: string; valu
   );
 }
 
-function FilterPill({ label, value, current, onClick }: { label: string; value: FilterKey; current: FilterKey; onClick: (v: FilterKey) => void }) {
+function FilterPill<V extends string>({ label, value, current, onClick }: { label: string; value: V; current: V; onClick: (v: V) => void }) {
   const active = current === value;
   return (
     <button
@@ -640,6 +685,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
 
   const item = data.item;
   const cs = data.costSummary;
+  const isRetired = (item as any).isTracked === false;
 
   const setField = (k: string, v: any) => setEditing((e) => ({ ...e, [k]: v }));
   const editValue = (k: keyof typeof item) => (k in editing ? editing[k] : (item as any)[k]);
@@ -667,6 +713,21 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
     if (cs.lastPaidCost != null) setField("cost", cs.lastPaidCost);
   };
 
+  const toggleTracked = async () => {
+    setSaving(true);
+    try {
+      await fetch(`/api/inventory/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isTracked: isRetired }), // flip
+      });
+      await load();
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1 bg-black/40" />
@@ -679,7 +740,12 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
         <div className="sticky top-0 z-10 p-5" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-mono mb-1" style={{ color: "var(--color-text-muted)" }}>{item.sku || item.qbItemId || "—"}</p>
+              <p className="text-[11px] font-mono mb-1 flex items-center gap-2" style={{ color: "var(--color-text-muted)" }}>
+                <span>{item.sku || item.qbItemId || "—"}</span>
+                {isRetired && (
+                  <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)" }}>retired</span>
+                )}
+              </p>
               <h2 className="text-lg font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{item.name}</h2>
               {item.category && (
                 <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{item.category}</p>
@@ -687,16 +753,26 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
             </div>
             <button onClick={onClose} className="p-2 rounded-lg" style={{ color: "var(--color-text-muted)" }}>✕</button>
           </div>
-          {dirty && (
-            <div className="flex gap-2 mt-3">
-              <button disabled={saving} onClick={save} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-50">
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-              <button onClick={() => setEditing({})} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}>
-                Discard
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {dirty && (
+              <>
+                <button disabled={saving} onClick={save} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-50">
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+                <button onClick={() => setEditing({})} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}>
+                  Discard
+                </button>
+              </>
+            )}
+            <button
+              disabled={saving}
+              onClick={toggleTracked}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium ml-auto disabled:opacity-50"
+              style={{ background: "var(--color-surface-2)", color: isRetired ? "#16A34A" : "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
+            >
+              {isRetired ? "Restore to active" : "Retire item"}
+            </button>
+          </div>
         </div>
 
         {/* Cost & stock summary */}
