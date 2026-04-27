@@ -189,8 +189,8 @@ export class QuickBooksClient {
 
       rows.push(...page.rows);
 
-      if (!page.rows.length) break;
-      if (page.totalCount && rows.length >= page.totalCount) break;
+      // Don't trust QB's totalCount — it sometimes equals maxResults instead of the absolute total,
+      // which used to make us stop after the first page. Rely on a short or empty page to know we're done.
       if (page.rows.length < pageSize) break;
 
       startPosition += pageSize;

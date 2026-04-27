@@ -207,9 +207,12 @@ function transformPayment(payment: QBPayment) {
     unappliedAmt: Number(payment.UnappliedAmt || 0),
     paymentMethod: normalizedPaymentMethod,
     linkedTxnIds: Array.isArray(payment.Line)
-      ? payment.Line.flatMap((line) =>
-          Array.isArray(line.LinkedTxn) ? line.LinkedTxn.map((txn) => txn.TxnId) : [line.LinkedTxn?.TxnId].filter(Boolean)
-        )
+      ? payment.Line.flatMap((line) => {
+          const linked = line.LinkedTxn;
+          if (Array.isArray(linked)) return linked.map((txn) => txn.TxnId);
+          if (linked?.TxnId) return [linked.TxnId];
+          return [];
+        })
       : [],
   };
 }

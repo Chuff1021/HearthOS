@@ -429,16 +429,24 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
 
   for (const pmt of qbPayments) {
     if (!pmt.Id) continue;
-    const links = (pmt.Line || []).filter((l) => l.LinkedTxn?.TxnType === 'Invoice');
-    if (links.length === 0) {
-      // Skip payments not linked to invoices (deposits, etc.) — out of scope for now
-      continue;
-    }
 
-    for (const link of links) {
-      const localInvoiceId = invMap.get(link.LinkedTxn.TxnId);
+    // QB returns Payment.Line[].LinkedTxn as an array; some single-link cases come back as an object.
+    type FlatLink = { Amount: number; TxnId: string; TxnType: string };
+    const flatLinks: FlatLink[] = [];
+    for (const ln of pmt.Line || []) {
+      const linkedArr = Array.isArray(ln.LinkedTxn) ? ln.LinkedTxn : ln.LinkedTxn ? [ln.LinkedTxn] : [];
+      for (const lt of linkedArr) {
+        if (lt.TxnType === 'Invoice') {
+          flatLinks.push({ Amount: ln.Amount, TxnId: lt.TxnId, TxnType: lt.TxnType });
+        }
+      }
+    }
+    if (flatLinks.length === 0) continue;
+
+    for (const link of flatLinks) {
+      const localInvoiceId = invMap.get(link.TxnId);
       if (!localInvoiceId) {
-        console.warn(`Skipping payment ${pmt.Id}: invoice ${link.LinkedTxn.TxnId} not in local DB`);
+        console.warn(`Skipping payment ${pmt.Id}: invoice ${link.TxnId} not in local DB`);
         continue;
       }
 
@@ -472,7 +480,7 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
         }
         written++;
       } catch (err) {
-        console.error(`Failed to persist payment ${pmt.Id} → invoice ${link.LinkedTxn.TxnId}:`, err);
+        console.error(`Failed to persist payment ${pmt.Id} → invoice ${link.TxnId}:`, err);
       }
     }
   }

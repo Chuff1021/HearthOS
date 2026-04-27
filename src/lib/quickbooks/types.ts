@@ -171,10 +171,8 @@ export interface QBPayment {
   UnappliedAmt?: number;
   Line?: {
     Amount: number;
-    LinkedTxn: {
-      TxnId: string;
-      TxnType: string;
-    };
+    // QB returns LinkedTxn as an array of links per line.
+    LinkedTxn?: { TxnId: string; TxnType: string }[] | { TxnId: string; TxnType: string };
   }[];
   PaymentMethodRef?: {
     value: string;
