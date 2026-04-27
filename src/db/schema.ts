@@ -414,6 +414,41 @@ export const inventoryItems = pgTable('inventory_items', {
   qbIdx: index('idx_inventory_items_qb_id').on(table.qbItemId),
 }));
 
+// Vendors (linked to QuickBooks)
+export const vendors = pgTable('vendors', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  qbVendorId: varchar('qb_vendor_id', { length: 50 }).unique(), // QuickBooks Vendor.Id
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  companyName: varchar('company_name', { length: 255 }),
+  firstName: varchar('first_name', { length: 100 }),
+  lastName: varchar('last_name', { length: 100 }),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 20 }),
+  phoneAlt: varchar('phone_alt', { length: 20 }),
+  website: varchar('website', { length: 255 }),
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city: varchar('city', { length: 100 }),
+  state: varchar('state', { length: 2 }),
+  zip: varchar('zip', { length: 10 }),
+  accountNumber: varchar('account_number', { length: 100 }),
+  taxId: varchar('tax_id', { length: 50 }),
+  is1099: boolean('is_1099').default(false),
+  paymentTerms: varchar('payment_terms', { length: 100 }),
+  category: varchar('category', { length: 100 }), // supplier, contractor, utility, etc.
+  notes: text('notes'),
+  balance: decimal('balance', { precision: 12, scale: 2 }).default('0'),
+  isActive: boolean('is_active').default(true),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  orgIdx: index('idx_vendors_org_id').on(table.orgId),
+  qbIdx: index('idx_vendors_qb_id').on(table.qbVendorId),
+  nameIdx: index('idx_vendors_display_name').on(table.displayName),
+}));
+
 // Audit Logs
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -543,6 +578,8 @@ export type ServicePlan = typeof servicePlans.$inferSelect;
 export type NewServicePlan = typeof servicePlans.$inferInsert;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type NewInventoryItem = typeof inventoryItems.$inferInsert;
+export type Vendor = typeof vendors.$inferSelect;
+export type NewVendor = typeof vendors.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type QBSyncStatus = typeof qbSyncStatus.$inferSelect;

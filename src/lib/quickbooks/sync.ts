@@ -1,5 +1,8 @@
-import type { QBCustomer, QBItem, QBInvoice, QBPayment, QBSyncStatus, QBSyncLog } from './types';
+import type { QBCustomer, QBItem, QBInvoice, QBPayment, QBSyncStatus, QBSyncLog, QBVendor } from './types';
 import { QuickBooksClient, createQuickBooksClient } from './client';
+import { db, customers, inventoryItems, vendors } from '@/db';
+import { and, eq } from 'drizzle-orm';
+import { getOrCreateDefaultOrg } from '@/lib/org';
 
 // In-memory sync status (in production, use database)
 let syncStatus: QBSyncStatus = {
@@ -10,14 +13,16 @@ let syncStatus: QBSyncStatus = {
     items: 0,
     invoices: 0,
     payments: 0,
+    vendors: 0,
   },
 };
 
-// In-memory cache (in production, use database)
+// In-memory cache (kept for cheap reads within a single warm container; DB is source of truth)
 let customersCache: QBCustomer[] = [];
 let itemsCache: QBItem[] = [];
 let invoicesCache: QBInvoice[] = [];
 let paymentsCache: QBPayment[] = [];
+let vendorsCache: QBVendor[] = [];
 
 // Sync logs (in production, use database)
 const syncLogs: QBSyncLog[] = [];
@@ -68,6 +73,10 @@ export function getCachedPayments(): QBPayment[] {
   return paymentsCache;
 }
 
+export function getCachedVendors(): QBVendor[] {
+  return vendorsCache;
+}
+
 // Helper to add sync log
 function addLog(
   type: QBSyncLog['type'],
@@ -87,8 +96,189 @@ function addLog(
   });
 }
 
+// === DB persistence helpers ===
+
+function splitName(displayName: string | undefined): [string, string] {
+  if (!displayName) return ['', ''];
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length <= 1) return [parts[0] || '', ''];
+  return [parts[0], parts.slice(1).join(' ')];
+}
+
+export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustomer[]): Promise<number> {
+  let written = 0;
+  const now = new Date();
+  for (const c of qbCustomers) {
+    if (!c.Id) continue;
+    const [fallbackFirst, fallbackLast] = splitName(c.DisplayName);
+    const values = {
+      orgId,
+      qbCustomerId: c.Id,
+      firstName: c.GivenName || fallbackFirst || c.DisplayName || 'Unknown',
+      lastName: c.FamilyName || fallbackLast || '',
+      companyName: c.CompanyName,
+      email: c.PrimaryEmailAddr?.Address,
+      phone: c.PrimaryPhone?.FreeFormNumber,
+      source: 'quickbooks',
+      isActive: c.Active !== false,
+      lastSyncedAt: now,
+      updatedAt: now,
+    };
+    try {
+      await db
+        .insert(customers)
+        .values(values)
+        .onConflictDoUpdate({
+          target: customers.qbCustomerId,
+          set: {
+            firstName: values.firstName,
+            lastName: values.lastName,
+            companyName: values.companyName,
+            email: values.email,
+            phone: values.phone,
+            isActive: values.isActive,
+            lastSyncedAt: now,
+            updatedAt: now,
+          },
+        });
+      written++;
+    } catch (err) {
+      console.error(`Failed to persist customer ${c.Id}:`, err);
+    }
+  }
+  return written;
+}
+
+export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promise<number> {
+  let written = 0;
+  const now = new Date();
+  for (const i of qbItems) {
+    if (!i.Id) continue;
+    // Manual upsert (qbItemId has an index but no unique constraint on the existing schema)
+    const existing = await db
+      .select({ id: inventoryItems.id })
+      .from(inventoryItems)
+      .where(and(eq(inventoryItems.orgId, orgId), eq(inventoryItems.qbItemId, i.Id)))
+      .limit(1);
+
+    const values = {
+      orgId,
+      qbItemId: i.Id,
+      name: i.Name || i.FullyQualifiedName || `QB Item ${i.Id}`,
+      sku: i.Sku,
+      description: i.Description,
+      category: i.Type === 'Service' ? 'service' : i.Type?.toLowerCase(),
+      unitPrice: typeof i.UnitPrice === 'number' ? String(i.UnitPrice) : null,
+      cost: typeof i.PurchaseCost === 'number' ? String(i.PurchaseCost) : null,
+      quantityOnHand: typeof i.QtyOnHand === 'number' ? Math.floor(i.QtyOnHand) : 0,
+      isActive: i.Active !== false,
+      lastSyncedAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      if (existing.length > 0) {
+        await db.update(inventoryItems)
+          .set({
+            name: values.name,
+            sku: values.sku,
+            description: values.description,
+            category: values.category,
+            unitPrice: values.unitPrice,
+            cost: values.cost,
+            quantityOnHand: values.quantityOnHand,
+            isActive: values.isActive,
+            lastSyncedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(inventoryItems.id, existing[0].id));
+      } else {
+        await db.insert(inventoryItems).values(values);
+      }
+      written++;
+    } catch (err) {
+      console.error(`Failed to persist item ${i.Id}:`, err);
+    }
+  }
+  return written;
+}
+
+export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): Promise<number> {
+  let written = 0;
+  const now = new Date();
+  for (const v of qbVendors) {
+    if (!v.Id) continue;
+    const values = {
+      orgId,
+      qbVendorId: v.Id,
+      displayName: v.DisplayName || v.CompanyName || `Vendor ${v.Id}`,
+      companyName: v.CompanyName,
+      firstName: v.GivenName,
+      lastName: v.FamilyName,
+      email: v.PrimaryEmailAddr?.Address,
+      phone: v.PrimaryPhone?.FreeFormNumber,
+      phoneAlt: v.AlternatePhone?.FreeFormNumber,
+      website: v.WebAddr?.URI,
+      addressLine1: v.BillAddr?.Line1,
+      addressLine2: v.BillAddr?.Line2,
+      city: v.BillAddr?.City,
+      state: v.BillAddr?.CountrySubDivisionCode,
+      zip: v.BillAddr?.PostalCode,
+      accountNumber: v.AcctNum,
+      taxId: v.TaxIdentifier,
+      is1099: v.Vendor1099 === true,
+      paymentTerms: v.TermRef?.name,
+      balance: typeof v.Balance === 'number' ? String(v.Balance) : '0',
+      isActive: v.Active !== false,
+      lastSyncedAt: now,
+      updatedAt: now,
+    };
+    try {
+      await db
+        .insert(vendors)
+        .values(values)
+        .onConflictDoUpdate({
+          target: vendors.qbVendorId,
+          set: {
+            displayName: values.displayName,
+            companyName: values.companyName,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            phone: values.phone,
+            phoneAlt: values.phoneAlt,
+            website: values.website,
+            addressLine1: values.addressLine1,
+            addressLine2: values.addressLine2,
+            city: values.city,
+            state: values.state,
+            zip: values.zip,
+            accountNumber: values.accountNumber,
+            taxId: values.taxId,
+            is1099: values.is1099,
+            paymentTerms: values.paymentTerms,
+            balance: values.balance,
+            isActive: values.isActive,
+            lastSyncedAt: now,
+            updatedAt: now,
+          },
+        });
+      written++;
+    } catch (err) {
+      console.error(`Failed to persist vendor ${v.Id}:`, err);
+    }
+  }
+  return written;
+}
+
+async function resolveOrgId(orgId?: string): Promise<string> {
+  if (orgId) return orgId;
+  const org = await getOrCreateDefaultOrg();
+  return org.id;
+}
+
 // Sync all data from QuickBooks
-export async function syncAllFromQuickBooks(client: QuickBooksClient): Promise<QBSyncStatus> {
+export async function syncAllFromQuickBooks(client: QuickBooksClient, orgId?: string): Promise<QBSyncStatus> {
   if (syncStatus.status === 'syncing') {
     throw new Error('Sync already in progress');
   }
@@ -96,27 +286,43 @@ export async function syncAllFromQuickBooks(client: QuickBooksClient): Promise<Q
   syncStatus.status = 'syncing';
   syncStatus.error = undefined;
 
+  const resolvedOrgId = await resolveOrgId(orgId);
+
   try {
-    // Sync customers
+    // Sync customers (cache + DB)
     try {
       customersCache = await client.getAllCustomers();
       syncStatus.recordsSynced.customers = customersCache.length;
-      addLog('customers', 'import', customersCache.length, 'success');
+      const persisted = await persistCustomersToDb(resolvedOrgId, customersCache);
+      addLog('customers', 'import', persisted, 'success');
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Unknown error';
       addLog('customers', 'import', 0, 'error', error);
       console.error('Failed to sync customers:', err);
     }
 
-    // Sync items (products/services)
+    // Sync items (products/services) — cache + DB
     try {
-      itemsCache = await client.getItems();
+      itemsCache = await client.getAllItems();
       syncStatus.recordsSynced.items = itemsCache.length;
-      addLog('items', 'import', itemsCache.length, 'success');
+      const persisted = await persistItemsToDb(resolvedOrgId, itemsCache);
+      addLog('items', 'import', persisted, 'success');
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Unknown error';
       addLog('items', 'import', 0, 'error', error);
       console.error('Failed to sync items:', err);
+    }
+
+    // Sync vendors (cache + DB)
+    try {
+      vendorsCache = await client.getAllVendors();
+      syncStatus.recordsSynced.vendors = vendorsCache.length;
+      const persisted = await persistVendorsToDb(resolvedOrgId, vendorsCache);
+      addLog('vendors', 'import', persisted, 'success');
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Unknown error';
+      addLog('vendors', 'import', 0, 'error', error);
+      console.error('Failed to sync vendors:', err);
     }
 
     // Sync invoices
@@ -153,18 +359,31 @@ export async function syncAllFromQuickBooks(client: QuickBooksClient): Promise<Q
 }
 
 // Sync individual types
-export async function syncCustomers(client: QuickBooksClient): Promise<QBCustomer[]> {
+export async function syncCustomers(client: QuickBooksClient, orgId?: string): Promise<QBCustomer[]> {
   customersCache = await client.getAllCustomers();
   syncStatus.recordsSynced.customers = customersCache.length;
-  addLog('customers', 'import', customersCache.length, 'success');
+  const resolvedOrgId = await resolveOrgId(orgId);
+  const persisted = await persistCustomersToDb(resolvedOrgId, customersCache);
+  addLog('customers', 'import', persisted, 'success');
   return customersCache;
 }
 
-export async function syncItems(client: QuickBooksClient): Promise<QBItem[]> {
-  itemsCache = await client.getItems();
+export async function syncItems(client: QuickBooksClient, orgId?: string): Promise<QBItem[]> {
+  itemsCache = await client.getAllItems();
   syncStatus.recordsSynced.items = itemsCache.length;
-  addLog('items', 'import', itemsCache.length, 'success');
+  const resolvedOrgId = await resolveOrgId(orgId);
+  const persisted = await persistItemsToDb(resolvedOrgId, itemsCache);
+  addLog('items', 'import', persisted, 'success');
   return itemsCache;
+}
+
+export async function syncVendors(client: QuickBooksClient, orgId?: string): Promise<QBVendor[]> {
+  vendorsCache = await client.getAllVendors() as QBVendor[];
+  syncStatus.recordsSynced.vendors = vendorsCache.length;
+  const resolvedOrgId = await resolveOrgId(orgId);
+  const persisted = await persistVendorsToDb(resolvedOrgId, vendorsCache);
+  addLog('vendors', 'import', persisted, 'success');
+  return vendorsCache;
 }
 
 export async function syncInvoices(client: QuickBooksClient): Promise<QBInvoice[]> {
@@ -224,6 +443,18 @@ export function searchCustomers(query: string): QBCustomer[] {
       return fields.some((field) => matchesSearchQuery(query, field));
     }
   );
+}
+
+export function searchVendors(query: string): QBVendor[] {
+  return vendorsCache.filter((v) => {
+    const fields = [
+      v.DisplayName,
+      v.CompanyName,
+      v.PrimaryEmailAddr?.Address,
+      v.PrimaryPhone?.FreeFormNumber,
+    ];
+    return fields.some((field) => matchesSearchQuery(query, field));
+  });
 }
 
 export function searchItems(query: string): QBItem[] {

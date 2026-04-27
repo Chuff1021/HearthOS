@@ -178,7 +178,7 @@ export class QuickBooksClient {
     };
   }
 
-  private async queryAll<T>(baseQuery: string, pageSize = 1000): Promise<T[]> {
+  async queryAll<T>(baseQuery: string, pageSize = 1000): Promise<T[]> {
     const rows: T[] = [];
     let startPosition = 1;
 
@@ -241,6 +241,10 @@ export class QuickBooksClient {
 
   async getItems(maxResults = 1000): Promise<QBItem[]> {
     return this.query<QBItem>(`SELECT * FROM Item MAXRESULTS ${maxResults}`);
+  }
+
+  async getAllItems(pageSize = 500): Promise<QBItem[]> {
+    return this.queryAll<QBItem>('SELECT * FROM Item', pageSize);
   }
 
   async getItem(id: string): Promise<QBItem> {
@@ -408,6 +412,10 @@ export class QuickBooksClient {
 
   async getVendors(maxResults = 1000): Promise<any[]> {
     return this.query<any>(`SELECT * FROM Vendor MAXRESULTS ${maxResults}`);
+  }
+
+  async getAllVendors(pageSize = 500): Promise<any[]> {
+    return this.queryAll<any>('SELECT * FROM Vendor', pageSize);
   }
 
   // === PURCHASE ORDERS ===

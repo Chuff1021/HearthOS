@@ -133,6 +133,33 @@ export interface QBInvoice {
   LastUpdatedTime: string;
 }
 
+export interface QBVendor {
+  Id: string;
+  DisplayName: string;
+  CompanyName?: string;
+  GivenName?: string;
+  FamilyName?: string;
+  PrimaryEmailAddr?: { Address: string };
+  PrimaryPhone?: { FreeFormNumber: string };
+  AlternatePhone?: { FreeFormNumber: string };
+  WebAddr?: { URI: string };
+  BillAddr?: {
+    Line1?: string;
+    Line2?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+  AcctNum?: string;
+  TaxIdentifier?: string;
+  Vendor1099?: boolean;
+  TermRef?: { value: string; name?: string };
+  Active: boolean;
+  Balance: number;
+  CreatedTime: string;
+  LastUpdatedTime: string;
+}
+
 export interface QBPayment {
   Id: string;
   TxnDate: string;
@@ -193,13 +220,14 @@ export interface QBSyncStatus {
     items: number;
     invoices: number;
     payments: number;
+    vendors: number;
   };
 }
 
 export interface QBSyncLog {
   id: string;
   timestamp: Date;
-  type: 'customers' | 'items' | 'invoices' | 'payments';
+  type: 'customers' | 'items' | 'invoices' | 'payments' | 'vendors';
   direction: 'import' | 'export';
   recordsProcessed: number;
   status: 'success' | 'partial' | 'error';
