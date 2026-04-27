@@ -101,34 +101,34 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Most recent bill line per qbItemId — DISTINCT ON (qb_item_id)
-      const recent = await db.execute<{
-        qb_item_id: string;
-        unit_cost: string;
-        issue_date: string;
-        vendor_id: string | null;
-      }>(sql`
-        SELECT DISTINCT ON (bli.qb_item_id)
-          bli.qb_item_id,
-          bli.unit_cost,
-          b.issue_date,
-          b.vendor_id
-        FROM ${billLineItems} bli
-        INNER JOIN ${bills} b ON b.id = bli.bill_id
-        WHERE b.org_id = ${org.id}
-          AND bli.qb_item_id = ANY(${qbItemIds})
-        ORDER BY bli.qb_item_id, b.issue_date DESC NULLS LAST
-      `);
+      // Most recent bill line per qbItemId. Use the query builder (avoids the
+      // array-binding pitfall in raw sql template) and dedup by qb_item_id in JS.
+      const recentRows = await db
+        .select({
+          qbItemId: billLineItems.qbItemId,
+          unitCost: billLineItems.unitCost,
+          issueDate: bills.issueDate,
+          vendorId: bills.vendorId,
+        })
+        .from(billLineItems)
+        .innerJoin(bills, eq(bills.id, billLineItems.billId))
+        .where(and(
+          eq(bills.orgId, org.id),
+          inArray(billLineItems.qbItemId, qbItemIds),
+        ))
+        .orderBy(desc(bills.issueDate));
 
-      const recentRows = (recent as any).rows ?? recent;
+      const seen = new Set<string>();
       for (const r of recentRows) {
-        const existing = costStats.get(r.qb_item_id) || {
+        if (!r.qbItemId || seen.has(r.qbItemId)) continue;
+        seen.add(r.qbItemId);
+        const existing = costStats.get(r.qbItemId) || {
           lastPaidCost: null, lastPaidDate: null, lastPaidVendorId: null, avgPaidCost: null, billCount: 0,
         };
-        existing.lastPaidCost = r.unit_cost ? Number(r.unit_cost) : null;
-        existing.lastPaidDate = r.issue_date || null;
-        existing.lastPaidVendorId = r.vendor_id || null;
-        costStats.set(r.qb_item_id, existing);
+        existing.lastPaidCost = r.unitCost != null ? Number(r.unitCost) : null;
+        existing.lastPaidDate = r.issueDate || null;
+        existing.lastPaidVendorId = r.vendorId || null;
+        costStats.set(r.qbItemId, existing);
       }
     }
 
