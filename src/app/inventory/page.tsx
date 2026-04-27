@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import DocumentDrawer, { type DocumentType } from "@/components/documents/DocumentDrawer";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Types
@@ -405,6 +406,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
   const [data, setData] = useState<DetailResponse | null>(null);
   const [editing, setEditing] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/inventory/${itemId}`);
@@ -548,7 +550,12 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
           <Section title="On order" hint={`${data.openPOs.length} open PO${data.openPOs.length === 1 ? "" : "s"}`}>
             <div className="space-y-1.5">
               {data.openPOs.map((po) => (
-                <div key={po.poId} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                <button
+                  key={po.poId}
+                  onClick={() => setDocDrill({ type: "purchase-order", id: po.poId })}
+                  className="w-full text-left text-xs flex items-center justify-between p-2 rounded hover:opacity-80 transition-opacity"
+                  style={{ background: "var(--color-surface-2)" }}
+                >
                   <div>
                     <span className="font-mono" style={{ color: "var(--color-text-primary)" }}>{po.poNumber}</span>
                     <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
@@ -559,19 +566,24 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
                     <span>{fmtMoney(Number(po.unitCost))}</span>
                     <span>exp. {fmtDate(po.expectedDate)}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </Section>
         )}
 
-        <Section title="Recent bills" hint={`${data.billHistory.length} shown`}>
+        <Section title="Recent bills" hint={`${data.billHistory.length} shown · click to open`}>
           {data.billHistory.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No bills with this item yet.</p>
           ) : (
             <div className="space-y-1.5">
               {data.billHistory.slice(0, 15).map((b, i) => (
-                <div key={i} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                <button
+                  key={i}
+                  onClick={() => setDocDrill({ type: "bill", id: b.billId })}
+                  className="w-full text-left text-xs flex items-center justify-between p-2 rounded hover:opacity-80 transition-opacity"
+                  style={{ background: "var(--color-surface-2)" }}
+                >
                   <div className="min-w-0">
                     <span style={{ color: "var(--color-text-primary)" }}>{b.vendorName || "—"}</span>
                     <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
@@ -582,19 +594,24 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
                     <span>qty {Number(b.qty)}</span>
                     <span className="font-medium">{fmtMoney(Number(b.unitCost))}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </Section>
 
-        <Section title="Recent sales" hint={`${data.salesHistory.length} shown`}>
+        <Section title="Recent sales" hint={`${data.salesHistory.length} shown · click to open`}>
           {data.salesHistory.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No invoices with this item yet.</p>
           ) : (
             <div className="space-y-1.5">
               {data.salesHistory.slice(0, 15).map((s, i) => (
-                <div key={i} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                <button
+                  key={i}
+                  onClick={() => setDocDrill({ type: "invoice", id: s.invoiceId })}
+                  className="w-full text-left text-xs flex items-center justify-between p-2 rounded hover:opacity-80 transition-opacity"
+                  style={{ background: "var(--color-surface-2)" }}
+                >
                   <div className="min-w-0">
                     <span style={{ color: "var(--color-text-primary)" }}>{s.customerName || "—"}</span>
                     <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
@@ -605,7 +622,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
                     <span>qty {Number(s.qty)}</span>
                     <span className="font-medium">{fmtMoney(Number(s.unitPrice))}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -633,6 +650,14 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
 
         <div className="h-12" />
       </div>
+
+      {docDrill && (
+        <DocumentDrawer
+          type={docDrill.type}
+          id={docDrill.id}
+          onClose={() => setDocDrill(null)}
+        />
+      )}
     </div>
   );
 }
