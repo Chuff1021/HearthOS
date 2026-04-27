@@ -25,7 +25,7 @@ const reports: ReportCard[] = [
     href: "/reports/ar-aging",
     title: "Accounts Receivable Aging",
     description: "Who owes you, by how long overdue. Current / 30 / 60 / 90+ buckets per customer.",
-    status: "soon",
+    status: "live",
     icon: "📅",
   },
   {

@@ -80,20 +80,8 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-// Stable color from a string — used for avatar background
-export function colorFromName(s: string): string {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-  const palette = ["#FF4400", "#0EA5E9", "#16A34A", "#A855F7", "#EAB308", "#EF4444", "#14B8A6", "#F97316", "#3B82F6", "#10B981"];
-  return palette[Math.abs(h) % palette.length];
-}
-
-export function initialsFromName(s: string): string {
-  const parts = (s || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+// Avatar helpers moved to @/lib/avatar so customer + vendor pages share them.
+import { colorFromName, initialsFromName } from "@/lib/avatar";
 
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   const bg = colorFromName(name);

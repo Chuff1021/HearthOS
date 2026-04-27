@@ -1,104 +1,232 @@
 "use client";
-// HearthOS Dashboard — deployment verification
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
-import DashboardStats from "@/components/dashboard/DashboardStats";
 import TodaysJobs from "@/components/dashboard/TodaysJobs";
 import DispatchBoard from "@/components/dashboard/DispatchBoard";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import QuickActions from "@/components/dashboard/QuickActions";
-import SalesFunnel from "@/components/dashboard/SalesFunnel";
 
-type DashboardTab = "overview" | "pipeline";
+// ───────────────────────────────────────────────────────────────────────────
+// Types
+// ───────────────────────────────────────────────────────────────────────────
+type ProfitResp = {
+  windowStats: {
+    invoiceCount: number;
+    revenue: number;
+    cogs: number;
+    billable: number;
+    profit: number;
+    margin: number | null;
+    balance: number;
+    unprofitableCount: number;
+  };
+};
 
+type CustomerResp = {
+  moneyBar: {
+    totalDue: number;
+    openInvoiceCount: number;
+    overdueAmount: number;
+    overdueCount: number;
+    revenueYTD: number;
+  };
+};
+
+type VendorResp = {
+  moneyBar: {
+    totalOwed: number;
+    openBillCount: number;
+    overdueAmount: number;
+    overdueCount: number;
+    openPOValue: number;
+    openPOCount: number;
+  };
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────
+const fmtMoney = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const fmtMoneyShort = (n: number) => {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 10_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return fmtMoney(n);
+};
+const fmtPct = (n: number | null) => n == null ? "—" : `${n.toFixed(1)}%`;
+
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+const todayLabel = () =>
+  new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+// ───────────────────────────────────────────────────────────────────────────
+// Page
+// ───────────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const { user } = useUser();
-  const rawDisplayName = user?.firstName || user?.fullName || "there";
-  const displayName = rawDisplayName.charAt(0).toUpperCase() + rawDisplayName.slice(1);
+  const rawName = user?.firstName || user?.fullName || "there";
+  const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+  const [profit, setProfit] = useState<ProfitResp | null>(null);
+  const [cust, setCust] = useState<CustomerResp | null>(null);
+  const [vend, setVend] = useState<VendorResp | null>(null);
+
+  useEffect(() => {
+    const ytdSince = `${new Date().getFullYear()}-01-01`;
+    Promise.all([
+      fetch(`/api/reports/profit-by-job?since=${ytdSince}&limit=20`).then((r) => r.ok ? r.json() : null),
+      fetch(`/api/customers/center?filter=all`).then((r) => r.ok ? r.json() : null),
+      fetch(`/api/vendors?filter=all`).then((r) => r.ok ? r.json() : null),
+    ]).then(([p, c, v]) => {
+      if (p) setProfit(p);
+      if (c) setCust(c);
+      if (v) setVend(v);
+    });
+  }, []);
+
+  const ws = profit?.windowStats;
+  const cm = cust?.moneyBar;
+  const vm = vend?.moneyBar;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
-          <div className="max-w-[1600px] mx-auto space-y-5">
-            {/* Page Title + Tab Nav */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  Good morning, {displayName} 👋
-                </h1>
-                <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                  Monday, February 24, 2026 · 8 jobs scheduled today
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Tab Switcher */}
-                <div className="flex bg-[#252540] rounded-xl p-1 gap-1">
-                  <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeTab === "overview"
-                        ? "bg-orange-500 text-white"
-                        : "text-gray-400 hover:text-white"
-                    }`}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+
+            {/* Hero card — premium feel */}
+            <div
+              className="rounded-2xl p-8 relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, rgba(255,68,0,0.04) 0%, rgba(255,68,0,0.0) 60%), var(--color-surface-1)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-6 flex-wrap">
+                <div>
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{todayLabel()}</p>
+                  <h1
+                    className="mt-1"
+                    style={{
+                      fontFamily: "var(--font-family-display)",
+                      fontSize: "2.5rem",
+                      lineHeight: 1.1,
+                      fontWeight: 500,
+                      letterSpacing: "-0.02em",
+                      color: "var(--color-text-primary)",
+                    }}
                   >
-                    Overview
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("pipeline")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                      activeTab === "pipeline"
-                        ? "bg-orange-500 text-white"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    Sales Pipeline
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      activeTab === "pipeline" ? "bg-white/20" : "bg-orange-500/20 text-orange-400"
-                    }`}>
-                      6
-                    </span>
-                  </button>
+                    {greeting()}, {displayName}.
+                  </h1>
+                  <p className="text-base mt-2 max-w-xl" style={{ color: "var(--color-text-secondary)" }}>
+                    Your year-to-date pulse — revenue, profit, what&apos;s owed to you, and what you owe.
+                  </p>
                 </div>
                 <QuickActions />
               </div>
             </div>
 
-            {/* Stats Row — always visible */}
-            <DashboardStats />
+            {/* Premium KPI grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard
+                label="Revenue YTD"
+                value={ws ? fmtMoneyShort(ws.revenue) : "—"}
+                sublabel={ws ? `${ws.invoiceCount.toLocaleString()} invoices` : ""}
+                accent="#16A34A"
+                href="/reports/profit-by-job?preset=ytd"
+              />
+              <KpiCard
+                label="Profit YTD"
+                value={ws ? fmtMoneyShort(ws.profit) : "—"}
+                sublabel={ws?.margin != null ? `${ws.margin.toFixed(1)}% margin` : ""}
+                accent={ws && ws.profit < 0 ? "#FF204E" : "#FF4400"}
+                href="/reports/profit-by-job?preset=ytd"
+              />
+              <KpiCard
+                label="Owed to you"
+                value={cm ? fmtMoneyShort(cm.totalDue) : "—"}
+                sublabel={cm ? `${cm.openInvoiceCount} open · ${cm.overdueCount} overdue` : ""}
+                accent="#F59E0B"
+                tone={cm && cm.overdueCount > 0 ? "warn" : undefined}
+                href="/reports/ar-aging"
+              />
+              <KpiCard
+                label="You owe"
+                value={vm ? fmtMoneyShort(vm.totalOwed) : "—"}
+                sublabel={vm ? `${vm.openBillCount} open · ${vm.overdueCount} overdue` : ""}
+                accent="#0EA5E9"
+                tone={vm && vm.overdueCount > 0 ? "danger" : undefined}
+                href="/vendors"
+              />
+            </div>
 
-            {/* Tab Content */}
-            {activeTab === "overview" && (
-              <>
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                  {/* Today's Jobs — takes 2 cols */}
-                  <div className="xl:col-span-2">
-                    <TodaysJobs />
-                  </div>
-                  {/* Recent Activity — 1 col */}
-                  <div className="xl:col-span-1">
-                    <RecentActivity />
-                  </div>
-                </div>
+            {/* Operations row: today's jobs + recent activity */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+              <div className="xl:col-span-2">
+                <TodaysJobs />
+              </div>
+              <div className="xl:col-span-1">
+                <RecentActivity />
+              </div>
+            </div>
 
-                {/* Dispatch Board */}
-                <DispatchBoard />
-              </>
-            )}
+            {/* Dispatch */}
+            <DispatchBoard />
 
-            {activeTab === "pipeline" && (
-              <SalesFunnel />
-            )}
+            {/* Footer attribution */}
+            <p className="text-[11px] text-center pt-4" style={{ color: "var(--color-text-muted)" }}>
+              HearthOS · Heritage meets modern field service.
+            </p>
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// KPI card
+// ───────────────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sublabel, accent, tone, href }: { label: string; value: string; sublabel?: string; accent: string; tone?: "warn" | "danger"; href?: string }) {
+  const Tag: any = href ? Link : "div";
+  const props: any = href ? { href } : {};
+  const accentColor = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : accent;
+  return (
+    <Tag
+      {...props}
+      className={`p-5 rounded-2xl block relative transition-all ${href ? "hover:translate-y-[-1px] hover:shadow-md" : ""}`}
+      style={{
+        background: "var(--color-surface-1)",
+        border: "1px solid var(--color-border)",
+        borderTop: `3px solid ${accentColor}`,
+      }}
+    >
+      <p className="text-[10px] uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p
+        className="mt-2"
+        style={{
+          fontFamily: "var(--font-family-display)",
+          fontSize: "2rem",
+          fontWeight: 600,
+          lineHeight: 1,
+          letterSpacing: "-0.01em",
+          color: accentColor,
+        }}
+      >
+        {value}
+      </p>
+      {sublabel && <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>{sublabel}</p>}
+    </Tag>
   );
 }
