@@ -289,6 +289,7 @@ export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): 
       written += ret.length;
     } catch (err) {
       console.error(`Failed bulk-persist vendors (chunk ${part.length}):`, err);
+      throw err;
     }
   }
   return written;
