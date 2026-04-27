@@ -1,52 +1,163 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
-interface InventoryItem {
+// ───────────────────────────────────────────────────────────────────────────
+// Types
+// ───────────────────────────────────────────────────────────────────────────
+type InventoryItem = {
   id: string;
-  sku: string;
+  qbItemId: string | null;
+  sku: string | null;
   name: string;
-  category: "parts" | "supplies" | "equipment";
-  brand: string;
-  quantity: number;
-  minQuantity: number;
-  unitPrice: number;
-  location: string;
-  lastRestocked: string;
+  description: string | null;
+  category: string | null;
+  location: string | null;
+  unitPrice: number | null;
+  cost: number | null;
+  margin: number | null;
+  quantityOnHand: number;
+  reorderLevel: number;
+  isLowStock: boolean;
+  isActive: boolean;
+  lastPaidCost: number | null;
+  lastPaidDate: string | null;
+  lastPaidVendorId: string | null;
+  avgPaidCost: number | null;
+  billCount: number;
+  updatedAt: string | null;
+  lastSyncedAt: string | null;
+};
+
+type ListResponse = {
+  items: InventoryItem[];
+  page: number;
+  limit: number;
+  totalCount: number;
+  stats: { totalItems: number; lowStockCount: number; noCostCount: number; totalValue: number };
+  categories: string[];
+};
+
+type DetailResponse = {
+  item: InventoryItem & { description: string | null; updatedAt: string };
+  costSummary: {
+    lastPaidCost: number | null;
+    lastPaidDate: string | null;
+    lastPaidVendorName: string | null;
+    avg12mCost: number | null;
+    minCostEver: number | null;
+    maxCostEver: number | null;
+    billCount: number;
+    invoiceCount: number;
+    openPOCount: number;
+  };
+  billHistory: Array<{
+    billId: string; billNumber: string | null; issueDate: string | null;
+    vendorId: string | null; vendorName: string | null;
+    qty: string; unitCost: string; amount: string; description: string | null;
+  }>;
+  salesHistory: Array<{
+    invoiceId: string; invoiceNumber: string | null; issueDate: string | null;
+    customerId: string | null; customerName: string | null;
+    qty: string; unitPrice: string; total: string; description: string | null;
+  }>;
+  openPOs: Array<{
+    poId: string; poNumber: string | null; issueDate: string | null; expectedDate: string | null;
+    status: string | null; vendorId: string | null; vendorName: string | null;
+    qty: string; receivedQty: string; unitCost: string;
+  }>;
+  vendorBreakdown: Array<{
+    vendorId: string | null; vendorName: string | null;
+    timesPurchased: number; totalQty: string;
+    avgCost: string; minCost: string; maxCost: string; lastPaid: string | null;
+  }>;
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────
+const fmtMoney = (n: number | null | undefined, dash = "—") =>
+  n == null || isNaN(Number(n)) ? dash : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const fmtDate = (s: string | null | undefined) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const fmtPct = (n: number | null) =>
+  n == null || isNaN(n) ? "—" : `${n.toFixed(1)}%`;
+
+const trendArrow = (current: number | null, prior: number | null) => {
+  if (current == null || prior == null || prior === 0) return null;
+  const diff = ((current - prior) / prior) * 100;
+  if (Math.abs(diff) < 1) return { sym: "→", color: "var(--color-text-muted)", label: "stable" };
+  return diff > 0
+    ? { sym: "↑", color: "#FF204E", label: `+${diff.toFixed(0)}%` }
+    : { sym: "↓", color: "#16A34A", label: `${diff.toFixed(0)}%` };
+};
+
+// Debounce hook for search input
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
+  return v;
 }
 
-const sampleInventory: InventoryItem[] = [
-  { id: "inv-001", sku: "TC-001", name: "Thermocouple Universal", category: "parts", brand: "Generic", quantity: 45, minQuantity: 10, unitPrice: 24.99, location: "Bin A-1", lastRestocked: "2026-02-15" },
-  { id: "inv-002", sku: "TP-001", name: "Thermopile 750mV", category: "parts", brand: "White-Rodgers", quantity: 28, minQuantity: 8, unitPrice: 45.00, location: "Bin A-2", lastRestocked: "2026-02-10" },
-  { id: "inv-003", sku: "GV-001", name: "Gas Valve 3/4\" NG", category: "parts", brand: "Miller", quantity: 12, minQuantity: 5, unitPrice: 89.00, location: "Bin B-1", lastRestocked: "2026-01-28" },
-  { id: "inv-004", sku: "IGN-001", name: "Electronic Igniter", category: "parts", brand: "Honywood", quantity: 33, minQuantity: 10, unitPrice: 65.00, location: "Bin C-1", lastRestocked: "2026-02-05" },
-  { id: "inv-005", sku: "PILOT-001", name: "Pilot Assembly NG", category: "parts", brand: "Robertshaw", quantity: 18, minQuantity: 5, unitPrice: 52.00, location: "Bin C-2", lastRestocked: "2026-02-12" },
-  { id: "inv-006", sku: "GLASS-001", name: "Glass Panel 36\"", category: "parts", brand: "Majestic", quantity: 8, minQuantity: 3, unitPrice: 125.00, location: "Bin D-1", lastRestocked: "2026-01-20" },
-  { id: "inv-007", sku: "LOG-001", name: "Ceramic Log Set", category: "parts", brand: "Generic", quantity: 15, minQuantity: 5, unitPrice: 75.00, location: "Bin E-1", lastRestocked: "2026-02-01" },
-  { id: "inv-008", sku: "VENT-001", name: "Vent Kit 4\" x 6\"", category: "parts", brand: "Simpson", quantity: 24, minQuantity: 8, unitPrice: 38.00, location: "Bin F-1", lastRestocked: "2026-02-18" },
-  { id: "inv-009", sku: "CLEAN-001", name: "Glass Cleaner 16oz", category: "supplies", brand: " Rutland", quantity: 48, minQuantity: 12, unitPrice: 8.99, location: "Shelf 1", lastRestocked: "2026-02-08" },
-  { id: "inv-010", sku: "GASKET-001", name: "Door Gasket Kit", category: "supplies", brand: "Generic", quantity: 22, minQuantity: 6, unitPrice: 28.00, location: "Shelf 2", lastRestocked: "2026-01-25" },
-];
+// ───────────────────────────────────────────────────────────────────────────
+// Main page
+// ───────────────────────────────────────────────────────────────────────────
+type FilterKey = "all" | "low_stock" | "no_cost" | "active" | "inactive";
+type SortKey = "name" | "qty" | "unit_price" | "cost" | "updated";
 
 export default function InventoryPage() {
-  const [inventory] = useState<InventoryItem[]>(sampleInventory);
-  const [filter, setFilter] = useState<"all" | "parts" | "supplies" | "low">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const debounced = useDebounced(search, 250);
+  const [filter, setFilter] = useState<FilterKey>("active");
+  const [category, setCategory] = useState<string>("");
+  const [sort, setSort] = useState<SortKey>("name");
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const limit = 100;
 
-  const filteredInventory = inventory.filter(item => {
-    const matchesFilter = 
-      filter === "all" || 
-      (filter === "low" ? item.quantity <= item.minQuantity : item.category === filter);
-    const matchesSearch = !searchQuery || 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const [data, setData] = useState<ListResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const lowStockCount = inventory.filter(i => i.quantity <= i.minQuantity).length;
-  const totalValue = inventory.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      q: debounced,
+      filter,
+      category,
+      sort,
+      dir,
+      page: String(page),
+      limit: String(limit),
+    });
+    try {
+      const r = await fetch(`/api/inventory?${params}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      setData(j);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [debounced, filter, category, sort, dir, page]);
+
+  useEffect(() => { setPage(1); }, [debounced, filter, category, sort, dir]);
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.limit)) : 1;
+
+  const headerSort = (col: SortKey) => () => {
+    if (sort === col) setDir(dir === "asc" ? "desc" : "asc");
+    else { setSort(col); setDir(col === "name" ? "asc" : "desc"); }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -54,140 +165,563 @@ export default function InventoryPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-5">
-          <div className="max-w-[1600px] mx-auto space-y-5">
-            {/* Page Header */}
-            <div className="flex items-start justify-between gap-4">
+          <div className="max-w-[1800px] mx-auto space-y-4">
+
+            {/* Title row */}
+            <div className="flex items-end justify-between gap-4">
               <div>
-                <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  Inventory
-                </h1>
+                <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Inventory</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                  Parts, supplies, and equipment management
+                  Search, sort, manage every part. Click an item for full cost history.
                 </p>
               </div>
-              <button className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
-                + Add Item
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => fetchList()} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}>
+                  Refresh
+                </button>
+                <button
+                  onClick={async () => {
+                    const r = await fetch("/api/quickbooks/sync/items", { method: "POST" });
+                    if (r.ok) fetchList();
+                  }}
+                  className="px-3 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}
+                >
+                  Sync from QuickBooks
+                </button>
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Items</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>{inventory.length}</p>
-              </div>
-              <button
-                onClick={() => setFilter("low")}
-                className={`p-5 rounded-xl text-left transition-all ${filter === "low" ? "ring-2 ring-red-500" : ""}`}
-                style={{ background: "var(--color-surface-1)" }}
+            {/* Stats banner */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Total Items" value={data?.stats.totalItems ?? 0} />
+              <StatCard
+                label="Low Stock"
+                value={data?.stats.lowStockCount ?? 0}
+                tone={(data?.stats.lowStockCount ?? 0) > 0 ? "danger" : "good"}
+                onClick={() => setFilter("low_stock")}
+                active={filter === "low_stock"}
+              />
+              <StatCard
+                label="No Cost Set"
+                value={data?.stats.noCostCount ?? 0}
+                tone={(data?.stats.noCostCount ?? 0) > 0 ? "warn" : "good"}
+                onClick={() => setFilter("no_cost")}
+                active={filter === "no_cost"}
+              />
+              <StatCard label="Inventory Value" value={fmtMoney(data?.stats.totalValue ?? 0)} />
+            </div>
+
+            {/* Filters row */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <input
+                type="text"
+                placeholder="Search by name, SKU, description, category…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 min-w-[280px] px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
+                style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+              />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
               >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Low Stock</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: lowStockCount > 0 ? "#FF204E" : "#98CD00" }}>{lowStockCount}</p>
-              </button>
-              <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Value</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>${totalValue.toLocaleString()}</p>
-              </div>
-              <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Categories</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>2</p>
-              </div>
+                <option value="">All categories</option>
+                {data?.categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <FilterPill label="Active" value="active" current={filter} onClick={setFilter} />
+              <FilterPill label="All" value="all" current={filter} onClick={setFilter} />
+              <FilterPill label="Low stock" value="low_stock" current={filter} onClick={setFilter} />
+              <FilterPill label="No cost set" value="no_cost" current={filter} onClick={setFilter} />
+              <FilterPill label="Inactive" value="inactive" current={filter} onClick={setFilter} />
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-4 items-center">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search inventory..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl border-0 focus:ring-2 focus:ring-orange-500 outline-none"
-                  style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)" }}
-                />
-              </div>
-              <div className="flex gap-2">
-                {[
-                  { id: "all", label: "All" },
-                  { id: "parts", label: "Parts" },
-                  { id: "supplies", label: "Supplies" },
-                  { id: "low", label: "Low Stock" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setFilter(tab.id as any)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      filter === tab.id 
-                        ? "bg-orange-500 text-white" 
-                        : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Inventory Table */}
-            <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)" }}>
+            {/* Table */}
+            <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr style={{ background: "var(--color-surface-2)" }}>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>SKU</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Item</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Category</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Brand</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Qty</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Min</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Unit Price</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Location</th>
+                <table className="w-full text-sm">
+                  <thead style={{ background: "var(--color-surface-2)" }}>
+                    <tr>
+                      <Th onClick={headerSort("name")} active={sort === "name"} dir={dir}>Item</Th>
+                      <Th>Category</Th>
+                      <Th onClick={headerSort("qty")} active={sort === "qty"} dir={dir} className="text-right">On Hand</Th>
+                      <Th className="text-right">Reorder</Th>
+                      <Th onClick={headerSort("unit_price")} active={sort === "unit_price"} dir={dir} className="text-right">Sale Price</Th>
+                      <Th onClick={headerSort("cost")} active={sort === "cost"} dir={dir} className="text-right">Current Cost</Th>
+                      <Th className="text-right">Last Paid</Th>
+                      <Th className="text-right">Avg 12mo</Th>
+                      <Th className="text-right">Margin</Th>
+                      <Th>Location</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredInventory.map((item) => (
-                      <tr key={item.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
-                        <td className="px-4 py-3 font-mono text-sm" style={{ color: "var(--color-text-muted)" }}>
-                          {item.sku}
-                        </td>
-                        <td className="px-4 py-3 font-medium" style={{ color: "var(--color-text-primary)" }}>
-                          {item.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            item.category === "parts" ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"
-                          }`}>
-                            {item.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                          {item.brand}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${
-                            item.quantity <= item.minQuantity ? "text-red-400" : "text-green-400"
-                          }`}>
-                            {item.quantity}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
-                          {item.minQuantity}
-                        </td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                          ${item.unitPrice.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
-                          {item.location}
-                        </td>
-                      </tr>
-                    ))}
+                    {data?.items.map((item) => {
+                      const trend = trendArrow(item.lastPaidCost, item.avgPaidCost);
+                      const costMismatch = item.cost != null && item.lastPaidCost != null && Math.abs(Number(item.cost) - item.lastPaidCost) / Math.max(item.lastPaidCost, 0.01) > 0.1;
+                      return (
+                        <tr
+                          key={item.id}
+                          onClick={() => setSelectedId(item.id)}
+                          className="cursor-pointer transition-colors"
+                          style={{ borderTop: "1px solid var(--color-border)" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                        >
+                          <td className="px-3 py-2">
+                            <div className="font-medium" style={{ color: "var(--color-text-primary)" }}>
+                              {item.name}
+                              {!item.isActive && <span className="ml-2 text-[10px] uppercase opacity-60">inactive</span>}
+                            </div>
+                            <div className="text-[11px] font-mono mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                              {item.sku || "—"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                            {item.category || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium" style={{ color: item.isLowStock && item.isActive ? "#FF204E" : "var(--color-text-primary)" }}>
+                            {item.quantityOnHand}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs" style={{ color: "var(--color-text-muted)" }}>
+                            {item.reorderLevel || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-primary)" }}>
+                            {fmtMoney(item.unitPrice)}
+                          </td>
+                          <td className="px-3 py-2 text-right" style={{ color: costMismatch ? "#F59E0B" : "var(--color-text-primary)" }}>
+                            {fmtMoney(item.cost)}
+                            {costMismatch && <span className="ml-1 text-[10px]" title="Current cost differs from last paid by &gt;10%">⚠</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-secondary)" }}>
+                            {fmtMoney(item.lastPaidCost)}
+                            {trend && (
+                              <span className="ml-1 text-[10px]" style={{ color: trend.color }} title={trend.label}>
+                                {trend.sym}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right" style={{ color: "var(--color-text-muted)" }}>
+                            {fmtMoney(item.avgPaidCost)}
+                          </td>
+                          <td className="px-3 py-2 text-right" style={{ color: item.margin != null && item.margin < 0 ? "#FF204E" : "var(--color-text-secondary)" }}>
+                            {fmtPct(item.margin)}
+                          </td>
+                          <td className="px-3 py-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                            {item.location || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {!loading && data?.items.length === 0 && (
+                      <tr><td colSpan={10} className="px-3 py-8 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>No items match.</td></tr>
+                    )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-3 py-2 text-xs" style={{ background: "var(--color-surface-2)", borderTop: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                <span>
+                  {loading ? "Loading…" : data ? (
+                    <>Showing <strong>{(page - 1) * limit + 1}</strong>–<strong>{Math.min(page * limit, data.totalCount)}</strong> of <strong>{data.totalCount.toLocaleString()}</strong></>
+                  ) : "—"}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-2 py-1 rounded disabled:opacity-30" style={{ background: "var(--color-surface-1)" }}>Prev</button>
+                  <span>Page {page} of {totalPages}</span>
+                  <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="px-2 py-1 rounded disabled:opacity-30" style={{ background: "var(--color-surface-1)" }}>Next</button>
+                </div>
               </div>
             </div>
           </div>
         </main>
       </div>
+
+      {selectedId && (
+        <DetailDrawer
+          itemId={selectedId}
+          onClose={() => setSelectedId(null)}
+          onSaved={() => fetchList()}
+        />
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Subcomponents
+// ───────────────────────────────────────────────────────────────────────────
+function StatCard({ label, value, tone, onClick, active }: { label: string; value: number | string; tone?: "good" | "warn" | "danger"; onClick?: () => void; active?: boolean }) {
+  const color = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : tone === "good" ? "#16A34A" : "var(--color-text-primary)";
+  const Tag: any = onClick ? "button" : "div";
+  return (
+    <Tag
+      onClick={onClick}
+      className={`p-4 rounded-xl text-left transition-all w-full ${active ? "ring-2 ring-orange-500" : ""}`}
+      style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+    >
+      <p className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-2xl font-bold mt-1" style={{ color }}>{typeof value === "number" ? value.toLocaleString() : value}</p>
+    </Tag>
+  );
+}
+
+function FilterPill({ label, value, current, onClick }: { label: string; value: FilterKey; current: FilterKey; onClick: (v: FilterKey) => void }) {
+  const active = current === value;
+  return (
+    <button
+      onClick={() => onClick(value)}
+      className="px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+      style={{
+        background: active ? "#FF4400" : "var(--color-surface-1)",
+        color: active ? "white" : "var(--color-text-secondary)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Th({ children, onClick, active, dir, className = "" }: { children: React.ReactNode; onClick?: () => void; active?: boolean; dir?: "asc" | "desc"; className?: string }) {
+  return (
+    <th
+      onClick={onClick}
+      className={`px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide ${onClick ? "cursor-pointer select-none hover:opacity-80" : ""} ${className}`}
+      style={{ color: "var(--color-text-muted)" }}
+    >
+      {children}
+      {active && <span className="ml-1">{dir === "asc" ? "▲" : "▼"}</span>}
+    </th>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Detail drawer
+// ───────────────────────────────────────────────────────────────────────────
+function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: () => void; onSaved: () => void }) {
+  const [data, setData] = useState<DetailResponse | null>(null);
+  const [editing, setEditing] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/inventory/${itemId}`);
+    if (r.ok) setData(await r.json());
+  }, [itemId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!data) {
+    return (
+      <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+        <div className="ml-auto h-full w-full md:w-[640px]" style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="p-6 text-sm" style={{ color: "var(--color-text-muted)" }}>Loading…</div>
+        </div>
+      </div>
+    );
+  }
+
+  const item = data.item;
+  const cs = data.costSummary;
+
+  const setField = (k: string, v: any) => setEditing((e) => ({ ...e, [k]: v }));
+  const editValue = (k: keyof typeof item) => (k in editing ? editing[k] : (item as any)[k]);
+  const dirty = Object.keys(editing).length > 0;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/inventory/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editing),
+      });
+      if (r.ok) {
+        setEditing({});
+        await load();
+        onSaved();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const applySuggestedCost = () => {
+    if (cs.lastPaidCost != null) setField("cost", cs.lastPaidCost);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="flex-1 bg-black/40" />
+      <div
+        className="h-full w-full md:w-[720px] overflow-y-auto"
+        style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 p-5" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-mono mb-1" style={{ color: "var(--color-text-muted)" }}>{item.sku || item.qbItemId || "—"}</p>
+              <h2 className="text-lg font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{item.name}</h2>
+              {item.category && (
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{item.category}</p>
+              )}
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg" style={{ color: "var(--color-text-muted)" }}>✕</button>
+          </div>
+          {dirty && (
+            <div className="flex gap-2 mt-3">
+              <button disabled={saving} onClick={save} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-50">
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+              <button onClick={() => setEditing({})} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}>
+                Discard
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Cost & stock summary */}
+        <Section title="Stock & Cost">
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="On hand" value={editValue("quantityOnHand")} onChange={(v) => setField("quantityOnHand", v)} />
+            <NumberField label="Reorder level" value={editValue("reorderLevel") ?? 0} onChange={(v) => setField("reorderLevel", v)} />
+            <MoneyField label="Sale price" value={editValue("unitPrice")} onChange={(v) => setField("unitPrice", v)} />
+            <MoneyField label="Current cost" value={editValue("cost")} onChange={(v) => setField("cost", v)} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Stat label="Last paid" value={fmtMoney(cs.lastPaidCost)} hint={cs.lastPaidVendorName ? `${cs.lastPaidVendorName} · ${fmtDate(cs.lastPaidDate)}` : fmtDate(cs.lastPaidDate)} />
+            <Stat label="Avg (12 mo)" value={fmtMoney(cs.avg12mCost)} />
+            <Stat label="Margin" value={fmtPct(item.margin)} hint={item.margin != null && item.margin < 0 ? "losing money" : undefined} tone={item.margin != null && item.margin < 0 ? "danger" : undefined} />
+            <Stat label="Min ever" value={fmtMoney(cs.minCostEver)} />
+            <Stat label="Max ever" value={fmtMoney(cs.maxCostEver)} />
+            <Stat label="Bills using" value={cs.billCount} hint={`${cs.invoiceCount} invoices`} />
+          </div>
+
+          {cs.lastPaidCost != null && Math.abs((Number(item.cost ?? 0) - cs.lastPaidCost)) / Math.max(cs.lastPaidCost, 0.01) > 0.05 && (
+            <button
+              onClick={applySuggestedCost}
+              className="mt-3 px-3 py-2 rounded-lg text-xs font-medium"
+              style={{ background: "rgba(255, 68, 0, 0.15)", color: "#FF6633", border: "1px solid #FF4400" }}
+            >
+              Update current cost to match last paid: {fmtMoney(cs.lastPaidCost)}
+            </button>
+          )}
+        </Section>
+
+        <Section title="Vendor breakdown" hint="Last 24 months">
+          {data.vendorBreakdown.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No bills found for this item.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead style={{ color: "var(--color-text-muted)" }}>
+                <tr>
+                  <th className="text-left py-1">Vendor</th>
+                  <th className="text-right py-1">Bills</th>
+                  <th className="text-right py-1">Avg</th>
+                  <th className="text-right py-1">Range</th>
+                  <th className="text-right py-1">Last paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.vendorBreakdown.map((v, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid var(--color-border)" }}>
+                    <td className="py-1.5" style={{ color: "var(--color-text-primary)" }}>{v.vendorName || "Unknown"}</td>
+                    <td className="py-1.5 text-right" style={{ color: "var(--color-text-secondary)" }}>{v.timesPurchased}</td>
+                    <td className="py-1.5 text-right" style={{ color: "var(--color-text-secondary)" }}>{fmtMoney(Number(v.avgCost))}</td>
+                    <td className="py-1.5 text-right text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                      {fmtMoney(Number(v.minCost))} – {fmtMoney(Number(v.maxCost))}
+                    </td>
+                    <td className="py-1.5 text-right" style={{ color: "var(--color-text-muted)" }}>{fmtDate(v.lastPaid)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Section>
+
+        {data.openPOs.length > 0 && (
+          <Section title="On order" hint={`${data.openPOs.length} open PO${data.openPOs.length === 1 ? "" : "s"}`}>
+            <div className="space-y-1.5">
+              {data.openPOs.map((po) => (
+                <div key={po.poId} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                  <div>
+                    <span className="font-mono" style={{ color: "var(--color-text-primary)" }}>{po.poNumber}</span>
+                    <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>{po.vendorName || "—"}</span>
+                  </div>
+                  <div className="flex gap-3" style={{ color: "var(--color-text-muted)" }}>
+                    <span>qty {Number(po.qty)}</span>
+                    <span>{fmtMoney(Number(po.unitCost))}</span>
+                    <span>exp. {fmtDate(po.expectedDate)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        <Section title="Recent bills" hint={`${data.billHistory.length} shown`}>
+          {data.billHistory.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No bills with this item yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {data.billHistory.slice(0, 15).map((b, i) => (
+                <div key={i} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                  <div className="min-w-0">
+                    <span style={{ color: "var(--color-text-primary)" }}>{b.vendorName || "—"}</span>
+                    <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
+                    <span style={{ color: "var(--color-text-muted)" }}>{fmtDate(b.issueDate)}</span>
+                    {b.billNumber && <span className="ml-2 font-mono" style={{ color: "var(--color-text-muted)" }}>#{b.billNumber}</span>}
+                  </div>
+                  <div className="flex gap-3 shrink-0" style={{ color: "var(--color-text-secondary)" }}>
+                    <span>qty {Number(b.qty)}</span>
+                    <span className="font-medium">{fmtMoney(Number(b.unitCost))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Recent sales" hint={`${data.salesHistory.length} shown`}>
+          {data.salesHistory.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No invoices with this item yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {data.salesHistory.slice(0, 15).map((s, i) => (
+                <div key={i} className="text-xs flex items-center justify-between p-2 rounded" style={{ background: "var(--color-surface-2)" }}>
+                  <div className="min-w-0">
+                    <span style={{ color: "var(--color-text-primary)" }}>{s.customerName || "—"}</span>
+                    <span className="mx-2" style={{ color: "var(--color-text-muted)" }}>·</span>
+                    <span style={{ color: "var(--color-text-muted)" }}>{fmtDate(s.issueDate)}</span>
+                    {s.invoiceNumber && <span className="ml-2 font-mono" style={{ color: "var(--color-text-muted)" }}>#{s.invoiceNumber}</span>}
+                  </div>
+                  <div className="flex gap-3 shrink-0" style={{ color: "var(--color-text-secondary)" }}>
+                    <span>qty {Number(s.qty)}</span>
+                    <span className="font-medium">{fmtMoney(Number(s.unitPrice))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Details">
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Name" value={editValue("name") ?? ""} onChange={(v) => setField("name", v)} />
+            <TextField label="SKU" value={editValue("sku") ?? ""} onChange={(v) => setField("sku", v)} />
+            <TextField label="Category" value={editValue("category") ?? ""} onChange={(v) => setField("category", v)} />
+            <TextField label="Location" value={editValue("location") ?? ""} onChange={(v) => setField("location", v)} />
+          </div>
+          <TextAreaField label="Description" value={editValue("description") ?? ""} onChange={(v) => setField("description", v)} />
+          <div className="mt-3">
+            <label className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+              <input
+                type="checkbox"
+                checked={!!editValue("isActive")}
+                onChange={(e) => setField("isActive", e.target.checked)}
+              />
+              Active
+            </label>
+          </div>
+        </Section>
+
+        <div className="h-12" />
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Drawer subcomponents
+// ───────────────────────────────────────────────────────────────────────────
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="p-5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-secondary)" }}>{title}</h3>
+        {hint && <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value, hint, tone }: { label: string; value: string | number; hint?: string; tone?: "danger" }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-sm font-semibold mt-0.5" style={{ color: tone === "danger" ? "#FF204E" : "var(--color-text-primary)" }}>{value}</p>
+      {hint && <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{hint}</p>}
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</label>
+      <input
+        type="number"
+        value={value ?? 0}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full mt-0.5 px-2 py-1.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500"
+        style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+      />
+    </div>
+  );
+}
+
+function MoneyField({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</label>
+      <div className="relative mt-0.5">
+        <span className="absolute left-2 top-1.5 text-sm" style={{ color: "var(--color-text-muted)" }}>$</span>
+        <input
+          type="number"
+          step="0.01"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          className="w-full pl-6 pr-2 py-1.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500"
+          style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full mt-0.5 px-2 py-1.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500"
+        style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="mt-3">
+      <label className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={2}
+        className="w-full mt-0.5 px-2 py-1.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500"
+        style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+      />
     </div>
   );
 }
