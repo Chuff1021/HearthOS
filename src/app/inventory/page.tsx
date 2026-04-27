@@ -37,7 +37,14 @@ type ListResponse = {
   page: number;
   limit: number;
   totalCount: number;
-  stats: { totalItems: number; lowStockCount: number; noCostCount: number; totalValue: number };
+  stats: {
+    totalItems: number;
+    trackedItems: number;
+    untrackedItems: number;
+    lowStockCount: number;
+    noCostCount: number;
+    totalValue: number;
+  };
   categories: string[];
 };
 
@@ -110,13 +117,14 @@ function useDebounced<T>(value: T, ms = 300): T {
 // ───────────────────────────────────────────────────────────────────────────
 // Main page
 // ───────────────────────────────────────────────────────────────────────────
-type FilterKey = "all" | "low_stock" | "no_cost" | "active" | "inactive";
+type FilterKey = "tracked" | "untracked" | "all" | "low_stock" | "no_cost" | "active" | "inactive";
 type SortKey = "name" | "qty" | "unit_price" | "cost" | "updated";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 250);
-  const [filter, setFilter] = useState<FilterKey>("active");
+  const [filter, setFilter] = useState<FilterKey>("tracked");
+  const [trimOpen, setTrimOpen] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("name");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
@@ -181,6 +189,14 @@ export default function InventoryPage() {
                   Refresh
                 </button>
                 <button
+                  onClick={() => setTrimOpen(true)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}
+                  title="Mark items with no recent activity as untracked"
+                >
+                  Trim inventory…
+                </button>
+                <button
                   onClick={async () => {
                     const r = await fetch("/api/quickbooks/sync/items", { method: "POST" });
                     if (r.ok) fetchList();
@@ -194,8 +210,20 @@ export default function InventoryPage() {
             </div>
 
             {/* Stats banner */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="Total Items" value={data?.stats.totalItems ?? 0} />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <StatCard
+                label="Tracked"
+                value={data?.stats.trackedItems ?? 0}
+                onClick={() => setFilter("tracked")}
+                active={filter === "tracked"}
+              />
+              <StatCard
+                label="Untracked"
+                value={data?.stats.untrackedItems ?? 0}
+                tone="warn"
+                onClick={() => setFilter("untracked")}
+                active={filter === "untracked"}
+              />
               <StatCard
                 label="Low Stock"
                 value={data?.stats.lowStockCount ?? 0}
@@ -210,7 +238,7 @@ export default function InventoryPage() {
                 onClick={() => setFilter("no_cost")}
                 active={filter === "no_cost"}
               />
-              <StatCard label="Inventory Value" value={fmtMoney(data?.stats.totalValue ?? 0)} />
+              <StatCard label="Tracked Value" value={fmtMoney(data?.stats.totalValue ?? 0)} />
             </div>
 
             {/* Filters row */}
@@ -232,11 +260,11 @@ export default function InventoryPage() {
                 <option value="">All categories</option>
                 {data?.categories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              <FilterPill label="Active" value="active" current={filter} onClick={setFilter} />
+              <FilterPill label="Tracked" value="tracked" current={filter} onClick={setFilter} />
+              <FilterPill label="Untracked" value="untracked" current={filter} onClick={setFilter} />
               <FilterPill label="All" value="all" current={filter} onClick={setFilter} />
               <FilterPill label="Low stock" value="low_stock" current={filter} onClick={setFilter} />
               <FilterPill label="No cost set" value="no_cost" current={filter} onClick={setFilter} />
-              <FilterPill label="Inactive" value="inactive" current={filter} onClick={setFilter} />
             </div>
 
             {/* Table */}
@@ -347,6 +375,13 @@ export default function InventoryPage() {
           onSaved={() => fetchList()}
         />
       )}
+
+      {trimOpen && (
+        <TrimModal
+          onClose={() => setTrimOpen(false)}
+          onApplied={() => { setTrimOpen(false); fetchList(); }}
+        />
+      )}
     </div>
   );
 }
@@ -396,6 +431,184 @@ function Th({ children, onClick, active, dir, className = "" }: { children: Reac
       {children}
       {active && <span className="ml-1">{dir === "asc" ? "▲" : "▼"}</span>}
     </th>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Trim modal
+// ───────────────────────────────────────────────────────────────────────────
+type TrimPreview = {
+  window: { monthsBack: number };
+  sources: { invoices: boolean; purchaseOrders: boolean; bills: boolean };
+  total: number;
+  currentTracked: number;
+  currentUntracked: number;
+  activeIdsInWindow: number;
+  wouldStayTracked: number;
+  wouldBecomeUntracked: number;
+};
+
+function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () => void }) {
+  const [monthsBack, setMonthsBack] = useState(24);
+  const [includeInvoices, setIncludeInvoices] = useState(true);
+  const [includePOs, setIncludePOs] = useState(true);
+  const [includeBills, setIncludeBills] = useState(false);
+  const [preview, setPreview] = useState<TrimPreview | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const runPreview = useCallback(async () => {
+    setLoading(true); setError(null); setPreview(null);
+    try {
+      const r = await fetch("/api/inventory/trim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          monthsBack,
+          includeInvoices,
+          includePurchaseOrders: includePOs,
+          includeBills,
+          dryRun: true,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Preview failed");
+      setPreview(j);
+    } catch (e: any) {
+      setError(e?.message || "Preview failed");
+    } finally {
+      setLoading(false);
+    }
+  }, [monthsBack, includeInvoices, includePOs, includeBills]);
+
+  // Auto-preview when settings change
+  useEffect(() => { runPreview(); }, [runPreview]);
+
+  const apply = async () => {
+    if (!preview) return;
+    setApplying(true);
+    try {
+      const r = await fetch("/api/inventory/trim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          monthsBack,
+          includeInvoices,
+          includePurchaseOrders: includePOs,
+          includeBills,
+          dryRun: false,
+        }),
+      });
+      if (r.ok) onApplied();
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-2xl overflow-hidden"
+        style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Trim inventory</h2>
+              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                Items not used in the selected time window will be marked <strong>untracked</strong> and hidden from the default view.
+                Reversible — items aren&apos;t deleted, and you can mark them tracked again any time.
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--color-text-muted)" }}>✕</button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-secondary)" }}>Time window</label>
+            <div className="mt-2 flex gap-2">
+              {[12, 18, 24, 36].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMonthsBack(m)}
+                  className="px-3 py-1.5 rounded-lg text-sm"
+                  style={{
+                    background: monthsBack === m ? "#FF4400" : "var(--color-surface-2)",
+                    color: monthsBack === m ? "white" : "var(--color-text-secondary)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  {m} mo
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-secondary)" }}>Count an item as active if it appears on…</label>
+            <div className="mt-2 space-y-1.5">
+              <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-primary)" }}>
+                <input type="checkbox" checked={includeInvoices} onChange={(e) => setIncludeInvoices(e.target.checked)} />
+                a customer invoice (sold)
+              </label>
+              <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-primary)" }}>
+                <input type="checkbox" checked={includePOs} onChange={(e) => setIncludePOs(e.target.checked)} />
+                a purchase order (ordered from a vendor)
+              </label>
+              <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-primary)" }}>
+                <input type="checkbox" checked={includeBills} onChange={(e) => setIncludeBills(e.target.checked)} />
+                a vendor bill (paid for)
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            {loading && <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Calculating…</p>}
+            {error && <p className="text-sm" style={{ color: "#FF204E" }}>{error}</p>}
+            {preview && !loading && (
+              <div className="space-y-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                <div className="flex justify-between">
+                  <span>Items with activity in the last {preview.window.monthsBack} months</span>
+                  <strong style={{ color: "var(--color-text-primary)" }}>{preview.activeIdsInWindow.toLocaleString()}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Will stay tracked</span>
+                  <strong style={{ color: "#16A34A" }}>{preview.wouldStayTracked.toLocaleString()}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Will be marked untracked</span>
+                  <strong style={{ color: "#F59E0B" }}>{preview.wouldBecomeUntracked.toLocaleString()}</strong>
+                </div>
+                <div className="flex justify-between text-xs pt-1.5 mt-1.5" style={{ borderTop: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                  <span>Currently tracked</span>
+                  <span>{preview.currentTracked.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  <span>Currently untracked</span>
+                  <span>{preview.currentUntracked.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-5 flex items-center justify-end gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}>
+            Cancel
+          </button>
+          <button
+            onClick={apply}
+            disabled={!preview || applying}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white disabled:opacity-50"
+          >
+            {applying ? "Trimming…" : "Apply trim"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

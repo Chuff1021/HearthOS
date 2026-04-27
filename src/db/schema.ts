@@ -410,12 +410,14 @@ export const inventoryItems = pgTable('inventory_items', {
   reorderLevel: integer('reorder_level'),
   location: varchar('location', { length: 100 }), // Warehouse bin location
   isActive: boolean('is_active').default(true),
+  isTracked: boolean('is_tracked').default(true).notNull(), // local "is this part of my actual inventory" flag
   lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   orgIdx: index('idx_inventory_items_org_id').on(table.orgId),
   qbIdx: index('idx_inventory_items_qb_id').on(table.qbItemId),
+  trackedIdx: index('idx_inventory_items_tracked').on(table.isTracked),
 }));
 
 // Vendors (linked to QuickBooks)

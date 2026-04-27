@@ -180,7 +180,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 const ALLOWED_FIELDS = [
   'name', 'sku', 'description', 'category', 'location',
-  'unitPrice', 'cost', 'quantityOnHand', 'reorderLevel', 'isActive',
+  'unitPrice', 'cost', 'quantityOnHand', 'reorderLevel', 'isActive', 'isTracked',
 ] as const;
 type AllowedField = typeof ALLOWED_FIELDS[number];
 

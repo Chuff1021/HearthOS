@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();
-    const filter = searchParams.get('filter') || 'all'; // all | low_stock | no_cost | inactive | active
+    const filter = searchParams.get('filter') || 'tracked'; // tracked | untracked | all | low_stock | no_cost | inactive | active
     const category = searchParams.get('category') || '';
     const sort = (searchParams.get('sort') || 'name') as keyof typeof SORTS;
     const dir = (searchParams.get('dir') || 'asc').toLowerCase() === 'desc' ? desc : asc;
@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
       ));
     }
     if (category) where.push(eq(inventoryItems.category, category));
+    if (filter === 'tracked') where.push(eq(inventoryItems.isTracked, true));
+    if (filter === 'untracked') where.push(eq(inventoryItems.isTracked, false));
     if (filter === 'active') where.push(eq(inventoryItems.isActive, true));
     if (filter === 'inactive') where.push(eq(inventoryItems.isActive, false));
     // Low stock = a reorder level has been explicitly set AND we're at or below it.
@@ -164,18 +166,29 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Global stats banner — separate small queries so they're consistent across pagination
+    // Global stats banner — based on tracked items so the numbers reflect the
+    // working set the secretary actually cares about.
     const [{ totalItems }] = await db
       .select({ totalItems: sql<number>`count(*)::int` })
       .from(inventoryItems)
       .where(eq(inventoryItems.orgId, org.id));
+
+    const [{ trackedItems }] = await db
+      .select({ trackedItems: sql<number>`count(*)::int` })
+      .from(inventoryItems)
+      .where(and(eq(inventoryItems.orgId, org.id), eq(inventoryItems.isTracked, true)));
+
+    const [{ untrackedItems }] = await db
+      .select({ untrackedItems: sql<number>`count(*)::int` })
+      .from(inventoryItems)
+      .where(and(eq(inventoryItems.orgId, org.id), eq(inventoryItems.isTracked, false)));
 
     const [{ lowStockCount }] = await db
       .select({ lowStockCount: sql<number>`count(*)::int` })
       .from(inventoryItems)
       .where(and(
         eq(inventoryItems.orgId, org.id),
-        eq(inventoryItems.isActive, true),
+        eq(inventoryItems.isTracked, true),
         sql`${inventoryItems.reorderLevel} > 0 AND ${inventoryItems.quantityOnHand} <= ${inventoryItems.reorderLevel}`,
       ));
 
@@ -184,7 +197,7 @@ export async function GET(request: NextRequest) {
       .from(inventoryItems)
       .where(and(
         eq(inventoryItems.orgId, org.id),
-        eq(inventoryItems.isActive, true),
+        eq(inventoryItems.isTracked, true),
         or(isNull(inventoryItems.cost), eq(inventoryItems.cost, '0')),
       ));
 
@@ -195,7 +208,7 @@ export async function GET(request: NextRequest) {
       .from(inventoryItems)
       .where(and(
         eq(inventoryItems.orgId, org.id),
-        eq(inventoryItems.isActive, true),
+        eq(inventoryItems.isTracked, true),
         isNotNull(inventoryItems.cost),
       ));
 
@@ -215,6 +228,8 @@ export async function GET(request: NextRequest) {
       totalCount,
       stats: {
         totalItems,
+        trackedItems,
+        untrackedItems,
         lowStockCount,
         noCostCount,
         totalValue: Number(totalValue || 0),
