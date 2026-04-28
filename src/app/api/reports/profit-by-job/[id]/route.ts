@@ -53,44 +53,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       : [];
     const itemByQb = new Map(itemRows.map((i) => [i.qbItemId!, i]));
 
-    let totalRevenue = 0;
-    let totalCogs = 0;
-    const lineDetail = lines.map((l) => {
-      const qty = Number(l.quantity ?? 0);
-      const unitPrice = Number(l.unitPrice ?? 0);
-      const lineTotal = Number(l.total ?? 0);
-      const item = l.qbItemId ? itemByQb.get(l.qbItemId) : undefined;
-      const unitCost = item?.cost != null ? Number(item.cost) : 0;
-      const lineCost = qty * unitCost;
-      const lineProfit = lineTotal - lineCost;
-      const lineMargin = lineTotal > 0 ? (lineProfit / lineTotal) * 100 : null;
-      totalRevenue += lineTotal;
-      totalCogs += lineCost;
-      return {
-        id: l.id,
-        order: l.order ?? 0,
-        description: l.description,
-        qbItemId: l.qbItemId,
-        itemName: item?.name ?? null,
-        itemSku: item?.sku ?? null,
-        quantity: qty,
-        unitPrice,
-        unitCost,
-        total: lineTotal,
-        cost: lineCost,
-        profit: lineProfit,
-        margin: lineMargin,
-      };
-    });
-
-    // Customer-attributed bills in [issueDate-30d, issueDate+60d]
+    // Pull customer-tagged bills in [issueDate-30d, issueDate+60d] FIRST, so we
+    // can use a matching bill line's actual amount as a line's COGS (more
+    // accurate than the static inventory cost) and exclude it from "other
+    // expenses" (otherwise the same bill is counted twice).
     type BillExp = {
       billId: string; billNumber: string | null; issueDate: string | null;
       vendorId: string | null; vendorName: string | null;
       description: string | null; amount: number; qbItemId: string | null;
       lineId: string;
     };
-    let billExpenses: BillExp[] = [];
+    let allBillLines: BillExp[] = [];
     if (inv.customerId && inv.issueDate) {
       const ts = new Date(inv.issueDate);
       const lo = new Date(ts); lo.setDate(lo.getDate() - 30);
@@ -117,7 +90,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           lte(bills.issueDate, hi.toISOString().slice(0, 10)),
         ))
         .orderBy(desc(bills.issueDate));
-      billExpenses = raw.map((r) => ({
+      allBillLines = raw.map((r) => ({
         billId: r.billId,
         billNumber: r.billNumber,
         issueDate: r.issueDate,
@@ -129,6 +102,70 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         lineId: r.lineId,
       }));
     }
+
+    // Group bill amounts and consume bill-line ids for each qbItemId on the invoice
+    const invoiceQbIds = new Set(lines.map((l) => l.qbItemId).filter(Boolean) as string[]);
+    const billAmountByQb = new Map<string, number>();
+    const consumedBillLineIds = new Set<string>();
+    for (const b of allBillLines) {
+      if (!b.qbItemId || !invoiceQbIds.has(b.qbItemId)) continue;
+      billAmountByQb.set(b.qbItemId, (billAmountByQb.get(b.qbItemId) ?? 0) + b.amount);
+      consumedBillLineIds.add(b.lineId);
+    }
+    // Total qty per qbItemId on the invoice — used to spread the bill cost
+    // proportionally if the same item appears on multiple lines.
+    const invoiceQtyByQb = new Map<string, number>();
+    for (const l of lines) {
+      if (!l.qbItemId) continue;
+      invoiceQtyByQb.set(l.qbItemId, (invoiceQtyByQb.get(l.qbItemId) ?? 0) + Number(l.quantity ?? 0));
+    }
+
+    let totalRevenue = 0;
+    let totalCogs = 0;
+    const lineDetail = lines.map((l) => {
+      const qty = Number(l.quantity ?? 0);
+      const unitPrice = Number(l.unitPrice ?? 0);
+      const lineTotal = Number(l.total ?? 0);
+      const item = l.qbItemId ? itemByQb.get(l.qbItemId) : undefined;
+      // Prefer the matching bill amount (actual paid cost) over the static
+      // inventory cost. Spread proportionally by qty when the same item is
+      // on more than one line.
+      let lineCost: number;
+      let costSource: 'bill' | 'inventory' = 'inventory';
+      const billTotalForQb = l.qbItemId ? billAmountByQb.get(l.qbItemId) : undefined;
+      if (billTotalForQb != null && billTotalForQb > 0) {
+        const totalQty = (l.qbItemId && invoiceQtyByQb.get(l.qbItemId)) || 0;
+        lineCost = totalQty > 0 ? billTotalForQb * (qty / totalQty) : billTotalForQb;
+        costSource = 'bill';
+      } else {
+        const unitCost = item?.cost != null ? Number(item.cost) : 0;
+        lineCost = qty * unitCost;
+      }
+      const unitCost = qty > 0 ? lineCost / qty : (item?.cost != null ? Number(item.cost) : 0);
+      const lineProfit = lineTotal - lineCost;
+      const lineMargin = lineTotal > 0 ? (lineProfit / lineTotal) * 100 : null;
+      totalRevenue += lineTotal;
+      totalCogs += lineCost;
+      return {
+        id: l.id,
+        order: l.order ?? 0,
+        description: l.description,
+        qbItemId: l.qbItemId,
+        itemName: item?.name ?? null,
+        itemSku: item?.sku ?? null,
+        quantity: qty,
+        unitPrice,
+        unitCost,
+        total: lineTotal,
+        cost: lineCost,
+        costSource,
+        profit: lineProfit,
+        margin: lineMargin,
+      };
+    });
+
+    // Other expenses = bill lines NOT consumed as a line's COGS above.
+    const billExpenses = allBillLines.filter((b) => !consumedBillLineIds.has(b.lineId));
     const totalBillable = billExpenses.reduce((s, b) => s + b.amount, 0);
 
     const tax = Number(inv.taxAmount ?? 0);

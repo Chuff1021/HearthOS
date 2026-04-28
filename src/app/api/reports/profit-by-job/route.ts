@@ -54,7 +54,7 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
     .from(invoiceLineItems)
     .where(inArray(invoiceLineItems.invoiceId, invoiceIds));
 
-  // Cost map for the qbItemIds touched
+  // Cost map for the qbItemIds touched (fallback when no matching bill exists)
   const qbItemIds = [...new Set(lineRows.map((l) => l.qbItemId).filter(Boolean) as string[])];
   const costRows = qbItemIds.length > 0
     ? await db
@@ -67,18 +67,32 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
     if (c.qbItemId) costByQb.set(c.qbItemId, c.cost != null ? Number(c.cost) : 0);
   }
 
-  // Per-invoice revenue + cogs from line items
+  // Per-invoice revenue, and per-invoice qbItemId set (so we can later tell
+  // whether a customer-tagged bill line is actually this invoice's COGS or a
+  // separate expense).
+  const qbItemsByInv = new Map<string, Set<string>>();
+  const linesByInv = new Map<string, typeof lineRows>();
   for (const li of lineRows) {
     const inv = perInv.get(li.invoiceId);
     if (!inv) continue;
     inv.revenue += Number(li.total ?? 0);
-    const qty = Number(li.quantity ?? 0);
-    const cost = li.qbItemId ? (costByQb.get(li.qbItemId) ?? 0) : 0;
-    inv.cogs += qty * cost;
+    if (li.qbItemId) {
+      const s = qbItemsByInv.get(li.invoiceId) || new Set<string>();
+      s.add(li.qbItemId);
+      qbItemsByInv.set(li.invoiceId, s);
+    }
+    const arr = linesByInv.get(li.invoiceId) || [];
+    arr.push(li);
+    linesByInv.set(li.invoiceId, arr);
   }
 
   // Bills attributed: bucket bills by customer once, then for each invoice
-  // sum bills for that customer in [issueDate-30d, issueDate+60d].
+  // split bills in [issueDate-30d, issueDate+60d] into:
+  //   - matched: bill line whose qbItemId is on this invoice → counts as COGS
+  //     for the matching invoice line (replaces inventoryItems.cost × qty)
+  //   - other: counts as billable / "other expenses"
+  type BillBucket = { ts: number; amount: number; qbItemId: string | null };
+  const billsByCust = new Map<string, BillBucket[]>();
   if (customerIds.length > 0) {
     const issueDates = invs.map((i) => i.issueDate).filter(Boolean) as string[];
     if (issueDates.length > 0) {
@@ -91,6 +105,7 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
         .select({
           customerId: billLineItems.customerId,
           amount: billLineItems.amount,
+          qbItemId: billLineItems.qbItemId,
           issueDate: bills.issueDate,
         })
         .from(billLineItems)
@@ -102,28 +117,57 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
           lte(bills.issueDate, windowTo.toISOString().slice(0, 10)),
         ));
 
-      // Bucket bills by customer
-      const billsByCust = new Map<string, Array<{ ts: number; amount: number }>>();
       for (const b of billRows) {
         if (!b.customerId || !b.issueDate) continue;
-        const ts = new Date(b.issueDate).getTime();
         const arr = billsByCust.get(b.customerId) || [];
-        arr.push({ ts, amount: Number(b.amount ?? 0) });
+        arr.push({
+          ts: new Date(b.issueDate).getTime(),
+          amount: Number(b.amount ?? 0),
+          qbItemId: b.qbItemId ?? null,
+        });
         billsByCust.set(b.customerId, arr);
       }
+    }
+  }
 
-      // For each invoice, sum bills for that customer in the +/- window
-      for (const i of invs) {
-        if (!i.customerId || !i.issueDate) continue;
-        const arr = billsByCust.get(i.customerId);
-        if (!arr) continue;
-        const its = new Date(i.issueDate).getTime();
-        const lo = its - 30 * 86400_000;
-        const hi = its + 60 * 86400_000;
-        const inv = perInv.get(i.id)!;
-        for (const b of arr) {
-          if (b.ts >= lo && b.ts <= hi) inv.billable += b.amount;
+  // For each invoice, walk its lines and bills and split into cogs / billable.
+  for (const i of invs) {
+    const inv = perInv.get(i.id)!;
+    const invQbIds = qbItemsByInv.get(i.id) || new Set<string>();
+    const invLines = linesByInv.get(i.id) || [];
+    const arr = i.customerId ? billsByCust.get(i.customerId) : undefined;
+    const its = i.issueDate ? new Date(i.issueDate).getTime() : null;
+    const lo = its != null ? its - 30 * 86400_000 : null;
+    const hi = its != null ? its + 60 * 86400_000 : null;
+
+    // Sum matched bill amounts per qbItemId for this invoice
+    const matchedByQb = new Map<string, number>();
+    if (arr && lo != null && hi != null) {
+      for (const b of arr) {
+        if (b.ts < lo || b.ts > hi) continue;
+        if (b.qbItemId && invQbIds.has(b.qbItemId)) {
+          matchedByQb.set(b.qbItemId, (matchedByQb.get(b.qbItemId) ?? 0) + b.amount);
+        } else {
+          inv.billable += b.amount;
         }
+      }
+    }
+
+    // Now COGS: for each line, prefer matched bill amount over inventory cost.
+    // For lines sharing a qbItemId, the matched amount has already been summed
+    // — give the entire matched amount to that qbItemId once (not per line).
+    const consumedQb = new Set<string>();
+    for (const li of invLines) {
+      const qty = Number(li.quantity ?? 0);
+      if (li.qbItemId && matchedByQb.has(li.qbItemId)) {
+        if (!consumedQb.has(li.qbItemId)) {
+          inv.cogs += matchedByQb.get(li.qbItemId)!;
+          consumedQb.add(li.qbItemId);
+        }
+        // additional lines for the same item contribute 0 — bill already counted
+      } else {
+        const cost = li.qbItemId ? (costByQb.get(li.qbItemId) ?? 0) : 0;
+        inv.cogs += qty * cost;
       }
     }
   }
