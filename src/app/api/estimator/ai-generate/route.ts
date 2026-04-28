@@ -37,8 +37,10 @@ function tokenize(prompt: string): string[] {
     const w = raw[i].replace(/[^a-z0-9]/g, "");
     if (!w || w.length < 2 || STOP_WORDS.has(w)) continue;
     const next = (raw[i + 1] || "").replace(/[^a-z0-9]/g, "");
-    // Skip "20" before "feet" / "ft"
-    if (/^\d+$/.test(w) && (STOP_WORDS.has(next) || /^(feet|foot|ft|pipe|inch|in)/.test(next))) continue;
+    // Skip pure-digit measurement tokens like "20 feet" — but only when the
+    // NEXT word is a unit-of-measure keyword. Pure-digit MODEL numbers like
+    // "864" or "616" must survive (they're commonly typed by themselves).
+    if (/^\d+$/.test(w) && /^(feet|foot|ft|inch|in)$/.test(next)) continue;
     out.push(w);
   }
   return out;
