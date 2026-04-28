@@ -2,9 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
+const NVIDIA_MODELS_URL = "https://integrate.api.nvidia.com/v1/models";
+// Primary + ordered fallbacks. NVIDIA periodically rotates model availability;
+// the route walks this list on a 404 from the primary so a single deprecation
+// doesn't take the estimator offline. Override with env NVIDIA_MODEL.
+const PRIMARY_MODEL = process.env.NVIDIA_MODEL || "nvidia/llama-3.3-nemotron-super-49b-v1";
+const MODEL_FALLBACKS = [
+  PRIMARY_MODEL,
+  "nvidia/llama-3.3-nemotron-super-49b-v1",
+  "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+  "nvidia/llama-3.1-nemotron-70b-instruct",
+  "meta/llama-3.3-70b-instruct",
+];
+const MODEL = PRIMARY_MODEL;
 
 export const maxDuration = 120;
+
+// Diagnostic: GET returns the active model id and what NVIDIA reports as
+// available for this API key. Useful when the chat call 404s and we need to
+// know which models are reachable. Safe to leave in prod — read-only.
+export async function GET() {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });
+  try {
+    const r = await fetch(NVIDIA_MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const text = await r.text();
+    let models: any = text;
+    try { models = JSON.parse(text); } catch {}
+    return NextResponse.json({
+      activeModel: MODEL,
+      modelFallbacks: MODEL_FALLBACKS,
+      nvidiaStatus: r.status,
+      nvidiaResponse: models,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "probe failed" }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.NVIDIA_API_KEY;
@@ -189,23 +225,43 @@ ${!mentionsMantel ? "- Do NOT include mantel items" : ""}
 Return ONLY valid JSON, no markdown:
 {"lineItems":[{"description":"Human label","partNumber":"Exact:QB:Name","quantity":1,"unitPrice":100,"total":100}],"notes":"brief summary"}`;
 
-    // ── Call AI ──
-    const response = await fetch(NVIDIA_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: "detailed thinking off" },
-          { role: "user", content: aiPrompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 4096,
-        stream: false,
-      }),
-    });
+    // ── Call AI, walking the fallback list on 404 (model deprecated) ──
+    let response: Response | null = null;
+    let usedModel = "";
+    let lastErrBody = "";
+    const triedModels = new Set<string>();
+    for (const candidate of MODEL_FALLBACKS) {
+      if (triedModels.has(candidate)) continue;
+      triedModels.add(candidate);
+      response = await fetch(NVIDIA_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: candidate,
+          messages: [
+            { role: "system", content: "detailed thinking off" },
+            { role: "user", content: aiPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 4096,
+          stream: false,
+        }),
+      });
+      if (response.ok) { usedModel = candidate; break; }
+      // Only fall through on 404 (model not found). Other failures are real.
+      if (response.status !== 404) {
+        lastErrBody = await response.text().catch(() => "");
+        break;
+      }
+      lastErrBody = await response.text().catch(() => "");
+    }
 
-    if (!response.ok) return NextResponse.json({ error: `AI error: ${response.status}` }, { status: 502 });
+    if (!response || !response.ok) {
+      return NextResponse.json(
+        { error: `AI error: ${response?.status ?? "no response"}`, detail: lastErrBody.slice(0, 500), triedModels: [...triedModels] },
+        { status: 502 },
+      );
+    }
 
     const data = await response.json();
     let content = data.choices?.[0]?.message?.content || "";
@@ -271,6 +327,7 @@ Return ONLY valid JSON, no markdown:
       catalogMatch: Boolean(matchedUnit),
       usingConsensus: false,
       sourceInvoices,
+      modelUsed: usedModel,
     });
 
   } catch (err) {
