@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import PnlModal from "@/components/PnlModal";
 
 type Customer = { id: string; displayName: string };
 type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
@@ -76,6 +77,7 @@ export default function EstimatesPage() {
   const [savingEstimateEdits, setSavingEstimateEdits] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailEstimateId, setEmailEstimateId] = useState<string | null>(null);
+  const [pnlOpen, setPnlOpen] = useState<{ id: string; label: string } | null>(null);
   const [emailTo, setEmailTo] = useState("");
   const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
   const [estimateEditForm, setEstimateEditForm] = useState({
@@ -760,11 +762,12 @@ export default function EstimatesPage() {
                       <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
                       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
                       <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
-                      <div className="mt-2 grid grid-cols-5 gap-1">
+                      <div className="mt-2 grid grid-cols-3 gap-1">
                         <button onClick={(event) => { event.stopPropagation(); openEmailDialog(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
                         <button onClick={(event) => { event.stopPropagation(); printEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
                         <button onClick={(event) => { event.stopPropagation(); downloadEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
                         <button onClick={(event) => { event.stopPropagation(); beginEditEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
+                        <button onClick={(event) => { event.stopPropagation(); setPnlOpen({ id: e.Id, label: e.DocNumber || e.Id }); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
                         <button onClick={(event) => { event.stopPropagation(); scheduleFromEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
                       </div>
 
@@ -1015,6 +1018,10 @@ export default function EstimatesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {pnlOpen && (
+        <PnlModal type="estimate" id={pnlOpen.id} docLabel={pnlOpen.label} onClose={() => setPnlOpen(null)} />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import PnlModal from "@/components/PnlModal";
 
 interface InvoiceLineItem {
   id: string;
@@ -133,6 +134,7 @@ export default function InvoicesPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [pnlOpen, setPnlOpen] = useState<{ id: string; label: string } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1017,9 +1019,18 @@ export default function InvoicesPage() {
                 <h2 className="font-bold" style={{ color: "var(--color-text-primary)" }}>Invoice Details</h2>
                 <div className="flex items-center gap-2">
                   {!editMode ? (
-                    <button onClick={() => setEditMode(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
-                      Edit
-                    </button>
+                    <>
+                      <button
+                        onClick={() => selectedInvoice && setPnlOpen({ id: selectedInvoice.id, label: selectedInvoice.invoiceNumber || selectedInvoice.id })}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)", color: "#9a5d12" }}
+                      >
+                        P&amp;L
+                      </button>
+                      <button onClick={() => setEditMode(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                        Edit
+                      </button>
+                    </>
                   ) : (
                     <button onClick={handleSaveInvoiceEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB" }}>
                       Save
@@ -1556,6 +1567,10 @@ export default function InvoicesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {pnlOpen && (
+        <PnlModal type="invoice" id={pnlOpen.id} docLabel={pnlOpen.label} onClose={() => setPnlOpen(null)} />
       )}
     </div>
   );
