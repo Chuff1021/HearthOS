@@ -11,7 +11,11 @@ import { getOrCreateDefaultOrg } from "@/lib/org";
 // Pure SQL aggregation, no precomputation — always reflects the current invoice
 // history the estimator itself reads from.
 
-const ACCESSORY_RE = /pipe\b|chase\s*cover|\bcap\b|term|firestop|storm|attic|shield|flashing|adapter|connector|liner|flex\s*kit|gasket|bracket|trim\b|stone|veneer|masonry|mantel|mantle|users?'?\s*charge|sales\s*tax|use\s*tax|service|install\b|labor|clean|repair|delivery|elbow|firescreen|log\s*set|logset|valve|thermo|ignit(?:or|er)|remote|blower|fan\s*kit|battery|filter|brick|panel|liner|liner\s*kit|baffle|gasket/i;
+// Accessory blacklist applied to the CANONICAL inventory name (not the line
+// description). Fireplace units routinely list features like "battery backup",
+// "GreenSmart Remote", "ceramic glass" in their descriptions — those aren't
+// accessory signals on the SKU itself, just feature copy.
+const ACCESSORY_RE = /pipe\b|chase\s*cover|\bcap\b|firestop|\bstorm\b|attic|shield|flashing|adapter|connector|\bliner\b|flex\s*kit|\bgasket\b|\bbracket\b|\btrim\b|\bstone\b|\bveneer\b|masonry|mantel|mantle|users?'?\s*charge|sales\s*tax|\buse\s*tax|service\s*charge|\binstall\b|\blabor\b|\bclean\b|\brepair\b|\bdelivery\b|\belbow\b|firescreen|\blog\s*set\b|\blogset\b|\bvalve\b|thermo\s*couple|ignit(?:or|er)|\bblower\b|fan\s*kit|battery\s*pack|\bfilter\b|\bbrick\b|^panel\b|\bbaffle\b|chimney|duravent|\bduct\b|cooling|firebrick|\bface\b|interior\s*panel|tool\s*kit|hearth\s*pad/i;
 
 type CatalogEntry = {
   qbItemId: string;
@@ -28,17 +32,19 @@ type CatalogEntry = {
 
 function detectBrand(text: string): string | null {
   const t = text.toLowerCase();
-  if (/\bxtrordinair|fpx|travis|apex|elite\b/.test(t)) return "Fireplace Xtrordinair (Travis)";
-  if (/\bsuperior\b|\bdrt\d|f4\d{3}|f0\d{3}|f5\d{3}|f1\d{3}/.test(t)) return "Superior";
-  if (/\bmajestic|biltmore|marquis|meridan/.test(t)) return "Majestic";
-  if (/\bnapoleon|elevation/.test(t)) return "Napoleon";
+  // Fireplace Xtrordinair (Travis) — Apex, Elite, plus the numeric model
+  // codes 4137, 564, 616, 864, 4415, 4237, 44, 36 used as standalone tokens.
+  if (/\bxtrordinair|fpx|travis|apex|elite\b|\bnexgen\b|hybrid\s*b?|gsr2?|\b864\b|\b864tv\b|\b864trv\b|\b864trv\d|\b616\b|\b564\b|\b4137\b|\b4237\b|\b4415\b|dancing[- ]?fyre/.test(t)) return "Fireplace Xtrordinair (Travis)";
+  if (/\bsuperior\b|\bdrt\d|f0\d{3}|f1\d{3}|f4\d{3}|f5\d{3}/.test(t)) return "Superior";
+  if (/\bmajestic|biltmore|marquis|meridan|meridian|mer42/.test(t)) return "Majestic";
+  if (/\bnapoleon|elevation|nefb/.test(t)) return "Napoleon";
   if (/\bheat\s*&?\s*glo|h&g/.test(t)) return "Heat & Glo";
   if (/\bheatilator/.test(t)) return "Heatilator";
-  if (/\benviro|m55/.test(t)) return "Enviro";
-  if (/\bquadra[ -]?fire/.test(t)) return "Quadra-Fire";
-  if (/\blopi\b/.test(t)) return "Lopi";
+  if (/\benviro|\bm55\b|sim55/.test(t)) return "Enviro";
+  if (/\bquadra[ -]?fire|qf\d/.test(t)) return "Quadra-Fire";
+  if (/\blopi\b|endeavor|liberty/.test(t)) return "Lopi";
   if (/\bregency\b/.test(t)) return "Regency";
-  if (/\bprobuilder\b/.test(t)) return "ProBuilder";
+  if (/\bprobuilder\b|\bpro builder\b/.test(t)) return "ProBuilder";
   return null;
 }
 
@@ -98,8 +104,6 @@ export async function GET(req: NextRequest) {
       if (!l.qbItemId) continue;
       const desc = (l.description || "").trim();
       if (!desc) continue;
-      // Strip lines whose description is clearly an accessory / service
-      if (ACCESSORY_RE.test(desc)) continue;
       const a = aggByQb.get(l.qbItemId) || {
         qbItemId: l.qbItemId,
         descCounts: new Map<string, number>(),
