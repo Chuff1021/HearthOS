@@ -106,6 +106,50 @@ function classifyInvoice(lineDescriptions: string[]): InstallType {
   return "unknown";
 }
 
+// ── Service / repair mode parsing ──────────────────────────────────────────
+// Lets the secretary type a chimney-repair bid as a list of line items with
+// inline prices, e.g.:
+//   "$1500 chimney repair, $300 crown coating, Water seal chimney $159"
+// Each item is split on commas/semicolons; the dollar amount can be at the
+// start or end of the chunk; remainder becomes the description.
+
+const SERVICE_KEYWORDS = /\b(chimney\s+repair|chimney\s+sweep|crown(?:\s+coat(?:ing)?)?|tuck\s*point|tuckpoint|parge|water\s*seal|smoke\s*(?:shelf|chamber)|relining|reline|chase\s+cover\s+install|inspection|sweep|level\s*[123]|cleaning|repair)\b/i;
+const INSTALL_KEYWORDS = /\b(vertical|horizontal|new\s+install|insert|fresh\s+install)\b/i;
+
+function looksLikeServiceMode(prompt: string): boolean {
+  const dollarCount = (prompt.match(/\$\d/g) || []).length;
+  if (dollarCount >= 2) return true;
+  const hasService = SERVICE_KEYWORDS.test(prompt);
+  const hasInstall = INSTALL_KEYWORDS.test(prompt);
+  return hasService && !hasInstall;
+}
+
+function parseServiceLines(prompt: string): Array<{ description: string; unitPrice: number | null }> {
+  const parts = prompt.split(/[,;]| then /i).map((s) => s.trim()).filter(Boolean);
+  const out: Array<{ description: string; unitPrice: number | null }> = [];
+  for (const p of parts) {
+    // Leading "$1500 chimney repair" or "1500 chimney repair"
+    const lead = p.match(/^\$?(\d{2,6}(?:\.\d{1,2})?)\s+(.+?)\s*$/);
+    // Trailing "Water seal chimney $159"
+    const trail = p.match(/^\s*(.+?)\s+\$?(\d{2,6}(?:\.\d{1,2})?)\s*$/);
+    let price: number | null = null;
+    let desc = p;
+    if (lead) {
+      price = Number(lead[1]);
+      desc = lead[2].trim();
+    } else if (trail) {
+      price = Number(trail[2]);
+      desc = trail[1].trim();
+    }
+    // Skip empties
+    if (!desc) continue;
+    // Title-case the description ("chimney repair" → "Chimney repair")
+    const cleaned = desc.replace(/\s+/g, " ").trim();
+    out.push({ description: cleaned.charAt(0).toUpperCase() + cleaned.slice(1), unitPrice: price });
+  }
+  return out;
+}
+
 type Candidate = {
   qbItemId: string;
   inventoryName: string;
@@ -128,6 +172,94 @@ export async function POST(request: NextRequest) {
     if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
     const org = await getOrCreateDefaultOrg();
+
+    // ── Service / repair mode (chimney repair bids with inline prices) ──
+    // Triggers when the prompt has multiple $ amounts, OR a service keyword
+    // (chimney repair / crown coat / tuck point / water seal / sweep / etc)
+    // without install signals. Bypasses fireplace-unit matching entirely.
+    if (looksLikeServiceMode(prompt)) {
+      const items = parseServiceLines(prompt);
+      if (items.length === 0) {
+        return NextResponse.json({
+          error: "Couldn't parse any line items. Try '$1500 chimney repair, $300 crown coating'",
+          lineItems: [],
+        }, { status: 400 });
+      }
+
+      // For items with no price, look up the most-recent matching past invoice
+      // line so the secretary gets a default to start from.
+      const itemsNeedingPrice = items.filter((i) => i.unitPrice == null);
+      if (itemsNeedingPrice.length > 0) {
+        for (const it of itemsNeedingPrice) {
+          const tokens = it.description.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+          if (tokens.length === 0) continue;
+          const orFilters = tokens.map((t) => ilike(invoiceLineItems.description, `%${t}%`));
+          const rows = await db
+            .select({
+              description: invoiceLineItems.description,
+              unitPrice: invoiceLineItems.unitPrice,
+              issueDate: invoices.issueDate,
+            })
+            .from(invoiceLineItems)
+            .innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+            .where(and(
+              eq(invoices.orgId, org.id),
+              sql`${invoiceLineItems.unitPrice}::numeric > 0`,
+              or(...orFilters),
+            ))
+            .orderBy(desc(invoices.issueDate))
+            .limit(20);
+          // Score by token overlap with the description, prefer recent
+          let best: { price: number; score: number } | null = null;
+          for (const r of rows) {
+            const desc = (r.description || "").toLowerCase();
+            let score = 0;
+            for (const t of tokens) if (desc.includes(t)) score++;
+            if (score === 0) continue;
+            if (!best || score > best.score) {
+              best = { price: Number(r.unitPrice ?? 0), score };
+            }
+          }
+          if (best) it.unitPrice = best.price;
+        }
+      }
+
+      const lineItems = items.map((it) => {
+        const price = it.unitPrice ?? 0;
+        return {
+          description: it.description,
+          partNumber: it.description,
+          quantity: 1,
+          unitPrice: price,
+          total: price,
+        };
+      });
+
+      const subtotal = lineItems.reduce((s, l) => s + l.total, 0);
+      const usersCharge = Number((subtotal * 0.0422).toFixed(2));
+      lineItems.push({
+        description: "Users Charge",
+        partNumber: "Users Charge",
+        quantity: 1,
+        unitPrice: usersCharge,
+        total: usersCharge,
+      });
+
+      const inferred = items.filter((i) => i.unitPrice != null && i.unitPrice > 0).length;
+      const empty = items.length - inferred;
+      return NextResponse.json({
+        lineItems,
+        matchedProduct: "Chimney Service Bid",
+        basedOnInvoices: 0,
+        catalogMatch: false,
+        usingConsensus: false,
+        installType: "service",
+        sourceInvoices: [],
+        notes: `Built from ${items.length} line item${items.length === 1 ? "" : "s"} you specified.${empty > 0 ? ` ${empty} item${empty === 1 ? "" : "s"} had no price and no past-invoice match — fill in manually.` : ""}`,
+        modelUsed: "user-input/service-mode",
+        customerName: customerName || undefined,
+      });
+    }
 
     // ── Parse prompt ──
     const pipeFeetMatch = prompt.match(/(\d+)\s*(?:ft|feet|foot|')/i);
