@@ -45,10 +45,27 @@ function tokenize(prompt: string): string[] {
 }
 
 function isPipeComponent(name: string | null, desc: string | null): boolean {
+  return pipeSectionInches(name, desc) !== null;
+}
+
+// Returns the section length in inches if the line looks like a STRAIGHT pipe
+// section (not an elbow/cap/termination/fitting). Recognizes Travis Elite
+// DuraVent ("Elite 48\" DuraVent Chimney"), Simpson DVA ("58DVA-12"), and
+// generic "X" pipe" labels. Returns null for accessories.
+function pipeSectionInches(name: string | null, desc: string | null): number | null {
   const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
-  // Straight pipe sections only — not elbows, caps, terminations, fittings
-  if (/elbow|cap|term|firestop|storm|attic|shield|flashing|adapter|connector|45|90|45deg|adjustable/.test(t)) return false;
-  return /\bpipe\b|dva-\d+|sv\d+|7dt-?\d+|\b\d{2,3}dva-\d+\b/.test(t);
+  // Hard exclusions for accessories
+  if (/elbow|\bcap\b|term|firestop|storm|attic|shield|flashing|adapter|connector|offset|return|45deg|45\s*(?:deg|°)|90\s*(?:deg|°)|starter\s*collar|adjustable|cooling\s*duct|tee\b/.test(t)) return null;
+  // Must look like a straight pipe section
+  const looksLikePipe = /\bpipe\b|duravent|chimney|elite\b|\bdva\b|\bsv\d+|\b7dt\b/.test(t);
+  if (!looksLikePipe) return null;
+  // Pull a length: "48\"", "12 inch", "12in", or a "DVA-12"/"7DT-12"/"SV-12" suffix
+  const inchMatch = t.match(/\b(\d{1,3})\s*(?:["”'']|inch|in\b)/);
+  if (inchMatch) return Number(inchMatch[1]);
+  const codeMatch = t.match(/(?:dva|7dt|sv)\s*[-]?\s*(\d{1,3})\b/);
+  if (codeMatch) return Number(codeMatch[1]);
+  // Looks like a pipe but length unknown — treat it as a section anyway
+  return 0;
 }
 
 function isLaborComponent(name: string | null, desc: string | null): boolean {
@@ -309,8 +326,74 @@ export async function POST(request: NextRequest) {
 
     const sortedTally = [...tally.entries()].sort((a, b) => b[1].appearances.size - a[1].appearances.size);
 
-    for (const [, t] of sortedTally) {
+    // When the user specified pipe-feet, replace ALL straight pipe-section
+    // components with one line: a 12-inch (1-foot) section × pipeFeet.
+    // Pick the 12" variant from the matched unit's historical pipe family;
+    // fall back to the smallest section ever used on this unit.
+    let pipeSubstitute: { entry: [string, typeof tally extends Map<infer _K, infer V> ? V : never]; inches: number } | null = null;
+    if (pipeFeet) {
+      const sectionEntries: Array<{ entry: [string, any]; inches: number }> = [];
+      for (const e of sortedTally) {
+        const itemName = (e[1].qbItemId && nameByQb.get(e[1].qbItemId)) || e[1].sampleDescription;
+        const inches = pipeSectionInches(itemName, e[1].sampleDescription);
+        if (inches !== null) sectionEntries.push({ entry: e, inches });
+      }
+      // Prefer 12" exactly, then smallest known length
+      pipeSubstitute = sectionEntries.find((s) => s.inches === 12) || null;
+      if (!pipeSubstitute) {
+        const withSize = sectionEntries.filter((s) => s.inches > 0).sort((a, b) => a.inches - b.inches);
+        pipeSubstitute = withSize[0] || null;
+      }
+      // Last resort: query inventory for "Elite 12" DuraVent Chimney" or any 12"
+      // pipe section in the same family the unit uses
+      if (!pipeSubstitute) {
+        const family = sectionEntries[0]
+          ? (() => {
+              const itemName = (sectionEntries[0].entry[1].qbItemId && nameByQb.get(sectionEntries[0].entry[1].qbItemId)) || sectionEntries[0].entry[1].sampleDescription;
+              if (/elite|duravent/i.test(itemName)) return "elite";
+              if (/dva|simpson/i.test(itemName)) return "dva";
+              return null;
+            })()
+          : null;
+        if (family) {
+          const lookup = await db
+            .select({
+              qbItemId: inventoryItems.qbItemId,
+              name: inventoryItems.name,
+              unitPrice: inventoryItems.unitPrice,
+            })
+            .from(inventoryItems)
+            .where(and(
+              eq(inventoryItems.orgId, org.id),
+              ilike(inventoryItems.name, family === "elite" ? '%elite%12%duravent%' : '%dva-12%'),
+            ))
+            .limit(1);
+          if (lookup[0]) {
+            const synthetic: any = {
+              qbItemId: lookup[0].qbItemId,
+              sampleDescription: lookup[0].name,
+              appearances: new Set<string>(["synthetic"]),
+              qtys: [1],
+              prices: [Number(lookup[0].unitPrice ?? 0)],
+              mostRecentPrice: Number(lookup[0].unitPrice ?? 0),
+            };
+            if (lookup[0].qbItemId) nameByQb.set(lookup[0].qbItemId, lookup[0].name);
+            pipeSubstitute = { entry: [`fallback:${lookup[0].qbItemId}`, synthetic], inches: 12 };
+          }
+        }
+      }
+    }
+    const pipeKeysToSkip = new Set<string>();
+    if (pipeSubstitute && pipeFeet) {
+      for (const e of sortedTally) {
+        const itemName = (e[1].qbItemId && nameByQb.get(e[1].qbItemId)) || e[1].sampleDescription;
+        if (pipeSectionInches(itemName, e[1].sampleDescription) !== null) pipeKeysToSkip.add(e[0]);
+      }
+    }
+
+    for (const [key, t] of sortedTally) {
       if (t.appearances.size < minAppearances) break;
+      if (pipeKeysToSkip.has(key)) continue;
       const itemName = (t.qbItemId && nameByQb.get(t.qbItemId)) || t.sampleDescription;
       // Apply user's content filters
       if (!mentionsStone && /stone|veneer|masonry/i.test(itemName + " " + t.sampleDescription)) continue;
@@ -318,14 +401,9 @@ export async function POST(request: NextRequest) {
       if (mentionsChasecover && /flashing/i.test(itemName + " " + t.sampleDescription)) continue;
 
       const avgQty = t.qtys.length > 0 ? t.qtys.reduce((a, b) => a + b, 0) / t.qtys.length : 1;
-      let qty = Math.max(1, Math.round(avgQty));
+      const qty = Math.max(1, Math.round(avgQty));
       const price = t.mostRecentPrice || (t.prices[0] ?? 0);
       if (price <= 0) continue;
-
-      // Apply pipe-feet override only to literal straight pipe sections
-      if (pipeFeet && isPipeComponent(itemName, t.sampleDescription)) {
-        qty = pipeFeet;
-      }
 
       components.push({
         description: t.sampleDescription || itemName,
@@ -337,6 +415,25 @@ export async function POST(request: NextRequest) {
         appearsIn: t.appearances.size,
         appearsInPct: Math.round((t.appearances.size / totalInvoices) * 100),
       });
+    }
+
+    // Append the substituted 12" pipe line (if pipe-feet was specified)
+    if (pipeSubstitute && pipeFeet) {
+      const t = pipeSubstitute.entry[1];
+      const itemName = (t.qbItemId && nameByQb.get(t.qbItemId)) || t.sampleDescription;
+      const price = t.mostRecentPrice || (t.prices[0] ?? 0);
+      if (price > 0) {
+        components.push({
+          description: t.sampleDescription || itemName,
+          partNumber: itemName,
+          quantity: pipeFeet,
+          unitPrice: price,
+          total: Number((pipeFeet * price).toFixed(2)),
+          itemId: t.qbItemId || undefined,
+          appearsIn: t.appearances?.size ?? undefined,
+          appearsInPct: t.appearances ? Math.round((t.appearances.size / totalInvoices) * 100) : undefined,
+        });
+      }
     }
 
     // ── Users Charge: 4.22% of materials (exclude labor) ──
@@ -371,7 +468,7 @@ export async function POST(request: NextRequest) {
       consensusThresholdPct: Math.round((minAppearances / totalInvoices) * 100),
       installType,
       sourceInvoices,
-      notes: `Drafted from ${totalInvoices} past invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}. Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? ` Pipe quantity overridden to ${pipeFeet} ft as requested.` : ""}`,
+      notes: `Drafted from ${totalInvoices} past invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}. Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? (pipeSubstitute ? ` Pipe replaced with ${pipeFeet} × 12-inch sections.` : ` Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`) : ""}`,
       modelUsed: "deterministic/db-aggregation",
       customerName: customerName || undefined,
     });
