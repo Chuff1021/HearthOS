@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
-import { getClientFromTokens } from '@/lib/quickbooks/sync';
+import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
 
 async function getQBAuth(request: NextRequest) {
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     if (body.action === 'send') {
       if (!body.id) return NextResponse.json({ error: 'id is required for send' }, { status: 400 });
       const sentEstimate = (await withRefresh(auth, (client) => client.sendEstimate(body.id, body.email))) as any;
+      try { await persistEstimatesToDb(auth.orgId, [sentEstimate]); } catch (e) { console.error('persist after send failed', e); }
       addAuditLog({
         entityType: 'estimate',
         entityId: body.id,
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
     if (body.action === 'update') {
       if (!body.id) return NextResponse.json({ error: 'id is required for update' }, { status: 400 });
       const updatedEstimate = (await withRefresh(auth, (client) => client.updateEstimate(body.id, body.updates || {}))) as any;
+      try { await persistEstimatesToDb(auth.orgId, [updatedEstimate]); } catch (e) { console.error('persist after update failed', e); }
       addAuditLog({
         entityType: 'estimate',
         entityId: body.id,
@@ -130,6 +132,7 @@ export async function POST(request: NextRequest) {
     };
 
     const estimate = (await withRefresh(auth, (client) => client.createEstimate(payload))) as any;
+    try { await persistEstimatesToDb(auth.orgId, [estimate]); } catch (e) { console.error('persist after create failed', e); }
 
     addAuditLog({
       entityType: 'estimate',

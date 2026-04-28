@@ -176,9 +176,12 @@ export default function EstimatesPage() {
     setLoading(true);
     setError(null);
     try {
+      // Read from the local DB (same pattern as /inventory). Avoids hitting
+      // the QuickBooks API on every page load. Use "Sync from QuickBooks" to
+      // refresh from QB on demand.
       const [estRes, itemRes] = await Promise.all([
-        fetch("/api/quickbooks/estimates"),
-        fetch("/api/quickbooks/items?sync=true"),
+        fetch("/api/estimates", { cache: "no-store" }),
+        fetch("/api/items/local", { cache: "no-store" }),
       ]);
       const estData = await estRes.json();
       const itemData = await itemRes.json();
@@ -190,6 +193,29 @@ export default function EstimatesPage() {
       setError(e instanceof Error ? e.message : "Failed to load estimates");
     } finally {
       setLoading(false);
+    }
+  }
+
+  const [syncing, setSyncing] = useState(false);
+  async function syncFromQuickBooks() {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await Promise.all([
+        fetch("/api/quickbooks/sync/estimates", { method: "POST" }),
+        fetch("/api/quickbooks/sync/items", { method: "POST" }),
+      ]);
+      for (const r of res) {
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error || `Sync failed (${r.status})`);
+        }
+      }
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -701,7 +727,22 @@ export default function EstimatesPage() {
             </div>
 
             <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">QuickBooks Estimates</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Estimates</h2>
+                <button
+                  onClick={syncFromQuickBooks}
+                  disabled={syncing}
+                  className="text-[11px] px-2 py-1 rounded transition-colors"
+                  style={{
+                    border: "1px solid var(--color-border)",
+                    color: "var(--color-text-secondary)",
+                    background: "var(--color-surface-2)",
+                    opacity: syncing ? 0.6 : 1,
+                  }}
+                >
+                  {syncing ? "Syncing…" : "Sync from QuickBooks"}
+                </button>
+              </div>
               {loading ? <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p> : (
                 <div className="space-y-2 max-h-[680px] overflow-auto pr-1">
                   {filteredEstimates.map((e) => (
