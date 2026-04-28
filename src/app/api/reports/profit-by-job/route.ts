@@ -33,11 +33,22 @@ type InvoiceLite = {
   issueDate: string | null;
 };
 
-// Compute per-invoice revenue + cogs + billable for a set of invoices.
+// Sales-tax pass-through line items collected from the customer (e.g. Missouri
+// "Users Charge"). Not revenue, not COGS — gets remitted to the state. Excluded
+// from profit math; reported separately so the totals still tie to the invoice.
+const TAX_PASSTHROUGH_RE = /\buser(?:'?s)?\s*charge\b|\bsales\s*tax\b|\buse\s*tax\b/i;
+function isTaxPassthrough(...texts: Array<string | null | undefined>): boolean {
+  for (const t of texts) {
+    if (t && TAX_PASSTHROUGH_RE.test(t)) return true;
+  }
+  return false;
+}
+
+// Compute per-invoice revenue + cogs + billable + taxPassthrough for a set of invoices.
 async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
-  type PerInvoice = { revenue: number; cogs: number; billable: number };
+  type PerInvoice = { revenue: number; cogs: number; billable: number; taxPassthrough: number };
   const perInv = new Map<string, PerInvoice>();
-  for (const i of invs) perInv.set(i.id, { revenue: 0, cogs: 0, billable: 0 });
+  for (const i of invs) perInv.set(i.id, { revenue: 0, cogs: 0, billable: 0, taxPassthrough: 0 });
   if (invs.length === 0) return perInv;
 
   const invoiceIds = invs.map((i) => i.id);
@@ -48,33 +59,44 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
     .select({
       invoiceId: invoiceLineItems.invoiceId,
       qbItemId: invoiceLineItems.qbItemId,
+      description: invoiceLineItems.description,
       quantity: invoiceLineItems.quantity,
       total: invoiceLineItems.total,
     })
     .from(invoiceLineItems)
     .where(inArray(invoiceLineItems.invoiceId, invoiceIds));
 
-  // Cost map for the qbItemIds touched (fallback when no matching bill exists)
+  // Cost map + name map for the qbItemIds touched. Name is used so a tax
+  // pass-through item still gets recognized when the line description is empty.
   const qbItemIds = [...new Set(lineRows.map((l) => l.qbItemId).filter(Boolean) as string[])];
-  const costRows = qbItemIds.length > 0
+  const itemRows = qbItemIds.length > 0
     ? await db
-        .select({ qbItemId: inventoryItems.qbItemId, cost: inventoryItems.cost })
+        .select({ qbItemId: inventoryItems.qbItemId, name: inventoryItems.name, cost: inventoryItems.cost })
         .from(inventoryItems)
         .where(and(eq(inventoryItems.orgId, orgId), inArray(inventoryItems.qbItemId, qbItemIds)))
     : [];
   const costByQb = new Map<string, number>();
-  for (const c of costRows) {
-    if (c.qbItemId) costByQb.set(c.qbItemId, c.cost != null ? Number(c.cost) : 0);
+  const nameByQb = new Map<string, string>();
+  for (const c of itemRows) {
+    if (!c.qbItemId) continue;
+    costByQb.set(c.qbItemId, c.cost != null ? Number(c.cost) : 0);
+    if (c.name) nameByQb.set(c.qbItemId, c.name);
   }
 
-  // Per-invoice revenue, and per-invoice qbItemId set (so we can later tell
-  // whether a customer-tagged bill line is actually this invoice's COGS or a
-  // separate expense).
+  // Per-invoice revenue + qbItemId set + line bag for downstream COGS attribution.
+  // Tax pass-through lines are bucketed separately and do NOT contribute to
+  // revenue or to the qbItem set used for bill-matching.
+  type LineRow = (typeof lineRows)[number];
   const qbItemsByInv = new Map<string, Set<string>>();
-  const linesByInv = new Map<string, typeof lineRows>();
+  const linesByInv = new Map<string, LineRow[]>();
   for (const li of lineRows) {
     const inv = perInv.get(li.invoiceId);
     if (!inv) continue;
+    const itemName = li.qbItemId ? nameByQb.get(li.qbItemId) : undefined;
+    if (isTaxPassthrough(li.description, itemName)) {
+      inv.taxPassthrough += Number(li.total ?? 0);
+      continue;
+    }
     inv.revenue += Number(li.total ?? 0);
     if (li.qbItemId) {
       const s = qbItemsByInv.get(li.invoiceId) || new Set<string>();
@@ -225,6 +247,7 @@ export async function GET(req: NextRequest) {
     let windowRevenue = 0;
     let windowCogs = 0;
     let windowBillable = 0;
+    let windowTaxPassthrough = 0;
     let windowTax = 0;
     let windowBalance = 0;
     let unprofitableCount = 0;
@@ -233,10 +256,11 @@ export async function GET(req: NextRequest) {
     let bestProfit = -Infinity;
     let worstProfit = Infinity;
     for (const inv of allInWindow) {
-      const pl = windowPL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0 };
+      const pl = windowPL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0, taxPassthrough: 0 };
       windowRevenue += pl.revenue;
       windowCogs += pl.cogs;
       windowBillable += pl.billable;
+      windowTaxPassthrough += pl.taxPassthrough;
       windowTax += Number(inv.taxAmount ?? 0);
       windowBalance += Number(inv.balance ?? 0);
       const profit = pl.revenue - pl.cogs - pl.billable;
@@ -274,7 +298,7 @@ export async function GET(req: NextRequest) {
     );
 
     let items = pageRows.map(({ invoice: inv, customerId: cid, customerName }) => {
-      const pl = pagePL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0 };
+      const pl = pagePL.get(inv.id) || { revenue: 0, cogs: 0, billable: 0, taxPassthrough: 0 };
       const tax = Number(inv.taxAmount ?? 0);
       const profit = pl.revenue - pl.cogs - pl.billable;
       const margin = pl.revenue > 0 ? (profit / pl.revenue) * 100 : null;
@@ -286,8 +310,9 @@ export async function GET(req: NextRequest) {
         customerId: cid,
         customerName,
         revenue: pl.revenue,
+        taxPassthrough: pl.taxPassthrough,
         tax,
-        billed: pl.revenue + tax,
+        billed: pl.revenue + pl.taxPassthrough + tax,
         cogs: pl.cogs,
         billable: pl.billable,
         profit,
@@ -307,8 +332,9 @@ export async function GET(req: NextRequest) {
       windowStats: {
         invoiceCount: allInWindow.length,
         revenue: windowRevenue,
+        taxPassthrough: windowTaxPassthrough,
         tax: windowTax,
-        billed: windowRevenue + windowTax,
+        billed: windowRevenue + windowTaxPassthrough + windowTax,
         cogs: windowCogs,
         billable: windowBillable,
         totalCost: windowCogs + windowBillable,

@@ -14,6 +14,18 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 
 // Detail P&L for a single invoice ("job")
 
+// Lines that are sales-tax pass-through (collected from the customer, remitted
+// to the state — not revenue, not COGS). The user invoices these as a regular
+// line item ("Users Charge") instead of QB's tax engine, so we strip them out
+// of the profit math and report them as a separate "Tax pass-through" bucket.
+const TAX_PASSTHROUGH_RE = /\buser(?:'?s)?\s*charge\b|\bsales\s*tax\b|\buse\s*tax\b/i;
+function isTaxPassthrough(...texts: Array<string | null | undefined>): boolean {
+  for (const t of texts) {
+    if (t && TAX_PASSTHROUGH_RE.test(t)) return true;
+  }
+  return false;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -122,11 +134,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     let totalRevenue = 0;
     let totalCogs = 0;
+    let totalTaxPassthrough = 0;
     const lineDetail = lines.map((l) => {
       const qty = Number(l.quantity ?? 0);
       const unitPrice = Number(l.unitPrice ?? 0);
       const lineTotal = Number(l.total ?? 0);
       const item = l.qbItemId ? itemByQb.get(l.qbItemId) : undefined;
+      const taxPassthrough = isTaxPassthrough(l.description, item?.name);
+      if (taxPassthrough) {
+        totalTaxPassthrough += lineTotal;
+        return {
+          id: l.id,
+          order: l.order ?? 0,
+          description: l.description,
+          qbItemId: l.qbItemId,
+          itemName: item?.name ?? null,
+          itemSku: item?.sku ?? null,
+          quantity: qty,
+          unitPrice,
+          unitCost: 0,
+          total: lineTotal,
+          cost: 0,
+          costSource: 'inventory' as const,
+          profit: 0,
+          margin: null,
+          isTaxPassthrough: true,
+        };
+      }
       // Prefer the matching bill amount (actual paid cost) over the static
       // inventory cost. Spread proportionally by qty when the same item is
       // on more than one line.
@@ -161,6 +195,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         costSource,
         profit: lineProfit,
         margin: lineMargin,
+        isTaxPassthrough: false,
       };
     });
 
@@ -169,7 +204,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const totalBillable = billExpenses.reduce((s, b) => s + b.amount, 0);
 
     const tax = Number(inv.taxAmount ?? 0);
-    const billed = totalRevenue + tax;
+    const billed = totalRevenue + totalTaxPassthrough + tax;
     const totalCost = totalCogs + totalBillable;
     const profit = totalRevenue - totalCost;
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : null;
@@ -198,6 +233,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       billExpenses,
       summary: {
         revenue: totalRevenue,
+        taxPassthrough: totalTaxPassthrough,
         tax,
         billed,
         cogs: totalCogs,

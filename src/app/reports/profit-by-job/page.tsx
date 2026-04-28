@@ -66,6 +66,7 @@ type DetailResponse = {
     cost: number;
     profit: number;
     margin: number | null;
+    isTaxPassthrough?: boolean;
   }>;
   billExpenses: Array<{
     billId: string; billNumber: string | null; issueDate: string | null;
@@ -75,6 +76,7 @@ type DetailResponse = {
   }>;
   summary: {
     revenue: number;
+    taxPassthrough?: number;
     tax: number;
     billed: number;
     cogs: number;
@@ -555,21 +557,28 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
                     {data.lines.map((l) => (
                       <tr key={l.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                         <td className="py-1.5 pr-3">
-                          <div style={{ color: "var(--color-text-primary)" }}>{l.description || l.itemName || "—"}</div>
+                          <div style={{ color: "var(--color-text-primary)" }}>
+                            {l.description || l.itemName || "—"}
+                            {l.isTaxPassthrough && (
+                              <span className="ml-2 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
+                                tax pass-through
+                              </span>
+                            )}
+                          </div>
                           {l.itemSku && <div className="text-[10px] font-mono" style={{ color: "var(--color-text-muted)" }}>{l.itemSku}</div>}
                         </td>
                         <td className="py-1.5 px-1 text-right" style={{ color: "var(--color-text-secondary)" }}>{l.quantity}</td>
                         <td className="py-1.5 px-1 text-right" style={{ color: "var(--color-text-secondary)" }}>{fmtMoney(l.unitPrice)}</td>
-                        <td className="py-1.5 px-1 text-right" style={{ color: "var(--color-text-secondary)" }}>{l.unitCost > 0 ? fmtMoney(l.unitCost) : "—"}</td>
+                        <td className="py-1.5 px-1 text-right" style={{ color: "var(--color-text-secondary)" }}>{l.isTaxPassthrough ? "—" : (l.unitCost > 0 ? fmtMoney(l.unitCost) : "—")}</td>
                         <td className="py-1.5 px-1 text-right font-medium" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(l.total)}</td>
-                        <td className="py-1.5 px-1 text-right font-medium" style={{ color: profitColor(l.profit) }}>{fmtSignedMoney(l.profit)}</td>
-                        <td className="py-1.5 pl-1 text-right" style={{ color: marginColor(l.margin) }}>{fmtPct(l.margin)}</td>
+                        <td className="py-1.5 px-1 text-right font-medium" style={{ color: l.isTaxPassthrough ? "var(--color-text-muted)" : profitColor(l.profit) }}>{l.isTaxPassthrough ? "—" : fmtSignedMoney(l.profit)}</td>
+                        <td className="py-1.5 pl-1 text-right" style={{ color: l.isTaxPassthrough ? "var(--color-text-muted)" : marginColor(l.margin) }}>{l.isTaxPassthrough ? "—" : fmtPct(l.margin)}</td>
                       </tr>
                     ))}
                     <tr style={{ borderTop: "2px solid var(--color-border)" }}>
                       <td className="py-2 pr-3 font-semibold" style={{ color: "var(--color-text-primary)" }}>Subtotal</td>
                       <td colSpan={3}></td>
-                      <td className="py-2 px-1 text-right font-semibold" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(data.summary.revenue)}</td>
+                      <td className="py-2 px-1 text-right font-semibold" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(data.summary.revenue + (data.summary.taxPassthrough ?? 0))}</td>
                       <td className="py-2 px-1 text-right font-semibold" style={{ color: profitColor(data.summary.revenue - data.summary.cogs) }}>
                         {fmtSignedMoney(data.summary.revenue - data.summary.cogs)}
                       </td>
@@ -617,10 +626,16 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
               <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--color-text-secondary)" }}>P&amp;L summary</h3>
               <table className="w-full text-sm">
                 <tbody>
-                  <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <tr>
                     <td className="py-1.5" style={{ color: "var(--color-text-secondary)" }}>Revenue (line totals)</td>
                     <td className="py-1.5 text-right font-medium" style={{ color: "var(--color-text-primary)" }}>{fmtMoney(data.summary.revenue)}</td>
                   </tr>
+                  {(data.summary.taxPassthrough ?? 0) > 0 && (
+                    <tr>
+                      <td className="py-1.5 text-xs" style={{ color: "var(--color-text-muted)" }}>+ Tax pass-through (line items)</td>
+                      <td className="py-1.5 text-right text-xs" style={{ color: "var(--color-text-muted)" }}>{fmtMoney(data.summary.taxPassthrough)}</td>
+                    </tr>
+                  )}
                   <tr>
                     <td className="py-1.5 text-xs" style={{ color: "var(--color-text-muted)" }}>+ Tax (informational)</td>
                     <td className="py-1.5 text-right text-xs" style={{ color: "var(--color-text-muted)" }}>{fmtMoney(data.summary.tax)}</td>
