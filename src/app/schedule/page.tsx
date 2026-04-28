@@ -162,6 +162,16 @@ export default function SchedulePage() {
   const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [techs, setTechs] = useState<Tech[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [timeOff, setTimeOff] = useState<Array<{
+    id: string;
+    techId: string;
+    techName?: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+    status: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
@@ -209,18 +219,21 @@ export default function SchedulePage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [techRes, jobRes] = await Promise.all([
+      const [techRes, jobRes, torRes] = await Promise.all([
         fetch("/api/techs?activeOnly=true"),
         fetch("/api/jobs?limit=1000"),
+        fetch("/api/time-off-requests?status=approved").catch(() => null),
       ]);
       const techData = await techRes.json();
       const jobData = await jobRes.json();
+      const torData = torRes ? await torRes.json().catch(() => ({ requests: [] })) : { requests: [] };
 
       const loadedTechs: Tech[] = techData.techs || [];
       const loadedJobs: Job[] = jobData.jobs || [];
 
       setTechs(loadedTechs);
       setJobs(loadedJobs);
+      setTimeOff(torData.requests || []);
 
       if (loadedTechs.length && selectedTechIds.length === 0) {
         setSelectedTechIds(loadedTechs.map((t) => t.id));
@@ -643,6 +656,52 @@ export default function SchedulePage() {
             </button>
           </div>
         </div>
+
+        {/* ── Time-off banner: techs out in the visible week ── */}
+        {(() => {
+          const visibleStart = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth(), 1) : weekStart;
+          const visibleEnd = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0) : weekEnd;
+          visibleStart.setHours(0, 0, 0, 0);
+          visibleEnd.setHours(23, 59, 59, 999);
+          const inRange = timeOff.filter((t) => {
+            const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
+            const e = new Date(t.endDate); e.setHours(0, 0, 0, 0);
+            return e >= visibleStart && s <= visibleEnd;
+          });
+          if (inRange.length === 0) return null;
+          const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const TYPE_LABELS: Record<string, string> = {
+            paid_vacation: "Paid PTO",
+            unpaid_vacation: "Unpaid PTO",
+            unpaid_appointment_time: "Appt",
+          };
+          return (
+            <div className="px-6 py-2 flex items-start gap-3 flex-wrap" style={{ borderBottom: "1px solid var(--color-border)", background: "rgba(248,151,31,0.06)" }}>
+              <span className="text-[11px] font-semibold uppercase tracking-wide pt-1" style={{ color: "#9a5d12" }}>Out:</span>
+              <div className="flex flex-wrap gap-1.5 flex-1">
+                {inRange.map((t) => {
+                  const tech = techs.find((x) => x.id === t.techId);
+                  const name = tech?.name || t.techName || `Tech ${t.techId.slice(0, 6)}`;
+                  return (
+                    <span
+                      key={t.id}
+                      title={`${TYPE_LABELS[t.type] || t.type}: ${t.startDate} → ${t.endDate}${t.reason ? "\n" + t.reason : ""}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(22,163,74,0.14)", border: "1px solid rgba(22,163,74,0.4)", color: "#16A34A" }}
+                    >
+                      <span className="inline-block rounded-full" style={{ width: 6, height: 6, background: tech?.color || "#16A34A" }} />
+                      <span className="font-semibold">{name}</span>
+                      <span style={{ color: "var(--color-text-muted)" }}>·</span>
+                      <span>{fmtDay(t.startDate)}{t.startDate !== t.endDate ? ` – ${fmtDay(t.endDate)}` : ""}</span>
+                      <span style={{ color: "var(--color-text-muted)" }}>·</span>
+                      <span style={{ color: "#9a5d12" }}>{TYPE_LABELS[t.type] || t.type}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Tech filter bar ── */}
         <div className="px-6 py-2 flex items-center gap-2 flex-wrap" style={{ borderBottom: "1px solid var(--color-border)" }}>

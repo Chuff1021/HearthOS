@@ -705,7 +705,8 @@ export default function AdminTimePage() {
               ))}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-5">
+              <TimeOffCalendar requests={timeOffRequests} techs={techs} />
               <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Time Off Requests</h2>
               {timeOffRequests.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No time off requests.</p>
@@ -818,6 +819,146 @@ export default function AdminTimePage() {
               </button>
               <button onClick={() => setShowManualEntry(false)} className="px-4 py-2.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Time-off calendar grid ───────────────────────────────────────────────
+// Visualizes approved + pending time-off across all techs for the next 56 days.
+// Each tech is a row, each day is a 24px column. Bars for ranges; weekends are
+// shaded; today is marked with a vertical accent.
+function TimeOffCalendar({ requests, techs }: { requests: TimeOffRequest[]; techs: Tech[] }) {
+  const DAY_W = 24;
+  const NAME_W = 180;
+  const ROW_H = 36;
+  const DAYS = 56;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Array.from({ length: DAYS }, (_, i) => {
+    const d = new Date(today); d.setDate(d.getDate() + i); return d;
+  });
+
+  // Group active (non-denied) requests by techId
+  const active = requests.filter((r) => r.status !== "denied");
+  const byTech = new Map<string, TimeOffRequest[]>();
+  for (const r of active) {
+    const arr = byTech.get(r.techId) || [];
+    arr.push(r);
+    byTech.set(r.techId, arr);
+  }
+
+  // Show every active tech, plus any tech that has time-off requests (in case a
+  // tech becomes inactive but still has pending requests we should see)
+  const techIds = new Set(techs.map((t) => t.id));
+  for (const id of byTech.keys()) techIds.add(id);
+  const techList = [...techIds].map((id) => {
+    const t = techs.find((x) => x.id === id);
+    return { id, name: t?.name || `Tech ${id.slice(0, 6)}`, color: t?.color || "#6b7280" };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+
+  const TYPE_LABELS: Record<string, string> = {
+    paid_vacation: "Paid PTO",
+    unpaid_vacation: "Unpaid PTO",
+    unpaid_appointment_time: "Appt",
+  };
+
+  const colors = (status: string) => status === "approved"
+    ? { bg: "rgba(22,163,74,0.16)", border: "1px solid rgba(22,163,74,0.45)", text: "#16A34A" }
+    : status === "pending"
+    ? { bg: "rgba(248,151,31,0.18)", border: "1px dashed rgba(248,151,31,0.55)", text: "#9a5d12" }
+    : { bg: "rgba(120,120,120,0.12)", border: "1px solid rgba(120,120,120,0.3)", text: "#666" };
+
+  const monthLabels: Array<{ left: number; label: string }> = [];
+  let lastMonth = -1;
+  days.forEach((d, i) => {
+    if (d.getMonth() !== lastMonth) {
+      monthLabels.push({ left: NAME_W + i * DAY_W, label: d.toLocaleDateString("en-US", { month: "short", year: i === 0 ? undefined : undefined }) });
+      lastMonth = d.getMonth();
+    }
+  });
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Vacation &amp; Time-Off Schedule</h2>
+        <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+          <span className="inline-flex items-center gap-1"><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(22,163,74,0.3)", border: "1px solid rgba(22,163,74,0.55)" }} />Approved</span>
+          <span className="inline-flex items-center gap-1"><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(248,151,31,0.25)", border: "1px dashed rgba(248,151,31,0.6)" }} />Pending</span>
+          <span>Next 8 weeks</span>
+        </div>
+      </div>
+
+      {techList.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No active techs.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: NAME_W + DAYS * DAY_W, position: "relative" }}>
+            {/* Month strip */}
+            <div style={{ height: 18, position: "relative", marginBottom: 4 }}>
+              {monthLabels.map((m, i) => (
+                <div key={i} className="text-[10px] font-semibold uppercase tracking-wide absolute" style={{ left: m.left, color: "var(--color-text-muted)" }}>{m.label}</div>
+              ))}
+            </div>
+            {/* Day-of-week strip */}
+            <div className="flex" style={{ height: 18 }}>
+              <div style={{ width: NAME_W }} />
+              {days.map((d, i) => (
+                <div key={i} className="text-[9px] text-center" style={{ width: DAY_W, color: i === 0 ? "var(--color-ember)" : "var(--color-text-muted)", fontWeight: i === 0 ? 700 : 400 }}>
+                  {d.getDate()}
+                </div>
+              ))}
+            </div>
+
+            {/* Tech rows */}
+            {techList.map((t) => (
+              <div key={t.id} className="flex items-center" style={{ height: ROW_H, position: "relative", borderTop: "1px solid var(--color-border)" }}>
+                <div className="text-sm font-medium truncate pr-2" style={{ width: NAME_W, color: "var(--color-text-primary)" }}>
+                  <span className="inline-block rounded-full mr-2" style={{ width: 8, height: 8, background: t.color, verticalAlign: "middle" }} />
+                  {t.name}
+                </div>
+                {/* Background grid (weekend shading) */}
+                <div style={{ display: "flex" }}>
+                  {days.map((d, i) => (
+                    <div key={i} style={{
+                      width: DAY_W,
+                      height: ROW_H,
+                      background: d.getDay() === 0 || d.getDay() === 6 ? "var(--color-surface-2)" : "transparent",
+                      borderLeft: i === 0 ? "1px solid var(--color-border)" : "none",
+                      borderRight: "1px solid var(--color-border)",
+                    }} />
+                  ))}
+                </div>
+                {/* Today marker */}
+                <div style={{ position: "absolute", top: 0, bottom: 0, left: NAME_W, width: 2, background: "var(--color-ember)", opacity: 0.5 }} />
+                {/* Time-off bars */}
+                {(byTech.get(t.id) || []).map((req) => {
+                  const start = new Date(req.startDate); start.setHours(0, 0, 0, 0);
+                  const end = new Date(req.endDate); end.setHours(0, 0, 0, 0);
+                  const startIdx = Math.floor((start.getTime() - today.getTime()) / 86400000);
+                  const endIdx = Math.floor((end.getTime() - today.getTime()) / 86400000);
+                  if (endIdx < 0 || startIdx >= DAYS) return null;
+                  const cs = Math.max(0, startIdx);
+                  const ce = Math.min(DAYS - 1, endIdx);
+                  const span = ce - cs + 1;
+                  const left = NAME_W + cs * DAY_W + 1;
+                  const width = span * DAY_W - 2;
+                  const c = colors(req.status);
+                  return (
+                    <div
+                      key={req.id}
+                      title={`${TYPE_LABELS[req.type] || req.type}: ${req.startDate} → ${req.endDate} (${req.status})${req.reason ? "\n" + req.reason : ""}`}
+                      className="absolute rounded text-[10px] font-medium px-1.5 truncate flex items-center"
+                      style={{ left, width, top: 4, height: ROW_H - 8, background: c.bg, border: c.border, color: c.text }}
+                    >
+                      {TYPE_LABELS[req.type] || req.type}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       )}
