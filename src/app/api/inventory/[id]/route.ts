@@ -204,7 +204,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
-    updates.updatedAt = new Date();
+    const now = new Date();
+    // Mark cost as manually overridden so the next QB sync doesn't overwrite it.
+    if ('cost' in updates) updates.costOverriddenAt = now;
+    updates.updatedAt = now;
 
     const [row] = await db
       .update(inventoryItems)

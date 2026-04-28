@@ -210,7 +210,9 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
           description: sql`excluded.description`,
           category: sql`excluded.category`,
           unitPrice: sql`excluded.unit_price`,
-          cost: sql`excluded.cost`,
+          // Don't clobber a cost that a user has manually set via the price-audit
+          // auto-correct flow or the inventory edit form.
+          cost: sql`case when inventory_items.cost_overridden_at is null then excluded.cost else inventory_items.cost end`,
           quantityOnHand: sql`excluded.quantity_on_hand`,
           isActive: sql`excluded.is_active`,
           lastSyncedAt: now,

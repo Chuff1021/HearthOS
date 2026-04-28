@@ -406,6 +406,10 @@ export const inventoryItems = pgTable('inventory_items', {
   category: varchar('category', { length: 100 }), // pipe, fittings, parts, supplies
   unitPrice: decimal('unit_price', { precision: 10, scale: 2 }),
   cost: decimal('cost', { precision: 10, scale: 2 }),
+  // Set when cost is saved manually (price audit apply or single-item PATCH).
+  // QuickBooks sync skips updating cost when this is non-null, so manual
+  // corrections aren't silently overwritten by Item.PurchaseCost.
+  costOverriddenAt: timestamp('cost_overridden_at', { withTimezone: true }),
   quantityOnHand: integer('quantity_on_hand').default(0),
   reorderLevel: integer('reorder_level'),
   location: varchar('location', { length: 100 }), // Warehouse bin location

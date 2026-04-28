@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       try {
         await db
           .update(inventoryItems)
-          .set({ cost: String(v), updatedAt: now })
+          .set({ cost: String(v), costOverriddenAt: now, updatedAt: now })
           .where(and(eq(inventoryItems.orgId, org.id), eq(inventoryItems.id, c.id)));
         applied++;
       } catch (err) {
