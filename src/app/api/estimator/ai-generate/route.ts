@@ -86,6 +86,26 @@ function isExcludedFromUnit(name: string | null, desc: string | null): boolean {
   return /chase\s*cover|stone|veneer|masonry|mantel|mantle|trim\b|gasket|bracket|cap\b|firestop|flashing|connector|liner|flex kit|termination/.test(t);
 }
 
+// Classify a past invoice's install type from the components it contained.
+// Vertical = chimney pipe + flashing + starter collar. Horizontal = flex kit,
+// horizontal vent, wall termination. Insert = flex liner / insert kit.
+type InstallType = "vertical" | "horizontal" | "insert" | "service" | "unknown";
+function classifyInvoice(lineDescriptions: string[]): InstallType {
+  const blob = lineDescriptions.map((d) => (d || "").toLowerCase()).join(" | ");
+  // Horizontal first — specific signals beat generic ones
+  if (/\bflex\s*kit\b|\bhorizontal\b|\bwall\s*term/.test(blob)) return "horizontal";
+  if (/77l89|dva-hc\b|horiz\s*vent|rgv\b|rear\s*vent\s*kit/.test(blob)) return "horizontal";
+  // Insert: flex liner (different from rigid pipe sections) or insert kit
+  if (/\bflex\s*liner\b|\bliner\s*kit\b|\binsert\s*kit\b/.test(blob)) return "insert";
+  // Vertical: rigid chimney pipe + flashing/storm/firestop/starter collar
+  const hasRigidPipe = /elite\s*\d+\s*["”'']?\s*duravent|duravent\s*chimney|\bdva-\d+\b|\bsv\d+\b|\b7dt-?\d+\b/.test(blob);
+  const hasFlashing = /\bflashing\b|\bstorm\s*collar\b|\bstarter\s*collar\b|\battic\s*(?:rad)?\s*shield\b|\bfirestop\b/.test(blob);
+  if (hasRigidPipe || hasFlashing) return "vertical";
+  // Service-only: nothing structural
+  if (/\bservice\s*charge\b|\bclean\s*and\s*inspect\b|\brepair\s*labor\b/.test(blob) && !/install/.test(blob)) return "service";
+  return "unknown";
+}
+
 type Candidate = {
   qbItemId: string;
   inventoryName: string;
@@ -167,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Pull the inventory rows for the candidate qb ids — apply price + name filters
-    const candidateIds = [...scoreByQb.keys()];
+    const candidateUnitIds = [...scoreByQb.keys()];
     const invRows = await db
       .select({
         qbItemId: inventoryItems.qbItemId,
@@ -176,7 +196,7 @@ export async function POST(request: NextRequest) {
         unitPrice: inventoryItems.unitPrice,
       })
       .from(inventoryItems)
-      .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, candidateIds)));
+      .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, candidateUnitIds)));
 
     const candidates: Candidate[] = [];
     for (const r of invRows) {
@@ -208,8 +228,9 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // ── Pull last 30 invoices that included this unit ──
-    const recentInvoices = await db
+    // ── Pull last 80 invoices that included this unit (we'll filter by install
+    //    type below, then keep the 30 most-recent matching ones) ──
+    const candidateInvoices = await db
       .select({
         invoiceId: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
@@ -229,10 +250,10 @@ export async function POST(request: NextRequest) {
       .groupBy(invoices.id, invoices.invoiceNumber, invoices.issueDate, invoices.totalAmount,
                customers.firstName, customers.lastName, customers.companyName)
       .orderBy(desc(invoices.issueDate))
-      .limit(30);
+      .limit(80);
 
-    const invoiceIds = recentInvoices.map((r) => r.invoiceId);
-    if (invoiceIds.length === 0) {
+    const candidateIds = candidateInvoices.map((r) => r.invoiceId);
+    if (candidateIds.length === 0) {
       return NextResponse.json({
         error: `Matched ${matchedUnit.inventoryName} but no invoice history to draft from.`,
         lineItems: [],
@@ -240,7 +261,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Pull all lines from those invoices ──
-    const allLines = await db
+    const allCandidateLines = await db
       .select({
         invoiceId: invoiceLineItems.invoiceId,
         qbItemId: invoiceLineItems.qbItemId,
@@ -250,8 +271,41 @@ export async function POST(request: NextRequest) {
         total: invoiceLineItems.total,
       })
       .from(invoiceLineItems)
-      .where(inArray(invoiceLineItems.invoiceId, invoiceIds))
+      .where(inArray(invoiceLineItems.invoiceId, candidateIds))
       .orderBy(desc(invoiceLineItems.invoiceId));
+
+    // ── Classify each candidate invoice by install type ──
+    const linesByInvoice = new Map<string, typeof allCandidateLines>();
+    for (const l of allCandidateLines) {
+      const arr = linesByInvoice.get(l.invoiceId) || [];
+      arr.push(l);
+      linesByInvoice.set(l.invoiceId, arr);
+    }
+    const invoiceTypeById = new Map<string, InstallType>();
+    const typeCounts: Record<InstallType, number> = { vertical: 0, horizontal: 0, insert: 0, service: 0, unknown: 0 };
+    for (const id of candidateIds) {
+      const descs = (linesByInvoice.get(id) || []).map((l) => l.description || "");
+      const t = classifyInvoice(descs);
+      invoiceTypeById.set(id, t);
+      typeCounts[t]++;
+    }
+
+    // ── Filter to invoices matching the requested install type ──
+    // Prompt-derived target: "horizontal", "insert", or "vertical" (default).
+    const targetType: InstallType = isHorizontal ? "horizontal" : isInsert ? "insert" : "vertical";
+    const matchingIds = candidateIds.filter((id) => {
+      const t = invoiceTypeById.get(id);
+      // Always allow exact matches; allow "unknown" so we don't lose pricing
+      // data on invoices the classifier couldn't categorize confidently.
+      return t === targetType || t === "unknown";
+    });
+    // If nothing matched, fall back to all (don't return zero results)
+    const finalIds = matchingIds.length > 0 ? matchingIds.slice(0, 30) : candidateIds.slice(0, 30);
+    const finalIdsSet = new Set(finalIds);
+    const recentInvoices = candidateInvoices.filter((r) => finalIdsSet.has(r.invoiceId));
+    const invoiceIds = finalIds;
+    const allLines = allCandidateLines.filter((l) => finalIdsSet.has(l.invoiceId));
+    const filteredOut = candidateIds.length - matchingIds.length;
 
     // ── Aggregate component frequency ──
     type Tally = {
@@ -459,7 +513,8 @@ export async function POST(request: NextRequest) {
       type: "invoice",
     }));
 
-    const installType = isHorizontal ? "horizontal" : isInsert ? "insert" : "vertical";
+    const installType = targetType;
+    const usedFallback = matchingIds.length === 0;
 
     return NextResponse.json({
       lineItems: components,
@@ -469,8 +524,11 @@ export async function POST(request: NextRequest) {
       usingConsensus: true,
       consensusThresholdPct: Math.round((minAppearances / totalInvoices) * 100),
       installType,
+      installTypeFiltered: !usedFallback,
+      historicalTypeCounts: typeCounts,
+      filteredOut,
       sourceInvoices,
-      notes: `Drafted from ${totalInvoices} past invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}. Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? (pipeSubstitute ? ` Pipe replaced with ${pipeFeet} × 12-inch sections.` : ` Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`) : ""}`,
+      notes: `Drafted from ${totalInvoices} past ${installType} invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}.${usedFallback ? ` (No clear ${installType} jobs in history — falling back to all install types.)` : ` ${filteredOut} of ${candidateIds.length} non-${installType} jobs filtered out.`} Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? (pipeSubstitute ? ` Pipe replaced with ${pipeFeet} × 12-inch sections.` : ` Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`) : ""}`,
       modelUsed: "deterministic/db-aggregation",
       customerName: customerName || undefined,
     });
