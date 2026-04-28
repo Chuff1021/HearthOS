@@ -107,8 +107,12 @@ export async function GET(
           null,
       };
     } else {
-      // estimate
-      const [row] = await db
+      // estimate — id may be either the local UUID or the QB estimate id
+      // (numeric/short string). Postgres rejects a non-UUID for the uuid
+      // column with a query error before we could fall back, so detect the
+      // shape up front and pick the right column.
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const headerRows = await db
         .select({
           estimate: estimates,
           customerId: customers.id,
@@ -118,26 +122,12 @@ export async function GET(
         })
         .from(estimates)
         .leftJoin(customers, eq(customers.id, estimates.customerId))
-        .where(and(eq(estimates.orgId, org.id), eq(estimates.id, id)))
+        .where(and(
+          eq(estimates.orgId, org.id),
+          isUuid ? eq(estimates.id, id) : eq(estimates.qbEstimateId, id),
+        ))
         .limit(1);
-
-      // Estimates can also be looked up by qbEstimateId (the QB Id the
-      // estimates page passes through), fall back to that on miss.
-      const headerRow = row ?? (await (async () => {
-        const r = await db
-          .select({
-            estimate: estimates,
-            customerId: customers.id,
-            customerFirst: customers.firstName,
-            customerLast: customers.lastName,
-            customerCompany: customers.companyName,
-          })
-          .from(estimates)
-          .leftJoin(customers, eq(customers.id, estimates.customerId))
-          .where(and(eq(estimates.orgId, org.id), eq(estimates.qbEstimateId, id)))
-          .limit(1);
-        return r[0] ?? null;
-      })());
+      const headerRow = headerRows[0] ?? null;
       if (!headerRow) return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
 
       const est = headerRow.estimate;
