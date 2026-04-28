@@ -972,3 +972,25 @@ export type GabeEvalRun = typeof gabeEvalRuns.$inferSelect;
 export type NewGabeEvalRun = typeof gabeEvalRuns.$inferInsert;
 export type GabeEvalCaseResult = typeof gabeEvalCaseResults.$inferSelect;
 export type NewGabeEvalCaseResult = typeof gabeEvalCaseResults.$inferInsert;
+
+// Time-off requests submitted from the tech app, approved/denied by admin.
+// Postgres-backed (was previously a JSON file, which doesn't persist across
+// Vercel lambda invocations — tech submissions never reached the admin view).
+export const timeOffRequests = pgTable('time_off_requests', {
+  id: text('id').primaryKey(),
+  techId: text('tech_id').notNull(),
+  techName: text('tech_name'),
+  type: varchar('type', { length: 50 }).notNull(),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  reason: text('reason'),
+  status: varchar('status', { length: 20 }).default('pending').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  statusIdx: index('idx_time_off_requests_status').on(table.status),
+  techIdx: index('idx_time_off_requests_tech_id').on(table.techId),
+  createdIdx: index('idx_time_off_requests_created').on(table.createdAt),
+}));
+export type TimeOffRequest = typeof timeOffRequests.$inferSelect;
+export type NewTimeOffRequest = typeof timeOffRequests.$inferInsert;
