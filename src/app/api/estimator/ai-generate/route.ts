@@ -1,336 +1,382 @@
 import { NextRequest, NextResponse } from "next/server";
-import postgres from "postgres";
+import { db, inventoryItems, invoices, invoiceLineItems, customers } from "@/db";
+import { and, eq, inArray, sql, desc, ilike, or } from "drizzle-orm";
+import { getOrCreateDefaultOrg } from "@/lib/org";
 
-const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODELS_URL = "https://integrate.api.nvidia.com/v1/models";
-// Primary + ordered fallbacks. NVIDIA periodically rotates model availability;
-// the route walks this list on a 404 from the primary so a single deprecation
-// doesn't take the estimator offline. Override with env NVIDIA_MODEL.
-const PRIMARY_MODEL = process.env.NVIDIA_MODEL || "nvidia/llama-3.3-nemotron-super-49b-v1";
-const MODEL_FALLBACKS = [
-  PRIMARY_MODEL,
-  "nvidia/llama-3.3-nemotron-super-49b-v1",
-  "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-  "nvidia/llama-3.1-nemotron-70b-instruct",
-  "meta/llama-3.3-70b-instruct",
-];
-const MODEL = PRIMARY_MODEL;
+export const maxDuration = 60;
 
-export const maxDuration = 120;
+// Estimator: deterministic component aggregation from past invoices.
+//
+// Flow:
+//   1. Match the fireplace unit from the prompt (token search against
+//      inventory_items.name + the invoice line descriptions where that item
+//      was used — the user-friendly model names like "42 Apex NexGen-Hybrid"
+//      live in the invoice line description, not the inventory_items.name).
+//   2. Pull the last N invoices that included that unit.
+//   3. Tally every line item across those invoices: appearance count, avg qty,
+//      most-recent price.
+//   4. Keep components that appeared in ≥ 40% of those invoices.
+//   5. Apply pipe-feet override only to literal pipe components, then a
+//      Users Charge line at 4.22% of the materials subtotal.
+//
+// No QB API call, no AI inference for component selection. The user wanted
+// "look at past invoices and figure out what we typically use" — that's pure
+// data, not LLM territory.
 
-// Diagnostic: GET returns the active model id and what NVIDIA reports as
-// available for this API key. Useful when the chat call 404s and we need to
-// know which models are reachable. Safe to leave in prod — read-only.
-export async function GET() {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });
-  try {
-    const r = await fetch(NVIDIA_MODELS_URL, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    const text = await r.text();
-    let models: any = text;
-    try { models = JSON.parse(text); } catch {}
-    return NextResponse.json({
-      activeModel: MODEL,
-      modelFallbacks: MODEL_FALLBACKS,
-      nvidiaStatus: r.status,
-      nvidiaResponse: models,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "probe failed" }, { status: 500 });
+const STOP_WORDS = new Set([
+  "vertical", "horizontal", "insert", "install", "installation",
+  "feet", "foot", "ft", "pipe", "with", "and", "the", "for", "of", "a",
+  "service", "repair", "clean", "replace", "new", "chase", "cover",
+  "delivers", "flashing", "an", "to", "in", "on", "is",
+]);
+
+function tokenize(prompt: string): string[] {
+  const raw = prompt.toLowerCase().replace(/[-/\\:.,]/g, " ").split(/\s+/);
+  const out: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const w = raw[i].replace(/[^a-z0-9]/g, "");
+    if (!w || w.length < 2 || STOP_WORDS.has(w)) continue;
+    const next = (raw[i + 1] || "").replace(/[^a-z0-9]/g, "");
+    // Skip "20" before "feet" / "ft"
+    if (/^\d+$/.test(w) && (STOP_WORDS.has(next) || /^(feet|foot|ft|pipe|inch|in)/.test(next))) continue;
+    out.push(w);
   }
+  return out;
+}
+
+function isPipeComponent(name: string | null, desc: string | null): boolean {
+  const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
+  // Straight pipe sections only — not elbows, caps, terminations, fittings
+  if (/elbow|cap|term|firestop|storm|attic|shield|flashing|adapter|connector|45|90|45deg|adjustable/.test(t)) return false;
+  return /\bpipe\b|dva-\d+|sv\d+|7dt-?\d+|\b\d{2,3}dva-\d+\b/.test(t);
+}
+
+function isLaborComponent(name: string | null, desc: string | null): boolean {
+  const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
+  return /services?[:/]|install\b|labor|clean|repair|service charge/.test(t);
+}
+
+function isTaxLine(name: string | null, desc: string | null): boolean {
+  const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
+  return /\busers?'?\s*charge\b|\bsales\s*tax\b|\buse\s*tax\b/.test(t);
+}
+
+function isExcludedFromUnit(name: string | null, desc: string | null): boolean {
+  const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
+  if (isPipeComponent(name, desc) || isLaborComponent(name, desc) || isTaxLine(name, desc)) return true;
+  return /chase\s*cover|stone|veneer|masonry|mantel|mantle|trim\b|gasket|bracket|cap\b|firestop|flashing|connector|liner|flex kit|termination/.test(t);
+}
+
+type Candidate = {
+  qbItemId: string;
+  inventoryName: string;
+  inventorySku: string | null;
+  unitPrice: number;
+  score: number;
+  invoiceUseCount: number;
+  topDescription: string;
+};
+
+export async function GET() {
+  return NextResponse.json({ ok: true, route: "estimator/ai-generate", info: "POST {prompt, customerName} to generate" });
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });
-  if (!process.env.DATABASE_URL) return NextResponse.json({ error: "No database" }, { status: 500 });
-
   try {
-    const { prompt, customerName } = await request.json();
+    const body = await request.json();
+    const prompt: string = (body.prompt || "").toString();
+    const customerName: string = (body.customerName || "").toString();
     if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
-    const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
-
-    // Load pricing summary and install type guide — these are always populated
-    let pricingSummary: Record<string, any> = {};
-    let installTypeGuide: Record<string, string[]> = {};
-    let patterns: any[] = [];
-    try {
-      const rows = await sql`SELECT id, data FROM estimator_knowledge WHERE id IN (${"pricing"}, ${"install-types"}, ${"patterns"})`;
-      for (const row of rows) {
-        if (row.id === "pricing") {
-          pricingSummary = (typeof row.data === "string" ? JSON.parse(row.data) : row.data) as Record<string, any>;
-        }
-        if (row.id === "install-types") {
-          const raw = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
-          installTypeGuide = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, string[]>;
-        }
-        if (row.id === "patterns") {
-          patterns = (typeof row.data === "string" ? JSON.parse(row.data) : row.data) as any[];
-        }
-      }
-    } catch {}
-    await sql.end();
-
-    if (Object.keys(pricingSummary).length === 0) {
-      return NextResponse.json({ error: "Pricing data not loaded yet. Please wait a moment and try again." }, { status: 503 });
-    }
+    const org = await getOrCreateDefaultOrg();
 
     // ── Parse prompt ──
     const pipeFeetMatch = prompt.match(/(\d+)\s*(?:ft|feet|foot|')/i);
     const pipeFeet = pipeFeetMatch ? Number(pipeFeetMatch[1]) : null;
     const isHorizontal = /horizontal/i.test(prompt);
     const isInsert = /\binsert\b|\bliner\b/i.test(prompt);
-    const isService = /\b(clean|service|inspect|repair)\b/i.test(prompt);
     const mentionsStone = /\bstone\b|\bveneer\b|\bmasonry\b/.test(prompt.toLowerCase());
     const mentionsMantel = /\bmantel\b|\bmantle\b/.test(prompt.toLowerCase());
-    const isChasecover = /chase\s*cover/i.test(prompt);
+    const mentionsChasecover = /chase\s*cover/i.test(prompt);
+    const tokens = tokenize(prompt);
 
-    const installType = isHorizontal ? "horizontal"
-      : isInsert ? "insert"
-      : isService ? "service"
-      : "vertical";
-
-    // ── Build search words (strip measurement noise) ──
-    const ignoreWords = new Set([
-      "vertical", "horizontal", "insert", "install", "installation",
-      "feet", "foot", "ft", "pipe", "with", "and", "the", "for", "of", "a",
-      "service", "repair", "clean", "replace", "new",
-      "chase", "cover", "delivers", "flashing",
-    ]);
-    const rawTokens = prompt.toLowerCase().replace(/[-\/\\:]/g, " ").split(/\s+/);
-    const searchWords: string[] = [];
-    for (let i = 0; i < rawTokens.length; i++) {
-      const w = rawTokens[i].replace(/[^a-z0-9]/g, "");
-      if (!w || w.length < 2 || ignoreWords.has(w)) continue;
-      const next = (rawTokens[i + 1] || "").replace(/[^a-z0-9]/g, "");
-      // Skip measurement numbers like "20" before "feet"
-      if (/^\d+$/.test(w) && (ignoreWords.has(next) || /^(feet|foot|ft|pipe|inch)/.test(next))) continue;
-      searchWords.push(w);
+    if (tokens.length === 0) {
+      return NextResponse.json({ error: "Couldn't parse a model from the prompt. Try '42 Apex vertical install'." }, { status: 400 });
     }
 
-    // ── Find the best matching fireplace unit in pricingSummary ──
-    // Score items: match on search words, prefer expensive items (fireplace units cost $1000+)
-    const allItems = Object.values(pricingSummary) as any[];
-    const scoredUnits = allItems.map((item: any) => {
-      const text = (item.name || "").toLowerCase().replace(/[-\/\\:]/g, " ");
-      let score = 0;
-      for (const word of searchWords) {
-        if (text.includes(word)) score += word.length * 2;
+    // ── Find candidate fireplace units ──
+    // Match against (a) inventory_items.name and (b) any past invoice line
+    // description for that item. The friendly model name ("42 Apex
+    // NexGen-Hybrid") lives in the line description, not the canonical name.
+    const tokenLikes = tokens.map((t) => `%${t}%`);
+    const liDescMatches = await db
+      .select({
+        qbItemId: invoiceLineItems.qbItemId,
+        description: invoiceLineItems.description,
+        uses: sql<number>`count(*)::int`,
+      })
+      .from(invoiceLineItems)
+      .where(and(
+        sql`${invoiceLineItems.qbItemId} is not null`,
+        or(...tokenLikes.map((p) => ilike(invoiceLineItems.description, p))),
+      ))
+      .groupBy(invoiceLineItems.qbItemId, invoiceLineItems.description)
+      .orderBy(sql`count(*) desc`)
+      .limit(200);
+
+    // Score by (#tokens matched in description) × (uses) — prioritize the
+    // model the user actually meant, weighted by how often it's been sold.
+    const scoreByQb = new Map<string, { score: number; uses: number; topDesc: string }>();
+    for (const r of liDescMatches) {
+      if (!r.qbItemId) continue;
+      const desc = (r.description || "").toLowerCase();
+      let matched = 0;
+      for (const t of tokens) if (desc.includes(t)) matched++;
+      if (matched === 0) continue;
+      const cur = scoreByQb.get(r.qbItemId);
+      const score = matched * matched * Math.log2(1 + Number(r.uses));
+      if (!cur || score > cur.score) {
+        scoreByQb.set(r.qbItemId, { score, uses: Number(r.uses), topDesc: r.description || "" });
       }
-      // Skip obvious non-unit items
-      const nameLower = (item.name || "").toLowerCase();
-      if (nameLower.includes("users charge") || nameLower.includes("sales tax")) return { item, score: 0 };
-      if (nameLower.includes("services:") || nameLower.startsWith("services")) return { item, score: 0 };
-      // Skip components/accessories — these can never be the main fireplace unit
-      if (nameLower.includes("pipe") || nameLower.includes("chase") || nameLower.includes("flashing") ||
-          nameLower.includes("cap") || nameLower.includes("flex kit") || nameLower.includes("termination") ||
-          nameLower.includes("firestop") || nameLower.includes("liner") || nameLower.includes("gasket") ||
-          nameLower.includes("connector") || nameLower.includes("bracket") || nameLower.includes("trim")) {
-        return { item, score: 0 };
-      }
-      // Must cost at least $800 to be a fireplace unit
-      const itemPrice = item.mostRecentPrice || item.avgPrice || 0;
-      if (itemPrice < 800) return { item, score: 0 };
-      return { item, score };
-    }).filter(s => s.score > 0).sort((a, b) => {
-      // Primary: score; tiebreak: higher price = more likely a fireplace unit
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.item.mostRecentPrice || 0) - (a.item.mostRecentPrice || 0);
+    }
+
+    if (scoreByQb.size === 0) {
+      return NextResponse.json({
+        error: `No past invoices match "${prompt}". Try a model name like '42 Apex' or '36 Elite'.`,
+        lineItems: [],
+      }, { status: 404 });
+    }
+
+    // Pull the inventory rows for the candidate qb ids — apply price + name filters
+    const candidateIds = [...scoreByQb.keys()];
+    const invRows = await db
+      .select({
+        qbItemId: inventoryItems.qbItemId,
+        name: inventoryItems.name,
+        sku: inventoryItems.sku,
+        unitPrice: inventoryItems.unitPrice,
+      })
+      .from(inventoryItems)
+      .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, candidateIds)));
+
+    const candidates: Candidate[] = [];
+    for (const r of invRows) {
+      if (!r.qbItemId) continue;
+      const meta = scoreByQb.get(r.qbItemId);
+      if (!meta) continue;
+      const price = r.unitPrice != null ? Number(r.unitPrice) : 0;
+      // Must look like a fireplace unit, not a part / accessory.
+      if (isExcludedFromUnit(r.name, meta.topDesc)) continue;
+      if (price > 0 && price < 800) continue;
+      candidates.push({
+        qbItemId: r.qbItemId,
+        inventoryName: r.name,
+        inventorySku: r.sku,
+        unitPrice: price,
+        score: meta.score,
+        invoiceUseCount: meta.uses,
+        topDescription: meta.topDesc,
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score || b.invoiceUseCount - a.invoiceUseCount);
+    const matchedUnit = candidates[0];
+
+    if (!matchedUnit) {
+      return NextResponse.json({
+        error: `Found matches in past invoices but none look like a fireplace unit. Add a price hint or try a different model.`,
+        lineItems: [],
+      }, { status: 404 });
+    }
+
+    // ── Pull last 30 invoices that included this unit ──
+    const recentInvoices = await db
+      .select({
+        invoiceId: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        issueDate: invoices.issueDate,
+        totalAmount: invoices.totalAmount,
+        firstName: customers.firstName,
+        lastName: customers.lastName,
+        companyName: customers.companyName,
+      })
+      .from(invoices)
+      .innerJoin(invoiceLineItems, and(
+        eq(invoiceLineItems.invoiceId, invoices.id),
+        eq(invoiceLineItems.qbItemId, matchedUnit.qbItemId),
+      ))
+      .leftJoin(customers, eq(customers.id, invoices.customerId))
+      .where(eq(invoices.orgId, org.id))
+      .groupBy(invoices.id, invoices.invoiceNumber, invoices.issueDate, invoices.totalAmount,
+               customers.firstName, customers.lastName, customers.companyName)
+      .orderBy(desc(invoices.issueDate))
+      .limit(30);
+
+    const invoiceIds = recentInvoices.map((r) => r.invoiceId);
+    if (invoiceIds.length === 0) {
+      return NextResponse.json({
+        error: `Matched ${matchedUnit.inventoryName} but no invoice history to draft from.`,
+        lineItems: [],
+      }, { status: 404 });
+    }
+
+    // ── Pull all lines from those invoices ──
+    const allLines = await db
+      .select({
+        invoiceId: invoiceLineItems.invoiceId,
+        qbItemId: invoiceLineItems.qbItemId,
+        description: invoiceLineItems.description,
+        quantity: invoiceLineItems.quantity,
+        unitPrice: invoiceLineItems.unitPrice,
+        total: invoiceLineItems.total,
+      })
+      .from(invoiceLineItems)
+      .where(inArray(invoiceLineItems.invoiceId, invoiceIds))
+      .orderBy(desc(invoiceLineItems.invoiceId));
+
+    // ── Aggregate component frequency ──
+    type Tally = {
+      qbItemId: string | null;
+      sampleDescription: string;
+      appearances: Set<string>; // invoice ids
+      qtys: number[];
+      prices: number[];
+      mostRecentPrice: number;
+    };
+    const tally = new Map<string, Tally>();
+    for (const l of allLines) {
+      // Skip the matched unit itself — we always include it explicitly later
+      if (l.qbItemId === matchedUnit.qbItemId) continue;
+      // Skip Users Charge — we recompute it after materials
+      if (isTaxLine(null, l.description)) continue;
+      const key = l.qbItemId || `desc:${(l.description || "").trim().toLowerCase()}`;
+      if (!key) continue;
+      const t = tally.get(key) || {
+        qbItemId: l.qbItemId,
+        sampleDescription: l.description || "",
+        appearances: new Set<string>(),
+        qtys: [],
+        prices: [],
+        mostRecentPrice: 0,
+      };
+      t.appearances.add(l.invoiceId);
+      const q = Number(l.quantity ?? 0);
+      const p = Number(l.unitPrice ?? 0);
+      if (q > 0) t.qtys.push(q);
+      if (p > 0) t.prices.push(p);
+      if ((l.description || "").length > t.sampleDescription.length) t.sampleDescription = l.description || t.sampleDescription;
+      // First seen is most recent (sorted desc by invoiceId / date)
+      if (t.mostRecentPrice === 0 && p > 0) t.mostRecentPrice = p;
+      tally.set(key, t);
+    }
+
+    const totalInvoices = invoiceIds.length;
+    const minAppearances = Math.max(2, Math.ceil(totalInvoices * 0.4));
+
+    // Look up qb item names for the components we'll keep
+    const componentQbIds = [...tally.values()].map((t) => t.qbItemId).filter((x): x is string => !!x);
+    const compInvRows = componentQbIds.length > 0
+      ? await db
+          .select({ qbItemId: inventoryItems.qbItemId, name: inventoryItems.name })
+          .from(inventoryItems)
+          .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, componentQbIds)))
+      : [];
+    const nameByQb = new Map(compInvRows.map((r) => [r.qbItemId!, r.name]));
+
+    // ── Build the line items ──
+    const components: Array<{
+      description: string;
+      partNumber: string;
+      quantity: number;
+      unitPrice: number;
+      total: number;
+      itemId?: string;
+      appearsIn?: number;
+      appearsInPct?: number;
+    }> = [];
+
+    // Always lead with the matched fireplace unit
+    components.push({
+      description: matchedUnit.topDescription || matchedUnit.inventoryName,
+      partNumber: matchedUnit.inventorySku || matchedUnit.inventoryName,
+      quantity: 1,
+      unitPrice: matchedUnit.unitPrice,
+      total: matchedUnit.unitPrice,
+      itemId: matchedUnit.qbItemId,
+      appearsIn: totalInvoices,
+      appearsInPct: 100,
     });
 
-    const matchedUnit = scoredUnits[0]?.item || null;
+    const sortedTally = [...tally.entries()].sort((a, b) => b[1].appearances.size - a[1].appearances.size);
 
-    // ── Find source invoices that included this fireplace unit ──
-    const sourceInvoices = matchedUnit
-      ? patterns
-          .filter((p: any) => (p.items || []).some((line: string) => line.startsWith(matchedUnit.name + ":")))
-          .slice(0, 8)
-          .map((p: any) => ({
-            docNumber: p.docNumber,
-            customer: p.customer,
-            date: p.date,
-            total: p.total,
-            type: p.type,
-          }))
-      : [];
+    for (const [, t] of sortedTally) {
+      if (t.appearances.size < minAppearances) break;
+      const itemName = (t.qbItemId && nameByQb.get(t.qbItemId)) || t.sampleDescription;
+      // Apply user's content filters
+      if (!mentionsStone && /stone|veneer|masonry/i.test(itemName + " " + t.sampleDescription)) continue;
+      if (!mentionsMantel && /mantel|mantle/i.test(itemName + " " + t.sampleDescription)) continue;
+      if (mentionsChasecover && /flashing/i.test(itemName + " " + t.sampleDescription)) continue;
 
-    // ── Build component list from the matched unit's own invoice history ──
-    // Use commonlyWith: items that actually appeared WITH this fireplace on real invoices
-    // Fall back to installTypeGuide only if no history exists for this unit
-    const unitComponents: string[] = matchedUnit?.commonlyWith?.length > 0
-      ? matchedUnit.commonlyWith
-      : (installTypeGuide[installType] || installTypeGuide["vertical"] || []).map((e: string) => e.replace(/ \(used \d+ times\)$/, ""));
+      const avgQty = t.qtys.length > 0 ? t.qtys.reduce((a, b) => a + b, 0) / t.qtys.length : 1;
+      let qty = Math.max(1, Math.round(avgQty));
+      const price = t.mostRecentPrice || (t.prices[0] ?? 0);
+      if (price <= 0) continue;
 
-    const componentLines = unitComponents
-      .map((name: string) => {
-        const p = pricingSummary[name];
-        if (!p) return null;
-        const nameLower = name.toLowerCase();
-        const isLabor = /services?[:/]|install|labor|clean|repair/i.test(nameLower);
-        // Use average for labor (varies by job), most recent for parts (price changes over time)
-        const price = isLabor ? (p.avgPrice || p.mostRecentPrice || 0) : (p.mostRecentPrice || p.avgPrice || 0);
-        if (price === 0) return null;
-        if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer") || nameLower.includes("masonry"))) return null;
-        if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) return null;
-        // When chase cover is used, skip flashing — the chase cover replaces it
-        if (isChasecover && nameLower.includes("flashing")) return null;
-        const desc = p.description ? ` | ${p.description}` : "";
-        const priceLabel = isLabor ? `avg $${price} across ${p.timesUsed} past jobs` : `$${price} each`;
-        return `${name}${desc} | ${priceLabel} | qty typically ${p.avgQty}`;
-      })
-      .filter(Boolean)
-      .slice(0, 20)
-      .join("\n");
+      // Apply pipe-feet override only to literal straight pipe sections
+      if (pipeFeet && isPipeComponent(itemName, t.sampleDescription)) {
+        qty = pipeFeet;
+      }
 
-    // Chase cover: fixed $650 line, injected after components are built
-    const chaseCoverLine = isChasecover
-      ? `Chase Cover | Chase Cover | $650 each | qty typically 1`
-      : null;
-
-    // ── Build the AI prompt ──
-    const unitPartNumber = matchedUnit?.sku || matchedUnit?.name || "";
-    const unitLine = matchedUnit
-      ? `Fireplace unit: ${matchedUnit.name}${matchedUnit.sku ? ` | SKU/Part#: ${matchedUnit.sku}` : ""} | $${matchedUnit.mostRecentPrice || matchedUnit.avgPrice} each`
-      : `(No specific unit matched — use best judgment for the ${installType} fireplace)`;
-
-    const aiPrompt = `You are building a fireplace installation estimate for Aaron's Fireplace Company.
-
-Customer request: "${prompt}"${customerName ? `\nCustomer: ${customerName}` : ""}
-
-FIREPLACE UNIT (main product):
-${unitLine}
-
-${installType.toUpperCase()} INSTALL COMPONENTS (from past jobs, real prices):
-${componentLines}
-${chaseCoverLine ? chaseCoverLine : ""}
-
-RULES — read carefully:
-- Use part numbers EXACTLY as shown above. Do NOT invent new part numbers.
-- Use the EXACT prices shown above. Do NOT change, round, or estimate any price — copy the number exactly.
-- The partNumber field for the FIREPLACE UNIT must be its SKU/Part# if shown (e.g. "GRND36"); otherwise use the QB name exactly.
-- The partNumber field for all OTHER items must be the exact QB name from the list (e.g. "Gas Pipe Simpson:46DVA-12")
-- The description field must be the human-readable label shown after the | separator. If no label is shown, use the last segment of the part number.
-${pipeFeet ? `- Set pipe quantity to ${pipeFeet} feet total (split across pipe sections as needed)` : "- Use typical pipe quantity for this install"}
-${isHorizontal ? "- HORIZONTAL install: use flex kit / wall termination components, not vertical straight pipe" : ""}
-- Add a line: Users Charge = 4.22% of the materials subtotal ONLY (exclude any labor, install, or service line items from the base)
-- Include the fireplace unit as the first line item
-- Only include items listed above
-${isChasecover ? "- Include Chase Cover at exactly $650 (already listed above). Do NOT include flashing." : ""}
-${!mentionsStone ? "- Do NOT include stone, veneer, or masonry items" : ""}
-${!mentionsMantel ? "- Do NOT include mantel items" : ""}
-
-Return ONLY valid JSON, no markdown:
-{"lineItems":[{"description":"Human label","partNumber":"Exact:QB:Name","quantity":1,"unitPrice":100,"total":100}],"notes":"brief summary"}`;
-
-    // ── Call AI, walking the fallback list on 404 (model deprecated) ──
-    let response: Response | null = null;
-    let usedModel = "";
-    let lastErrBody = "";
-    const triedModels = new Set<string>();
-    for (const candidate of MODEL_FALLBACKS) {
-      if (triedModels.has(candidate)) continue;
-      triedModels.add(candidate);
-      response = await fetch(NVIDIA_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: candidate,
-          messages: [
-            { role: "system", content: "detailed thinking off" },
-            { role: "user", content: aiPrompt },
-          ],
-          temperature: 0.2,
-          max_tokens: 4096,
-          stream: false,
-        }),
+      components.push({
+        description: t.sampleDescription || itemName,
+        partNumber: itemName,
+        quantity: qty,
+        unitPrice: price,
+        total: Number((qty * price).toFixed(2)),
+        itemId: t.qbItemId || undefined,
+        appearsIn: t.appearances.size,
+        appearsInPct: Math.round((t.appearances.size / totalInvoices) * 100),
       });
-      if (response.ok) { usedModel = candidate; break; }
-      // Only fall through on 404 (model not found). Other failures are real.
-      if (response.status !== 404) {
-        lastErrBody = await response.text().catch(() => "");
-        break;
-      }
-      lastErrBody = await response.text().catch(() => "");
     }
 
-    if (!response || !response.ok) {
-      return NextResponse.json(
-        { error: `AI error: ${response?.status ?? "no response"}`, detail: lastErrBody.slice(0, 500), triedModels: [...triedModels] },
-        { status: 502 },
-      );
-    }
+    // ── Users Charge: 4.22% of materials (exclude labor) ──
+    const materialsSubtotal = components
+      .filter((c) => !isLaborComponent(c.partNumber, c.description))
+      .reduce((s, c) => s + c.total, 0);
+    const usersCharge = Number((materialsSubtotal * 0.0422).toFixed(2));
+    components.push({
+      description: "Users Charge",
+      partNumber: "Users Charge",
+      quantity: 1,
+      unitPrice: usersCharge,
+      total: usersCharge,
+    });
 
-    const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
-    const thinkClose = content.indexOf("</think>");
-    if (thinkClose !== -1) content = content.substring(thinkClose + 8).trim();
-    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const sourceInvoices = recentInvoices.slice(0, 10).map((r) => ({
+      docNumber: r.invoiceNumber,
+      customer: (r.companyName || [r.firstName, r.lastName].filter(Boolean).join(" ").trim() || ""),
+      date: r.issueDate || "",
+      total: Number(r.totalAmount ?? 0),
+      type: "invoice",
+    }));
 
-    let result: any;
-    try { result = JSON.parse(content); } catch {
-      try {
-        const m = content.match(/\{[\s\S]*"lineItems"[\s\S]*\}/);
-        if (m) result = JSON.parse(m[0]);
-      } catch {}
-    }
-
-    // Fallback: build directly from invoice-history components without AI
-    if (!result?.lineItems?.length) {
-      const fallbackLines: any[] = [];
-      if (matchedUnit) {
-        fallbackLines.push({
-          description: matchedUnit.name.split(":").pop() || matchedUnit.name,
-          partNumber: matchedUnit.sku || matchedUnit.name,
-          quantity: 1,
-          unitPrice: matchedUnit.mostRecentPrice || matchedUnit.avgPrice,
-          total: matchedUnit.mostRecentPrice || matchedUnit.avgPrice,
-        });
-      }
-      for (const name of unitComponents.slice(0, 15)) {
-        const p = pricingSummary[name];
-        if (!p || (p.mostRecentPrice || p.avgPrice || 0) === 0) continue;
-        const nameLower = name.toLowerCase();
-        if (nameLower.includes("users charge") || nameLower.includes("sales tax")) continue;
-        if (!mentionsStone && (nameLower.includes("stone") || nameLower.includes("veneer"))) continue;
-        if (!mentionsMantel && (nameLower.includes("mantel") || nameLower.includes("mantle"))) continue;
-        if (isChasecover && nameLower.includes("flashing")) continue;
-        const isPipe = /\bpipe\b/i.test(name);
-        const qty = isPipe && pipeFeet ? pipeFeet : Math.round(p.avgQty || 1);
-        const isLabor = /services?[:/]|install|labor|clean|repair/i.test(nameLower);
-        const price = isLabor ? (p.avgPrice || p.mostRecentPrice) : (p.mostRecentPrice || p.avgPrice);
-        fallbackLines.push({
-          description: p.description || name.split(":").pop() || name,
-          partNumber: name,
-          quantity: qty,
-          unitPrice: price,
-          total: Number((qty * price).toFixed(2)),
-        });
-      }
-      if (isChasecover) {
-        fallbackLines.push({ description: "Chase Cover", partNumber: "Chase Cover", quantity: 1, unitPrice: 650, total: 650 });
-      }
-      const materialsSubtotal = fallbackLines
-        .filter((l: any) => !/(services?[:\/]|install|labor|clean|repair)/i.test(l.partNumber || ""))
-        .reduce((s: number, l: any) => s + l.total, 0);
-      const uc = Number((materialsSubtotal * 0.0422).toFixed(2));
-      fallbackLines.push({ description: "Users Charge", partNumber: "Users Charge", quantity: 1, unitPrice: uc, total: uc });
-      result = { lineItems: fallbackLines, notes: `Built from ${installType} install history.` };
-    }
+    const installType = isHorizontal ? "horizontal" : isInsert ? "insert" : "vertical";
 
     return NextResponse.json({
-      ...result,
-      matchedProduct: matchedUnit ? (matchedUnit.name.split(":").pop() || matchedUnit.name) : `${installType} install`,
-      basedOnInvoices: matchedUnit?.timesUsed || 0,
-      catalogMatch: Boolean(matchedUnit),
-      usingConsensus: false,
+      lineItems: components,
+      matchedProduct: matchedUnit.topDescription || matchedUnit.inventoryName,
+      basedOnInvoices: totalInvoices,
+      catalogMatch: true,
+      usingConsensus: true,
+      consensusThresholdPct: Math.round((minAppearances / totalInvoices) * 100),
+      installType,
       sourceInvoices,
-      modelUsed: usedModel,
+      notes: `Drafted from ${totalInvoices} past invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}. Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? ` Pipe quantity overridden to ${pipeFeet} ft as requested.` : ""}`,
+      modelUsed: "deterministic/db-aggregation",
+      customerName: customerName || undefined,
     });
-
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to generate estimate" }, { status: 500 });
+  } catch (err: any) {
+    console.error("estimator ai-generate failed:", err);
+    return NextResponse.json({ error: err?.message || "Failed to generate estimate" }, { status: 500 });
   }
 }
