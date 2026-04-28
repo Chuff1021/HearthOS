@@ -776,7 +776,18 @@ export async function POST(request: NextRequest) {
       historicalTypeCounts: typeCounts,
       filteredOut,
       sourceInvoices,
-      notes: `Drafted from ${totalInvoices} past ${installType} invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}.${usedFallback ? ` (No clear ${installType} jobs in history — falling back to all install types.)` : ` ${filteredOut} of ${candidateIds.length} non-${installType} jobs filtered out.`} Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.${pipeFeet ? (pipeSubstitute ? ` Pipe replaced with ${pipeFeet} × 12-inch sections.` : ` Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`) : ""}`,
+      notes: [
+        `Drafted from ${totalInvoices} past ${installType} invoice${totalInvoices === 1 ? "" : "s"} that sold ${matchedUnit.topDescription || matchedUnit.inventoryName}.`,
+        usedFallback
+          ? `(No clear ${installType} jobs in history — falling back to all install types.)`
+          : `${filteredOut} of ${candidateIds.length} non-${installType} jobs filtered out.`,
+        `Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.`,
+        pipeFeet
+          ? (pipeSubstitute
+            ? `Pipe replaced with ${pipeFeet} × 12-inch sections.`
+            : `Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`)
+          : "",
+      ].filter(Boolean).join(" "),
       modelUsed: "deterministic/db-aggregation",
       customerName: customerName || undefined,
     });
