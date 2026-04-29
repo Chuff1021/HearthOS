@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const since = searchParams.get('since') || '';
     const until = searchParams.get('until') || '';
-    const limit = Math.min(500, Math.max(20, parseInt(searchParams.get('limit') || '100', 10)));
+    const limit = Math.min(2000, Math.max(20, parseInt(searchParams.get('limit') || '500', 10)));
+    // Include every active customer in the result, even those with no sales
+    // in the window. Useful for confirming a customer record exists.
+    const includeNoSales = searchParams.get('includeNoSales') === 'true';
 
     const org = await getOrCreateDefaultOrg();
 
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest) {
       .from(invoices)
       .where(and(...where));
 
-    if (invs.length === 0) {
+    if (invs.length === 0 && !includeNoSales) {
       return NextResponse.json({ customers: [], totals: { revenue: 0, openBalance: 0, invoiceCount: 0, customerCount: 0 } });
     }
 
@@ -133,12 +136,49 @@ export async function GET(req: NextRequest) {
       totalOpen += Number(inv.balance ?? 0);
     }
 
+    // If the caller wants every customer (even those with no sales in window),
+    // pad the result with active customer records that didn't appear above.
+    if (includeNoSales) {
+      const seen = new Set([...byCustomer.keys()]);
+      const allCustomers = await db
+        .select({
+          id: customers.id,
+          firstName: customers.firstName,
+          lastName: customers.lastName,
+          companyName: customers.companyName,
+          email: customers.email,
+          phone: customers.phone,
+          isActive: customers.isActive,
+        })
+        .from(customers)
+        .where(eq(customers.orgId, org.id));
+      for (const c of allCustomers) {
+        if (seen.has(c.id)) continue;
+        if (c.isActive === false) continue;
+        const name = c.companyName || [c.firstName, c.lastName].filter(Boolean).join(' ').trim() || 'Customer';
+        byCustomer.set(c.id, {
+          customerId: c.id,
+          customerName: name,
+          email: c.email ?? null,
+          phone: c.phone ?? null,
+          revenue: 0, cogs: 0, profit: 0, margin: null,
+          openBalance: 0, invoiceCount: 0, lastSale: null,
+        });
+      }
+    }
+
     const out: Row[] = [...byCustomer.values()].map((r) => {
       r.profit = Number((r.revenue - r.cogs).toFixed(2));
       r.margin = r.revenue > 0 ? Number(((r.profit / r.revenue) * 100).toFixed(1)) : null;
       return r;
     });
-    out.sort((a, b) => b.revenue - a.revenue);
+    // Customers with sales first (revenue desc), then zero-sale customers
+    // alphabetical so the user can scan/find them
+    out.sort((a, b) => {
+      if ((a.revenue > 0) !== (b.revenue > 0)) return b.revenue > 0 ? 1 : -1;
+      if (a.revenue !== b.revenue) return b.revenue - a.revenue;
+      return a.customerName.localeCompare(b.customerName);
+    });
 
     return NextResponse.json({
       customers: out.slice(0, limit),

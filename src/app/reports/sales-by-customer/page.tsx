@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -50,6 +50,8 @@ export default function SalesByCustomerPage() {
   const [preset, setPreset] = useState<string>("365");
   const [since, setSince] = useState("");
   const [until, setUntil] = useState("");
+  const [includeNoSales, setIncludeNoSales] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const r = presetRange(preset);
@@ -61,15 +63,28 @@ export default function SalesByCustomerPage() {
     const params = new URLSearchParams();
     if (since) params.set("since", since);
     if (until) params.set("until", until);
+    if (includeNoSales) params.set("includeNoSales", "true");
+    params.set("limit", "2000");
     try {
       const r = await fetch(`/api/reports/sales-by-customer?${params}`);
       if (r.ok) setData(await r.json());
     } finally {
       setLoading(false);
     }
-  }, [since, until]);
+  }, [since, until, includeNoSales]);
 
   useEffect(() => { load(); }, [load]);
+
+  const visible = useMemo(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return data.customers;
+    return data.customers.filter((r) =>
+      r.customerName.toLowerCase().includes(q) ||
+      (r.email || "").toLowerCase().includes(q) ||
+      (r.phone || "").toLowerCase().includes(q)
+    );
+  }, [data, search]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -84,14 +99,28 @@ export default function SalesByCustomerPage() {
               <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>Top customers by revenue, with margin and open balance.</p>
             </div>
 
-            <div className="flex gap-1.5 flex-wrap">
-              {[["30","Last 30"],["90","Last 90"],["365","Last 365"],["ytd","YTD"],["all","All time"]].map(([k,l]) => (
-                <button key={k} onClick={() => setPreset(k)} className="px-3 py-1.5 rounded-full text-xs font-semibold" style={{
-                  background: preset === k ? "rgba(248,151,31,0.16)" : "var(--color-surface-1)",
-                  color: preset === k ? "#9a5d12" : "var(--color-text-muted)",
-                  border: preset === k ? "1px solid #f8971f" : "1px solid var(--color-border)",
-                }}>{l}</button>
-              ))}
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
+                {[["30","Last 30"],["90","Last 90"],["365","Last 365"],["ytd","YTD"],["all","All time"]].map(([k,l]) => (
+                  <button key={k} onClick={() => setPreset(k)} className="px-3 py-1.5 rounded-full text-xs font-semibold" style={{
+                    background: preset === k ? "rgba(248,151,31,0.16)" : "var(--color-surface-1)",
+                    color: preset === k ? "#9a5d12" : "var(--color-text-muted)",
+                    border: preset === k ? "1px solid #f8971f" : "1px solid var(--color-border)",
+                  }}>{l}</button>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Search customer / email / phone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="px-3 py-1.5 rounded-lg text-sm outline-none flex-1 min-w-[220px]"
+                style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+              />
+              <label className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                <input type="checkbox" checked={includeNoSales} onChange={(e) => setIncludeNoSales(e.target.checked)} />
+                Show customers with no sales in window
+              </label>
             </div>
 
             {data && (
@@ -105,8 +134,8 @@ export default function SalesByCustomerPage() {
 
             {loading ? (
               <Empty text="Loading…" />
-            ) : !data || data.customers.length === 0 ? (
-              <Empty text="No sales in this window." />
+            ) : !data || visible.length === 0 ? (
+              <Empty text={search.trim() ? `No customers match "${search}".` : "No sales in this window."} />
             ) : (
               <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                 <div className="overflow-x-auto">
@@ -123,8 +152,8 @@ export default function SalesByCustomerPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.customers.map((r) => (
-                        <tr key={r.customerId || r.customerName} style={{ borderTop: "1px solid var(--color-border)" }}>
+                      {visible.map((r) => (
+                        <tr key={r.customerId || r.customerName} style={{ borderTop: "1px solid var(--color-border)", opacity: r.revenue === 0 ? 0.7 : 1 }}>
                           <td className="px-4 py-3">
                             {r.customerId ? (
                               <Link href={`/customers/${r.customerId}`} className="font-medium hover:underline" style={{ color: "var(--color-text-primary)" }}>{r.customerName}</Link>
