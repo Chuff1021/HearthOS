@@ -25,6 +25,11 @@ function fieldDisplay(value: string | boolean | undefined, type: string) {
   if (type === "checkbox") {
     return value ? { text: "✓ Completed", color: "#16A34A", bg: "transparent" } : { text: "○ Not completed", color: "#9CA3AF", bg: "transparent" };
   }
+  if (type === "multiselect") {
+    const items = String(value || "").split("|").map((s) => s.trim()).filter(Boolean);
+    return { text: items.length ? items.join(", ") : "—", color: items.length ? "#111827" : "#9CA3AF", bg: "transparent" };
+  }
+  // radio + select + text + textarea + measurement all show as plain text
   const strVal = String(value || "").trim();
   return { text: strVal || "—", color: strVal ? "#111827" : "#9CA3AF", bg: "transparent" };
 }

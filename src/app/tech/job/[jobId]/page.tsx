@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
-import { buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId, type ChecklistForm } from "@/lib/job-checklists";
+import { arrayToMultiselectValue, buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId, multiselectValueToArray, type ChecklistForm } from "@/lib/job-checklists";
 
 const emptyJobData = {
   id: "",
@@ -879,6 +879,76 @@ export default function JobDetailPage() {
                         );
                       }
 
+                      // Radio (single-choice button group — replaces awkward yes/no checkbox pairs)
+                      if (field.type === "radio") {
+                        const val = String(fieldValue || "");
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                            </label>
+                            {field.hint && <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{field.hint}</p>}
+                            <div className="flex flex-wrap gap-2">
+                              {(field.options || []).map((opt) => (
+                                <button
+                                  key={opt}
+                                  onClick={() => void updateChecklistForm(field.id, opt)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                  style={{
+                                    background: val === opt ? "rgba(248,151,31,0.18)" : "var(--color-surface-3)",
+                                    color: val === opt ? "#9a5d12" : "var(--color-text-muted)",
+                                    border: val === opt ? "2px solid #f8971f" : "1px solid var(--color-border)",
+                                  }}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Multiselect (multi-pick button group — replaces multi-checkbox sets like termination styles)
+                      if (field.type === "multiselect") {
+                        const selected = multiselectValueToArray(fieldValue);
+                        const toggle = (opt: string) => {
+                          const next = selected.includes(opt)
+                            ? selected.filter((s) => s !== opt)
+                            : [...selected, opt];
+                          void updateChecklistForm(field.id, arrayToMultiselectValue(next));
+                        };
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            <label className="text-sm font-medium">
+                              {field.label}
+                              {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
+                              <span className="ml-1 text-xs" style={{ color: "var(--color-text-muted)" }}>(select all that apply)</span>
+                            </label>
+                            {field.hint && <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{field.hint}</p>}
+                            <div className="flex flex-wrap gap-2">
+                              {(field.options || []).map((opt) => {
+                                const on = selected.includes(opt);
+                                return (
+                                  <button
+                                    key={opt}
+                                    onClick={() => toggle(opt)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                    style={{
+                                      background: on ? "rgba(22,163,74,0.18)" : "var(--color-surface-3)",
+                                      color: on ? "#16A34A" : "var(--color-text-muted)",
+                                      border: on ? "2px solid #16A34A" : "1px solid var(--color-border)",
+                                    }}
+                                  >
+                                    {on ? "✓ " : ""}{opt}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }
+
                       // Default: text input
                       return (
                         <div key={field.id} className="space-y-2">
@@ -886,6 +956,7 @@ export default function JobDetailPage() {
                             {field.label}
                             {field.required ? <span className="text-orange-400 ml-1">*</span> : null}
                           </label>
+                          {field.hint && <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{field.hint}</p>}
                           <input
                             type="text"
                             value={String(fieldValue || "")}
