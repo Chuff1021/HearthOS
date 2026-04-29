@@ -139,6 +139,9 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
   const rows = qbCustomers.flatMap((c) => {
     if (!c.Id) return [];
     const [fallbackFirst, fallbackLast] = splitName(c.DisplayName);
+    // Prefer BillAddr; fall back to ShipAddr for customers QB only stores
+    // a shipping address for.
+    const addr: any = (c as any).BillAddr || (c as any).ShipAddr || {};
     return [{
       orgId,
       qbCustomerId: c.Id,
@@ -147,6 +150,11 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
       companyName: c.CompanyName,
       email: c.PrimaryEmailAddr?.Address,
       phone: c.PrimaryPhone?.FreeFormNumber,
+      addressLine1: addr.Line1 || null,
+      addressLine2: addr.Line2 || null,
+      city: addr.City || null,
+      state: addr.CountrySubDivisionCode || null,
+      zip: addr.PostalCode || null,
       source: 'quickbooks',
       isActive: c.Active !== false,
       lastSyncedAt: now,
@@ -165,6 +173,11 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
           companyName: sql`excluded.company_name`,
           email: sql`excluded.email`,
           phone: sql`excluded.phone`,
+          addressLine1: sql`excluded.address_line1`,
+          addressLine2: sql`excluded.address_line2`,
+          city: sql`excluded.city`,
+          state: sql`excluded.state`,
+          zip: sql`excluded.zip`,
           isActive: sql`excluded.is_active`,
           lastSyncedAt: now,
           updatedAt: now,

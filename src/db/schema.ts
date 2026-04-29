@@ -72,6 +72,14 @@ export const customers = pgTable('customers', {
   email: varchar('email', { length: 255 }),
   phone: varchar('phone', { length: 50 }),
   phoneAlt: varchar('phone_alt', { length: 50 }),
+  // Mailing / billing address synced from QuickBooks Customer.BillAddr (falls
+  // back to ShipAddr if BillAddr is empty). Stored on the customer rather than
+  // the properties table since QB tracks one canonical address per customer.
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city: varchar('city', { length: 100 }),
+  state: varchar('state', { length: 50 }),
+  zip: varchar('zip', { length: 20 }),
   source: varchar('source', { length: 50 }), // referral, google, website, quickbooks
   tags: jsonb('tags').default([]),
   notes: text('notes'),

@@ -32,6 +32,11 @@ type DetailResponse = {
     email: string | null;
     phone: string | null;
     phoneAlt: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
     source: string | null;
     isActive: boolean;
     notes: string | null;
@@ -219,6 +224,21 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
                   <span style={{ color: "var(--color-text-muted)" }}>☎</span>{customer.phoneAlt}
                 </a>
               )}
+              {(() => {
+                const lines = [
+                  customer.addressLine1,
+                  customer.addressLine2,
+                  [customer.city, customer.state, customer.zip].filter(Boolean).join(", ").replace(/, (\w{2}|\d{5})$/, " $1"),
+                ].filter((s) => s && String(s).trim());
+                if (lines.length === 0) return null;
+                const oneLine = lines.join(" · ");
+                const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lines.join(", "))}`;
+                return (
+                  <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1.5">
+                    <span style={{ color: "var(--color-text-muted)" }}>📍</span>{oneLine}
+                  </a>
+                );
+              })()}
             </div>
           </div>
         </div>
