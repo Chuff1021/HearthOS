@@ -25,10 +25,40 @@ interface Todo {
   tags: string[];
 }
 
+function Pill({ color, bg, label }: { color: string; bg: string; label: string }) {
+  return (
+    <span
+      className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded"
+      style={{ background: bg, color, border: `1px solid ${color}33` }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function Meta({ icon, color, children }: { icon: "calendar" | "user" | "briefcase" | "tech"; color?: string; children: React.ReactNode }) {
+  const path = {
+    calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    briefcase: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m-3 7h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2z",
+    tech: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  }[icon];
+  return (
+    <span className="inline-flex items-center gap-1" style={{ color }}>
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={path} />
+      </svg>
+      {children}
+    </span>
+  );
+}
+
 export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "in_progress" | "completed" | "overdue">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | TodoPriority>("all");
+  const [search, setSearch] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0, overdue: 0, dueToday: 0 });
@@ -191,73 +221,20 @@ export default function TodosPage() {
     setCustomerOptions([]);
   }
 
-  function getPriorityColor(priority: TodoPriority) {
-    switch (priority) {
-      case "urgent": return "bg-red-950 text-red-200 border border-red-700/70";
-      case "high": return "bg-amber-950 text-amber-200 border border-amber-700/70";
-      case "medium": return "bg-orange-950 text-orange-200 border border-orange-700/70";
-      case "low": return "bg-sky-950 text-sky-200 border border-sky-700/70";
-    }
-  }
+  // Priority + status palette aligned with the rest of the site (ember theme).
+  const PRIORITY_STYLE: Record<TodoPriority, { color: string; bg: string; label: string }> = {
+    urgent: { color: "#DC2626", bg: "rgba(220,38,38,0.12)", label: "Urgent" },
+    high:   { color: "#F59E0B", bg: "rgba(245,158,11,0.12)", label: "High" },
+    medium: { color: "#f8971f", bg: "rgba(248,151,31,0.14)", label: "Medium" },
+    low:    { color: "#3B82F6", bg: "rgba(59,130,246,0.12)", label: "Low" },
+  };
 
-  function getStatusColor(status: TodoStatus) {
-    switch (status) {
-      case "completed": return "bg-emerald-950 text-emerald-200 border border-emerald-700/70";
-      case "in_progress": return "bg-blue-950 text-blue-200 border border-blue-700/70";
-      case "pending": return "bg-orange-950 text-orange-200 border border-orange-700/70";
-      case "cancelled": return "bg-slate-800 text-slate-200 border border-slate-600/70";
-      default: return "bg-slate-800 text-slate-200 border border-slate-600/70";
-    }
-  }
-
-  function getFilterCardStyle(card: "all" | "pending" | "in_progress" | "completed" | "overdue" | "dueToday", active: boolean) {
-    const base = {
-      background: "var(--color-surface-1)",
-      border: "1px solid var(--color-border)",
-      boxShadow: "none",
-    };
-
-    if (!active) return base;
-
-    switch (card) {
-      case "all":
-        return {
-          background: "linear-gradient(180deg, rgba(255,120,40,0.18), rgba(255,120,40,0.08))",
-          border: "1px solid rgba(255,120,40,0.5)",
-          boxShadow: "0 0 0 1px rgba(255,120,40,0.35) inset, 0 14px 30px rgba(255,120,40,0.14)",
-        };
-      case "pending":
-        return {
-          background: "linear-gradient(180deg, rgba(255,106,0,0.2), rgba(255,106,0,0.08))",
-          border: "1px solid rgba(255,106,0,0.5)",
-          boxShadow: "0 0 0 1px rgba(255,106,0,0.35) inset, 0 14px 30px rgba(255,106,0,0.14)",
-        };
-      case "in_progress":
-        return {
-          background: "linear-gradient(180deg, rgba(37,99,235,0.22), rgba(37,99,235,0.08))",
-          border: "1px solid rgba(59,130,246,0.5)",
-          boxShadow: "0 0 0 1px rgba(59,130,246,0.35) inset, 0 14px 30px rgba(37,99,235,0.14)",
-        };
-      case "completed":
-        return {
-          background: "linear-gradient(180deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08))",
-          border: "1px solid rgba(74,222,128,0.5)",
-          boxShadow: "0 0 0 1px rgba(74,222,128,0.35) inset, 0 14px 30px rgba(34,197,94,0.14)",
-        };
-      case "overdue":
-        return {
-          background: "linear-gradient(180deg, rgba(255,32,78,0.22), rgba(255,32,78,0.08))",
-          border: "1px solid rgba(255,77,121,0.52)",
-          boxShadow: "0 0 0 1px rgba(255,77,121,0.35) inset, 0 14px 30px rgba(255,32,78,0.14)",
-        };
-      case "dueToday":
-        return {
-          background: "linear-gradient(180deg, rgba(245,158,11,0.2), rgba(245,158,11,0.08))",
-          border: "1px solid rgba(251,191,36,0.5)",
-          boxShadow: "0 0 0 1px rgba(251,191,36,0.35) inset, 0 14px 30px rgba(245,158,11,0.14)",
-        };
-    }
-  }
+  const STATUS_STYLE: Record<TodoStatus, { color: string; bg: string; label: string }> = {
+    pending:     { color: "#9a5d12", bg: "rgba(248,151,31,0.12)", label: "Pending" },
+    in_progress: { color: "#2563EB", bg: "rgba(37,99,235,0.12)", label: "In progress" },
+    completed:   { color: "#16A34A", bg: "rgba(22,163,74,0.12)", label: "Completed" },
+    cancelled:   { color: "var(--color-text-muted)", bg: "var(--color-surface-2)", label: "Cancelled" },
+  };
 
   function isOverdue(todo: Todo) {
     if (!todo.dueDate || todo.status === "completed" || todo.status === "cancelled") return false;
@@ -265,204 +242,276 @@ export default function TodosPage() {
     return todo.dueDate < today;
   }
 
+  // Bucket todos by due date so the list reads like a natural agenda.
+  function dueBucket(todo: Todo): { key: string; label: string; sortKey: number } {
+    if (todo.status === "completed") return { key: "done", label: "Completed", sortKey: 99 };
+    if (todo.status === "cancelled") return { key: "cancelled", label: "Cancelled", sortKey: 100 };
+    if (!todo.dueDate) return { key: "noDate", label: "No due date", sortKey: 50 };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(todo.dueDate + "T00:00:00");
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) return { key: "overdue", label: "Overdue", sortKey: 0 };
+    if (diff === 0) return { key: "today", label: "Today", sortKey: 1 };
+    if (diff === 1) return { key: "tomorrow", label: "Tomorrow", sortKey: 2 };
+    if (diff <= 7) return { key: "thisWeek", label: "This week", sortKey: 3 };
+    return { key: "later", label: "Later", sortKey: 10 };
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
-          <div className="max-w-[1600px] mx-auto space-y-5">
-            {/* Page Header */}
-            <div className="flex items-start justify-between gap-4">
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-[1400px] mx-auto space-y-5">
+            {/* ── Page header ─────────────────────────────────────────────── */}
+            <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  To-Do List
-                </h1>
+                <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Tasks</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                  Track follow-up items and tasks
+                  Follow-ups, callbacks, and quick reminders
                 </p>
               </div>
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-              >
-                + New Todo
-              </button>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-              <button
-                onClick={() => setFilter("all")}
-                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
-                style={getFilterCardStyle("all", filter === "all")}
-              >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>All</p>
-                <p className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>{stats.total}</p>
-              </button>
-              <button
-                onClick={() => setFilter("pending")}
-                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
-                style={getFilterCardStyle("pending", filter === "pending")}
-              >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Pending</p>
-                <p className="text-2xl font-bold" style={{ color: "#f8971f" }}>{stats.pending}</p>
-              </button>
-              <button
-                onClick={() => setFilter("in_progress")}
-                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
-                style={getFilterCardStyle("in_progress", filter === "in_progress")}
-              >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>In Progress</p>
-                <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>{stats.inProgress}</p>
-              </button>
-              <button
-                onClick={() => setFilter("completed")}
-                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
-                style={getFilterCardStyle("completed", filter === "completed")}
-              >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Completed</p>
-                <p className="text-2xl font-bold" style={{ color: "#98CD00" }}>{stats.completed}</p>
-              </button>
-              <button
-                onClick={() => setFilter("overdue")}
-                className="p-4 rounded-xl text-left transition-all hover:-translate-y-0.5"
-                style={getFilterCardStyle("overdue", filter === "overdue")}
-              >
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Overdue</p>
-                <p className="text-2xl font-bold" style={{ color: "#FF204E" }}>{stats.overdue}</p>
-              </button>
-              <div className="p-4 rounded-xl" style={getFilterCardStyle("dueToday", false)}>
-                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Due Today</p>
-                <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>{stats.dueToday}</p>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" /></svg>
+                  </span>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="pl-9 pr-3 py-2 rounded-lg text-sm w-64 outline-none"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                  />
+                </div>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #f8971f, #eaa23f)" }}
+                >
+                  + New Task
+                </button>
               </div>
             </div>
 
-            {/* Todo List */}
+            {/* ── Money / count tiles (status filters) ───────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              {[
+                { key: "all" as const, label: "All tasks", count: stats.total, color: "var(--color-text-primary)", accent: "var(--color-text-muted)" },
+                { key: "pending" as const, label: "Pending", count: stats.pending, color: "#9a5d12", accent: "#f8971f" },
+                { key: "in_progress" as const, label: "In progress", count: stats.inProgress, color: "#2563EB", accent: "#2563EB" },
+                { key: "overdue" as const, label: "Overdue", count: stats.overdue, color: "#DC2626", accent: "#DC2626" },
+                { key: null, label: "Due today", count: stats.dueToday, color: "#F59E0B", accent: "#F59E0B", noFilter: true },
+                { key: "completed" as const, label: "Completed", count: stats.completed, color: "#16A34A", accent: "#16A34A" },
+              ].map((tile, i) => {
+                const isActive = tile.key !== null && filter === tile.key && !tile.noFilter;
+                const clickable = !tile.noFilter && tile.key !== null;
+                return (
+                  <button
+                    key={i}
+                    onClick={clickable ? () => setFilter(tile.key as any) : undefined}
+                    className={`p-4 rounded-xl text-left transition-all ${clickable ? "hover:-translate-y-0.5 cursor-pointer" : "cursor-default"}`}
+                    style={{
+                      background: "var(--color-surface-1)",
+                      border: isActive ? `2px solid ${tile.accent}` : "1px solid var(--color-border)",
+                      borderLeft: `4px solid ${tile.accent}`,
+                    }}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{tile.label}</p>
+                    <p className="text-2xl font-bold mt-1" style={{ color: tile.color }}>{tile.count}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Priority filter pills ──────────────────────────────────── */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Priority:</span>
+              {(["all", "urgent", "high", "medium", "low"] as const).map((p) => {
+                const on = priorityFilter === p;
+                const c = p === "all" ? null : PRIORITY_STYLE[p];
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPriorityFilter(p)}
+                    className="text-xs px-2.5 py-1 rounded-full transition-colors"
+                    style={{
+                      background: on ? (c?.bg ?? "var(--color-ember)") : "var(--color-surface-1)",
+                      color: on ? (c?.color ?? "#fff") : "var(--color-text-muted)",
+                      border: `1px solid ${on ? (c?.color ?? "var(--color-ember)") : "var(--color-border)"}`,
+                      fontWeight: on ? 600 : 500,
+                    }}
+                  >
+                    {p === "all" ? "All" : c!.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── Task list grouped by due bucket ────────────────────────── */}
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8" style={{ border: "2px solid var(--color-border)", borderTopColor: "var(--color-ember)" }}></div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {todos.length === 0 ? (
-                  <div className="p-8 text-center rounded-xl" style={{ background: "var(--color-surface-1)" }}>
-                    <p style={{ color: "var(--color-text-muted)" }}>No todos found</p>
+            ) : (() => {
+              const visible = todos
+                .filter((t) => priorityFilter === "all" ? true : t.priority === priorityFilter)
+                .filter((t) => {
+                  if (!search.trim()) return true;
+                  const q = search.toLowerCase();
+                  return (t.title || "").toLowerCase().includes(q)
+                    || (t.description || "").toLowerCase().includes(q)
+                    || (t.relatedCustomerName || "").toLowerCase().includes(q)
+                    || (t.assignedToName || "").toLowerCase().includes(q);
+                });
+
+              if (visible.length === 0) {
+                return (
+                  <div className="rounded-xl p-12 text-center" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-3" style={{ background: "rgba(248,151,31,0.12)", color: "#f8971f" }}>
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    </div>
+                    <p className="font-semibold" style={{ color: "var(--color-text-primary)" }}>No tasks here yet</p>
+                    <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
+                      {search.trim() || priorityFilter !== "all" || filter !== "all"
+                        ? "Try clearing filters or search."
+                        : "Create your first task to get started."}
+                    </p>
                   </div>
-                ) : (
-                  todos.map((todo) => (
-                    <div 
-                      key={todo.id} 
-                      className={`p-4 rounded-xl ${isOverdue(todo) ? "border-l-4 border-red-500" : ""}`}
-                      style={{ background: "var(--color-surface-1)" }}
-                    >
-                      <div className="flex items-start gap-4">
-                        <button
-                          onClick={() => handleUpdateStatus(todo.id, todo.status === "completed" ? "pending" : "completed")}
-                          className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                            todo.status === "completed" 
-                              ? "bg-green-500 border-green-500" 
-                              : "border-gray-500 hover:border-green-500"
-                          }`}
-                        >
-                          {todo.status === "completed" && (
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </button>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 
-                              className={`font-medium ${todo.status === "completed" ? "line-through opacity-50" : ""}`}
-                              style={{ color: "var(--color-text-primary)" }}
+                );
+              }
+
+              // Group by due bucket
+              const groups = new Map<string, { label: string; sortKey: number; rows: Todo[] }>();
+              for (const t of visible) {
+                const b = dueBucket(t);
+                const cur = groups.get(b.key) || { label: b.label, sortKey: b.sortKey, rows: [] };
+                cur.rows.push(t);
+                groups.set(b.key, cur);
+              }
+              const ordered = [...groups.entries()].sort((a, b) => a[1].sortKey - b[1].sortKey);
+
+              return (
+                <div className="space-y-5">
+                  {ordered.map(([key, group]) => (
+                    <div key={key}>
+                      <div className="flex items-baseline gap-2 mb-2 px-1">
+                        <h2 className="text-sm font-bold" style={{ color: key === "overdue" ? "#DC2626" : "var(--color-text-primary)" }}>{group.label}</h2>
+                        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{group.rows.length}</span>
+                      </div>
+                      <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                        {group.rows.map((todo, idx) => {
+                          const overdue = isOverdue(todo);
+                          const pStyle = PRIORITY_STYLE[todo.priority];
+                          const sStyle = STATUS_STYLE[todo.status];
+                          const completed = todo.status === "completed";
+                          return (
+                            <div
+                              key={todo.id}
+                              className="px-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-black/[0.02]"
+                              style={{
+                                borderTop: idx === 0 ? "none" : "1px solid var(--color-border)",
+                                borderLeft: `3px solid ${pStyle.color}`,
+                              }}
                             >
-                              {todo.title}
-                            </h3>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(todo.priority)}`}>
-                              {todo.priority}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(todo.status)}`}>
-                              {todo.status.replace("_", " ")}
-                            </span>
-                            {isOverdue(todo) && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
-                                ⚠️ Overdue
-                              </span>
-                            )}
-                          </div>
-                          
-                          {todo.description && (
-                            <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-                              {todo.description}
-                            </p>
-                          )}
-                          
-                          <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                            {todo.dueDate && (
-                              <span className={isOverdue(todo) ? "text-red-400" : ""}>
-                                📅 Due: {new Date(todo.dueDate).toLocaleDateString()}
-                              </span>
-                            )}
-                            {todo.relatedJobNumber && (
-                              <span>📋 {todo.relatedJobNumber}</span>
-                            )}
-                            {todo.relatedCustomerName && (
-                              <span>👤 {todo.relatedCustomerName}</span>
-                            )}
-                            {todo.relatedCustomerPhone && (
-                              <a
-                                href={`tel:${todo.relatedCustomerPhone}`}
-                                className="font-medium transition-colors hover:text-orange-300"
-                                style={{ color: "#FDBA74" }}
+                              <button
+                                onClick={() => handleUpdateStatus(todo.id, completed ? "pending" : "completed")}
+                                className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                                style={{
+                                  background: completed ? "#16A34A" : "transparent",
+                                  border: completed ? "2px solid #16A34A" : "2px solid var(--color-border)",
+                                }}
                               >
-                                📞 {todo.relatedCustomerPhone}
-                              </a>
-                            )}
-                            {todo.assignedToName && (
-                              <span>👉 {todo.assignedToName}</span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={todo.status}
-                            onChange={(e) => handleUpdateStatus(todo.id, e.target.value as TodoStatus)}
-                            className="px-2 py-1 rounded text-xs border-0 focus:ring-1 focus:ring-orange-500 outline-none"
-                            style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                          <button
-                            onClick={() => setSelectedTodo(todo)}
-                            className="p-2 rounded hover:bg-gray-700 transition-colors"
-                            style={{ color: "var(--color-text-muted)" }}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTodo(todo.id)}
-                            className="p-2 rounded hover:bg-red-500/20 transition-colors"
-                            style={{ color: "var(--color-text-muted)" }}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                                {completed && (
+                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)", textDecoration: completed ? "line-through" : undefined, opacity: completed ? 0.6 : 1 }}>
+                                    {todo.title}
+                                  </h3>
+                                  <Pill {...pStyle} />
+                                  <Pill {...sStyle} />
+                                  {overdue && <Pill color="#DC2626" bg="rgba(220,38,38,0.12)" label="Overdue" />}
+                                </div>
+
+                                {todo.description && (
+                                  <p className="text-xs mt-1" style={{ color: "var(--color-text-secondary)" }}>{todo.description}</p>
+                                )}
+
+                                <div className="flex items-center gap-x-4 gap-y-1 flex-wrap mt-2 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                                  {todo.dueDate && (
+                                    <Meta icon="calendar" color={overdue ? "#DC2626" : undefined}>
+                                      {new Date(todo.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: undefined })}
+                                    </Meta>
+                                  )}
+                                  {todo.relatedCustomerName && (
+                                    <Meta icon="user">{todo.relatedCustomerName}</Meta>
+                                  )}
+                                  {todo.relatedCustomerPhone && (
+                                    <a
+                                      href={`tel:${todo.relatedCustomerPhone}`}
+                                      className="inline-flex items-center gap-1 hover:underline font-medium"
+                                      style={{ color: "#f8971f" }}
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                      {todo.relatedCustomerPhone}
+                                    </a>
+                                  )}
+                                  {todo.relatedJobNumber && (
+                                    <Meta icon="briefcase">{todo.relatedJobNumber}</Meta>
+                                  )}
+                                  {todo.assignedToName && (
+                                    <Meta icon="tech">{todo.assignedToName}</Meta>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <select
+                                  value={todo.status}
+                                  onChange={(e) => handleUpdateStatus(todo.id, e.target.value as TodoStatus)}
+                                  className="px-2 py-1 rounded-md text-[11px] outline-none"
+                                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="in_progress">In progress</option>
+                                  <option value="completed">Completed</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button
+                                  onClick={() => setSelectedTodo(todo)}
+                                  title="Edit"
+                                  className="p-1.5 rounded-md transition-colors hover:bg-black/5"
+                                  style={{ color: "var(--color-text-muted)" }}
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTodo(todo.id)}
+                                  title="Delete"
+                                  className="p-1.5 rounded-md transition-colors hover:bg-red-50"
+                                  style={{ color: "var(--color-text-muted)" }}
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </main>
       </div>
@@ -489,7 +538,7 @@ export default function TodosPage() {
                 <select
                   value={formTodoType}
                   onChange={(e) => setFormTodoType(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -515,7 +564,7 @@ export default function TodosPage() {
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     placeholder="Enter custom todo title"
-                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                     style={{
                       color: "var(--color-text-primary)",
                       background: "var(--color-surface-3)",
@@ -532,7 +581,7 @@ export default function TodosPage() {
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Additional details..."
                   rows={3}
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none resize-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none resize-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -547,7 +596,7 @@ export default function TodosPage() {
                   <select
                     value={formPriority}
                     onChange={(e) => setFormPriority(e.target.value as TodoPriority)}
-                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                     style={{
                       color: "var(--color-text-primary)",
                       background: "var(--color-surface-3)",
@@ -567,7 +616,7 @@ export default function TodosPage() {
                     type="date"
                     value={formDueDate}
                     onChange={(e) => setFormDueDate(e.target.value)}
-                    className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                    className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                     style={{
                       color: "var(--color-text-primary)",
                       background: "var(--color-surface-3)",
@@ -584,7 +633,7 @@ export default function TodosPage() {
                   value={selectedCustomer?.name || customerQuery}
                   onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }}
                   placeholder="Search customer name..."
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -614,7 +663,7 @@ export default function TodosPage() {
                   value={formCallbackPhone}
                   onChange={(e) => setFormCallbackPhone(e.target.value)}
                   placeholder="(555) 123-4567"
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -628,7 +677,7 @@ export default function TodosPage() {
                 <select
                   value={formAssignedTo}
                   onChange={(e) => setFormAssignedTo(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -649,7 +698,7 @@ export default function TodosPage() {
                   value={formTags}
                   onChange={(e) => setFormTags(e.target.value)}
                   placeholder="billing, follow-up, urgent"
-                  className="w-full px-4 py-2 rounded-xl border focus:border-orange-500 outline-none"
+                  className="w-full px-4 py-2 rounded-xl border focus:border-amber-500 outline-none"
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--color-surface-3)",
@@ -659,12 +708,13 @@ export default function TodosPage() {
               </div>
             </div>
             
-            <button 
+            <button
               onClick={handleCreateTodo}
               disabled={formTodoType === "other" && !formTitle.trim()}
-              className="w-full mt-6 py-3 rounded-xl font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+              className="w-full mt-6 py-3 rounded-lg font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #f8971f, #eaa23f)" }}
             >
-              Create Todo
+              Create Task
             </button>
           </div>
         </div>
