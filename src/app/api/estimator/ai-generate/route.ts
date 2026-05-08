@@ -764,7 +764,7 @@ export async function POST(request: NextRequest) {
     }
 
     const totalInvoices = invoiceIds.length;
-    const minAppearances = totalInvoices <= 5 ? 1 : Math.max(2, Math.ceil(totalInvoices * 0.4));
+    const minAppearances = totalInvoices <= 2 ? 1 : Math.max(2, Math.ceil(totalInvoices * 0.4));
 
     // Look up qb item names for the components we'll keep
     const componentQbIds = [...tally.values()].map((t) => t.qbItemId).filter((x): x is string => !!x);
@@ -875,12 +875,15 @@ export async function POST(request: NextRequest) {
       // Apply user's content filters
       if (!mentionsStone && /stone|veneer|masonry/i.test(itemName + " " + t.sampleDescription)) continue;
       if (!mentionsMantel && /mantel|mantle/i.test(itemName + " " + t.sampleDescription)) continue;
+      if (!mentionsChasecover && /chase\s*cover/i.test(itemName + " " + t.sampleDescription)) continue;
       if (mentionsChasecover && /flashing/i.test(itemName + " " + t.sampleDescription)) continue;
 
       const avgQty = t.qtys.length > 0 ? t.qtys.reduce((a, b) => a + b, 0) / t.qtys.length : 1;
       const qty = Math.max(1, Math.round(avgQty));
       const price = t.mostRecentPrice || (t.prices[0] ?? 0);
       if (price <= 0) continue;
+      const componentText = `${itemName} ${t.sampleDescription}`.toLowerCase();
+      if (!isPipeComponent(itemName, t.sampleDescription) && !isLaborComponent(itemName, t.sampleDescription) && hasUnitSignal(componentText) && price >= 800) continue;
 
       components.push({
         description: t.sampleDescription || itemName,
