@@ -28,6 +28,22 @@ const STOP_WORDS = new Set([
   "feet", "foot", "ft", "pipe", "with", "and", "the", "for", "of", "a",
   "service", "repair", "clean", "replace", "new", "chase", "cover",
   "delivers", "flashing", "an", "to", "in", "on", "is",
+  "build", "built", "bid", "quote", "estimate", "estimator", "me",
+  "please", "want", "need", "make", "draft", "proposal", "job",
+]);
+
+const UNIT_SEARCH_STOP_WORDS = new Set([
+  ...STOP_WORDS,
+  "fireplace", "fireplaces", "unit", "model", "wood", "gas", "pellet",
+  "electric", "burning", "direct", "vent", "nexgen", "gsr", "gsr2",
+  "face", "door", "doors", "panel", "panels", "trim", "kit", "black",
+  "arched", "metropolitan", "timberline", "universal", "classic",
+]);
+
+const GENERIC_UNIT_TOKENS = new Set([
+  "fireplace", "fireplaces", "unit", "model", "wood", "gas", "pellet",
+  "electric", "burning", "direct", "vent", "nexgen", "gsr", "gsr2",
+  "hybrid",
 ]);
 
 function tokenize(prompt: string): string[] {
@@ -46,6 +62,38 @@ function tokenize(prompt: string): string[] {
   return out;
 }
 
+function unitSearchTokens(prompt: string): string[] {
+  const tokens = tokenize(prompt).filter((t) => !UNIT_SEARCH_STOP_WORDS.has(t));
+  // If the user only typed generic words, fall back to the broader token set
+  // rather than returning nothing. A prompt like "864" or "Twilight" still
+  // passes through untouched.
+  return tokens.length > 0 ? tokens : tokenize(prompt).filter((t) => !GENERIC_UNIT_TOKENS.has(t));
+}
+
+function normalizeSearchText(text: string | null | undefined): string {
+  return ` ${(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+}
+
+function tokenInText(text: string, token: string): boolean {
+  if (/^\d+$/.test(token)) return text.includes(` ${token} `);
+  return text.includes(token);
+}
+
+function weightedTokenScore(text: string, tokens: string[]): { matched: number; weight: number; totalWeight: number } {
+  let matched = 0;
+  let weight = 0;
+  let totalWeight = 0;
+  for (const token of tokens) {
+    const tokenWeight = /^\d+$/.test(token) ? 2.4 : GENERIC_UNIT_TOKENS.has(token) ? 0.35 : 3.0;
+    totalWeight += tokenWeight;
+    if (tokenInText(text, token)) {
+      matched++;
+      weight += tokenWeight;
+    }
+  }
+  return { matched, weight, totalWeight };
+}
+
 function isPipeComponent(name: string | null, desc: string | null): boolean {
   return pipeSectionInches(name, desc) !== null;
 }
@@ -59,13 +107,17 @@ function pipeSectionInches(name: string | null, desc: string | null): number | n
   // Hard exclusions for accessories
   if (/elbow|\bcap\b|term|firestop|storm|attic|shield|flashing|adapter|connector|offset|return|45deg|45\s*(?:deg|°)|90\s*(?:deg|°)|starter\s*collar|adjustable|cooling\s*duct|tee\b/.test(t)) return null;
   // Must look like a straight pipe section
-  const looksLikePipe = /\bpipe\b|duravent|chimney|elite\b|\bdva\b|\bsv\d+|\b7dt\b/.test(t);
+  const looksLikePipe = /\bpipe\b|duravent|chimney|(?:^|[^a-z])dva(?:$|[^a-z])|\bsv\d+|\b7dt\b|\bult\b|\bdsp\b|pellet\s*vent|flex\s*liner/.test(t);
   if (!looksLikePipe) return null;
-  // Pull a length: "48\"", "12 inch", "12in", or a "DVA-12"/"7DT-12"/"SV-12" suffix
+  // Pull a length: "48\"", "12 inch", "3' Length", "DVA-12", or "46DVA-48".
   const inchMatch = t.match(/\b(\d{1,3})\s*(?:["”'']|inch|in\b)/);
   if (inchMatch) return Number(inchMatch[1]);
-  const codeMatch = t.match(/(?:dva|7dt|sv)\s*[-]?\s*(\d{1,3})\b/);
-  if (codeMatch) return Number(codeMatch[1]);
+  const footMatch = t.match(/\b(\d{1,2})\s*(?:'|ft|feet|foot)\b/);
+  if (footMatch) return Number(footMatch[1]) * 12;
+  const codeMatch = t.match(/(?:^|[^a-z])(?:dva|7dt|sv|ult|dsp)\s*[-]?\s*(\d{1,3})\b|(?:^|[^a-z])\d{1,2}(?:dva|dt|sv|ult|dsp)\s*[-]?\s*(\d{1,3})\b/);
+  if (codeMatch) return Number(codeMatch[1] || codeMatch[2]);
+  const shortSkuFootMatch = t.match(/(?:^|[^a-z])(?:dva|7dt|sv|ult|dsp)\s*[-]?\s*(\d)\b/);
+  if (shortSkuFootMatch) return Number(shortSkuFootMatch[1]) * 12;
   // Looks like a pipe but length unknown — treat it as a section anyway
   return 0;
 }
@@ -80,10 +132,32 @@ function isTaxLine(name: string | null, desc: string | null): boolean {
   return /\busers?'?\s*charge\b|\bsales\s*tax\b|\buse\s*tax\b/.test(t);
 }
 
+function hasUnitSignal(text: string): boolean {
+  return /\bfireplace\b|\binsert\b|\bstove\b|\bfirebox\b|\btrv\b|\bgsr2?\b|\bnexgen\b|\bapex\b|\belite\b|\bhybrid\b|\bprobuilder\b|\bhearthroom\b|\bmarquis\b|\btwilight\b|\bdrt\d{3,5}\b|\bdvl\b|\bdeluxe\b/.test(text);
+}
+
+function hasAccessorySignal(text: string): boolean {
+  return /chase\s*cover|stone|veneer|masonry|mantel|mantle|gasket|bracket|cap\b|firestop|flashing|connector|\bliner\b|flex kit|termination|log\s*set|\blogset\b|door\b|doors\b|remote\b|ignit(?:or|er)|battery\s*pack|cooling\s*duct|attic\s*(?:rad)?\s*shield|starter\s*collar|storm\s*collar|elbow|\btrim\b|\bface\b|\bfan\b|blower|interior\s*panel|panel\b|firescreen|screen\b|tool\s*kit|hearth\s*pad/.test(text);
+}
+
 function isExcludedFromUnit(name: string | null, desc: string | null): boolean {
-  const t = `${name ?? ""} ${desc ?? ""}`.toLowerCase();
   if (isPipeComponent(name, desc) || isLaborComponent(name, desc) || isTaxLine(name, desc)) return true;
-  return /chase\s*cover|stone|veneer|masonry|mantel|mantle|trim\b|gasket|bracket|cap\b|firestop|flashing|connector|liner|flex kit|termination/.test(t);
+  const n = (name ?? "").toLowerCase();
+  const d = (desc ?? "").toLowerCase();
+  const combined = `${n} ${d}`;
+
+  // Accessory rows can outrank the base fireplace on short model prompts
+  // because they appear on more invoices. Exclude obvious accessory text unless
+  // it also carries a strong fireplace-unit signal such as GSR2/TRV/NexGen.
+  if (hasAccessorySignal(combined) && !hasUnitSignal(combined)) return true;
+
+  // Feature words such as "fan", "remote", "screen", and "log set" often
+  // appear inside full fireplace descriptions. If the canonical item name
+  // itself is accessory-like, keep filtering even when the invoice description
+  // has a loose unit word nearby.
+  if (hasAccessorySignal(n) && !hasUnitSignal(n)) return true;
+
+  return false;
 }
 
 // Classify a past invoice's install type from the components it contained.
@@ -386,8 +460,9 @@ export async function POST(request: NextRequest) {
     const mentionsMantel = /\bmantel\b|\bmantle\b/.test(prompt.toLowerCase());
     const mentionsChasecover = /chase\s*cover/i.test(prompt);
     const tokens = tokenize(prompt);
+    const coreTokens = unitSearchTokens(prompt);
 
-    if (tokens.length === 0) {
+    if (coreTokens.length === 0) {
       return NextResponse.json({ error: "Couldn't parse a model from the prompt. Try '42 Apex vertical install'." }, { status: 400 });
     }
 
@@ -395,35 +470,111 @@ export async function POST(request: NextRequest) {
     // Match against (a) inventory_items.name and (b) any past invoice line
     // description for that item. The friendly model name ("42 Apex
     // NexGen-Hybrid") lives in the line description, not the canonical name.
-    const tokenLikes = tokens.map((t) => `%${t}%`);
+    const tokenLikes = coreTokens.map((t) => `%${t}%`);
+    const invoiceOrFilters = tokenLikes.map((p) => ilike(invoiceLineItems.description, p));
+    const inventoryOrFilters = coreTokens.flatMap((t) => [
+      ilike(inventoryItems.name, `%${t}%`),
+      ilike(inventoryItems.sku, `%${t}%`),
+      ilike(inventoryItems.description, `%${t}%`),
+    ]);
+
     const liDescMatches = await db
       .select({
         qbItemId: invoiceLineItems.qbItemId,
         description: invoiceLineItems.description,
         uses: sql<number>`count(*)::int`,
+        mostRecentPrice: sql<number>`max(${invoiceLineItems.unitPrice})`,
       })
       .from(invoiceLineItems)
+      .innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
       .where(and(
+        eq(invoices.orgId, org.id),
         sql`${invoiceLineItems.qbItemId} is not null`,
-        or(...tokenLikes.map((p) => ilike(invoiceLineItems.description, p))),
+        or(...invoiceOrFilters),
       ))
       .groupBy(invoiceLineItems.qbItemId, invoiceLineItems.description)
       .orderBy(sql`count(*) desc`)
-      .limit(200);
+      .limit(1000);
 
-    // Score by (#tokens matched in description) × (uses) — prioritize the
-    // model the user actually meant, weighted by how often it's been sold.
-    const scoreByQb = new Map<string, { score: number; uses: number; topDesc: string }>();
-    for (const r of liDescMatches) {
+    const liAllTokenMatches = coreTokens.length > 1
+      ? await db
+          .select({
+            qbItemId: invoiceLineItems.qbItemId,
+            description: invoiceLineItems.description,
+            uses: sql<number>`count(*)::int`,
+            mostRecentPrice: sql<number>`max(${invoiceLineItems.unitPrice})`,
+          })
+          .from(invoiceLineItems)
+          .innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+          .where(and(
+            eq(invoices.orgId, org.id),
+            sql`${invoiceLineItems.qbItemId} is not null`,
+            ...tokenLikes.map((p) => ilike(invoiceLineItems.description, p)),
+          ))
+          .groupBy(invoiceLineItems.qbItemId, invoiceLineItems.description)
+          .orderBy(sql`count(*) desc`)
+          .limit(200)
+      : [];
+
+    const inventoryMatches = inventoryOrFilters.length > 0
+      ? await db
+          .select({
+            qbItemId: inventoryItems.qbItemId,
+            name: inventoryItems.name,
+            sku: inventoryItems.sku,
+            description: inventoryItems.description,
+            unitPrice: inventoryItems.unitPrice,
+          })
+          .from(inventoryItems)
+          .where(and(
+            eq(inventoryItems.orgId, org.id),
+            isNotNull(inventoryItems.qbItemId),
+            or(...inventoryOrFilters),
+          ))
+          .limit(400)
+      : [];
+
+    // Score by token completeness first, history second. This prevents common
+    // loose hits like "42 wood fireplace" from beating a rarer exact model
+    // such as "42 Apex" or "36 Elite".
+    const scoreByQb = new Map<string, { score: number; uses: number; topDesc: string; recentPrice: number }>();
+    for (const r of [...liDescMatches, ...liAllTokenMatches]) {
       if (!r.qbItemId) continue;
-      const desc = (r.description || "").toLowerCase();
-      let matched = 0;
-      for (const t of tokens) if (desc.includes(t)) matched++;
+      const desc = normalizeSearchText(r.description);
+      const matchedScore = weightedTokenScore(desc, coreTokens);
+      const matched = matchedScore.matched;
       if (matched === 0) continue;
       const cur = scoreByQb.get(r.qbItemId);
-      const score = matched * matched * Math.log2(1 + Number(r.uses));
+      const completeness = matchedScore.totalWeight > 0 ? matchedScore.weight / matchedScore.totalWeight : 0;
+      const fullMatchBonus = matched === coreTokens.length ? 35 : 0;
+      const score = Math.pow(completeness, 3) * 100 + fullMatchBonus + Math.log2(1 + Number(r.uses)) * 0.5;
       if (!cur || score > cur.score) {
-        scoreByQb.set(r.qbItemId, { score, uses: Number(r.uses), topDesc: r.description || "" });
+        scoreByQb.set(r.qbItemId, {
+          score,
+          uses: Number(r.uses),
+          topDesc: r.description || "",
+          recentPrice: Number(r.mostRecentPrice ?? 0),
+        });
+      }
+    }
+
+    for (const r of inventoryMatches) {
+      if (!r.qbItemId) continue;
+      const text = normalizeSearchText(`${r.name} ${r.sku || ""} ${r.description || ""}`);
+      const matchedScore = weightedTokenScore(text, coreTokens);
+      if (matchedScore.matched === 0) continue;
+      const completeness = matchedScore.totalWeight > 0 ? matchedScore.weight / matchedScore.totalWeight : 0;
+      const cur = scoreByQb.get(r.qbItemId);
+      const hasInvoiceHistory = !!cur;
+      const fullMatchBonus = matchedScore.matched === coreTokens.length ? (hasInvoiceHistory ? 45 : 10) : 0;
+      const score = Math.pow(completeness, 3) * (hasInvoiceHistory ? 100 : 55) + fullMatchBonus + (hasInvoiceHistory ? 5 : 0);
+      if (!cur || score > cur.score) {
+        scoreByQb.set(r.qbItemId, {
+          score,
+          uses: cur?.uses ?? 0,
+          topDesc: r.description || r.name,
+          recentPrice: Number(r.unitPrice ?? cur?.recentPrice ?? 0),
+        });
       }
     }
 
@@ -447,11 +598,13 @@ export async function POST(request: NextRequest) {
       .where(and(eq(inventoryItems.orgId, org.id), inArray(inventoryItems.qbItemId, candidateUnitIds)));
 
     const candidates: Candidate[] = [];
+    const seenInventoryIds = new Set<string>();
     for (const r of invRows) {
       if (!r.qbItemId) continue;
+      seenInventoryIds.add(r.qbItemId);
       const meta = scoreByQb.get(r.qbItemId);
       if (!meta) continue;
-      const price = r.unitPrice != null ? Number(r.unitPrice) : 0;
+      const price = r.unitPrice != null ? Number(r.unitPrice) : meta.recentPrice;
       // Must look like a fireplace unit, not a part / accessory.
       if (isExcludedFromUnit(r.name, meta.topDesc)) continue;
       if (price > 0 && price < 800) continue;
@@ -459,6 +612,25 @@ export async function POST(request: NextRequest) {
         qbItemId: r.qbItemId,
         inventoryName: r.name,
         inventorySku: r.sku,
+        unitPrice: price,
+        score: meta.score,
+        invoiceUseCount: meta.uses,
+        topDescription: meta.topDesc,
+      });
+    }
+
+    // Legacy QB items can exist on old invoices without an inventory_items row.
+    // Keep them as candidates using the invoice description and recent invoice
+    // price so sparse-but-important models are not silently dropped.
+    for (const [qbItemId, meta] of scoreByQb) {
+      if (seenInventoryIds.has(qbItemId)) continue;
+      const price = meta.recentPrice || 0;
+      if (isExcludedFromUnit(meta.topDesc, meta.topDesc)) continue;
+      if (price > 0 && price < 800) continue;
+      candidates.push({
+        qbItemId,
+        inventoryName: meta.topDesc,
+        inventorySku: null,
         unitPrice: price,
         score: meta.score,
         invoiceUseCount: meta.uses,
@@ -592,7 +764,7 @@ export async function POST(request: NextRequest) {
     }
 
     const totalInvoices = invoiceIds.length;
-    const minAppearances = Math.max(2, Math.ceil(totalInvoices * 0.4));
+    const minAppearances = totalInvoices <= 5 ? 1 : Math.max(2, Math.ceil(totalInvoices * 0.4));
 
     // Look up qb item names for the components we'll keep
     const componentQbIds = [...tally.values()].map((t) => t.qbItemId).filter((x): x is string => !!x);
@@ -631,9 +803,8 @@ export async function POST(request: NextRequest) {
     const sortedTally = [...tally.entries()].sort((a, b) => b[1].appearances.size - a[1].appearances.size);
 
     // When the user specified pipe-feet, replace ALL straight pipe-section
-    // components with one line: a 12-inch (1-foot) section × pipeFeet.
-    // Pick the 12" variant from the matched unit's historical pipe family;
-    // fall back to the smallest section ever used on this unit.
+    // components with one line based on the historical section length. If past
+    // jobs used 48" pipe, "20 ft" becomes ceil(20 / 4) = 5 sections, not 20.
     let pipeSubstitute: { entry: [string, typeof tally extends Map<infer _K, infer V> ? V : never]; inches: number } | null = null;
     if (pipeFeet) {
       const sectionEntries: Array<{ entry: [string, any]; inches: number }> = [];
@@ -642,13 +813,14 @@ export async function POST(request: NextRequest) {
         const inches = pipeSectionInches(itemName, e[1].sampleDescription);
         if (inches !== null) sectionEntries.push({ entry: e, inches });
       }
-      // Prefer 12" exactly, then smallest known length
-      pipeSubstitute = sectionEntries.find((s) => s.inches === 12) || null;
-      if (!pipeSubstitute) {
-        const withSize = sectionEntries.filter((s) => s.inches > 0).sort((a, b) => a.inches - b.inches);
-        pipeSubstitute = withSize[0] || null;
-      }
-      // Last resort: query inventory for "Elite 12" DuraVent Chimney" or any 12"
+      // Prefer the most common known-length pipe section for this model. When
+      // frequency ties, prefer the longer section because estimators normally
+      // buy longer straight runs and cut/offset with fittings.
+      const withSize = sectionEntries
+        .filter((s) => s.inches > 0)
+        .sort((a, b) => b.entry[1].appearances.size - a.entry[1].appearances.size || b.inches - a.inches);
+      pipeSubstitute = withSize[0] || sectionEntries[0] || null;
+      // Last resort: query inventory for a common 48" section in the same
       // pipe section in the same family the unit uses
       if (!pipeSubstitute) {
         const family = sectionEntries[0]
@@ -669,7 +841,7 @@ export async function POST(request: NextRequest) {
             .from(inventoryItems)
             .where(and(
               eq(inventoryItems.orgId, org.id),
-              ilike(inventoryItems.name, family === "elite" ? '%elite%12%duravent%' : '%dva-12%'),
+              ilike(inventoryItems.name, family === "elite" ? '%48%duravent%' : '%dva-48%'),
             ))
             .limit(1);
           if (lookup[0]) {
@@ -682,7 +854,7 @@ export async function POST(request: NextRequest) {
               mostRecentPrice: Number(lookup[0].unitPrice ?? 0),
             };
             if (lookup[0].qbItemId) nameByQb.set(lookup[0].qbItemId, lookup[0].name);
-            pipeSubstitute = { entry: [`fallback:${lookup[0].qbItemId}`, synthetic], inches: 12 };
+            pipeSubstitute = { entry: [`fallback:${lookup[0].qbItemId}`, synthetic], inches: 48 };
           }
         }
       }
@@ -721,18 +893,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Append the substituted 12" pipe line (if pipe-feet was specified)
+    // Append the substituted pipe line (if pipe-feet was specified)
     if (pipeSubstitute && pipeFeet) {
       const t = pipeSubstitute.entry[1];
       const itemName = (t.qbItemId && nameByQb.get(t.qbItemId)) || t.sampleDescription;
       const price = t.mostRecentPrice || (t.prices[0] ?? 0);
+      const sectionFeet = pipeSubstitute.inches > 0 ? pipeSubstitute.inches / 12 : 1;
+      const pipeQty = Math.max(1, Math.ceil(pipeFeet / sectionFeet));
       if (price > 0) {
         components.push({
           description: t.sampleDescription || itemName,
           partNumber: itemName,
-          quantity: pipeFeet,
+          quantity: pipeQty,
           unitPrice: price,
-          total: Number((pipeFeet * price).toFixed(2)),
+          total: Number((pipeQty * price).toFixed(2)),
           itemId: t.qbItemId || undefined,
           appearsIn: t.appearances?.size ?? undefined,
           appearsInPct: t.appearances ? Math.round((t.appearances.size / totalInvoices) * 100) : undefined,
@@ -784,8 +958,8 @@ export async function POST(request: NextRequest) {
         `Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.`,
         pipeFeet
           ? (pipeSubstitute
-            ? `Pipe replaced with ${pipeFeet} × 12-inch sections.`
-            : `Pipe-feet (${pipeFeet}) requested but no matching 12-inch section found in history.`)
+            ? `Pipe replaced with ${Math.max(1, Math.ceil(pipeFeet / ((pipeSubstitute.inches || 12) / 12)))} × ${pipeSubstitute.inches || 12}-inch sections for ${pipeFeet} ft.`
+            : `Pipe-feet (${pipeFeet}) requested but no matching straight pipe section found in history.`)
           : "",
       ].filter(Boolean).join(" "),
       modelUsed: "deterministic/db-aggregation",
