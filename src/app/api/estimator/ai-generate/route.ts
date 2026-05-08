@@ -803,8 +803,9 @@ export async function POST(request: NextRequest) {
     const sortedTally = [...tally.entries()].sort((a, b) => b[1].appearances.size - a[1].appearances.size);
 
     // When the user specified pipe-feet, replace ALL straight pipe-section
-    // components with one line based on the historical section length. If past
-    // jobs used 48" pipe, "20 ft" becomes ceil(20 / 4) = 5 sections, not 20.
+    // components with one estimate line based on the historical pipe family.
+    // We price the estimate by the foot so the final invoice can be updated to
+    // exact section counts once the actual run is installed.
     let pipeSubstitute: { entry: [string, typeof tally extends Map<infer _K, infer V> ? V : never]; inches: number } | null = null;
     if (pipeFeet) {
       const sectionEntries: Array<{ entry: [string, any]; inches: number }> = [];
@@ -893,20 +894,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Append the substituted pipe line (if pipe-feet was specified)
+    // Append the substituted pipe line (if pipe-feet was specified). Keep the
+    // historical pipe item, but convert the section price into a per-foot bid.
     if (pipeSubstitute && pipeFeet) {
       const t = pipeSubstitute.entry[1];
       const itemName = (t.qbItemId && nameByQb.get(t.qbItemId)) || t.sampleDescription;
       const price = t.mostRecentPrice || (t.prices[0] ?? 0);
       const sectionFeet = pipeSubstitute.inches > 0 ? pipeSubstitute.inches / 12 : 1;
-      const pipeQty = Math.max(1, Math.ceil(pipeFeet / sectionFeet));
+      const pipeQty = pipeFeet;
+      const perFootPrice = Number((price / sectionFeet).toFixed(2));
       if (price > 0) {
         components.push({
-          description: t.sampleDescription || itemName,
+          description: `${t.sampleDescription || itemName} (estimated per foot)`,
           partNumber: itemName,
           quantity: pipeQty,
-          unitPrice: price,
-          total: Number((pipeQty * price).toFixed(2)),
+          unitPrice: perFootPrice,
+          total: Number((pipeQty * perFootPrice).toFixed(2)),
           itemId: t.qbItemId || undefined,
           appearsIn: t.appearances?.size ?? undefined,
           appearsInPct: t.appearances ? Math.round((t.appearances.size / totalInvoices) * 100) : undefined,
@@ -958,7 +961,7 @@ export async function POST(request: NextRequest) {
         `Components shown appear in at least ${Math.round((minAppearances / totalInvoices) * 100)}% of those jobs.`,
         pipeFeet
           ? (pipeSubstitute
-            ? `Pipe replaced with ${Math.max(1, Math.ceil(pipeFeet / ((pipeSubstitute.inches || 12) / 12)))} × ${pipeSubstitute.inches || 12}-inch sections for ${pipeFeet} ft.`
+            ? `Pipe estimated as ${pipeFeet} one-foot units using the historical ${pipeSubstitute.inches || 12}-inch pipe item; update final invoice to actual section counts after install.`
             : `Pipe-feet (${pipeFeet}) requested but no matching straight pipe section found in history.`)
           : "",
       ].filter(Boolean).join(" "),
