@@ -79,6 +79,7 @@ export default function EstimatesPage() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailEstimateId, setEmailEstimateId] = useState<string | null>(null);
   const [pnlOpen, setPnlOpen] = useState<{ id: string; label: string } | null>(null);
+  const [focusedEstimateItemLine, setFocusedEstimateItemLine] = useState<number | null>(null);
   const [emailTo, setEmailTo] = useState("");
   const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
   const [estimateEditForm, setEstimateEditForm] = useState({
@@ -170,6 +171,23 @@ export default function EstimatesPage() {
       itemName: line.SalesItemLineDetail?.ItemRef?.name,
       partNumber: getLineProductService(line),
     }));
+  }
+
+  function getItemSearchResults(query: string) {
+    const normalizedQuery = normalizeItemLookup(query);
+    if (normalizedQuery.length < 2) return [];
+
+    return items
+      .filter((item) => {
+        const searchable = [
+          item.Name,
+          item.Sku,
+          item.FullyQualifiedName,
+        ].map(normalizeItemLookup);
+
+        return searchable.some((value) => value.includes(normalizedQuery));
+      })
+      .slice(0, 8);
   }
 
   function buildEstimateDocument(estimate: Estimate) {
@@ -421,6 +439,7 @@ export default function EstimatesPage() {
   function beginEditEstimate(e: Estimate) {
     setSelectedEstimate(e);
     setEditingEstimateId(e.Id);
+    setFocusedEstimateItemLine(null);
     setEstimateEditForm({
       expirationDate: e.ExpirationDate || "",
       privateNote: e.PrivateNote || "",
@@ -444,6 +463,31 @@ export default function EstimatesPage() {
     }));
   }
 
+  function selectEstimateLineItem(idx: number, item: Item) {
+    setEstimateEditForm((prev) => ({
+      ...prev,
+      lines: prev.lines.map((line, lineIdx) => {
+        if (lineIdx !== idx) return line;
+        const partNumber = getItemPartNumber(item);
+        const unitPrice = Number(item.UnitPrice || line.unitPrice || 0);
+        const description = !line.description || line.description === line.itemName || line.description === line.partNumber
+          ? item.Name
+          : line.description;
+
+        return {
+          ...line,
+          itemId: item.Id,
+          itemName: item.Name,
+          partNumber,
+          description,
+          unitPrice,
+          amount: Number(line.qty || 0) * unitPrice,
+        };
+      }),
+    }));
+    setFocusedEstimateItemLine(null);
+  }
+
   function addEstimateLine() {
     setEstimateEditForm((prev) => ({
       ...prev,
@@ -451,7 +495,20 @@ export default function EstimatesPage() {
     }));
   }
 
+  function insertEstimateLineAfter(idx: number) {
+    setEstimateEditForm((prev) => ({
+      ...prev,
+      lines: [
+        ...prev.lines.slice(0, idx + 1),
+        { description: "", qty: 1, unitPrice: 0, amount: 0, itemId: "", partNumber: "" },
+        ...prev.lines.slice(idx + 1),
+      ],
+    }));
+    setFocusedEstimateItemLine(idx + 1);
+  }
+
   function removeEstimateLine(idx: number) {
+    setFocusedEstimateItemLine(null);
     setEstimateEditForm((prev) => ({
       ...prev,
       lines: prev.lines.length <= 1 ? prev.lines : prev.lines.filter((_, lineIdx) => lineIdx !== idx),
@@ -970,8 +1027,18 @@ export default function EstimatesPage() {
 
                     <div className="p-5">
                       <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
-                        <div className="min-w-[1040px]">
-                          {editingEstimateId !== selectedEstimate.Id && (
+                        <div className="min-w-[1080px]">
+                          {editingEstimateId === selectedEstimate.Id ? (
+                            <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                              <div></div>
+                              <div>Product/service</div>
+                              <div>Description</div>
+                              <div className="text-right">Qty</div>
+                              <div className="text-right">Rate</div>
+                              <div className="text-right">Amount</div>
+                              <div></div>
+                            </div>
+                          ) : (
                             <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px] gap-0 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div className="text-right">#</div>
                               <div>Product/service</div>
@@ -985,39 +1052,76 @@ export default function EstimatesPage() {
                           {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines : selectedEstimateLines).map((line: any, idx) => (
                             <div key={`${selectedEstimate.Id}-${idx}`} style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: idx === 0 && editingEstimateId !== selectedEstimate.Id ? "0" : "1px solid var(--color-border)" }}>
                               {editingEstimateId === selectedEstimate.Id ? (
-                                <div className="grid grid-cols-[220px_190px_minmax(300px,1fr)_70px_100px_100px_76px] gap-2 p-3 items-start">
-                                  <select
-                                    value={estimateEditForm.lines[idx]?.itemId || ""}
-                                    onChange={(event) => {
-                                      const item = items.find((entry) => entry.Id === event.target.value);
-                                      updateEstimateLine(idx, {
-                                        itemId: event.target.value || undefined,
-                                        itemName: item?.Name,
-                                        partNumber: getItemPartNumber(item),
-                                        description: item?.Name || estimateEditForm.lines[idx]?.description || "",
-                                        unitPrice: Number(item?.UnitPrice || estimateEditForm.lines[idx]?.unitPrice || 0),
-                                      });
-                                    }}
-                                    className="w-full px-2 py-2 rounded-lg text-sm"
-                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 p-3 items-start">
+                                  <button
+                                    type="button"
+                                    onClick={() => insertEstimateLineAfter(idx)}
+                                    className="h-9 w-9 rounded-lg text-lg leading-none font-semibold"
+                                    title="Add line below"
+                                    aria-label="Add line below"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "#2563EB" }}
                                   >
-                                    <option value="">Map item</option>
-                                    {items.map((item) => (
-                                      <option key={item.Id} value={item.Id}>{item.Name} - {getItemPartNumber(item)}</option>
-                                    ))}
-                                  </select>
-                                  <input
-                                    value={estimateEditForm.lines[idx]?.partNumber || ""}
-                                    onChange={(event) => updateEstimateLine(idx, { partNumber: event.target.value })}
-                                    placeholder="Product/service"
-                                    className="w-full px-2 py-2 rounded-lg text-sm font-semibold"
-                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                                  />
+                                    +
+                                  </button>
+                                  <div className="relative">
+                                    <input
+                                      value={estimateEditForm.lines[idx]?.partNumber || estimateEditForm.lines[idx]?.itemName || ""}
+                                      onFocus={() => setFocusedEstimateItemLine(idx)}
+                                      onBlur={() => window.setTimeout(() => setFocusedEstimateItemLine((current) => current === idx ? null : current), 120)}
+                                      onChange={(event) => updateEstimateLine(idx, {
+                                        itemId: undefined,
+                                        itemName: undefined,
+                                        partNumber: event.target.value,
+                                      })}
+                                      placeholder="Search product or part #"
+                                      className="w-full px-2 py-2 rounded-lg text-sm font-semibold"
+                                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                                    />
+                                    {estimateEditForm.lines[idx]?.itemName && (
+                                      <div className="mt-1 text-[11px] truncate" title={estimateEditForm.lines[idx]?.itemName} style={{ color: "var(--color-text-muted)" }}>
+                                        {estimateEditForm.lines[idx]?.itemName}
+                                      </div>
+                                    )}
+                                    {focusedEstimateItemLine === idx && (
+                                      <div className="absolute z-30 mt-1 w-full rounded-lg shadow-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                                        {getItemSearchResults(estimateEditForm.lines[idx]?.partNumber || estimateEditForm.lines[idx]?.itemName || "").length > 0 ? (
+                                          getItemSearchResults(estimateEditForm.lines[idx]?.partNumber || estimateEditForm.lines[idx]?.itemName || "").map((item) => (
+                                            <button
+                                              key={item.Id}
+                                              type="button"
+                                              onMouseDown={(event) => {
+                                                event.preventDefault();
+                                                selectEstimateLineItem(idx, item);
+                                              }}
+                                              className="w-full px-3 py-2 text-left"
+                                              style={{ borderBottom: "1px solid var(--color-border)" }}
+                                            >
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <div className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{getItemPartNumber(item)}</div>
+                                                  <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{item.Name}</div>
+                                                </div>
+                                                <div className="text-xs font-semibold shrink-0" style={{ color: "var(--color-text-secondary)" }}>
+                                                  ${Number(item.UnitPrice || 0).toFixed(2)}
+                                                </div>
+                                              </div>
+                                            </button>
+                                          ))
+                                        ) : (
+                                          <div className="px-3 py-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                            {(estimateEditForm.lines[idx]?.partNumber || estimateEditForm.lines[idx]?.itemName || "").trim().length >= 2
+                                              ? "No matching products"
+                                              : "Type at least 2 characters to search"}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                   <input
                                     value={estimateEditForm.lines[idx]?.description || ""}
                                     onChange={(event) => updateEstimateLine(idx, { description: event.target.value })}
                                     className="w-full px-2 py-2 rounded-lg text-sm"
-                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                                   />
                                   <input
                                     type="number"
@@ -1025,22 +1129,27 @@ export default function EstimatesPage() {
                                     value={estimateEditForm.lines[idx]?.qty || 0}
                                     onChange={(event) => updateEstimateLine(idx, { qty: Number(event.target.value || 0) })}
                                     className="w-full px-2 py-2 rounded-lg text-sm text-right"
-                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                                   />
                                   <input
-                                    type="number"
-                                    step="0.01"
-                                    min={0}
+                                    type="text"
+                                    inputMode="decimal"
                                     value={estimateEditForm.lines[idx]?.unitPrice || 0}
                                     onChange={(event) => updateEstimateLine(idx, { unitPrice: Number(event.target.value || 0) })}
                                     className="w-full px-2 py-2 rounded-lg text-sm text-right"
-                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                                   />
                                   <div className="text-sm font-semibold text-right py-2" style={{ color: "var(--color-text-primary)" }}>
                                     ${Number(estimateEditForm.lines[idx]?.amount || 0).toFixed(2)}
                                   </div>
-                                  <button onClick={() => removeEstimateLine(idx)} className="px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
-                                    Remove
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEstimateLine(idx)}
+                                    className="h-9 w-9 rounded-lg text-sm font-semibold"
+                                    aria-label="Remove line"
+                                    style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}
+                                  >
+                                    x
                                   </button>
                                 </div>
                               ) : (
