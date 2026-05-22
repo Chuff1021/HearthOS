@@ -42,6 +42,18 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
   }
 }
 
+function normalizeLookup(value: string | undefined | null) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function descriptionWithSku(description: string | undefined | null, sku: string | undefined | null) {
+  const cleanedDescription = (description || '').trim();
+  const cleanedSku = (sku || '').trim();
+  if (!cleanedSku) return cleanedDescription || undefined;
+  if (normalizeLookup(cleanedDescription).includes(normalizeLookup(cleanedSku))) return cleanedDescription;
+  return cleanedDescription ? `${cleanedSku} - ${cleanedDescription}` : cleanedSku;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getQBAuth(request);
@@ -78,17 +90,20 @@ export async function POST(request: NextRequest) {
       VendorRef: { value: body.vendorId },
       TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
       Memo: body.memo || undefined,
-      Line: body.lines.map((line: any, idx: number) => ({
-        Id: String(idx + 1),
-        Amount: Number(line.amount || 0),
-        DetailType: 'ItemBasedExpenseLineDetail',
-        Description: line.itemId && line.description ? line.description : line.description || undefined,
-        ItemBasedExpenseLineDetail: {
-          ItemRef: line.itemId ? { value: line.itemId } : undefined,
-          Qty: Number(line.qty || 1),
-          UnitPrice: Number(line.unitPrice || 0),
-        },
-      })),
+      Line: body.lines.map((line: any, idx: number) => {
+        const sku = line.partNumber || line.sku || line.itemSku || '';
+        return {
+          Id: String(idx + 1),
+          Amount: Number(line.amount || 0),
+          DetailType: 'ItemBasedExpenseLineDetail',
+          Description: descriptionWithSku(line.description || line.itemName, sku),
+          ItemBasedExpenseLineDetail: {
+            ItemRef: line.itemId ? { value: line.itemId, name: line.itemName || sku || undefined } : undefined,
+            Qty: Number(line.qty || 1),
+            UnitPrice: Number(line.unitPrice || 0),
+          },
+        };
+      }),
     };
 
     const purchaseOrder = await withRefresh(auth, (client) => client.createPurchaseOrder(poPayload));

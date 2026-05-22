@@ -133,11 +133,6 @@ export default function EstimatesPage() {
     return extractPartNumber(line.Description) || itemRef?.name || "";
   }
 
-  function getLineSku(line: NonNullable<Estimate["Line"]>[number]) {
-    const itemRef = line.SalesItemLineDetail?.ItemRef;
-    return itemRef?.sku || itemRef?.name || extractPartNumber(line.Description) || "";
-  }
-
   function extractPartNumber(description: string | undefined) {
     const text = (description || "").trim();
     const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
@@ -149,6 +144,14 @@ export default function EstimatesPage() {
   function getLineDescription(line: NonNullable<Estimate["Line"]>[number]) {
     const part = getLineProductService(line);
     return cleanLineDescription(line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line", part);
+  }
+
+  function getLineDescriptionWithSku(line: NonNullable<Estimate["Line"]>[number]) {
+    const productService = getLineProductService(line);
+    const description = getLineDescription(line);
+    if (!productService) return description;
+    if (normalizeItemLookup(description).includes(normalizeItemLookup(productService))) return description;
+    return `${productService} - ${description}`;
   }
 
   function resolveDraftLineItem(line: DraftLine) {
@@ -234,8 +237,7 @@ export default function EstimatesPage() {
   function buildEstimateDocument(estimate: Estimate) {
     const lines = (estimate.Line || []).map((line) => ({
       productService: getLineProductService(line),
-      sku: getLineSku(line),
-      description: getLineDescription(line),
+      description: getLineDescriptionWithSku(line),
       qty: Number(line.SalesItemLineDetail?.Qty || 1),
       unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
       amount: Number(line.Amount || 0),
@@ -278,7 +280,6 @@ export default function EstimatesPage() {
       <thead>
         <tr>
           <th>Product/service</th>
-          <th>SKU</th>
           <th>Description</th>
           <th>Qty</th>
           <th>Unit Price</th>
@@ -289,7 +290,6 @@ export default function EstimatesPage() {
         ${lines.map((line) => `
           <tr>
             <td>${line.productService}</td>
-            <td>${line.sku}</td>
             <td>${line.description}</td>
             <td>${line.qty}</td>
             <td>$${line.unitPrice.toFixed(2)}</td>
@@ -1068,7 +1068,7 @@ export default function EstimatesPage() {
 
                     <div className="p-5">
                       <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
-                        <div className="min-w-[1220px]">
+                        <div className="min-w-[1080px]">
                           {editingEstimateId === selectedEstimate.Id ? (
                             <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div></div>
@@ -1080,10 +1080,9 @@ export default function EstimatesPage() {
                               <div></div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-[44px_240px_220px_minmax(360px,1fr)_64px_96px_112px] gap-3 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="grid grid-cols-[44px_260px_minmax(420px,1fr)_64px_96px_112px] gap-3 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div className="text-right">#</div>
                               <div>Product/service</div>
-                              <div>SKU</div>
                               <div>Description</div>
                               <div className="text-right">Qty</div>
                               <div className="text-right">Rate</div>
@@ -1194,11 +1193,10 @@ export default function EstimatesPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-[44px_240px_220px_minmax(360px,1fr)_64px_96px_112px] gap-3 px-3 py-3 items-start">
+                                <div className="grid grid-cols-[44px_260px_minmax(420px,1fr)_64px_96px_112px] gap-3 px-3 py-3 items-start">
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
                                   <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
-                                  <div className="text-sm truncate" title={getLineSku(line)} style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
-                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
+                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-primary)" }}>{getLineDescriptionWithSku(line)}</div>
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
                                   <div className="text-sm font-semibold text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.Amount || 0).toFixed(2)}</div>

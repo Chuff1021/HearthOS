@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 type Vendor = { Id: string; DisplayName: string; CompanyName?: string };
 type Item = { Id: string; Name: string; Type?: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { name?: string }; TotalAmt?: number };
+type POLine = { itemId: string; description: string; qty: number; unitPrice: number; partNumber?: string; itemName?: string };
 
 export default function PurchaseOrdersPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -18,10 +19,20 @@ export default function PurchaseOrdersPage() {
 
   const [vendorId, setVendorId] = useState("");
   const [memo, setMemo] = useState("");
-  const [lines, setLines] = useState([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+  const [lines, setLines] = useState<POLine[]>([{ itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
 
   function getItemPartNumber(item: Item | undefined) {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
+  }
+
+  function buildDescriptionWithPart(description: string | undefined, partNumber: string | undefined) {
+    const descriptionText = (description || "").trim();
+    const part = (partNumber || "").trim();
+    if (!part) return descriptionText;
+    const normalizedDescription = descriptionText.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedPart = part.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (normalizedDescription.includes(normalizedPart)) return descriptionText;
+    return descriptionText ? `${part} - ${descriptionText}` : part;
   }
 
   async function loadAll() {
@@ -69,7 +80,7 @@ export default function PurchaseOrdersPage() {
   }
 
   function addLine() {
-    setLines((prev) => [...prev, { itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+    setLines((prev) => [...prev, { itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
   }
 
   function removeLine(idx: number) {
@@ -82,7 +93,9 @@ export default function PurchaseOrdersPage() {
       .filter((l) => l.itemId || l.description)
       .map((l) => ({
         itemId: l.itemId || undefined,
-        description: l.description || undefined,
+        itemName: l.itemName || undefined,
+        partNumber: l.partNumber || undefined,
+        description: buildDescriptionWithPart(l.description, l.partNumber) || undefined,
         qty: Number(l.qty || 0),
         unitPrice: Number(l.unitPrice || 0),
         amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
@@ -107,7 +120,7 @@ export default function PurchaseOrdersPage() {
       if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
 
       setMemo("");
-      setLines([{ itemId: "", description: "", qty: 1, unitPrice: 0 }]);
+      setLines([{ itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create purchase order");
@@ -164,7 +177,9 @@ export default function PurchaseOrdersPage() {
                           const item = items.find((i) => i.Id === e.target.value);
                           updateLine(idx, {
                             itemId: e.target.value,
-                            description: item ? `${item.Name}${getItemPartNumber(item) ? ` | Part: ${getItemPartNumber(item)}` : ""}` : line.description,
+                            itemName: item?.Name || "",
+                            partNumber: getItemPartNumber(item),
+                            description: item ? buildDescriptionWithPart(item.Name, getItemPartNumber(item)) : line.description,
                             unitPrice: Number(item?.UnitPrice || line.unitPrice || 0),
                           });
                         }}
