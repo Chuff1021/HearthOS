@@ -135,6 +135,8 @@ export default function PurchaseOrdersPage() {
   const [createdMessage, setCreatedMessage] = useState<string | null>(null);
 
   const [vendorId, setVendorId] = useState("");
+  const [vendorQuery, setVendorQuery] = useState("");
+  const [vendorSearchOpen, setVendorSearchOpen] = useState(false);
   const [vendorEmail, setVendorEmail] = useState("");
   const [ccBcc, setCcBcc] = useState("");
   const [poNumber, setPoNumber] = useState("");
@@ -196,6 +198,57 @@ export default function PurchaseOrdersPage() {
       .slice(0, 8);
   }
 
+  function getVendorSearchResults(query: string) {
+    const normalizedQuery = normalizeLookup(query);
+    const queryTokens = tokenizeLookup(query);
+    const searchableVendors = vendors.filter((vendor) => vendor.DisplayName || vendor.CompanyName || vendor.PrimaryEmailAddr?.Address);
+
+    if (normalizedQuery.length < 2 || queryTokens.length === 0) {
+      return searchableVendors
+        .slice()
+        .sort((a, b) => a.DisplayName.localeCompare(b.DisplayName))
+        .slice(0, 10);
+    }
+
+    return searchableVendors
+      .map((vendor) => {
+        const rawFields = [
+          vendor.DisplayName,
+          vendor.CompanyName,
+          vendor.PrimaryEmailAddr?.Address,
+        ].filter(Boolean) as string[];
+        const normalizedFields = rawFields.map(normalizeLookup);
+        const vendorTokens = tokenizeLookup(rawFields.join(" "));
+        const contiguousMatch = normalizedFields.some((value) => value.includes(normalizedQuery));
+        const allTokensMatch = queryTokens.every((queryToken) => (
+          normalizedFields.some((value) => value.includes(queryToken)) ||
+          vendorTokens.some((vendorToken) => vendorToken.includes(queryToken))
+        ));
+
+        if (!contiguousMatch && !allTokensMatch) return null;
+
+        let score = 0;
+        if (normalizeLookup(vendor.DisplayName) === normalizedQuery) score += 120;
+        if (normalizeLookup(vendor.CompanyName) === normalizedQuery) score += 110;
+        if (normalizeLookup(vendor.DisplayName).startsWith(normalizedQuery)) score += 80;
+        if (normalizeLookup(vendor.CompanyName).startsWith(normalizedQuery)) score += 70;
+        if (contiguousMatch) score += 50;
+
+        for (const queryToken of queryTokens) {
+          if (vendorTokens.includes(queryToken)) score += 30;
+          else if (vendorTokens.some((vendorToken) => vendorToken.startsWith(queryToken))) score += 20;
+          else if (normalizedFields.some((value) => value.includes(queryToken))) score += 12;
+        }
+
+        score -= Math.min((vendor.DisplayName || "").length, 80) / 100;
+        return { vendor, score };
+      })
+      .filter((result): result is { vendor: Vendor; score: number } => Boolean(result))
+      .sort((a, b) => b.score - a.score || a.vendor.DisplayName.localeCompare(b.vendor.DisplayName))
+      .map((result) => result.vendor)
+      .slice(0, 10);
+  }
+
   function estimateToPoLines(estimate: Estimate): POLine[] {
     const mapped = (estimate.Line || [])
       .filter((line) => line.SalesItemLineDetail)
@@ -225,8 +278,10 @@ export default function PurchaseOrdersPage() {
   function selectVendor(id: string, vendorList = vendors) {
     const vendor = vendorList.find((v) => v.Id === id);
     setVendorId(id);
+    setVendorQuery(vendor?.DisplayName || "");
     setVendorEmail(vendor?.PrimaryEmailAddr?.Address || "");
     setMailingAddress(formatAddress(vendor?.BillAddr));
+    setVendorSearchOpen(false);
   }
 
   async function loadAll(nextEstimateId = estimateId) {
@@ -264,6 +319,7 @@ export default function PurchaseOrdersPage() {
           setMemo(`Copied from Estimate ${estimate.DocNumber || estimate.Id}`);
           setLines(estimateToPoLines(estimate));
           setVendorId("");
+          setVendorQuery("");
           setVendorEmail("");
           setMailingAddress("");
           setShipTo(estimate.CustomerRef?.name || "Hearth OS");
@@ -288,6 +344,7 @@ export default function PurchaseOrdersPage() {
   }, [estimateId]);
 
   const selectedVendor = vendors.find((vendor) => vendor.Id === vendorId);
+  const vendorResults = getVendorSearchResults(vendorQuery);
 
   const totals = useMemo(() => {
     const subtotal = lines.reduce((sum, line) => sum + Number(line.qty || 0) * Number(line.unitPrice || 0), 0);
@@ -455,20 +512,56 @@ export default function PurchaseOrdersPage() {
                 <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px_220px] gap-4">
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
-                    <select
-                      value={vendorId}
-                      onChange={(event) => {
-                        selectVendor(event.target.value);
-                        setCreatedMessage(null);
-                      }}
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
-                    >
-                      <option value="">Select vendor</option>
-                      {vendors.map((vendor) => <option key={vendor.Id} value={vendor.Id}>{vendor.DisplayName}</option>)}
-                    </select>
-                    {selectedVendor?.CompanyName && (
-                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedVendor.CompanyName}</p>
+                    <div className="relative">
+                      <input
+                        value={vendorQuery}
+                        onFocus={() => setVendorSearchOpen(true)}
+                        onBlur={() => window.setTimeout(() => setVendorSearchOpen(false), 120)}
+                        onChange={(event) => {
+                          setVendorQuery(event.target.value);
+                          setVendorId("");
+                          setVendorEmail("");
+                          setMailingAddress("");
+                          setVendorSearchOpen(true);
+                          setCreatedMessage(null);
+                        }}
+                        placeholder="Search vendor by name, company, or email"
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                      />
+                      {vendorSearchOpen && (
+                        <div className="absolute z-40 mt-2 w-full max-h-80 overflow-auto rounded-lg shadow-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                          {vendorResults.length > 0 ? (
+                            vendorResults.map((vendor) => (
+                              <button
+                                key={vendor.Id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => {
+                                  selectVendor(vendor.Id);
+                                  setCreatedMessage(null);
+                                }}
+                                className="w-full px-3 py-2 text-left"
+                                style={{ borderBottom: "1px solid var(--color-border)" }}
+                              >
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{vendor.DisplayName}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                  {[vendor.CompanyName, vendor.PrimaryEmailAddr?.Address].filter(Boolean).join(" - ") || "No company or email on file"}
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>No vendors found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedVendor ? (
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        {[selectedVendor.CompanyName, selectedVendor.PrimaryEmailAddr?.Address].filter(Boolean).join(" - ") || "Vendor selected"}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Start typing to find a QuickBooks vendor.</p>
                     )}
                   </div>
                   <div>
