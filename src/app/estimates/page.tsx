@@ -32,7 +32,7 @@ type Estimate = {
     Amount?: number;
     Description?: string;
     SalesItemLineDetail?: {
-      ItemRef?: { value?: string; name?: string };
+      ItemRef?: { value?: string; name?: string; sku?: string };
       Qty?: number;
       UnitPrice?: number;
     };
@@ -97,10 +97,55 @@ export default function EstimatesPage() {
     return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
+  function escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function cleanLineDescription(description: string | undefined, partNumber: string | undefined) {
+    let cleaned = (description || "").replace(/\n\s*Part:\s*.+$/i, "").trim();
+    const part = (partNumber || "").trim();
+    if (part) {
+      cleaned = cleaned
+        .replace(new RegExp(`\\s*\\(${escapeRegExp(part)}\\)\\s*$`, "i"), "")
+        .replace(new RegExp(`^${escapeRegExp(part)}\\s*-\\s*`, "i"), "")
+        .trim();
+    }
+    return cleaned;
+  }
+
+  function getLineProductService(line: NonNullable<Estimate["Line"]>[number]) {
+    const itemRef = line.SalesItemLineDetail?.ItemRef;
+    return extractPartNumber(line.Description) || itemRef?.name || "";
+  }
+
+  function getLineSku(line: NonNullable<Estimate["Line"]>[number]) {
+    const itemRef = line.SalesItemLineDetail?.ItemRef;
+    return itemRef?.sku || itemRef?.name || extractPartNumber(line.Description) || "";
+  }
+
+  function extractPartNumber(description: string | undefined) {
+    const text = (description || "").trim();
+    const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
+    if (partLine?.[1]) return partLine[1].trim();
+    const prefix = text.match(/^([A-Z0-9][A-Z0-9:._/-]{2,})\s+-\s+/i);
+    return prefix?.[1]?.trim() || "";
+  }
+
+  function getLineDescription(line: NonNullable<Estimate["Line"]>[number]) {
+    const part = getLineProductService(line);
+    return cleanLineDescription(line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line", part);
+  }
+
   function resolveDraftLineItem(line: DraftLine) {
+    const partKey = normalizeItemLookup(line.partNumber);
+    const exactPartName = partKey ? items.find((item) => normalizeItemLookup(item.Name) === partKey) : undefined;
+    if (exactPartName) return exactPartName;
+
     if (line.itemId) return items.find((item) => item.Id === line.itemId);
 
-    const partKey = normalizeItemLookup(line.partNumber);
+    const exactPartSku = partKey ? items.find((item) => normalizeItemLookup(item.Sku) === partKey) : undefined;
+    if (exactPartSku) return exactPartSku;
+
     const nameKey = normalizeItemLookup(line.itemName || line.description);
     if (!partKey && !nameKey) return undefined;
 
@@ -117,20 +162,21 @@ export default function EstimatesPage() {
 
   function mapEstimateLines(estimate: Estimate): EstimateLineDraft[] {
     return (estimate.Line || []).map((line) => ({
-      description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "",
+      description: getLineDescription(line),
       qty: Number(line.SalesItemLineDetail?.Qty || 1),
       unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
       amount: Number(line.Amount || 0),
       itemId: line.SalesItemLineDetail?.ItemRef?.value,
       itemName: line.SalesItemLineDetail?.ItemRef?.name,
-      partNumber: line.SalesItemLineDetail?.ItemRef?.name,
+      partNumber: getLineProductService(line),
     }));
   }
 
   function buildEstimateDocument(estimate: Estimate) {
     const lines = (estimate.Line || []).map((line) => ({
-      description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line",
-      partNumber: line.SalesItemLineDetail?.ItemRef?.name || "",
+      productService: getLineProductService(line),
+      sku: getLineSku(line),
+      description: getLineDescription(line),
       qty: Number(line.SalesItemLineDetail?.Qty || 1),
       unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
       amount: Number(line.Amount || 0),
@@ -172,6 +218,8 @@ export default function EstimatesPage() {
     <table>
       <thead>
         <tr>
+          <th>Product/service</th>
+          <th>SKU</th>
           <th>Description</th>
           <th>Qty</th>
           <th>Unit Price</th>
@@ -181,7 +229,9 @@ export default function EstimatesPage() {
       <tbody>
         ${lines.map((line) => `
           <tr>
-            <td>${line.description}${line.partNumber ? `<div style="color:#6b7280;font-size:12px;margin-top:4px;">Part: ${line.partNumber}</div>` : ""}</td>
+            <td>${line.productService}</td>
+            <td>${line.sku}</td>
+            <td>${line.description}</td>
             <td>${line.qty}</td>
             <td>$${line.unitPrice.toFixed(2)}</td>
             <td>$${line.amount.toFixed(2)}</td>
@@ -415,17 +465,21 @@ export default function EstimatesPage() {
           updates: {
             ExpirationDate: estimateEditForm.expirationDate || undefined,
             PrivateNote: estimateEditForm.privateNote || undefined,
-            Line: estimateEditForm.lines.map((line, idx) => ({
-              Id: String(idx + 1),
-              Amount: Number(line.amount || 0),
-              DetailType: "SalesItemLineDetail",
-              Description: line.partNumber ? `${line.description || ""}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
-              SalesItemLineDetail: {
-                ItemRef: line.itemId ? { value: line.itemId, name: line.itemName } : undefined,
-                Qty: Number(line.qty || 0),
-                UnitPrice: Number(line.unitPrice || 0),
-              },
-            })),
+            Line: estimateEditForm.lines.map((line, idx) => {
+              const partNumber = (line.partNumber || "").trim();
+              const description = cleanLineDescription(line.description, partNumber);
+              return {
+                Id: String(idx + 1),
+                Amount: Number(line.amount || 0),
+                DetailType: "SalesItemLineDetail",
+                Description: partNumber ? `${partNumber}${description ? ` - ${description}` : ""}` : description || undefined,
+                SalesItemLineDetail: {
+                  ItemRef: line.itemId ? { value: line.itemId, name: partNumber || line.itemName } : undefined,
+                  Qty: Number(line.qty || 0),
+                  UnitPrice: Number(line.unitPrice || 0),
+                },
+              };
+            }),
           },
         }),
       });
@@ -455,7 +509,7 @@ export default function EstimatesPage() {
       if (!res.ok) throw new Error(data.error || "AI generation failed");
       if (data.lineItems && Array.isArray(data.lineItems) && data.lineItems.length > 0) {
         setDraftLines(data.lineItems.map((l: any) => ({
-          description: l.partNumber ? `${l.description} (${l.partNumber})` : l.description,
+          description: cleanLineDescription(l.description, l.partNumber),
           partNumber: l.partNumber,
           itemId: l.itemId,
           itemName: l.itemName,
@@ -733,28 +787,31 @@ export default function EstimatesPage() {
               </div>
 
               {/* QuickBooks-style estimate table */}
-              <div className="mt-5 rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-                {/* Table header */}
-                <div className="grid grid-cols-[1fr_60px_90px_90px_36px] gap-0 px-4 py-2.5" style={{ background: "#2CA01C", color: "#fff" }}>
-                  <div className="text-xs font-bold uppercase">Product / Service</div>
-                  <div className="text-xs font-bold uppercase text-right">Qty</div>
-                  <div className="text-xs font-bold uppercase text-right">Rate</div>
-                  <div className="text-xs font-bold uppercase text-right">Amount</div>
-                  <div></div>
-                </div>
-                {/* Table rows */}
-                {draftLines.map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_60px_90px_90px_36px] gap-0 px-4 py-2 items-center" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
-                    <div className="pr-3 min-w-0">
-                      <input className="w-full text-sm font-medium outline-none rounded px-1" value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "#111827", background: "transparent" }} />
-                      {line.partNumber && <div className="text-[10px] mt-0.5 px-1" style={{ color: "#6b7280" }}>Part #: {line.partNumber}</div>}
-                    </div>
-                    <input type="number" className="w-full text-sm text-right bg-transparent outline-none" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
-                    <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
-                    <div className="text-sm font-semibold text-right" style={{ color: "var(--color-text-primary)" }}>${line.total.toFixed(2)}</div>
-                    <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="ml-1 text-xs" style={{ color: "var(--color-text-muted)" }}>✕</button>
+              <div className="mt-5 rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                <div className="min-w-[980px]">
+                  <div className="grid grid-cols-[46px_170px_170px_1fr_64px_92px_104px_40px] gap-0 px-3 py-2.5" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                    <div className="text-xs font-bold text-right">#</div>
+                    <div className="text-xs font-bold">Product/service</div>
+                    <div className="text-xs font-bold">SKU</div>
+                    <div className="text-xs font-bold">Description</div>
+                    <div className="text-xs font-bold text-right">Qty</div>
+                    <div className="text-xs font-bold text-right">Rate</div>
+                    <div className="text-xs font-bold text-right">Amount</div>
+                    <div></div>
                   </div>
-                ))}
+                  {draftLines.map((line, idx) => (
+                    <div key={idx} className="grid grid-cols-[46px_170px_170px_1fr_64px_92px_104px_40px] gap-0 px-3 py-2.5 items-start" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
+                      <div className="text-sm text-right pt-1.5" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
+                      <input className="w-full text-sm outline-none rounded px-2 py-1.5" value={line.partNumber || ""} onChange={(e) => updateLine(idx, { partNumber: e.target.value })} placeholder="Part number" style={{ color: "var(--color-text-primary)", background: "transparent" }} />
+                      <div className="text-sm px-2 py-1.5 truncate" style={{ color: "var(--color-text-muted)" }}>{line.itemName || line.partNumber || ""}</div>
+                      <textarea className="w-full text-sm outline-none rounded px-2 py-1.5 resize-none" rows={2} value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "var(--color-text-primary)", background: "transparent" }} />
+                      <input type="number" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                      <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                      <div className="text-sm font-semibold text-right px-1 py-1.5" style={{ color: "var(--color-text-primary)" }}>${line.total.toFixed(2)}</div>
+                      <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="text-sm py-1.5" style={{ color: "var(--color-text-muted)" }}>✕</button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Totals — right-aligned like QuickBooks */}
@@ -947,6 +1004,17 @@ export default function EstimatesPage() {
                   )}
 
                   <div className="space-y-2">
+                    {editingEstimateId !== selectedEstimate.Id && selectedEstimateLines.length > 0 && (
+                      <div className="hidden lg:grid grid-cols-[44px_160px_150px_1fr_60px_90px_100px] gap-0 px-3 py-2 text-xs font-bold rounded-lg" style={{ background: "#f5f6f8", color: "var(--color-text-primary)" }}>
+                        <div className="text-right">#</div>
+                        <div>Product/service</div>
+                        <div>SKU</div>
+                        <div>Description</div>
+                        <div className="text-right">Qty</div>
+                        <div className="text-right">Rate</div>
+                        <div className="text-right">Amount</div>
+                      </div>
+                    )}
                     {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines : selectedEstimateLines).map((line: any, idx) => (
                       <div key={`${selectedEstimate.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
                         {editingEstimateId === selectedEstimate.Id ? (
@@ -1011,22 +1079,26 @@ export default function EstimatesPage() {
                             </div>
                           </div>
                         ) : (
-                          <>
-                            <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                              {line.Description || line.SalesItemLineDetail?.ItemRef?.name || "Estimate line"}
+                          <div className="grid grid-cols-1 lg:grid-cols-[44px_160px_150px_1fr_60px_90px_100px] gap-2 lg:gap-0 lg:items-start">
+                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
+                            <div>
+                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>Product/service</div>
+                              <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
                             </div>
-                            {line.SalesItemLineDetail?.ItemRef?.name && (
-                              <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                                Part: {line.SalesItemLineDetail.ItemRef.name}
-                              </div>
-                            )}
-                            <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                              {Number(line.SalesItemLineDetail?.Qty || 1)} x ${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}
+                            <div>
+                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>SKU</div>
+                              <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
                             </div>
-                            <div className="text-sm font-semibold mt-2" style={{ color: "var(--color-text-primary)" }}>
+                            <div>
+                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>Description</div>
+                              <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
+                            </div>
+                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-primary)" }}>{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
+                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
+                            <div className="text-sm font-semibold lg:text-right" style={{ color: "var(--color-text-primary)" }}>
                               ${Number(line.Amount || 0).toFixed(2)}
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     ))}

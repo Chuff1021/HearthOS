@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, estimates, estimateLineItems, customers } from "@/db";
+import { db, estimates, estimateLineItems, customers, inventoryItems } from "@/db";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 
@@ -16,7 +16,7 @@ type QBLine = {
   Description?: string;
   DetailType?: string;
   SalesItemLineDetail?: {
-    ItemRef?: { value?: string; name?: string };
+    ItemRef?: { value?: string; name?: string; sku?: string };
     Qty?: number;
     UnitPrice?: number;
   };
@@ -87,8 +87,14 @@ export async function GET(request: NextRequest) {
             unitPrice: estimateLineItems.unitPrice,
             total: estimateLineItems.total,
             order: estimateLineItems.order,
+            itemName: inventoryItems.name,
+            itemSku: inventoryItems.sku,
           })
           .from(estimateLineItems)
+          .leftJoin(
+            inventoryItems,
+            and(eq(inventoryItems.orgId, org.id), eq(inventoryItems.qbItemId, estimateLineItems.qbItemId)),
+          )
           .where(inArray(estimateLineItems.estimateId, localIds))
           .orderBy(asc(estimateLineItems.order))
       : [];
@@ -102,7 +108,9 @@ export async function GET(request: NextRequest) {
         Description: r.description ?? undefined,
         DetailType: "SalesItemLineDetail",
         SalesItemLineDetail: {
-          ItemRef: r.qbItemId ? { value: r.qbItemId } : undefined,
+          ItemRef: r.qbItemId
+            ? { value: r.qbItemId, name: r.itemName || r.itemSku || undefined, sku: r.itemSku || undefined }
+            : undefined,
           Qty: Number(r.quantity ?? 1),
           UnitPrice: Number(r.unitPrice ?? 0),
         },

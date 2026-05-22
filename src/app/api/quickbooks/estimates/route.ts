@@ -15,13 +15,40 @@ function normalizeItemLookup(value: string | undefined | null) {
   return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function resolveLineItemRef(line: any, items: LocalItemRef[]) {
-  if (line.itemId) {
-    const matched = items.find((item) => item.qbItemId === line.itemId);
-    if (matched?.qbItemId) return { value: matched.qbItemId, name: matched.name };
+function cleanLineDescription(description: string | undefined | null, partNumber: string | undefined | null) {
+  let cleaned = (description || '').trim();
+  const part = (partNumber || '').trim();
+
+  if (part) {
+    cleaned = cleaned
+      .replace(new RegExp(`\\s*\\(${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*$`, 'i'), '')
+      .replace(new RegExp(`^${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*-\\s*`, 'i'), '')
+      .trim();
   }
 
-  const lookupKeys = [line.partNumber, line.itemName, line.description]
+  return cleaned;
+}
+
+function resolveLineItemRef(line: any, items: LocalItemRef[]) {
+  const partNumber = typeof line.partNumber === 'string' ? line.partNumber.trim() : '';
+  const partKey = normalizeItemLookup(partNumber);
+
+  const exactNameMatch = partKey
+    ? items.find((item) => item.qbItemId && normalizeItemLookup(item.name) === partKey)
+    : undefined;
+  if (exactNameMatch?.qbItemId) return { value: exactNameMatch.qbItemId, name: partNumber || exactNameMatch.name };
+
+  const matchedById = line.itemId
+    ? items.find((item) => item.qbItemId === line.itemId)
+    : undefined;
+  if (matchedById?.qbItemId) return { value: matchedById.qbItemId, name: partNumber || matchedById.name };
+
+  const exactSkuMatch = partKey
+    ? items.find((item) => item.qbItemId && normalizeItemLookup(item.sku) === partKey)
+    : undefined;
+  if (exactSkuMatch?.qbItemId) return { value: exactSkuMatch.qbItemId, name: partNumber || exactSkuMatch.name };
+
+  const lookupKeys = [line.itemName, line.description]
     .map(normalizeItemLookup)
     .filter(Boolean);
 
@@ -34,13 +61,15 @@ function resolveLineItemRef(line: any, items: LocalItemRef[]) {
     return lookupKeys.includes(skuKey) || lookupKeys.includes(nameKey);
   });
 
-  return matched?.qbItemId ? { value: matched.qbItemId, name: matched.name } : undefined;
+  return matched?.qbItemId ? { value: matched.qbItemId, name: partNumber || matched.name } : undefined;
 }
 
 function buildSalesLine(line: any, idx: number, itemRef?: { value: string; name?: string }) {
-  const description = line.partNumber
-    ? `${line.description || ''}\nPart: ${line.partNumber}`.trim()
-    : line.description || undefined;
+  const partNumber = typeof line.partNumber === 'string' ? line.partNumber.trim() : '';
+  const cleanedDescription = cleanLineDescription(line.description, partNumber);
+  const description = partNumber
+    ? `${partNumber}${cleanedDescription ? ` - ${cleanedDescription}` : ''}`
+    : cleanedDescription || undefined;
 
   if (!itemRef) {
     return {
