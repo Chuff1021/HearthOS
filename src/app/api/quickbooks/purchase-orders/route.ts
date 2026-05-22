@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
-import { getClientFromTokens } from '@/lib/quickbooks/sync';
+import { getClientFromTokens, persistPurchaseOrdersToDb } from '@/lib/quickbooks/sync';
 
 async function getQBAuth(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -54,6 +54,46 @@ function descriptionWithSku(description: string | undefined | null, sku: string 
   return cleanedDescription ? `${cleanedSku} - ${cleanedDescription}` : cleanedSku;
 }
 
+function extractPartNumber(description: string | undefined | null) {
+  const text = (description || '').trim();
+  const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
+  if (partLine?.[1]) return partLine[1].trim();
+  const prefix = text.match(/^([A-Z0-9][A-Z0-9:._/-]{2,})\s+-\s+/i);
+  return prefix?.[1]?.trim() || '';
+}
+
+function cleanDescription(description: string | undefined | null, partNumber: string | undefined | null) {
+  let cleaned = (description || '').replace(/\n\s*Part:\s*.+$/i, '').trim();
+  const part = (partNumber || '').trim();
+  if (!part) return cleaned;
+  const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return cleaned
+    .replace(new RegExp(`\\s*\\(${escaped}\\)\\s*$`, 'i'), '')
+    .replace(new RegExp(`^${escaped}\\s*-\\s*`, 'i'), '')
+    .trim();
+}
+
+function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
+  const detail = line.SalesItemLineDetail || {};
+  const itemRef = detail.ItemRef;
+  const partNumber = extractPartNumber(line.Description) || itemRef?.name || '';
+  const description = descriptionWithSku(cleanDescription(line.Description, partNumber) || itemRef?.name || 'Estimate line', partNumber);
+  const qty = Number(detail.Qty || 1);
+  const unitPrice = Number(detail.UnitPrice || line.Amount || 0);
+
+  return {
+    Id: String(idx + 1),
+    Amount: Number(line.Amount || qty * unitPrice || 0),
+    DetailType: 'ItemBasedExpenseLineDetail',
+    Description: description,
+    ItemBasedExpenseLineDetail: {
+      ItemRef: itemRef?.value ? { value: itemRef.value, name: itemRef.name || partNumber || undefined } : undefined,
+      Qty: qty,
+      UnitPrice: unitPrice,
+    },
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getQBAuth(request);
@@ -82,6 +122,43 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    if (body.action === 'send') {
+      if (!body.id) return NextResponse.json({ error: 'id is required for send' }, { status: 400 });
+      const sentPurchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(body.id, body.email));
+      try { await persistPurchaseOrdersToDb(auth.orgId, [sentPurchaseOrder]); } catch (e) { console.error('persist after PO send failed', e); }
+      return NextResponse.json({ success: true, purchaseOrder: sentPurchaseOrder });
+    }
+
+    if (body.action === 'from-estimate') {
+      if (!body.estimateId || !body.vendorId) {
+        return NextResponse.json({ error: 'estimateId and vendorId are required' }, { status: 400 });
+      }
+
+      const estimate = await withRefresh<any>(auth, (client) => client.getEstimate(body.estimateId));
+      const sourceLines = (estimate.Line || []).filter((line: any) => line.DetailType === 'SalesItemLineDetail');
+      const poLines = sourceLines.map(purchaseOrderLineFromEstimateLine).filter((line: any) => Number(line.Amount || 0) > 0);
+
+      if (poLines.length === 0) {
+        return NextResponse.json({ error: 'Estimate has no purchase-order lines' }, { status: 400 });
+      }
+
+      const poPayload = {
+        VendorRef: { value: body.vendorId },
+        TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
+        Memo: body.memo || `Copied from Estimate ${estimate.DocNumber || estimate.Id}`,
+        PrivateNote: `Copied from Estimate ${estimate.DocNumber || estimate.Id}`,
+        POEmail: body.email ? { Address: body.email } : undefined,
+        Line: poLines,
+      };
+
+      let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+      if (body.send) {
+        purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+      }
+      try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist PO from estimate failed', e); }
+      return NextResponse.json({ purchaseOrder, sent: Boolean(body.send) }, { status: 201 });
+    }
+
     if (!body.vendorId || !Array.isArray(body.lines) || body.lines.length === 0) {
       return NextResponse.json({ error: 'vendorId and lines[] are required' }, { status: 400 });
     }
@@ -90,6 +167,7 @@ export async function POST(request: NextRequest) {
       VendorRef: { value: body.vendorId },
       TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
       Memo: body.memo || undefined,
+      POEmail: body.email ? { Address: body.email } : undefined,
       Line: body.lines.map((line: any, idx: number) => {
         const sku = line.partNumber || line.sku || line.itemSku || '';
         return {
@@ -106,8 +184,12 @@ export async function POST(request: NextRequest) {
       }),
     };
 
-    const purchaseOrder = await withRefresh(auth, (client) => client.createPurchaseOrder(poPayload));
-    return NextResponse.json({ purchaseOrder }, { status: 201 });
+    let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+    if (body.send) {
+      purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+    }
+    try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist created PO failed', e); }
+    return NextResponse.json({ purchaseOrder, sent: Boolean(body.send) }, { status: 201 });
   } catch (err) {
     console.error('Failed to create QuickBooks purchase order:', err);
     return NextResponse.json({ error: 'Failed to create purchase order' }, { status: 500 });

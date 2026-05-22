@@ -472,6 +472,16 @@ export class QuickBooksClient {
     return response.PurchaseOrder;
   }
 
+  async sendPurchaseOrder(id: string, email?: string): Promise<any> {
+    const query = email ? `?sendTo=${encodeURIComponent(email)}` : '';
+    const response = await this.request<{ PurchaseOrder: any }>(
+      'POST',
+      `/purchaseorder/${id}/send${query}`,
+      {}
+    );
+    return response.PurchaseOrder;
+  }
+
   // === UTILITY ===
 
   // Get company info
