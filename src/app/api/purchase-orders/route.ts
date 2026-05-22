@@ -250,12 +250,16 @@ export async function POST(request: NextRequest) {
     const subtotal = lines.reduce((sum: number, line: CleanPurchaseOrderLine) => sum + line.amount, 0);
     const txnDate = body.txnDate || new Date().toISOString().slice(0, 10);
 
-    const [created] = await db.insert(purchaseOrders).values({
-      orgId: org.id,
+    const existing = await db
+      .select()
+      .from(purchaseOrders)
+      .where(and(eq(purchaseOrders.orgId, org.id), eq(purchaseOrders.vendorId, vendor.id), eq(purchaseOrders.poNumber, poNumber)))
+      .limit(1);
+
+    const baseValues = {
       vendorId: vendor.id,
-      qbPurchaseOrderId: null,
       poNumber,
-      status: 'open',
+      status: 'open' as const,
       issueDate: txnDate,
       expectedDate: body.dueDate || null,
       subtotal: String(subtotal.toFixed(2)),
@@ -265,9 +269,19 @@ export async function POST(request: NextRequest) {
       vendorMessage: body.emailBody || body.memo || null,
       privateNote: privateNoteFromBody(body),
       emailStatus: body.send ? 'pending' : 'not_sent',
-      lastSyncedAt: null,
       updatedAt: new Date(),
-    }).returning();
+    };
+
+    const [created] = existing[0]
+      ? await db.update(purchaseOrders).set(baseValues).where(eq(purchaseOrders.id, existing[0].id)).returning()
+      : await db.insert(purchaseOrders).values({
+          orgId: org.id,
+          qbPurchaseOrderId: null,
+          lastSyncedAt: null,
+          ...baseValues,
+        }).returning();
+
+    await db.delete(purchaseOrderLineItems).where(eq(purchaseOrderLineItems.purchaseOrderId, created.id));
 
     await db.insert(purchaseOrderLineItems).values(lines.map((line, idx) => ({
       purchaseOrderId: created.id,
