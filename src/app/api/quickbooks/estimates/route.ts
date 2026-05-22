@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
 
@@ -67,6 +67,33 @@ function buildSalesLine(line: any, idx: number, itemRef?: { value: string; name?
 function quickBooksErrorMessage(err: unknown, fallback: string) {
   if (!(err instanceof Error)) return fallback;
   return err.message || fallback;
+}
+
+function isQuickBooksObjectGone(err: unknown) {
+  if (!(err instanceof Error)) return false;
+  return err.message.includes('"code":"610"') || err.message.includes('Object Not Found');
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function deleteLocalEstimate(orgId: string, estimateId: string) {
+  const idFilters = [eq(estimates.qbEstimateId, estimateId)];
+  if (isUuid(estimateId)) idFilters.push(eq(estimates.id, estimateId));
+
+  const localRows = await db
+    .select({ id: estimates.id })
+    .from(estimates)
+    .where(and(eq(estimates.orgId, orgId), or(...idFilters)))
+    .limit(1);
+
+  const localId = localRows[0]?.id;
+  if (!localId) return false;
+
+  await db.delete(estimateLineItems).where(eq(estimateLineItems.estimateId, localId));
+  await db.delete(estimates).where(eq(estimates.id, localId));
+  return true;
 }
 
 async function getQBAuth(request: NextRequest) {
@@ -175,18 +202,17 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'delete') {
       if (!body.id) return NextResponse.json({ error: 'id is required for delete' }, { status: 400 });
-      const deletedEstimate = (await withRefresh(auth, (client) => client.deleteEstimate(body.id))) as any;
+      let deletedEstimate: any = null;
+      let quickBooksAlreadyGone = false;
 
-      const localRows = await db
-        .select({ id: estimates.id })
-        .from(estimates)
-        .where(and(eq(estimates.orgId, auth.orgId), eq(estimates.qbEstimateId, body.id)))
-        .limit(1);
-      const localId = localRows[0]?.id;
-      if (localId) {
-        await db.delete(estimateLineItems).where(eq(estimateLineItems.estimateId, localId));
-        await db.delete(estimates).where(eq(estimates.id, localId));
+      try {
+        deletedEstimate = (await withRefresh(auth, (client) => client.deleteEstimate(body.id))) as any;
+      } catch (err) {
+        if (!isQuickBooksObjectGone(err)) throw err;
+        quickBooksAlreadyGone = true;
       }
+
+      const deletedLocal = await deleteLocalEstimate(auth.orgId, body.id);
 
       addAuditLog({
         entityType: 'estimate',
@@ -195,10 +221,17 @@ export async function POST(request: NextRequest) {
         actor: 'system',
         source: 'api',
         after: deletedEstimate,
-        note: 'Estimate deleted from dashboard',
+        note: quickBooksAlreadyGone
+          ? 'Estimate was already missing in QuickBooks; removed local synced copy'
+          : 'Estimate deleted from dashboard',
       });
 
-      return NextResponse.json({ success: true, estimate: deletedEstimate });
+      return NextResponse.json({
+        success: true,
+        estimate: deletedEstimate,
+        deletedLocal,
+        quickBooksAlreadyGone,
+      });
     }
 
     if (!body.customerId || !Array.isArray(body.lines) || body.lines.length === 0) {
