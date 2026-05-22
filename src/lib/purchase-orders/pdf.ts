@@ -1,4 +1,4 @@
-import PDFDocument from "pdfkit";
+const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("pdfkit");
 
 type PurchaseOrderPdfLine = {
   itemName?: string;
