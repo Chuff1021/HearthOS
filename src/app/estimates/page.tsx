@@ -327,9 +327,11 @@ export default function EstimatesPage() {
   }, [customerQuery]);
 
   const draftTotal = useMemo(() => draftLines.reduce((s, l) => s + l.total, 0), [draftLines]);
+  const activeCustomerFilterId = selectedCustomerId || selectedCustomerFilterId || "";
+  const activeCustomerFilterName = selectedCustomerName || customers.find((customer) => customer.id === selectedCustomerFilterId)?.displayName || "";
   const filteredEstimates = useMemo(() => {
-    return estimates.filter((estimate) => !selectedCustomerFilterId || estimate.CustomerRef?.value === selectedCustomerFilterId);
-  }, [estimates, selectedCustomerFilterId]);
+    return estimates.filter((estimate) => !activeCustomerFilterId || estimate.CustomerRef?.value === activeCustomerFilterId);
+  }, [estimates, activeCustomerFilterId]);
   const selectedEstimateLines = selectedEstimate?.Line || [];
 
   useEffect(() => {
@@ -341,8 +343,8 @@ export default function EstimatesPage() {
       }
     }
 
-    if (selectedCustomerFilterId && !selectedEstimateId) {
-      const firstCustomerEstimate = estimates.find((estimate) => estimate.CustomerRef?.value === selectedCustomerFilterId);
+    if (activeCustomerFilterId && !selectedEstimateId) {
+      const firstCustomerEstimate = estimates.find((estimate) => estimate.CustomerRef?.value === activeCustomerFilterId);
       if (firstCustomerEstimate) {
         setSelectedEstimate(firstCustomerEstimate);
         return;
@@ -357,10 +359,16 @@ export default function EstimatesPage() {
       }
     }
 
-    if (!selectedEstimateId && !selectedCustomerFilterId && estimates.length && !selectedEstimate) {
+    if (!selectedEstimateId && !activeCustomerFilterId && estimates.length && !selectedEstimate) {
       setSelectedEstimate(estimates[0]);
     }
-  }, [estimates, selectedEstimateId, selectedCustomerFilterId, selectedEstimate]);
+  }, [estimates, selectedEstimateId, activeCustomerFilterId, selectedEstimate]);
+
+  useEffect(() => {
+    if (!activeCustomerFilterId) return;
+    if (selectedEstimate?.CustomerRef?.value === activeCustomerFilterId) return;
+    setSelectedEstimate(filteredEstimates[0] || null);
+  }, [activeCustomerFilterId, filteredEstimates, selectedEstimate]);
 
   function printEstimate(e: Estimate) {
     const w = window.open("", "_blank", "width=900,height=700");
@@ -751,7 +759,19 @@ export default function EstimatesPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4">
                     <div className="relative">
                       <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
-                      <input value={customerQuery} onChange={(e) => setCustomerQuery(e.target.value)} placeholder="Search customer" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                      <input
+                        value={customerQuery}
+                        onChange={(e) => {
+                          setCustomerQuery(e.target.value);
+                          if (selectedCustomerId && e.target.value !== selectedCustomerName) {
+                            setSelectedCustomerId("");
+                            setSelectedCustomerName("");
+                          }
+                        }}
+                        placeholder="Search customer"
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                      />
                       {customerResults.length > 0 && (
                         <div className="absolute z-20 mt-2 w-full rounded-lg overflow-hidden shadow-xl" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
                           {customerResults.slice(0, 6).map((c) => (
@@ -761,7 +781,23 @@ export default function EstimatesPage() {
                           ))}
                         </div>
                       )}
-                      {selectedCustomerId && <p className="text-xs mt-1" style={{ color: "#16A34A" }}>Selected: {selectedCustomerName}</p>}
+                      {selectedCustomerId && (
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <p className="text-xs" style={{ color: "#16A34A" }}>Selected: {selectedCustomerName}</p>
+                          <button
+                            onClick={() => {
+                              setSelectedCustomerId("");
+                              setSelectedCustomerName("");
+                              setCustomerQuery("");
+                              setCustomerResults([]);
+                            }}
+                            className="text-xs"
+                            style={{ color: "var(--color-text-muted)" }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -1074,7 +1110,11 @@ export default function EstimatesPage() {
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimates</h2>
-                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{filteredEstimates.length} shown</p>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {activeCustomerFilterId
+                      ? `${filteredEstimates.length} for ${activeCustomerFilterName || "selected customer"}`
+                      : `${filteredEstimates.length} recent`}
+                  </p>
                 </div>
                 <button
                   onClick={syncFromQuickBooks}
@@ -1119,7 +1159,9 @@ export default function EstimatesPage() {
                     </button>
                   ))}
                   {filteredEstimates.length === 0 && (
-                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</p>
+                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                      {activeCustomerFilterId ? "No estimates found for this customer." : "No recent estimates found."}
+                    </p>
                   )}
                 </div>
               )}
