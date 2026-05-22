@@ -298,7 +298,6 @@ export default function EstimatesPage() {
     loadAll();
     // Silently rebuild catalog if it's empty or missing model names
     fetch("/api/estimator/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -727,123 +726,360 @@ export default function EstimatesPage() {
         </div>
 
         <main className="flex-1 overflow-y-auto p-5">
-          <div className={`max-w-[1800px] mx-auto grid grid-cols-1 ${selectedEstimate ? 'xl:grid-cols-6' : 'xl:grid-cols-4'} gap-5`}>
-            <div className="xl:col-span-2 rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">Estimate Builder</h2>
-              {error && <div className="mb-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
-
-              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Example: build me a bid on a 42 Apex wood fireplace with timberline face and 25 feet of pipe" className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-              <div className="mt-3 flex gap-2 flex-wrap">
-                <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
-                  {aiGenerating ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                      Generating...
-                    </>
-                  ) : "Generate Estimate"}
-                </button>
-                <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-                  + Add Line
-                </button>
-              </div>
-
-              {aiMatchInfo && (
-                <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid rgba(37,99,235,0.2)" }}>
-                  <div className="px-3 py-2 text-xs" style={{ background: "rgba(37,99,235,0.08)" }}>
-                    <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
-                    <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
-                    {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>· {aiMatchInfo.notes}</span>}
+          <div className="max-w-[1900px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+            <section className="min-w-0 space-y-5">
+              <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                <div className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <div>
+                    <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>New Estimate</h2>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>Build the draft, confirm the QuickBooks customer, then save.</p>
                   </div>
-                  {aiMatchInfo.sourceInvoices && aiMatchInfo.sourceInvoices.length > 0 && (
-                    <div className="px-3 py-2" style={{ background: "rgba(37,99,235,0.04)", borderTop: "1px solid rgba(37,99,235,0.15)" }}>
-                      <div className="text-xs font-semibold mb-1.5" style={{ color: "#2563EB" }}>Invoices used to build this estimate</div>
-                      <div className="grid gap-1">
-                        {aiMatchInfo.sourceInvoices.map((inv, i) => (
-                          <div key={i} className="grid text-xs" style={{ gridTemplateColumns: "80px 1fr 80px", gap: "8px", color: "var(--color-text-muted)" }}>
-                            <span className="font-mono font-semibold" style={{ color: "var(--color-text)" }}>#{inv.docNumber}</span>
-                            <span className="truncate">{inv.customer}</span>
-                            <span className="text-right">{inv.date ? new Date(inv.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}</span>
-                          </div>
-                        ))}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-[11px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Draft Total</div>
+                      <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</div>
+                    </div>
+                    <button disabled={saving} onClick={saveEstimateToQuickBooks} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style={{ background: "#2563EB", opacity: saving ? 0.7 : 1 }}>
+                      {saving ? "Saving..." : "Save to QuickBooks"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {error && <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4">
+                    <div className="relative">
+                      <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
+                      <input value={customerQuery} onChange={(e) => setCustomerQuery(e.target.value)} placeholder="Search customer" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                      {customerResults.length > 0 && (
+                        <div className="absolute z-20 mt-2 w-full rounded-lg overflow-hidden shadow-xl" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
+                          {customerResults.slice(0, 6).map((c) => (
+                            <button key={c.id} onClick={() => { setSelectedCustomerId(c.id); setSelectedCustomerName(c.displayName); setCustomerQuery(c.displayName); setCustomerResults([]); }} className="w-full text-left px-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                              {c.displayName}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedCustomerId && <p className="text-xs mt-1" style={{ color: "#16A34A" }}>Selected: {selectedCustomerName}</p>}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Job / AI Prompt</label>
+                      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Example: build me a bid on a 42 Apex wood fireplace with timberline face and 25 feet of pipe" className="w-full px-3 py-2 rounded-lg resize-none text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "#F8971F" }}>
+                      {aiGenerating ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                          Generating...
+                        </>
+                      ) : "Generate Estimate"}
+                    </button>
+                    <button onClick={() => setDraftLines((prev) => [...prev, { description: "", qty: 1, unitPrice: 0, total: 0, itemId: "", partNumber: "" }])} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                      Add Line
+                    </button>
+                  </div>
+
+                  {aiMatchInfo && (
+                    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(37,99,235,0.18)" }}>
+                      <div className="px-3 py-2 text-xs" style={{ background: "rgba(37,99,235,0.07)" }}>
+                        <span className="font-semibold" style={{ color: "#2563EB" }}>Matched: {aiMatchInfo.matchedProduct}</span>
+                        <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>based on {aiMatchInfo.basedOnInvoices} past invoice{aiMatchInfo.basedOnInvoices !== 1 ? "s" : ""}</span>
+                        {aiMatchInfo.notes && <span className="ml-2" style={{ color: "var(--color-text-muted)" }}>{aiMatchInfo.notes}</span>}
                       </div>
+                      {aiMatchInfo.sourceInvoices && aiMatchInfo.sourceInvoices.length > 0 && (
+                        <div className="px-3 py-2 grid grid-cols-1 md:grid-cols-2 gap-1.5" style={{ background: "rgba(37,99,235,0.03)", borderTop: "1px solid rgba(37,99,235,0.12)" }}>
+                          {aiMatchInfo.sourceInvoices.slice(0, 6).map((inv, i) => (
+                            <div key={i} className="grid text-xs" style={{ gridTemplateColumns: "74px 1fr 70px", gap: "8px", color: "var(--color-text-muted)" }}>
+                              <span className="font-mono font-semibold" style={{ color: "var(--color-text-primary)" }}>#{inv.docNumber}</span>
+                              <span className="truncate">{inv.customer}</span>
+                              <span className="text-right">{inv.date ? new Date(inv.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              <div className="mt-5">
-                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
-                <input value={customerQuery} onChange={(e) => setCustomerQuery(e.target.value)} placeholder="Search QB customer" className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                {customerResults.length > 0 && (
-                  <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
-                    {customerResults.slice(0, 6).map((c) => (
-                      <button key={c.id} onClick={() => { setSelectedCustomerId(c.id); setSelectedCustomerName(c.displayName); setCustomerQuery(c.displayName); setCustomerResults([]); }} className="w-full text-left px-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--color-border)" }}>
-                        {c.displayName}
-                      </button>
-                    ))}
+                  <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                    <div className="min-w-[1040px]">
+                      <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px_40px] gap-0 px-3 py-2.5" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                        <div className="text-xs font-bold text-right">#</div>
+                        <div className="text-xs font-bold">Product/service</div>
+                        <div className="text-xs font-bold">QuickBooks item</div>
+                        <div className="text-xs font-bold">Description</div>
+                        <div className="text-xs font-bold text-right">Qty</div>
+                        <div className="text-xs font-bold text-right">Rate</div>
+                        <div className="text-xs font-bold text-right">Amount</div>
+                        <div></div>
+                      </div>
+                      {draftLines.map((line, idx) => (
+                        <div key={idx} className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px_40px] gap-0 px-3 py-2.5 items-start" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
+                          <div className="text-sm text-right pt-1.5" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
+                          <input className="w-full text-sm outline-none rounded px-2 py-1.5 font-semibold" value={line.partNumber || ""} onChange={(e) => updateLine(idx, { partNumber: e.target.value })} placeholder="Part number" style={{ color: "var(--color-text-primary)", background: "transparent" }} />
+                          <div className="text-sm px-2 py-1.5 truncate" title={line.itemName || line.partNumber || ""} style={{ color: "var(--color-text-muted)" }}>{line.itemName || line.partNumber || ""}</div>
+                          <textarea className="w-full text-sm outline-none rounded px-2 py-1.5 resize-none" rows={2} value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "var(--color-text-primary)", background: "transparent" }} />
+                          <input type="number" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                          <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
+                          <div className="text-sm font-semibold text-right px-1 py-1.5" style={{ color: "var(--color-text-primary)" }}>${line.total.toFixed(2)}</div>
+                          <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="text-sm py-1.5" style={{ color: "var(--color-text-muted)" }} aria-label="Remove line">x</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <div className="w-full sm:w-80 space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
+                        <span style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: "var(--color-text-muted)" }}>Tax</span>
+                        <span style={{ color: "var(--color-text-primary)" }}>Included in line items</span>
+                      </div>
+                      <div className="flex justify-between pt-2" style={{ borderTop: "2px solid var(--color-border)" }}>
+                        <span className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>Total</span>
+                        <span className="text-base font-bold" style={{ color: "#2CA01C" }}>${draftTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                {!selectedEstimate ? (
+                  <div className="p-5">
+                    <h2 className="font-semibold mb-2" style={{ color: "var(--color-text-primary)" }}>Estimate Details</h2>
+                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select an estimate from the list to review its lines, print it, email it, schedule it, or delete it.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</span>
+                          {convertedMap[selectedEstimate.Id] && (
+                            <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>Converted</span>
+                          )}
+                        </div>
+                        <div className="text-xl font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedEstimate.CustomerRef?.name || "Customer"}</div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                          {selectedEstimate.TxnDate && <span>Issued {selectedEstimate.TxnDate}</span>}
+                          {selectedEstimate.ExpirationDate && <span>Expires {selectedEstimate.ExpirationDate}</span>}
+                          <span>{selectedEstimateLines.length} line{selectedEstimateLines.length === 1 ? "" : "s"}</span>
+                        </div>
+                      </div>
+                      <div className="text-left lg:text-right">
+                        <div className="text-[11px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Estimate Total</div>
+                        <div className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                          ${Number(editingEstimateId === selectedEstimate.Id
+                            ? estimateEditForm.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+                            : selectedEstimate.TotalAmt || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-5 py-3 flex flex-wrap gap-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                      {editingEstimateId === selectedEstimate.Id ? (
+                        <>
+                          <button onClick={saveEstimateEdits} disabled={savingEstimateEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB", opacity: savingEstimateEdits ? 0.7 : 1 }}>
+                            {savingEstimateEdits ? "Saving..." : "Save Changes"}
+                          </button>
+                          <button onClick={() => setEditingEstimateId(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                            Cancel
+                          </button>
+                          <button onClick={addEstimateLine} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                            Add Line
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => openEmailDialog(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Email</button>
+                          <button onClick={() => printEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Print</button>
+                          <button onClick={() => downloadEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Download</button>
+                          <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Edit</button>
+                          <button onClick={() => setPnlOpen({ id: selectedEstimate.Id, label: selectedEstimate.DocNumber || selectedEstimate.Id })} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
+                          <button onClick={() => scheduleFromEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
+                          {convertedMap[selectedEstimate.Id] ? (
+                            <a href="/invoices" className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.25)" }}>View Invoice</a>
+                          ) : (
+                            <button onClick={() => convertEstimateToInvoice(selectedEstimate)} disabled={convertingEstimateId === selectedEstimate.Id} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#16A34A", opacity: convertingEstimateId === selectedEstimate.Id ? 0.7 : 1 }}>
+                              {convertingEstimateId === selectedEstimate.Id ? "Converting..." : "Convert"}
+                            </button>
+                          )}
+                          <button onClick={() => deleteEstimate(selectedEstimate)} disabled={deletingEstimateId === selectedEstimate.Id} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)", opacity: deletingEstimateId === selectedEstimate.Id ? 0.7 : 1 }}>
+                            {deletingEstimateId === selectedEstimate.Id ? "Deleting..." : "Delete"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {editingEstimateId === selectedEstimate.Id && (
+                      <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <label className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Expiration date</label>
+                        <input
+                          type="date"
+                          value={estimateEditForm.expirationDate}
+                          onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, expirationDate: event.target.value }))}
+                          className="mt-1 w-full max-w-xs px-3 py-2 rounded-lg text-sm"
+                          style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="p-5">
+                      <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                        <div className="min-w-[1040px]">
+                          {editingEstimateId !== selectedEstimate.Id && (
+                            <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px] gap-0 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                              <div className="text-right">#</div>
+                              <div>Product/service</div>
+                              <div>SKU</div>
+                              <div>Description</div>
+                              <div className="text-right">Qty</div>
+                              <div className="text-right">Rate</div>
+                              <div className="text-right">Amount</div>
+                            </div>
+                          )}
+                          {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines : selectedEstimateLines).map((line: any, idx) => (
+                            <div key={`${selectedEstimate.Id}-${idx}`} style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: idx === 0 && editingEstimateId !== selectedEstimate.Id ? "0" : "1px solid var(--color-border)" }}>
+                              {editingEstimateId === selectedEstimate.Id ? (
+                                <div className="grid grid-cols-[220px_190px_minmax(300px,1fr)_70px_100px_100px_76px] gap-2 p-3 items-start">
+                                  <select
+                                    value={estimateEditForm.lines[idx]?.itemId || ""}
+                                    onChange={(event) => {
+                                      const item = items.find((entry) => entry.Id === event.target.value);
+                                      updateEstimateLine(idx, {
+                                        itemId: event.target.value || undefined,
+                                        itemName: item?.Name,
+                                        partNumber: getItemPartNumber(item),
+                                        description: item?.Name || estimateEditForm.lines[idx]?.description || "",
+                                        unitPrice: Number(item?.UnitPrice || estimateEditForm.lines[idx]?.unitPrice || 0),
+                                      });
+                                    }}
+                                    className="w-full px-2 py-2 rounded-lg text-sm"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                  >
+                                    <option value="">Map item</option>
+                                    {items.map((item) => (
+                                      <option key={item.Id} value={item.Id}>{item.Name} - {getItemPartNumber(item)}</option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    value={estimateEditForm.lines[idx]?.partNumber || ""}
+                                    onChange={(event) => updateEstimateLine(idx, { partNumber: event.target.value })}
+                                    placeholder="Product/service"
+                                    className="w-full px-2 py-2 rounded-lg text-sm font-semibold"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                  />
+                                  <input
+                                    value={estimateEditForm.lines[idx]?.description || ""}
+                                    onChange={(event) => updateEstimateLine(idx, { description: event.target.value })}
+                                    className="w-full px-2 py-2 rounded-lg text-sm"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                  />
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={estimateEditForm.lines[idx]?.qty || 0}
+                                    onChange={(event) => updateEstimateLine(idx, { qty: Number(event.target.value || 0) })}
+                                    className="w-full px-2 py-2 rounded-lg text-sm text-right"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                  />
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min={0}
+                                    value={estimateEditForm.lines[idx]?.unitPrice || 0}
+                                    onChange={(event) => updateEstimateLine(idx, { unitPrice: Number(event.target.value || 0) })}
+                                    className="w-full px-2 py-2 rounded-lg text-sm text-right"
+                                    style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                                  />
+                                  <div className="text-sm font-semibold text-right py-2" style={{ color: "var(--color-text-primary)" }}>
+                                    ${Number(estimateEditForm.lines[idx]?.amount || 0).toFixed(2)}
+                                  </div>
+                                  <button onClick={() => removeEstimateLine(idx)} className="px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
+                                    Remove
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px] gap-0 px-3 py-3 items-start">
+                                  <div className="text-sm text-right" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
+                                  <div className="text-sm font-semibold px-2" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
+                                  <div className="text-sm px-2 truncate" title={getLineSku(line)} style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
+                                  <div className="text-sm px-2 whitespace-pre-wrap" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
+                                  <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
+                                  <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
+                                  <div className="text-sm font-semibold text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.Amount || 0).toFixed(2)}</div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines.length : selectedEstimateLines.length) === 0 && (
+                            <div className="px-3 py-8 text-sm text-center" style={{ color: "var(--color-text-muted)" }}>No estimate lines found.</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+                        <div>
+                          <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>Notes</div>
+                          {editingEstimateId === selectedEstimate.Id ? (
+                            <textarea
+                              rows={4}
+                              value={estimateEditForm.privateNote}
+                              onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, privateNote: event.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm"
+                              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                            />
+                          ) : (
+                            <div className="text-sm rounded-lg p-3 min-h-20" style={{ color: "var(--color-text-secondary)", background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>{selectedEstimate.PrivateNote || "No notes on this estimate."}</div>
+                          )}
+                        </div>
+                        <div className="space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                          <div className="flex items-center justify-between text-sm">
+                            <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
+                            <span style={{ color: "var(--color-text-primary)" }}>
+                              ${Number(editingEstimateId === selectedEstimate.Id
+                                ? estimateEditForm.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+                                : selectedEstimate.TotalAmt || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span style={{ color: "var(--color-text-muted)" }}>Tax</span>
+                            <span style={{ color: "var(--color-text-primary)" }}>Included in line items</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2" style={{ borderTop: "2px solid var(--color-border)" }}>
+                            <span className="font-bold" style={{ color: "var(--color-text-primary)" }}>Total</span>
+                            <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+                              ${Number(editingEstimateId === selectedEstimate.Id
+                                ? estimateEditForm.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
+                                : selectedEstimate.TotalAmt || 0).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-                {selectedCustomerId && <p className="text-xs mt-1" style={{ color: "#98CD00" }}>Selected: {selectedCustomerName}</p>}
               </div>
+            </section>
 
-              {/* QuickBooks-style estimate table */}
-              <div className="mt-5 rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
-                <div className="min-w-[980px]">
-                  <div className="grid grid-cols-[46px_170px_170px_1fr_64px_92px_104px_40px] gap-0 px-3 py-2.5" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
-                    <div className="text-xs font-bold text-right">#</div>
-                    <div className="text-xs font-bold">Product/service</div>
-                    <div className="text-xs font-bold">SKU</div>
-                    <div className="text-xs font-bold">Description</div>
-                    <div className="text-xs font-bold text-right">Qty</div>
-                    <div className="text-xs font-bold text-right">Rate</div>
-                    <div className="text-xs font-bold text-right">Amount</div>
-                    <div></div>
-                  </div>
-                  {draftLines.map((line, idx) => (
-                    <div key={idx} className="grid grid-cols-[46px_170px_170px_1fr_64px_92px_104px_40px] gap-0 px-3 py-2.5 items-start" style={{ background: idx % 2 === 0 ? "var(--color-surface-1)" : "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
-                      <div className="text-sm text-right pt-1.5" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
-                      <input className="w-full text-sm outline-none rounded px-2 py-1.5" value={line.partNumber || ""} onChange={(e) => updateLine(idx, { partNumber: e.target.value })} placeholder="Part number" style={{ color: "var(--color-text-primary)", background: "transparent" }} />
-                      <div className="text-sm px-2 py-1.5 truncate" style={{ color: "var(--color-text-muted)" }}>{line.itemName || line.partNumber || ""}</div>
-                      <textarea className="w-full text-sm outline-none rounded px-2 py-1.5 resize-none" rows={2} value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} style={{ color: "var(--color-text-primary)", background: "transparent" }} />
-                      <input type="number" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
-                      <input type="number" step="0.01" className="w-full text-sm text-right bg-transparent outline-none px-1 py-1.5" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} style={{ color: "var(--color-text-primary)" }} />
-                      <div className="text-sm font-semibold text-right px-1 py-1.5" style={{ color: "var(--color-text-primary)" }}>${line.total.toFixed(2)}</div>
-                      <button onClick={() => setDraftLines((prev) => prev.length <= 1 ? prev : prev.filter((_, lineIdx) => lineIdx !== idx))} className="text-sm py-1.5" style={{ color: "var(--color-text-muted)" }}>✕</button>
-                    </div>
-                  ))}
+            <aside className="rounded-xl p-4 xl:sticky xl:top-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimates</h2>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{filteredEstimates.length} shown</p>
                 </div>
-              </div>
-
-              {/* Totals — right-aligned like QuickBooks */}
-              <div className="mt-4 flex justify-end">
-                <div className="w-64 space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
-                    <span style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: "var(--color-text-muted)" }}>Tax</span>
-                    <span style={{ color: "var(--color-text-primary)" }}>Included in line items</span>
-                  </div>
-                  <div className="flex justify-between pt-2" style={{ borderTop: "2px solid var(--color-border)" }}>
-                    <span className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>TOTAL</span>
-                    <span className="text-base font-bold" style={{ color: "#2CA01C" }}>${draftTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button disabled={saving} onClick={saveEstimateToQuickBooks} className="mt-4 w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)", opacity: saving ? 0.7 : 1 }}>
-                {saving ? "Saving to QuickBooks..." : "Save Estimate to QuickBooks"}
-              </button>
-            </div>
-
-            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">Estimates</h2>
                 <button
                   onClick={syncFromQuickBooks}
                   disabled={syncing}
-                  className="text-[11px] px-2 py-1 rounded transition-colors"
+                  className="text-[11px] px-2.5 py-1.5 rounded transition-colors"
                   style={{
                     border: "1px solid var(--color-border)",
                     color: "var(--color-text-secondary)",
@@ -851,295 +1087,43 @@ export default function EstimatesPage() {
                     opacity: syncing ? 0.6 : 1,
                   }}
                 >
-                  {syncing ? "Syncing…" : "Sync from QuickBooks"}
+                  {syncing ? "Syncing..." : "Sync"}
                 </button>
               </div>
               {loading ? <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p> : (
-                <div className="space-y-2 max-h-[680px] overflow-auto pr-1">
+                <div className="space-y-2 max-h-[calc(100vh-220px)] overflow-auto pr-1">
                   {filteredEstimates.map((e) => (
-                    <div
+                    <button
                       key={e.Id}
                       onClick={() => setSelectedEstimate(e)}
-                      className="w-full text-left p-3 rounded-lg cursor-pointer"
+                      className="w-full text-left p-3 rounded-lg transition-colors"
                       style={{
-                        background: "var(--color-surface-3)",
-                        border: `1px solid ${selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.35)" : "var(--color-border)"}`,
-                        boxShadow: selectedEstimate?.Id === e.Id ? "0 0 0 1px rgba(37,99,235,0.15) inset" : "none",
+                        background: selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.08)" : "var(--color-surface-3)",
+                        border: `1px solid ${selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.45)" : "var(--color-border)"}`,
+                        boxShadow: selectedEstimate?.Id === e.Id ? "0 0 0 1px rgba(37,99,235,0.12) inset" : "none",
                       }}
                     >
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.DocNumber || `Estimate ${e.Id}`}</div>
-                      <div className="text-sm font-semibold">{e.CustomerRef?.name || "Customer"}</div>
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "—"}</div>
-                      <div className="text-sm font-semibold mt-1">${Number(e.TotalAmt || 0).toFixed(2)}</div>
-                      <div className="mt-2 grid grid-cols-3 gap-1">
-                        <button onClick={(event) => { event.stopPropagation(); openEmailDialog(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Email</button>
-                        <button onClick={(event) => { event.stopPropagation(); printEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Print</button>
-                        <button onClick={(event) => { event.stopPropagation(); downloadEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Download</button>
-                        <button onClick={(event) => { event.stopPropagation(); beginEditEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
-                        <button onClick={(event) => { event.stopPropagation(); setPnlOpen({ id: e.Id, label: e.DocNumber || e.Id }); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
-                        <button onClick={(event) => { event.stopPropagation(); scheduleFromEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
-                        <button
-                          onClick={(event) => { event.stopPropagation(); deleteEstimate(e); }}
-                          disabled={deletingEstimateId === e.Id}
-                          className="col-span-3 py-1.5 rounded-lg text-xs font-semibold"
-                          style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)", opacity: deletingEstimateId === e.Id ? 0.7 : 1 }}
-                        >
-                          {deletingEstimateId === e.Id ? "Deleting..." : "Delete Estimate"}
-                        </button>
-                      </div>
-
-                      {convertedMap[e.Id] ? (
-                        <div className="mt-2 space-y-1">
-                          <div className="w-full py-1.5 rounded-lg text-xs font-semibold text-center" style={{ background: "rgba(152,205,0,0.15)", color: "#98CD00", border: "1px solid rgba(152,205,0,0.35)" }}>
-                            Converted ✓ {convertedMap[e.Id]}
-                          </div>
-                          <a
-                            href={`/invoices`}
-                            className="block w-full py-1.5 rounded-lg text-xs font-semibold text-center"
-                            style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
-                          >
-                            View Invoices
-                          </a>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-mono" style={{ color: "var(--color-text-muted)" }}>{e.DocNumber || `Estimate ${e.Id}`}</div>
+                          <div className="text-sm font-semibold truncate mt-0.5" style={{ color: "var(--color-text-primary)" }}>{e.CustomerRef?.name || "Customer"}</div>
                         </div>
-                      ) : (
-                        <button
-                          onClick={(event) => { event.stopPropagation(); convertEstimateToInvoice(e); }}
-                          disabled={convertingEstimateId === e.Id}
-                          className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold text-white"
-                          style={{ background: "linear-gradient(135deg, #f8971f, #f8971f)", opacity: convertingEstimateId === e.Id ? 0.7 : 1 }}
-                        >
-                          {convertingEstimateId === e.Id ? "Converting..." : "Convert to Invoice"}
-                        </button>
-                      )}
-                    </div>
+                        <div className="text-sm font-semibold shrink-0" style={{ color: "var(--color-text-primary)" }}>${Number(e.TotalAmt || 0).toFixed(2)}</div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{e.TxnDate || "No date"}</span>
+                        {convertedMap[e.Id] && (
+                          <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>Converted</span>
+                        )}
+                      </div>
+                    </button>
                   ))}
                   {filteredEstimates.length === 0 && (
                     <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimates found for this customer.</p>
                   )}
                 </div>
               )}
-            </div>
-
-            <div className={`rounded-xl p-5 ${selectedEstimate ? 'xl:col-span-3' : ''}`} style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              {!selectedEstimate ? (
-                <>
-                  <h2 className="font-semibold mb-3">Estimate Details</h2>
-                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Select an estimate to review its lines and totals.</p>
-                </>
-              ) : (
-                <div className="space-y-5">
-                  {/* Header strip: doc number + customer + dates + actions */}
-                  <div className="flex items-start justify-between gap-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 16 }}>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm" style={{ color: "var(--color-text-muted)" }}>{selectedEstimate.DocNumber || `Estimate ${selectedEstimate.Id}`}</span>
-                        {convertedMap[selectedEstimate.Id] && (
-                          <span className="text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>Converted</span>
-                        )}
-                      </div>
-                      <div className="text-lg font-semibold mt-0.5" style={{ color: "var(--color-text-primary)" }}>{selectedEstimate.CustomerRef?.name || "Customer"}</div>
-                      <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        {selectedEstimate.TxnDate && <span>Issued: {selectedEstimate.TxnDate}</span>}
-                        {selectedEstimate.ExpirationDate && <span>Expires: {selectedEstimate.ExpirationDate}</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap justify-end">
-                      {editingEstimateId === selectedEstimate.Id ? (
-                        <>
-                          <button onClick={saveEstimateEdits} disabled={savingEstimateEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB", opacity: savingEstimateEdits ? 0.7 : 1 }}>
-                            {savingEstimateEdits ? "Saving..." : "Save"}
-                          </button>
-                          <button onClick={() => setEditingEstimateId(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => setPnlOpen({ id: selectedEstimate.Id, label: selectedEstimate.DocNumber || selectedEstimate.Id })}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                            style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}
-                          >
-                            P&amp;L
-                          </button>
-                          <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                            Edit
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                    <button onClick={() => openEmailDialog(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Email</button>
-                    <button onClick={() => printEstimate(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Print</button>
-                    <button onClick={() => downloadEstimate(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>Download</button>
-                    <button onClick={() => scheduleFromEstimate(selectedEstimate)} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
-                    {!convertedMap[selectedEstimate.Id] && (
-                      <button onClick={() => convertEstimateToInvoice(selectedEstimate)} disabled={convertingEstimateId === selectedEstimate.Id} className="px-3 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #16A34A, #22C55E)", opacity: convertingEstimateId === selectedEstimate.Id ? 0.7 : 1 }}>
-                        {convertingEstimateId === selectedEstimate.Id ? "Converting…" : "Convert"}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteEstimate(selectedEstimate)}
-                      disabled={deletingEstimateId === selectedEstimate.Id}
-                      className="px-3 py-2 rounded-lg text-sm font-medium"
-                      style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)", opacity: deletingEstimateId === selectedEstimate.Id ? 0.7 : 1 }}
-                    >
-                      {deletingEstimateId === selectedEstimate.Id ? "Deleting..." : "Delete"}
-                    </button>
-                  </div>
-
-                  {editingEstimateId === selectedEstimate.Id && (
-                    <div>
-                      <label className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Expiration date</label>
-                      <input
-                        type="date"
-                        value={estimateEditForm.expirationDate}
-                        onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, expirationDate: event.target.value }))}
-                        className="mt-1 w-full px-3 py-2 rounded-lg text-sm"
-                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    {editingEstimateId !== selectedEstimate.Id && selectedEstimateLines.length > 0 && (
-                      <div className="hidden lg:grid grid-cols-[44px_160px_150px_1fr_60px_90px_100px] gap-0 px-3 py-2 text-xs font-bold rounded-lg" style={{ background: "#f5f6f8", color: "var(--color-text-primary)" }}>
-                        <div className="text-right">#</div>
-                        <div>Product/service</div>
-                        <div>SKU</div>
-                        <div>Description</div>
-                        <div className="text-right">Qty</div>
-                        <div className="text-right">Rate</div>
-                        <div className="text-right">Amount</div>
-                      </div>
-                    )}
-                    {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines : selectedEstimateLines).map((line: any, idx) => (
-                      <div key={`${selectedEstimate.Id}-${idx}`} className="rounded-lg p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                        {editingEstimateId === selectedEstimate.Id ? (
-                          <div className="space-y-2">
-                            <select
-                              value={estimateEditForm.lines[idx]?.itemId || ""}
-                              onChange={(event) => {
-                                const item = items.find((entry) => entry.Id === event.target.value);
-                                updateEstimateLine(idx, {
-                                  itemId: event.target.value || undefined,
-                                  itemName: item?.Name,
-                                  partNumber: getItemPartNumber(item),
-                                  description: item?.Name || estimateEditForm.lines[idx]?.description || "",
-                                  unitPrice: Number(item?.UnitPrice || estimateEditForm.lines[idx]?.unitPrice || 0),
-                                });
-                              }}
-                              className="w-full px-3 py-2 rounded-lg text-sm"
-                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                            >
-                                <option value="">Map item (optional)</option>
-                                {items.map((item) => (
-                                  <option key={item.Id} value={item.Id}>{item.Name} · {getItemPartNumber(item)}</option>
-                                ))}
-                              </select>
-                            <input
-                              value={estimateEditForm.lines[idx]?.description || ""}
-                              onChange={(event) => updateEstimateLine(idx, { description: event.target.value })}
-                              className="w-full px-3 py-2 rounded-lg text-sm"
-                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                            />
-                            <input
-                              value={estimateEditForm.lines[idx]?.partNumber || ""}
-                              onChange={(event) => updateEstimateLine(idx, { partNumber: event.target.value })}
-                              placeholder="Part number"
-                              className="w-full px-3 py-2 rounded-lg text-sm"
-                              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                            />
-                            <div className="grid grid-cols-3 gap-2">
-                              <input
-                                type="number"
-                                min={0}
-                                value={estimateEditForm.lines[idx]?.qty || 0}
-                                onChange={(event) => updateEstimateLine(idx, { qty: Number(event.target.value || 0) })}
-                                className="px-3 py-2 rounded-lg text-sm"
-                                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                              />
-                              <input
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                value={estimateEditForm.lines[idx]?.unitPrice || 0}
-                                onChange={(event) => updateEstimateLine(idx, { unitPrice: Number(event.target.value || 0) })}
-                                className="px-3 py-2 rounded-lg text-sm"
-                                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
-                              />
-                              <button onClick={() => removeEstimateLine(idx)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>
-                                Remove
-                              </button>
-                            </div>
-                            <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                              ${Number(estimateEditForm.lines[idx]?.amount || 0).toFixed(2)}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 lg:grid-cols-[44px_160px_150px_1fr_60px_90px_100px] gap-2 lg:gap-0 lg:items-start">
-                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
-                            <div>
-                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>Product/service</div>
-                              <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
-                            </div>
-                            <div>
-                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>SKU</div>
-                              <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
-                            </div>
-                            <div>
-                              <div className="lg:hidden text-[10px] font-bold uppercase" style={{ color: "var(--color-text-muted)" }}>Description</div>
-                              <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
-                            </div>
-                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-primary)" }}>{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
-                            <div className="text-sm lg:text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
-                            <div className="text-sm font-semibold lg:text-right" style={{ color: "var(--color-text-primary)" }}>
-                              ${Number(line.Amount || 0).toFixed(2)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {(editingEstimateId === selectedEstimate.Id ? estimateEditForm.lines.length : selectedEstimateLines.length) === 0 && (
-                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No estimate lines found.</p>
-                    )}
-                    {editingEstimateId === selectedEstimate.Id && (
-                      <button onClick={addEstimateLine} className="w-full px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                        Add Line
-                      </button>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-text-muted)" }}>NOTES</div>
-                    {editingEstimateId === selectedEstimate.Id ? (
-                      <textarea
-                        rows={4}
-                        value={estimateEditForm.privateNote}
-                        onChange={(event) => setEstimateEditForm((prev) => ({ ...prev, privateNote: event.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg text-sm"
-                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                      />
-                    ) : (
-                      <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{selectedEstimate.PrivateNote || "No notes on this estimate."}</div>
-                    )}
-                  </div>
-
-                  <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total</span>
-                      <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                        ${Number(editingEstimateId === selectedEstimate.Id
-                          ? estimateEditForm.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0)
-                          : selectedEstimate.TotalAmt || 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            </aside>
           </div>
         </main>
       </div>
