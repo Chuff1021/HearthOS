@@ -98,6 +98,20 @@ export default function EstimatesPage() {
     return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
+  function tokenizeItemLookup(value: string | undefined) {
+    return Array.from(new Set((value || "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0)
+      .flatMap((token) => {
+        const variants = [token];
+        if (token.endsWith("es") && token.length > 4) variants.push(token.slice(0, -2));
+        if (token.endsWith("s") && token.length > 3) variants.push(token.slice(0, -1));
+        return variants;
+      })));
+  }
+
   function escapeRegExp(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
@@ -175,18 +189,45 @@ export default function EstimatesPage() {
 
   function getItemSearchResults(query: string) {
     const normalizedQuery = normalizeItemLookup(query);
-    if (normalizedQuery.length < 2) return [];
+    const queryTokens = tokenizeItemLookup(query);
+    if (normalizedQuery.length < 2 || queryTokens.length === 0) return [];
 
     return items
-      .filter((item) => {
-        const searchable = [
-          item.Name,
+      .map((item) => {
+        const rawFields = [
           item.Sku,
+          item.Name,
           item.FullyQualifiedName,
-        ].map(normalizeItemLookup);
+        ].filter(Boolean) as string[];
+        const normalizedFields = rawFields.map(normalizeItemLookup);
+        const itemTokens = tokenizeItemLookup(rawFields.join(" "));
+        const contiguousMatch = normalizedFields.some((value) => value.includes(normalizedQuery));
+        const allTokensMatch = queryTokens.every((queryToken) => (
+          normalizedFields.some((value) => value.includes(queryToken)) ||
+          itemTokens.some((itemToken) => itemToken.includes(queryToken))
+        ));
 
-        return searchable.some((value) => value.includes(normalizedQuery));
+        if (!contiguousMatch && !allTokensMatch) return null;
+
+        let score = 0;
+        if (normalizeItemLookup(item.Sku) === normalizedQuery) score += 120;
+        if (normalizeItemLookup(item.Name) === normalizedQuery) score += 110;
+        if (normalizeItemLookup(item.Sku).startsWith(normalizedQuery)) score += 80;
+        if (normalizeItemLookup(item.Name).startsWith(normalizedQuery)) score += 70;
+        if (contiguousMatch) score += 55;
+
+        for (const queryToken of queryTokens) {
+          if (itemTokens.includes(queryToken)) score += 30;
+          else if (itemTokens.some((itemToken) => itemToken.startsWith(queryToken))) score += 20;
+          else if (normalizedFields.some((value) => value.includes(queryToken))) score += 12;
+        }
+
+        score -= Math.min((item.Name || "").length, 80) / 100;
+        return { item, score };
       })
+      .filter((result): result is { item: Item; score: number } => Boolean(result))
+      .sort((a, b) => b.score - a.score || a.item.Name.localeCompare(b.item.Name))
+      .map((result) => result.item)
       .slice(0, 8);
   }
 
