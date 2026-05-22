@@ -190,6 +190,8 @@ export default function PurchaseOrdersPage() {
   const [activeItemSearchIndex, setActiveItemSearchIndex] = useState<number | null>(null);
   const [copyLabel, setCopyLabel] = useState("Copy");
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
+  const [sendMeCopy, setSendMeCopy] = useState(true);
   const [sendSubject, setSendSubject] = useState("Purchase Order from AARON'S FIREPLACE CO, LLC");
   const [sendBody, setSendBody] = useState("Dear Vendor,\n\nPlease find our purchase order attached to this email.\n\nThank you.\n\nThanks for your business!\nAARON'S FIREPLACE CO, LLC");
 
@@ -357,9 +359,9 @@ export default function PurchaseOrdersPage() {
     setError(null);
     try {
       const requests: Promise<Response>[] = [
-        fetch("/api/quickbooks/vendors"),
-        fetch("/api/quickbooks/items?sync=true"),
-        fetch("/api/quickbooks/purchase-orders"),
+        fetch("/api/vendors?filter=all"),
+        fetch("/api/inventory?filter=all&limit=500"),
+        fetch("/api/purchase-orders"),
       ];
       if (nextEstimateId) requests.push(fetch(`/api/estimates?id=${encodeURIComponent(nextEstimateId)}`));
 
@@ -374,9 +376,30 @@ export default function PurchaseOrdersPage() {
       if (!pRes.ok) throw new Error(pData.error || "Failed purchase orders load");
       if (eRes && !eRes.ok) throw new Error(eData?.error || "Failed estimate load");
 
-      const nextVendors = vData.vendors || [];
+      const nextVendors = (vData.items || vData.vendors || []).map((vendor: any) => ({
+        Id: vendor.qbVendorId || vendor.id || vendor.Id,
+        DisplayName: vendor.displayName || vendor.DisplayName || "",
+        CompanyName: vendor.companyName || vendor.CompanyName || undefined,
+        PrimaryEmailAddr: vendor.email ? { Address: vendor.email } : vendor.PrimaryEmailAddr,
+        BillAddr: vendor.addressLine1 || vendor.city || vendor.state || vendor.zip
+          ? {
+              Line1: vendor.addressLine1 || undefined,
+              Line2: vendor.addressLine2 || undefined,
+              City: vendor.city || undefined,
+              CountrySubDivisionCode: vendor.state || undefined,
+              PostalCode: vendor.zip || undefined,
+            }
+          : vendor.BillAddr,
+      }));
       setVendors(nextVendors);
-      setItems(iData.items || []);
+      setItems((iData.items || []).map((item: any) => ({
+        Id: item.qbItemId || item.id || item.Id,
+        Name: item.name || item.Name || "",
+        Type: item.type || item.Type,
+        FullyQualifiedName: item.fullyQualifiedName || item.FullyQualifiedName || item.name || item.Name,
+        Sku: item.sku || item.Sku,
+        UnitPrice: Number(item.unitPrice ?? item.UnitPrice ?? item.cost ?? 0),
+      })));
       setPurchaseOrders(pData.purchaseOrders || []);
 
       if (eData?.estimate) {
@@ -460,6 +483,7 @@ export default function PurchaseOrdersPage() {
     const vendorGreeting = selectedVendor?.DisplayName || vendorQuery || "Vendor";
     setSendSubject("Purchase Order from AARON'S FIREPLACE CO, LLC");
     setSendBody(`Dear ${vendorGreeting},\n\nPlease find our purchase order attached to this email.\n\nThank you.\n\nThanks for your business!\nAARON'S FIREPLACE CO, LLC`);
+    setSendStatus(null);
     setSendDialogOpen(true);
   }
 
@@ -485,8 +509,9 @@ export default function PurchaseOrdersPage() {
     setSaving(true);
     setError(null);
     setCreatedMessage(null);
+    if (send) setSendStatus({ type: "info", message: "Creating purchase order and sending email..." });
     try {
-      const res = await fetch("/api/quickbooks/purchase-orders", {
+      const res = await fetch("/api/purchase-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -506,6 +531,7 @@ export default function PurchaseOrdersPage() {
           email: vendorEmail.trim() || undefined,
           emailSubject: sendSubject,
           emailBody: sendBody,
+          sendMeCopy,
           send,
           lines: normalized,
         }),
@@ -516,15 +542,26 @@ export default function PurchaseOrdersPage() {
       setCreatedMessage(`${data.sent ? "Created and sent" : data.emailError ? "Created but email failed" : "Created"} Purchase Order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}${data.emailError ? `: ${data.emailError}` : ""}`.trim());
       setPoNumber(data.purchaseOrder?.DocNumber || poNumber);
       setPurchaseOrderStatus(data.purchaseOrder?.POStatus || "Open");
-      if (send && !data.emailError) setSendDialogOpen(false);
+      if (send) {
+        if (data.emailError) {
+          setSendStatus({ type: "error", message: `Purchase order was saved, but the email did not send: ${data.emailError}` });
+        } else if (data.sent) {
+          setSendStatus({ type: "success", message: `Sent to ${vendorEmail.trim()} through Hearth OS email.` });
+          setSendDialogOpen(false);
+        } else {
+          setSendStatus({ type: "error", message: "Purchase order was saved, but email is not configured." });
+        }
+      }
       if (data.sent && vendorEmail.trim()) {
         setLastDelivery(`Sent by email to ${vendorEmail.trim()} at ${new Date().toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "long" })}`);
       }
-      const pRes = await fetch("/api/quickbooks/purchase-orders");
+      const pRes = await fetch("/api/purchase-orders");
       const pData = await pRes.json();
       if (pRes.ok) setPurchaseOrders(pData.purchaseOrders || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create purchase order");
+      const message = e instanceof Error ? e.message : "Failed to create purchase order";
+      setError(message);
+      if (send) setSendStatus({ type: "error", message });
     } finally {
       setSaving(false);
     }
@@ -551,7 +588,7 @@ export default function PurchaseOrdersPage() {
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Purchase Orders</h1>
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-              {sourceEstimate ? `Convert Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id} into a vendor purchase order` : "Create and send purchase orders to QuickBooks vendors"}
+              {sourceEstimate ? `Convert Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id} into a vendor purchase order` : "Create and send purchase orders to vendors"}
             </p>
           </div>
           <button onClick={() => loadAll(estimateId)} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
@@ -645,7 +682,7 @@ export default function PurchaseOrdersPage() {
                         {[selectedVendor.CompanyName, selectedVendor.PrimaryEmailAddr?.Address].filter(Boolean).join(" - ") || "Vendor selected"}
                       </p>
                     ) : (
-                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Start typing to find a QuickBooks vendor.</p>
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Start typing to find a vendor.</p>
                     )}
                   </div>
                   <div>
@@ -940,6 +977,18 @@ export default function PurchaseOrdersPage() {
 
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_640px] gap-0 overflow-y-auto max-h-[calc(88vh-128px)]">
                 <div className="p-5 space-y-4">
+                  {sendStatus && (
+                    <div
+                      className="px-3 py-2 rounded-lg text-sm"
+                      style={{
+                        background: sendStatus.type === "error" ? "rgba(255,32,78,0.12)" : sendStatus.type === "success" ? "rgba(22,163,74,0.12)" : "rgba(37,99,235,0.10)",
+                        border: sendStatus.type === "error" ? "1px solid rgba(255,32,78,0.35)" : sendStatus.type === "success" ? "1px solid rgba(22,163,74,0.25)" : "1px solid rgba(37,99,235,0.22)",
+                        color: sendStatus.type === "error" ? "#FF204E" : sendStatus.type === "success" ? "#15803D" : "#2563EB",
+                      }}
+                    >
+                      {sendStatus.message}
+                    </div>
+                  )}
                   <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
                     <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>To</label>
                     <input value={vendorEmail} onChange={(event) => setVendorEmail(event.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
@@ -955,6 +1004,13 @@ export default function PurchaseOrdersPage() {
                   <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
                     <div></div>
                     <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Purchase order PDF</div>
+                  </div>
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                    <div></div>
+                    <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                      <input type="checkbox" checked={sendMeCopy} onChange={(event) => setSendMeCopy(event.target.checked)} />
+                      Send me a copy
+                    </label>
                   </div>
                   <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
                     <label className="text-sm font-semibold pt-2" style={{ color: "var(--color-text-muted)" }}>Email body</label>

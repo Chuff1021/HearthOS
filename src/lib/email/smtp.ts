@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 type SendEmailInput = {
   to: string;
   cc?: string[];
+  bcc?: string[];
   subject: string;
   text: string;
   html: string;
@@ -48,6 +49,7 @@ export async function sendSmtpEmail(input: SendEmailInput) {
     from: `"${fromName}" <${fromEmail}>`,
     to: input.to,
     cc: input.cc?.length ? input.cc : undefined,
+    bcc: input.bcc?.length ? input.bcc : undefined,
     subject: input.subject,
     text: input.text,
     html: input.html,
