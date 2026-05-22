@@ -3,6 +3,7 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getClientFromTokens, persistPurchaseOrdersToDb } from '@/lib/quickbooks/sync';
+import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 
 async function getQBAuth(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -103,6 +104,111 @@ function privateNoteFromPurchaseOrderBody(body: any, fallback?: string) {
   return noteParts.length ? noteParts.join('\n') : undefined;
 }
 
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function purchaseOrderEmailText(purchaseOrder: any, body: any) {
+  const lines = (body.lines || []).map((line: any, idx: number) => {
+    const qty = Number(line.qty || 0);
+    const unitPrice = Number(line.unitPrice || 0);
+    const amount = Number(line.amount || qty * unitPrice || 0);
+    return `${idx + 1}. ${line.itemName || line.partNumber || 'Item'} - ${line.description || ''} | Qty ${qty} | Rate $${unitPrice.toFixed(2)} | Amount $${amount.toFixed(2)}`;
+  });
+
+  return [
+    `Purchase Order ${purchaseOrder?.DocNumber || purchaseOrder?.Id || ''}`.trim(),
+    body.memo ? `Memo: ${body.memo}` : undefined,
+    body.shipTo ? `Ship to: ${body.shipTo}` : undefined,
+    body.shippingAddress ? `Shipping address:\n${body.shippingAddress}` : undefined,
+    body.shipVia ? `Ship via: ${body.shipVia}` : undefined,
+    '',
+    'Items:',
+    ...lines,
+  ].filter((part) => part !== undefined).join('\n');
+}
+
+function purchaseOrderEmailHtml(purchaseOrder: any, body: any) {
+  const total = (body.lines || []).reduce((sum: number, line: any) => {
+    const qty = Number(line.qty || 0);
+    const unitPrice = Number(line.unitPrice || 0);
+    return sum + Number(line.amount || qty * unitPrice || 0);
+  }, 0);
+  const rows = (body.lines || []).map((line: any, idx: number) => {
+    const qty = Number(line.qty || 0);
+    const unitPrice = Number(line.unitPrice || 0);
+    const amount = Number(line.amount || qty * unitPrice || 0);
+    return `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${idx + 1}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHtml(line.itemName || line.partNumber || 'Item')}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHtml(line.description || '')}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">${qty}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">$${unitPrice.toFixed(2)}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">$${amount.toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.5;">
+      <h1 style="font-size:22px;margin:0 0 6px;">Purchase Order ${escapeHtml(purchaseOrder?.DocNumber || purchaseOrder?.Id || '')}</h1>
+      ${body.memo ? `<p style="margin:0 0 16px;color:#4b5563;">${escapeHtml(body.memo)}</p>` : ''}
+      <table style="width:100%;margin:16px 0;border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:top;width:50%;padding-right:16px;">
+            <strong>Ship to</strong><br />
+            ${escapeHtml(body.shipTo || '').replace(/\n/g, '<br />')}<br />
+            ${escapeHtml(body.shippingAddress || '').replace(/\n/g, '<br />')}
+          </td>
+          <td style="vertical-align:top;width:50%;">
+            <strong>PO Date</strong>: ${escapeHtml(body.txnDate || '')}<br />
+            <strong>Due Date</strong>: ${escapeHtml(body.dueDate || '')}<br />
+            <strong>Ship Via</strong>: ${escapeHtml(body.shipVia || '')}
+          </td>
+        </tr>
+      </table>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f3f4f6;">
+            <th style="padding:8px;text-align:left;">#</th>
+            <th style="padding:8px;text-align:left;">Product/service</th>
+            <th style="padding:8px;text-align:left;">Description</th>
+            <th style="padding:8px;text-align:right;">Qty</th>
+            <th style="padding:8px;text-align:right;">Rate</th>
+            <th style="padding:8px;text-align:right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="font-size:18px;font-weight:700;text-align:right;margin-top:16px;">Total: $${total.toFixed(2)}</p>
+    </div>
+  `;
+}
+
+async function sendPurchaseOrderByConfiguredEmail(purchaseOrder: any, body: any) {
+  if (!body.email) return { sent: false, sentVia: null };
+
+  if (isSmtpConfigured()) {
+    const subject = `Purchase Order ${purchaseOrder?.DocNumber || purchaseOrder?.Id || ''}`.trim();
+    await sendSmtpEmail({
+      to: body.email,
+      cc: parseEmailList(body.ccBcc),
+      subject,
+      text: purchaseOrderEmailText(purchaseOrder, body),
+      html: purchaseOrderEmailHtml(purchaseOrder, body),
+    });
+    return { sent: true, sentVia: 'smtp' };
+  }
+
+  return { sent: false, sentVia: null };
+}
+
 function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
   const detail = line.SalesItemLineDetail || {};
   const itemRef = detail.ItemRef;
@@ -185,12 +291,28 @@ export async function POST(request: NextRequest) {
         Line: poLines,
       };
 
+      const emailBody = {
+        ...body,
+        lines: poLines.map((line: any) => ({
+          itemName: line.ItemBasedExpenseLineDetail?.ItemRef?.name,
+          description: line.Description,
+          qty: line.ItemBasedExpenseLineDetail?.Qty,
+          unitPrice: line.ItemBasedExpenseLineDetail?.UnitPrice,
+          amount: line.Amount,
+        })),
+      };
       let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+      let sentVia: string | null = null;
       if (body.send) {
-        purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+        const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, emailBody);
+        if (smtpResult.sent) sentVia = smtpResult.sentVia;
+        else {
+          purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+          sentVia = 'quickbooks';
+        }
       }
       try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist PO from estimate failed', e); }
-      return NextResponse.json({ purchaseOrder, sent: Boolean(body.send) }, { status: 201 });
+      return NextResponse.json({ purchaseOrder, sent: Boolean(body.send), sentVia }, { status: 201 });
     }
 
     if (!body.vendorId || !Array.isArray(body.lines) || body.lines.length === 0) {
@@ -224,11 +346,17 @@ export async function POST(request: NextRequest) {
     };
 
     let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+    let sentVia: string | null = null;
     if (body.send) {
-      purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+      const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, body);
+      if (smtpResult.sent) sentVia = smtpResult.sentVia;
+      else {
+        purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+        sentVia = 'quickbooks';
+      }
     }
     try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist created PO failed', e); }
-    return NextResponse.json({ purchaseOrder, sent: Boolean(body.send) }, { status: 201 });
+    return NextResponse.json({ purchaseOrder, sent: Boolean(body.send), sentVia }, { status: 201 });
   } catch (err) {
     console.error('Failed to create QuickBooks purchase order:', err);
     return NextResponse.json({ error: 'Failed to create purchase order' }, { status: 500 });
