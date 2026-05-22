@@ -20,6 +20,19 @@ type Vendor = {
 };
 type Item = { Id: string; Name: string; Type?: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { name?: string }; TotalAmt?: number };
+type ShipToResult = {
+  id: string;
+  displayName: string;
+  email?: string;
+  phone?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+};
 type EstimateLine = {
   Amount?: number;
   Description?: string;
@@ -70,6 +83,15 @@ function formatAddress(addr: Vendor["BillAddr"] | undefined) {
     addr.Line1,
     addr.Line2,
     [addr.City, addr.CountrySubDivisionCode, addr.PostalCode].filter(Boolean).join(", "),
+  ].filter(Boolean).join("\n");
+}
+
+function formatShipToAddress(addr: ShipToResult["address"] | undefined) {
+  if (!addr) return "";
+  return [
+    addr.line1,
+    addr.line2,
+    [addr.city, addr.state, addr.zip].filter(Boolean).join(", "),
   ].filter(Boolean).join("\n");
 }
 
@@ -144,6 +166,9 @@ export default function PurchaseOrdersPage() {
   const [lastDelivery, setLastDelivery] = useState("");
   const [mailingAddress, setMailingAddress] = useState("");
   const [shipTo, setShipTo] = useState("Hearth OS");
+  const [shipToSearchOpen, setShipToSearchOpen] = useState(false);
+  const [shipToResults, setShipToResults] = useState<ShipToResult[]>([]);
+  const [shipToSearching, setShipToSearching] = useState(false);
   const [shippingAddress, setShippingAddress] = useState("");
   const [memo, setMemo] = useState("");
   const [txnDate, setTxnDate] = useState(today());
@@ -282,6 +307,35 @@ export default function PurchaseOrdersPage() {
     setVendorEmail(vendor?.PrimaryEmailAddr?.Address || "");
     setMailingAddress(formatAddress(vendor?.BillAddr));
     setVendorSearchOpen(false);
+  }
+
+  async function searchShipTo(query: string) {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setShipToResults([]);
+      setShipToSearching(false);
+      return;
+    }
+
+    setShipToSearching(true);
+    try {
+      const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(trimmed)}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to search customers");
+      setShipToResults((data.customers || []).slice(0, 10));
+    } catch {
+      setShipToResults([]);
+    } finally {
+      setShipToSearching(false);
+    }
+  }
+
+  function selectShipToCustomer(customer: ShipToResult) {
+    setShipTo(customer.displayName);
+    setShippingAddress(formatShipToAddress(customer.address));
+    setShipToSearchOpen(false);
+    setShipToResults([]);
+    setCreatedMessage(null);
   }
 
   async function loadAll(nextEstimateId = estimateId) {
@@ -624,13 +678,52 @@ export default function PurchaseOrdersPage() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Ship to</label>
-                    <input
-                      value={shipTo}
-                      onChange={(event) => setShipTo(event.target.value)}
-                      placeholder="Recipient or location"
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
-                    />
+                    <div className="relative">
+                      <input
+                        value={shipTo}
+                        onFocus={() => {
+                          setShipToSearchOpen(true);
+                          searchShipTo(shipTo);
+                        }}
+                        onBlur={() => window.setTimeout(() => setShipToSearchOpen(false), 120)}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setShipTo(value);
+                          setShipToSearchOpen(true);
+                          setCreatedMessage(null);
+                          searchShipTo(value);
+                        }}
+                        placeholder="Search customer or job"
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                      />
+                      {shipToSearchOpen && (shipTo.trim().length >= 2 || shipToResults.length > 0) && (
+                        <div className="absolute z-40 mt-2 w-full max-h-80 overflow-auto rounded-lg shadow-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                          {shipToSearching ? (
+                            <div className="px-3 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>Searching...</div>
+                          ) : shipToResults.length > 0 ? (
+                            shipToResults.map((customer) => (
+                              <button
+                                key={customer.id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => selectShipToCustomer(customer)}
+                                className="w-full px-3 py-2 text-left"
+                                style={{ borderBottom: "1px solid var(--color-border)" }}
+                              >
+                                <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{customer.displayName}</div>
+                                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                  {[customer.email, formatShipToAddress(customer.address).replace(/\n/g, ", ")].filter(Boolean).join(" - ") || "No address on file"}
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>No customers found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Select a customer to fill the shipping address, or type a one-off ship-to name.</p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Shipping address</label>
