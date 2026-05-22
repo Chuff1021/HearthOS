@@ -1068,7 +1068,7 @@ export default function EstimatesPage() {
 
                     <div className="p-5">
                       <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
-                        <div className="min-w-[1080px]">
+                        <div className="min-w-[1220px]">
                           {editingEstimateId === selectedEstimate.Id ? (
                             <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div></div>
@@ -1080,7 +1080,7 @@ export default function EstimatesPage() {
                               <div></div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px] gap-0 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="grid grid-cols-[44px_240px_220px_minmax(360px,1fr)_64px_96px_112px] gap-3 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div className="text-right">#</div>
                               <div>Product/service</div>
                               <div>SKU</div>
@@ -1194,11 +1194,11 @@ export default function EstimatesPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px] gap-0 px-3 py-3 items-start">
+                                <div className="grid grid-cols-[44px_240px_220px_minmax(360px,1fr)_64px_96px_112px] gap-3 px-3 py-3 items-start">
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-muted)" }}>{idx + 1}</div>
-                                  <div className="text-sm font-semibold px-2" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
-                                  <div className="text-sm px-2 truncate" title={getLineSku(line)} style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
-                                  <div className="text-sm px-2 whitespace-pre-wrap" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
+                                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{getLineProductService(line) || "Estimate line"}</div>
+                                  <div className="text-sm truncate" title={getLineSku(line)} style={{ color: "var(--color-text-secondary)" }}>{getLineSku(line)}</div>
+                                  <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-text-primary)" }}>{getLineDescription(line)}</div>
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
                                   <div className="text-sm text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
                                   <div className="text-sm font-semibold text-right" style={{ color: "var(--color-text-primary)" }}>${Number(line.Amount || 0).toFixed(2)}</div>
