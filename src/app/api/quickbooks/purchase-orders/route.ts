@@ -73,6 +73,36 @@ function cleanDescription(description: string | undefined | null, partNumber: st
     .trim();
 }
 
+function addressFromText(value: string | undefined | null) {
+  const lines = (value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (lines.length === 0) return undefined;
+  return {
+    Line1: lines[0],
+    Line2: lines[1],
+    Line3: lines[2],
+    Line4: lines[3],
+    Line5: lines[4],
+  };
+}
+
+function privateNoteFromPurchaseOrderBody(body: any, fallback?: string) {
+  const noteParts = [
+    fallback,
+    body.shipTo ? `Ship to: ${body.shipTo}` : undefined,
+    body.shipVia ? `Ship via: ${body.shipVia}` : undefined,
+    body.tags ? `Tags: ${body.tags}` : undefined,
+    body.ccBcc ? `Cc/Bcc: ${body.ccBcc}` : undefined,
+    body.sourceEstimateId ? `Source estimate: ${body.sourceEstimateId}` : undefined,
+  ].filter(Boolean);
+
+  return noteParts.length ? noteParts.join('\n') : undefined;
+}
+
 function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
   const detail = line.SalesItemLineDetail || {};
   const itemRef = detail.ItemRef;
@@ -144,10 +174,14 @@ export async function POST(request: NextRequest) {
 
       const poPayload = {
         VendorRef: { value: body.vendorId },
+        DocNumber: body.poNumber || undefined,
         TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
+        DueDate: body.dueDate || undefined,
         Memo: body.memo || `Copied from Estimate ${estimate.DocNumber || estimate.Id}`,
-        PrivateNote: `Copied from Estimate ${estimate.DocNumber || estimate.Id}`,
+        PrivateNote: privateNoteFromPurchaseOrderBody(body, `Copied from Estimate ${estimate.DocNumber || estimate.Id}`),
         POEmail: body.email ? { Address: body.email } : undefined,
+        VendorAddr: addressFromText(body.mailingAddress),
+        ShipAddr: addressFromText(body.shippingAddress),
         Line: poLines,
       };
 
@@ -165,9 +199,14 @@ export async function POST(request: NextRequest) {
 
     const poPayload = {
       VendorRef: { value: body.vendorId },
+      DocNumber: body.poNumber || undefined,
       TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
+      DueDate: body.dueDate || undefined,
       Memo: body.memo || undefined,
+      PrivateNote: privateNoteFromPurchaseOrderBody(body),
       POEmail: body.email ? { Address: body.email } : undefined,
+      VendorAddr: addressFromText(body.mailingAddress),
+      ShipAddr: addressFromText(body.shippingAddress),
       Line: body.lines.map((line: any, idx: number) => {
         const sku = line.partNumber || line.sku || line.itemSku || '';
         return {

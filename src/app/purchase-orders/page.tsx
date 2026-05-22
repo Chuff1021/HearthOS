@@ -64,6 +64,15 @@ function formatMoney(value: number | undefined) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
+function formatAddress(addr: Vendor["BillAddr"] | undefined) {
+  if (!addr) return "";
+  return [
+    addr.Line1,
+    addr.Line2,
+    [addr.City, addr.CountrySubDivisionCode, addr.PostalCode].filter(Boolean).join(", "),
+  ].filter(Boolean).join("\n");
+}
+
 function normalizeLookup(value: string | undefined) {
   return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -127,12 +136,21 @@ export default function PurchaseOrdersPage() {
 
   const [vendorId, setVendorId] = useState("");
   const [vendorEmail, setVendorEmail] = useState("");
+  const [ccBcc, setCcBcc] = useState("");
+  const [poNumber, setPoNumber] = useState("");
+  const [purchaseOrderStatus, setPurchaseOrderStatus] = useState("Open");
+  const [lastDelivery, setLastDelivery] = useState("");
+  const [mailingAddress, setMailingAddress] = useState("");
+  const [shipTo, setShipTo] = useState("Hearth OS");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [memo, setMemo] = useState("");
   const [txnDate, setTxnDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
   const [shipVia, setShipVia] = useState("");
+  const [tags, setTags] = useState("");
   const [lines, setLines] = useState<POLine[]>([emptyLine()]);
   const [activeItemSearchIndex, setActiveItemSearchIndex] = useState<number | null>(null);
+  const [copyLabel, setCopyLabel] = useState("Copy");
 
   function getItemPartNumber(item: Item | undefined) {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
@@ -208,6 +226,7 @@ export default function PurchaseOrdersPage() {
     const vendor = vendorList.find((v) => v.Id === id);
     setVendorId(id);
     setVendorEmail(vendor?.PrimaryEmailAddr?.Address || "");
+    setMailingAddress(formatAddress(vendor?.BillAddr));
   }
 
   async function loadAll(nextEstimateId = estimateId) {
@@ -246,6 +265,11 @@ export default function PurchaseOrdersPage() {
           setLines(estimateToPoLines(estimate));
           setVendorId("");
           setVendorEmail("");
+          setMailingAddress("");
+          setShipTo(estimate.CustomerRef?.name || "Hearth OS");
+          setShippingAddress("");
+          setPurchaseOrderStatus("Open");
+          setLastDelivery("");
         }
       } else {
         setSourceEstimate(null);
@@ -330,10 +354,17 @@ export default function PurchaseOrdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendorId,
+          poNumber: poNumber.trim() || undefined,
           memo: memo || undefined,
           txnDate,
           dueDate: dueDate || undefined,
+          mailingAddress: mailingAddress.trim() || undefined,
+          shipTo: shipTo.trim() || undefined,
+          shippingAddress: shippingAddress.trim() || undefined,
           shipVia: shipVia || undefined,
+          tags: tags.trim() || undefined,
+          ccBcc: ccBcc.trim() || undefined,
+          sourceEstimateId: sourceEstimate?.DocNumber || sourceEstimate?.Id || undefined,
           email: vendorEmail.trim() || undefined,
           send,
           lines: normalized,
@@ -343,6 +374,11 @@ export default function PurchaseOrdersPage() {
       if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
 
       setCreatedMessage(`${data.sent ? "Created and sent" : "Created"} Purchase Order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}`.trim());
+      setPoNumber(data.purchaseOrder?.DocNumber || poNumber);
+      setPurchaseOrderStatus(data.purchaseOrder?.POStatus || "Open");
+      if (data.sent && vendorEmail.trim()) {
+        setLastDelivery(`Sent by email to ${vendorEmail.trim()} at ${new Date().toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "long" })}`);
+      }
       const pRes = await fetch("/api/quickbooks/purchase-orders");
       const pData = await pRes.json();
       if (pRes.ok) setPurchaseOrders(pData.purchaseOrders || []);
@@ -350,6 +386,17 @@ export default function PurchaseOrdersPage() {
       setError(e instanceof Error ? e.message : "Failed to create purchase order");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copyPurchaseOrderLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyLabel("Copied");
+      window.setTimeout(() => setCopyLabel("Copy"), 1800);
+    } catch {
+      setCopyLabel("Copy failed");
+      window.setTimeout(() => setCopyLabel("Copy"), 1800);
     }
   }
 
@@ -372,20 +419,24 @@ export default function PurchaseOrdersPage() {
         <main className="flex-1 overflow-y-auto p-5">
           <div className="max-w-[1900px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start pb-20">
             <section className="min-w-0 rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="px-5 py-4 flex flex-col lg:flex-row lg:items-start justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-start justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <div>
                   <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Purchase Order</div>
                   <h2 className="mt-1 text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {sourceEstimate ? `From Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id}` : "New Purchase Order"}
+                    Purchase Order #{poNumber.trim() || "New"}
                   </h2>
                   <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
                     {sourceEstimate?.CustomerRef?.name ? `Customer: ${sourceEstimate.CustomerRef.name}` : "Select a vendor, review the item details, then save or send."}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button onClick={copyPurchaseOrderLink} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>{copyLabel}</button>
+                    <button onClick={() => { window.location.href = "mailto:support@hearthos.local?subject=Purchase%20Order%20Feedback"; }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Give feedback</button>
+                  </div>
                 </div>
-                <div className="lg:text-right">
+                <div className="xl:text-right">
                   <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Amount</div>
                   <div className="text-4xl font-bold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(totals.subtotal)}</div>
-                  <div className="mt-1 text-xs font-semibold" style={{ color: "#16A34A" }}>OPEN</div>
+                  <div className="mt-1 text-xs font-semibold" style={{ color: "#16A34A" }}>{purchaseOrderStatus.toUpperCase()}</div>
                 </div>
               </div>
 
@@ -401,7 +452,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px_160px] gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px_220px] gap-4">
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
                     <select
@@ -421,7 +472,16 @@ export default function PurchaseOrdersPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Email</label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label className="text-xs font-semibold block" style={{ color: "var(--color-text-muted)" }}>Email</label>
+                      <button
+                        onClick={() => setCcBcc((prev) => prev || " ")}
+                        className="text-xs font-semibold"
+                        style={{ color: "#2563EB" }}
+                      >
+                        Cc/Bcc{ccBcc.trim() ? "(1)" : ""}
+                      </button>
+                    </div>
                     <input
                       value={vendorEmail}
                       onChange={(event) => {
@@ -434,29 +494,84 @@ export default function PurchaseOrdersPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Status</label>
-                    <div className="px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.25)", color: "#15803D" }}>Open</div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Purchase Order status</label>
+                    <div className="px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.25)", color: "#15803D" }}>{purchaseOrderStatus}</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {ccBcc !== "" && (
                   <div>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>PO Date</label>
-                    <input type="date" value={txnDate} onChange={(event) => setTxnDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Cc/Bcc(1)</label>
+                    <input
+                      value={ccBcc}
+                      onChange={(event) => setCcBcc(event.target.value)}
+                      placeholder="Additional email recipients"
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    />
+                  </div>
+                )}
+
+                <div className="rounded-xl p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                  <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>Last Delivery</div>
+                  <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{lastDelivery || "Not sent yet"}</div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Mailing address</label>
+                    <textarea
+                      value={mailingAddress}
+                      onChange={(event) => setMailingAddress(event.target.value)}
+                      rows={4}
+                      placeholder="Vendor mailing address"
+                      className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Due Date</label>
-                    <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Ship to</label>
+                    <input
+                      value={shipTo}
+                      onChange={(event) => setShipTo(event.target.value)}
+                      placeholder="Recipient or location"
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Shipping address</label>
+                    <textarea
+                      value={shippingAddress}
+                      onChange={(event) => setShippingAddress(event.target.value)}
+                      rows={4}
+                      placeholder="Ship-to address"
+                      className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Purchase Order date</label>
+                    <input type="date" value={txnDate} onChange={(event) => setTxnDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Ship Via</label>
                     <input value={shipVia} onChange={(event) => setShipVia(event.target.value)} placeholder="Delivery method" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Source</label>
-                    <div className="px-3 py-2 rounded-lg text-sm truncate" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-                      {sourceEstimate ? `Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id}` : "Manual"}
-                    </div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Due date</label>
+                    <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>PO no.</label>
+                    <input value={poNumber} onChange={(event) => setPoNumber(event.target.value)} placeholder="Auto" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Tags (?)</label>
+                    <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Comma separated" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                   </div>
                 </div>
 
