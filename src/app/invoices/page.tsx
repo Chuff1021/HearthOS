@@ -673,7 +673,7 @@ export default function InvoicesPage() {
       customer: invoice.customerName,
       invoice: invoice.invoiceNumber,
     });
-    window.location.href = `/payments?${q.toString()}`;
+    window.location.href = `/pay?${q.toString()}`;
   };
 
   const handleScheduleJob = (invoice: Invoice) => {
