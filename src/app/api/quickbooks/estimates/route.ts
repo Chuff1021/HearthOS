@@ -1,9 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, organizations } from '@/db';
+import { db, inventoryItems, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
+
+type LocalItemRef = {
+  qbItemId: string | null;
+  name: string;
+  sku: string | null;
+};
+
+function normalizeItemLookup(value: string | undefined | null) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function resolveLineItemRef(line: any, items: LocalItemRef[]) {
+  if (line.itemId) {
+    const matched = items.find((item) => item.qbItemId === line.itemId);
+    return { value: line.itemId, name: matched?.name || line.itemName || line.partNumber || undefined };
+  }
+
+  const lookupKeys = [line.partNumber, line.itemName, line.description]
+    .map(normalizeItemLookup)
+    .filter(Boolean);
+
+  if (lookupKeys.length === 0) return undefined;
+
+  const matched = items.find((item) => {
+    if (!item.qbItemId) return false;
+    const skuKey = normalizeItemLookup(item.sku);
+    const nameKey = normalizeItemLookup(item.name);
+    return lookupKeys.includes(skuKey) || lookupKeys.includes(nameKey);
+  });
+
+  return matched?.qbItemId ? { value: matched.qbItemId, name: matched.name } : undefined;
+}
 
 async function getQBAuth(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -113,22 +145,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'customerId and lines[] are required' }, { status: 400 });
     }
 
+    const localItems = await db
+      .select({
+        qbItemId: inventoryItems.qbItemId,
+        name: inventoryItems.name,
+        sku: inventoryItems.sku,
+      })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.orgId, auth.orgId));
+
     const payload = {
       CustomerRef: { value: body.customerId },
       TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
       ExpirationDate: body.expirationDate || undefined,
       PrivateNote: body.note || undefined,
-      Line: body.lines.map((line: any, idx: number) => ({
-        Id: String(idx + 1),
-        Amount: Number(line.amount || 0),
-        DetailType: 'SalesItemLineDetail',
-        Description: line.partNumber ? `${line.description || ''}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
-        SalesItemLineDetail: {
-          ItemRef: line.itemId ? { value: line.itemId } : undefined,
-          Qty: Number(line.qty || 1),
-          UnitPrice: Number(line.unitPrice || 0),
-        },
-      })),
+      Line: body.lines.map((line: any, idx: number) => {
+        const itemRef = resolveLineItemRef(line, localItems);
+        return {
+          Id: String(idx + 1),
+          Amount: Number(line.amount || 0),
+          DetailType: 'SalesItemLineDetail',
+          Description: line.partNumber ? `${line.description || ''}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
+          SalesItemLineDetail: {
+            ItemRef: itemRef,
+            Qty: Number(line.qty || 1),
+            UnitPrice: Number(line.unitPrice || 0),
+          },
+        };
+      }),
     };
 
     const estimate = (await withRefresh(auth, (client) => client.createEstimate(payload))) as any;

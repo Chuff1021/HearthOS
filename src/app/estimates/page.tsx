@@ -92,6 +92,28 @@ export default function EstimatesPage() {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
   }
 
+  function normalizeItemLookup(value: string | undefined) {
+    return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  function resolveDraftLineItem(line: DraftLine) {
+    if (line.itemId) return items.find((item) => item.Id === line.itemId);
+
+    const partKey = normalizeItemLookup(line.partNumber);
+    const nameKey = normalizeItemLookup(line.itemName || line.description);
+    if (!partKey && !nameKey) return undefined;
+
+    return items.find((item) => {
+      const itemKeys = [
+        item.Sku,
+        item.Name,
+        item.FullyQualifiedName,
+      ].map(normalizeItemLookup);
+
+      return (partKey && itemKeys.includes(partKey)) || (nameKey && itemKeys.includes(nameKey));
+    });
+  }
+
   function mapEstimateLines(estimate: Estimate): EstimateLineDraft[] {
     return (estimate.Line || []).map((line) => ({
       description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || "",
@@ -434,6 +456,8 @@ export default function EstimatesPage() {
         setDraftLines(data.lineItems.map((l: any) => ({
           description: l.partNumber ? `${l.description} (${l.partNumber})` : l.description,
           partNumber: l.partNumber,
+          itemId: l.itemId,
+          itemName: l.itemName,
           qty: Number(l.quantity || l.qty || 1),
           unitPrice: Number(l.unitPrice || 0),
           total: Number(l.total || 0),
@@ -488,15 +512,18 @@ export default function EstimatesPage() {
     setSaving(true);
     setError(null);
     try {
-      const lines = draftLines.map((l) => ({
-        description: l.description,
-        itemId: l.itemId,
-        itemName: l.itemName,
-        partNumber: l.partNumber,
-        qty: Number(l.qty || 0),
-        unitPrice: Number(l.unitPrice || 0),
-        amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
-      }));
+      const lines = draftLines.map((l) => {
+        const resolvedItem = resolveDraftLineItem(l);
+        return {
+          description: l.description,
+          itemId: l.itemId || resolvedItem?.Id,
+          itemName: l.itemName || resolvedItem?.Name,
+          partNumber: l.partNumber,
+          qty: Number(l.qty || 0),
+          unitPrice: Number(l.unitPrice || 0),
+          amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
+        };
+      });
 
       const res = await fetch("/api/quickbooks/estimates", {
         method: "POST",
