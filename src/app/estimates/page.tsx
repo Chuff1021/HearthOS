@@ -8,7 +8,6 @@ import PnlModal from "@/components/PnlModal";
 
 type Customer = { id: string; displayName: string };
 type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
-type Vendor = { Id: string; DisplayName: string; CompanyName?: string; PrimaryEmailAddr?: { Address?: string } };
 type Estimate = {
   Id: string;
   DocNumber?: string;
@@ -59,7 +58,6 @@ export default function EstimatesPage() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +80,6 @@ export default function EstimatesPage() {
   const [emailEstimateId, setEmailEstimateId] = useState<string | null>(null);
   const [pnlOpen, setPnlOpen] = useState<{ id: string; label: string } | null>(null);
   const [focusedEstimateItemLine, setFocusedEstimateItemLine] = useState<number | null>(null);
-  const [purchaseOrderDialogOpen, setPurchaseOrderDialogOpen] = useState(false);
-  const [purchaseOrderEstimate, setPurchaseOrderEstimate] = useState<Estimate | null>(null);
-  const [purchaseOrderVendorQuery, setPurchaseOrderVendorQuery] = useState("");
-  const [purchaseOrderVendorId, setPurchaseOrderVendorId] = useState("");
-  const [purchaseOrderVendorName, setPurchaseOrderVendorName] = useState("");
-  const [purchaseOrderVendorEmail, setPurchaseOrderVendorEmail] = useState("");
-  const [sendPurchaseOrderToVendor, setSendPurchaseOrderToVendor] = useState(true);
-  const [creatingPurchaseOrder, setCreatingPurchaseOrder] = useState(false);
   const [emailTo, setEmailTo] = useState("");
   const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
   const [estimateEditForm, setEstimateEditForm] = useState({
@@ -162,10 +152,6 @@ export default function EstimatesPage() {
     if (!productService) return description;
     if (normalizeItemLookup(description).includes(normalizeItemLookup(productService))) return description;
     return `${productService} - ${description}`;
-  }
-
-  function estimatePurchaseOrderLines(estimate: Estimate) {
-    return (estimate.Line || []).filter((line) => line.SalesItemLineDetail);
   }
 
   function resolveDraftLineItem(line: DraftLine) {
@@ -327,20 +313,16 @@ export default function EstimatesPage() {
       // Read from the local DB (same pattern as /inventory). Avoids hitting
       // the QuickBooks API on every page load. Use "Sync from QuickBooks" to
       // refresh from QB on demand.
-      const [estRes, itemRes, vendorRes] = await Promise.all([
+      const [estRes, itemRes] = await Promise.all([
         fetch("/api/estimates", { cache: "no-store" }),
         fetch("/api/items/local", { cache: "no-store" }),
-        fetch("/api/quickbooks/vendors", { cache: "no-store" }),
       ]);
       const estData = await estRes.json();
       const itemData = await itemRes.json();
-      const vendorData = await vendorRes.json();
       if (!estRes.ok) throw new Error(estData.error || "Failed estimates load");
       if (!itemRes.ok) throw new Error(itemData.error || "Failed items load");
-      if (!vendorRes.ok) throw new Error(vendorData.error || "Failed vendors load");
       setEstimates(estData.estimates || []);
       setItems(itemData.items || []);
-      setVendors(vendorData.vendors || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load estimates");
     } finally {
@@ -356,7 +338,6 @@ export default function EstimatesPage() {
       const res = await Promise.all([
         fetch("/api/quickbooks/sync/estimates", { method: "POST" }),
         fetch("/api/quickbooks/sync/items", { method: "POST" }),
-        fetch("/api/quickbooks/sync/vendors", { method: "POST" }),
       ]);
       for (const r of res) {
         if (!r.ok) {
@@ -410,17 +391,6 @@ export default function EstimatesPage() {
   const filteredEstimates = useMemo(() => {
     return estimates.filter((estimate) => !activeCustomerFilterId || estimate.CustomerRef?.value === activeCustomerFilterId);
   }, [estimates, activeCustomerFilterId]);
-  const purchaseOrderVendorResults = useMemo(() => {
-    const query = purchaseOrderVendorQuery.trim().toLowerCase();
-    if (!query) return vendors.slice(0, 8);
-    return vendors
-      .filter((vendor) => [
-        vendor.DisplayName,
-        vendor.CompanyName,
-        vendor.PrimaryEmailAddr?.Address,
-      ].some((value) => (value || "").toLowerCase().includes(query)))
-      .slice(0, 8);
-  }, [purchaseOrderVendorQuery, vendors]);
   const selectedEstimateLines = selectedEstimate?.Line || [];
 
   useEffect(() => {
@@ -819,50 +789,6 @@ export default function EstimatesPage() {
     }
   }
 
-  function openPurchaseOrderDialog(estimate: Estimate) {
-    setPurchaseOrderEstimate(estimate);
-    setPurchaseOrderDialogOpen(true);
-    setPurchaseOrderVendorQuery("");
-    setPurchaseOrderVendorId("");
-    setPurchaseOrderVendorName("");
-    setPurchaseOrderVendorEmail("");
-    setSendPurchaseOrderToVendor(true);
-  }
-
-  async function createPurchaseOrderFromEstimate() {
-    if (!purchaseOrderEstimate) return;
-    if (!purchaseOrderVendorId) return setError("Select a vendor before creating the purchase order.");
-    if (sendPurchaseOrderToVendor && !purchaseOrderVendorEmail.trim()) {
-      return setError("Add the vendor email or turn off Send to vendor.");
-    }
-
-    setCreatingPurchaseOrder(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/quickbooks/purchase-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "from-estimate",
-          estimateId: purchaseOrderEstimate.Id,
-          vendorId: purchaseOrderVendorId,
-          email: purchaseOrderVendorEmail.trim() || undefined,
-          send: sendPurchaseOrderToVendor,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
-
-      setPurchaseOrderDialogOpen(false);
-      setPurchaseOrderEstimate(null);
-      window.alert(`${data.sent ? "Created and sent" : "Created"} purchase order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}`.trim());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create purchase order");
-    } finally {
-      setCreatingPurchaseOrder(false);
-    }
-  }
-
   function scheduleFromEstimate(estimate: Estimate) {
     const estimateAddress = [
       estimate.ShipAddr?.Line1 || estimate.BillAddr?.Line1,
@@ -1113,7 +1039,7 @@ export default function EstimatesPage() {
                           <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Edit</button>
                           <button onClick={() => setPnlOpen({ id: selectedEstimate.Id, label: selectedEstimate.DocNumber || selectedEstimate.Id })} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
                           <button onClick={() => scheduleFromEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
-                          <button onClick={() => openPurchaseOrderDialog(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(124,58,237,0.12)", color: "#6D28D9", border: "1px solid rgba(124,58,237,0.25)" }}>Create PO</button>
+                          <button onClick={() => { window.location.href = `/purchase-orders?estimateId=${encodeURIComponent(selectedEstimate.Id)}`; }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(124,58,237,0.12)", color: "#6D28D9", border: "1px solid rgba(124,58,237,0.25)" }}>Convert to PO</button>
                           {convertedMap[selectedEstimate.Id] ? (
                             <a href="/invoices" className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.25)" }}>View Invoice</a>
                           ) : (
@@ -1423,123 +1349,6 @@ export default function EstimatesPage() {
                 style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
               >
                 Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {purchaseOrderDialogOpen && purchaseOrderEstimate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setPurchaseOrderDialogOpen(false)} />
-          <div className="relative w-full max-w-2xl rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Create Purchase Order</h2>
-                <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-                  Copy estimate {purchaseOrderEstimate.DocNumber || purchaseOrderEstimate.Id} into a QuickBooks purchase order.
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Lines</div>
-                <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{estimatePurchaseOrderLines(purchaseOrderEstimate).length}</div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_260px] gap-4">
-              <div className="relative">
-                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
-                <input
-                  value={purchaseOrderVendorQuery}
-                  onChange={(event) => {
-                    setPurchaseOrderVendorQuery(event.target.value);
-                    setPurchaseOrderVendorId("");
-                    setPurchaseOrderVendorName("");
-                  }}
-                  placeholder="Search vendor"
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                />
-                {purchaseOrderVendorResults.length > 0 && !purchaseOrderVendorId && (
-                  <div className="absolute z-20 mt-2 w-full max-h-64 overflow-auto rounded-lg shadow-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                    {purchaseOrderVendorResults.map((vendor) => (
-                      <button
-                        key={vendor.Id}
-                        type="button"
-                        onClick={() => {
-                          setPurchaseOrderVendorId(vendor.Id);
-                          setPurchaseOrderVendorName(vendor.DisplayName);
-                          setPurchaseOrderVendorQuery(vendor.DisplayName);
-                          setPurchaseOrderVendorEmail(vendor.PrimaryEmailAddr?.Address || "");
-                        }}
-                        className="w-full px-3 py-2 text-left"
-                        style={{ borderBottom: "1px solid var(--color-border)" }}
-                      >
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{vendor.DisplayName}</div>
-                        <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{vendor.PrimaryEmailAddr?.Address || vendor.CompanyName || "No email on file"}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {purchaseOrderVendorId && (
-                  <p className="text-xs mt-1" style={{ color: "#16A34A" }}>Selected: {purchaseOrderVendorName}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor Email</label>
-                <input
-                  value={purchaseOrderVendorEmail}
-                  onChange={(event) => setPurchaseOrderVendorEmail(event.target.value)}
-                  placeholder="vendor@email.com"
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                />
-                <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--color-text-primary)" }}>
-                  <input
-                    type="checkbox"
-                    checked={sendPurchaseOrderToVendor}
-                    onChange={(event) => setSendPurchaseOrderToVendor(event.target.checked)}
-                  />
-                  Send to vendor after creating
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-              <div className="grid grid-cols-[1fr_60px_90px_100px] gap-3 px-3 py-2 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)" }}>
-                <div>Description</div>
-                <div className="text-right">Qty</div>
-                <div className="text-right">Rate</div>
-                <div className="text-right">Amount</div>
-              </div>
-              <div className="max-h-56 overflow-auto">
-                {estimatePurchaseOrderLines(purchaseOrderEstimate).map((line, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_60px_90px_100px] gap-3 px-3 py-2 text-sm" style={{ borderTop: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-                    <div>{getLineDescriptionWithSku(line)}</div>
-                    <div className="text-right">{Number(line.SalesItemLineDetail?.Qty || 1)}</div>
-                    <div className="text-right">${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</div>
-                    <div className="text-right font-semibold">${Number(line.Amount || 0).toFixed(2)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-5 flex gap-2 justify-end">
-              <button
-                onClick={() => setPurchaseOrderDialogOpen(false)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium"
-                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createPurchaseOrderFromEstimate}
-                disabled={creatingPurchaseOrder || !purchaseOrderVendorId}
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white"
-                style={{ background: "#2563EB", opacity: creatingPurchaseOrder || !purchaseOrderVendorId ? 0.7 : 1 }}
-              >
-                {creatingPurchaseOrder ? "Creating..." : sendPurchaseOrderToVendor ? "Create & Send PO" : "Create PO"}
               </button>
             </div>
           </div>

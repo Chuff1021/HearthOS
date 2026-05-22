@@ -1,63 +1,256 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
-type Vendor = { Id: string; DisplayName: string; CompanyName?: string };
+type Vendor = {
+  Id: string;
+  DisplayName: string;
+  CompanyName?: string;
+  PrimaryEmailAddr?: { Address?: string };
+  BillAddr?: {
+    Line1?: string;
+    Line2?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+  };
+};
 type Item = { Id: string; Name: string; Type?: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { name?: string }; TotalAmt?: number };
-type POLine = { itemId: string; description: string; qty: number; unitPrice: number; partNumber?: string; itemName?: string };
+type EstimateLine = {
+  Amount?: number;
+  Description?: string;
+  DetailType?: string;
+  SalesItemLineDetail?: {
+    ItemRef?: { value?: string; name?: string; sku?: string };
+    Qty?: number;
+    UnitPrice?: number;
+  };
+};
+type Estimate = {
+  Id: string;
+  DocNumber?: string;
+  TxnDate?: string;
+  CustomerRef?: { value?: string; name?: string };
+  Line?: EstimateLine[];
+  TotalAmt?: number;
+};
+type POLine = {
+  itemId: string;
+  itemName: string;
+  itemQuery: string;
+  partNumber: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+};
+
+const emptyLine = (): POLine => ({
+  itemId: "",
+  itemName: "",
+  itemQuery: "",
+  partNumber: "",
+  description: "",
+  qty: 1,
+  unitPrice: 0,
+});
+
+const today = () => new Date().toISOString().split("T")[0];
+
+function formatMoney(value: number | undefined) {
+  return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function normalizeLookup(value: string | undefined) {
+  return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function tokenizeLookup(value: string | undefined) {
+  return Array.from(new Set((value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+    .flatMap((token) => {
+      const variants = [token];
+      if (token.endsWith("es") && token.length > 4) variants.push(token.slice(0, -2));
+      if (token.endsWith("s") && token.length > 3) variants.push(token.slice(0, -1));
+      return variants;
+    })));
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractPartNumber(description: string | undefined) {
+  const text = (description || "").trim();
+  const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
+  if (partLine?.[1]) return partLine[1].trim();
+  const prefix = text.match(/^([A-Z0-9][A-Z0-9:._/-]{2,})\s+-\s+/i);
+  return prefix?.[1]?.trim() || "";
+}
+
+function cleanLineDescription(description: string | undefined, partNumber: string | undefined) {
+  let cleaned = (description || "").replace(/\n\s*Part:\s*.+$/i, "").trim();
+  const part = (partNumber || "").trim();
+  if (!part) return cleaned;
+  return cleaned
+    .replace(new RegExp(`\\s*\\(${escapeRegExp(part)}\\)\\s*$`, "i"), "")
+    .replace(new RegExp(`^${escapeRegExp(part)}\\s*-\\s*`, "i"), "")
+    .trim();
+}
+
+function buildDescriptionWithPart(description: string | undefined, partNumber: string | undefined) {
+  const descriptionText = (description || "").trim();
+  const part = (partNumber || "").trim();
+  if (!part) return descriptionText;
+  if (normalizeLookup(descriptionText).includes(normalizeLookup(part))) return descriptionText;
+  return descriptionText ? `${part} - ${descriptionText}` : part;
+}
 
 export default function PurchaseOrdersPage() {
+  const searchParams = useSearchParams();
+  const estimateId = searchParams.get("estimateId");
+
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
+  const [sourceEstimate, setSourceEstimate] = useState<Estimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdMessage, setCreatedMessage] = useState<string | null>(null);
 
   const [vendorId, setVendorId] = useState("");
+  const [vendorEmail, setVendorEmail] = useState("");
   const [memo, setMemo] = useState("");
-  const [lines, setLines] = useState<POLine[]>([{ itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
+  const [txnDate, setTxnDate] = useState(today());
+  const [dueDate, setDueDate] = useState("");
+  const [shipVia, setShipVia] = useState("");
+  const [lines, setLines] = useState<POLine[]>([emptyLine()]);
+  const [activeItemSearchIndex, setActiveItemSearchIndex] = useState<number | null>(null);
 
   function getItemPartNumber(item: Item | undefined) {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
   }
 
-  function buildDescriptionWithPart(description: string | undefined, partNumber: string | undefined) {
-    const descriptionText = (description || "").trim();
-    const part = (partNumber || "").trim();
-    if (!part) return descriptionText;
-    const normalizedDescription = descriptionText.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const normalizedPart = part.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (normalizedDescription.includes(normalizedPart)) return descriptionText;
-    return descriptionText ? `${part} - ${descriptionText}` : part;
+  function getItemSearchResults(query: string) {
+    const normalizedQuery = normalizeLookup(query);
+    const queryTokens = tokenizeLookup(query);
+    if (normalizedQuery.length < 2 || queryTokens.length === 0) return [];
+
+    return items
+      .map((item) => {
+        const rawFields = [item.Sku, item.Name, item.FullyQualifiedName].filter(Boolean) as string[];
+        const normalizedFields = rawFields.map(normalizeLookup);
+        const itemTokens = tokenizeLookup(rawFields.join(" "));
+        const contiguousMatch = normalizedFields.some((value) => value.includes(normalizedQuery));
+        const allTokensMatch = queryTokens.every((queryToken) => (
+          normalizedFields.some((value) => value.includes(queryToken)) ||
+          itemTokens.some((itemToken) => itemToken.includes(queryToken))
+        ));
+
+        if (!contiguousMatch && !allTokensMatch) return null;
+
+        let score = 0;
+        if (normalizeLookup(item.Sku) === normalizedQuery) score += 120;
+        if (normalizeLookup(item.Name) === normalizedQuery) score += 110;
+        if (normalizeLookup(item.Sku).startsWith(normalizedQuery)) score += 80;
+        if (normalizeLookup(item.Name).startsWith(normalizedQuery)) score += 70;
+        if (contiguousMatch) score += 55;
+
+        for (const queryToken of queryTokens) {
+          if (itemTokens.includes(queryToken)) score += 30;
+          else if (itemTokens.some((itemToken) => itemToken.startsWith(queryToken))) score += 20;
+          else if (normalizedFields.some((value) => value.includes(queryToken))) score += 12;
+        }
+
+        score -= Math.min((item.Name || "").length, 80) / 100;
+        return { item, score };
+      })
+      .filter((result): result is { item: Item; score: number } => Boolean(result))
+      .sort((a, b) => b.score - a.score || a.item.Name.localeCompare(b.item.Name))
+      .map((result) => result.item)
+      .slice(0, 8);
   }
 
-  async function loadAll() {
+  function estimateToPoLines(estimate: Estimate): POLine[] {
+    const mapped = (estimate.Line || [])
+      .filter((line) => line.SalesItemLineDetail)
+      .map((line) => {
+        const detail = line.SalesItemLineDetail;
+        const itemRef = detail?.ItemRef;
+        const partNumber = extractPartNumber(line.Description) || itemRef?.sku || itemRef?.name || "";
+        const baseDescription = cleanLineDescription(line.Description || itemRef?.name || "Estimate line", partNumber);
+        const description = buildDescriptionWithPart(baseDescription, partNumber);
+        const qty = Number(detail?.Qty || 1);
+        const unitPrice = Number(detail?.UnitPrice || line.Amount || 0);
+        return {
+          itemId: itemRef?.value || "",
+          itemName: itemRef?.name || partNumber,
+          itemQuery: itemRef?.name || partNumber,
+          partNumber,
+          description,
+          qty,
+          unitPrice,
+        };
+      })
+      .filter((line) => line.qty > 0 && line.unitPrice >= 0);
+
+    return mapped.length ? mapped : [emptyLine()];
+  }
+
+  function selectVendor(id: string, vendorList = vendors) {
+    const vendor = vendorList.find((v) => v.Id === id);
+    setVendorId(id);
+    setVendorEmail(vendor?.PrimaryEmailAddr?.Address || "");
+  }
+
+  async function loadAll(nextEstimateId = estimateId) {
     setLoading(true);
     setError(null);
     try {
-      const [vRes, iRes, pRes] = await Promise.all([
+      const requests: Promise<Response>[] = [
         fetch("/api/quickbooks/vendors"),
         fetch("/api/quickbooks/items?sync=true"),
         fetch("/api/quickbooks/purchase-orders"),
-      ]);
+      ];
+      if (nextEstimateId) requests.push(fetch(`/api/estimates?id=${encodeURIComponent(nextEstimateId)}`));
 
+      const [vRes, iRes, pRes, eRes] = await Promise.all(requests);
       const vData = await vRes.json();
       const iData = await iRes.json();
       const pData = await pRes.json();
+      const eData = eRes ? await eRes.json() : null;
 
       if (!vRes.ok) throw new Error(vData.error || "Failed vendors load");
       if (!iRes.ok) throw new Error(iData.error || "Failed items load");
       if (!pRes.ok) throw new Error(pData.error || "Failed purchase orders load");
+      if (eRes && !eRes.ok) throw new Error(eData?.error || "Failed estimate load");
 
-      setVendors(vData.vendors || []);
+      const nextVendors = vData.vendors || [];
+      setVendors(nextVendors);
       setItems(iData.items || []);
       setPurchaseOrders(pData.purchaseOrders || []);
 
-      if (!vendorId && vData.vendors?.length) setVendorId(vData.vendors[0].Id);
+      if (eData?.estimate) {
+        const estimate = eData.estimate as Estimate;
+        const shouldHydrateEstimate = sourceEstimate?.Id !== estimate.Id;
+        setSourceEstimate(estimate);
+        if (shouldHydrateEstimate) {
+          setMemo(`Copied from Estimate ${estimate.DocNumber || estimate.Id}`);
+          setLines(estimateToPoLines(estimate));
+          setVendorId("");
+          setVendorEmail("");
+        }
+      } else {
+        setSourceEstimate(null);
+        if (!vendorId && nextVendors.length) selectVendor(nextVendors[0].Id, nextVendors);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load purchase order data");
     } finally {
@@ -66,46 +259,71 @@ export default function PurchaseOrdersPage() {
   }
 
   useEffect(() => {
-    loadAll();
+    loadAll(estimateId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [estimateId]);
+
+  const selectedVendor = vendors.find((vendor) => vendor.Id === vendorId);
 
   const totals = useMemo(() => {
-    const subtotal = lines.reduce((sum, l) => sum + Number(l.qty || 0) * Number(l.unitPrice || 0), 0);
+    const subtotal = lines.reduce((sum, line) => sum + Number(line.qty || 0) * Number(line.unitPrice || 0), 0);
     return { subtotal };
   }, [lines]);
 
-  function updateLine(idx: number, patch: Partial<(typeof lines)[number]>) {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  function updateLine(idx: number, patch: Partial<POLine>) {
+    setLines((prev) => prev.map((line, i) => (i === idx ? { ...line, ...patch } : line)));
+    setCreatedMessage(null);
   }
 
-  function addLine() {
-    setLines((prev) => [...prev, { itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
+  function addLine(afterIndex?: number) {
+    setLines((prev) => {
+      const next = [...prev];
+      next.splice(typeof afterIndex === "number" ? afterIndex + 1 : next.length, 0, emptyLine());
+      return next;
+    });
   }
 
   function removeLine(idx: number) {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   }
 
-  async function createPO() {
+  function applyItemToLine(idx: number, item: Item) {
+    const line = lines[idx];
+    const partNumber = getItemPartNumber(item);
+    const baseDescription = cleanLineDescription(line?.description, line?.partNumber) || item.Name;
+    updateLine(idx, {
+      itemId: item.Id,
+      itemName: item.Name,
+      itemQuery: item.Name,
+      partNumber,
+      description: buildDescriptionWithPart(baseDescription, partNumber),
+      unitPrice: Number(line?.unitPrice || item.UnitPrice || 0),
+    });
+    setActiveItemSearchIndex(null);
+  }
+
+  async function createPO(send = false) {
     if (!vendorId) return setError("Please select a vendor.");
+    if (send && !vendorEmail.trim()) return setError("Vendor email is required to save and send.");
+
     const normalized = lines
-      .filter((l) => l.itemId || l.description)
-      .map((l) => ({
-        itemId: l.itemId || undefined,
-        itemName: l.itemName || undefined,
-        partNumber: l.partNumber || undefined,
-        description: buildDescriptionWithPart(l.description, l.partNumber) || undefined,
-        qty: Number(l.qty || 0),
-        unitPrice: Number(l.unitPrice || 0),
-        amount: Number(l.qty || 0) * Number(l.unitPrice || 0),
+      .filter((line) => line.itemId || line.description)
+      .map((line) => ({
+        itemId: line.itemId || undefined,
+        itemName: line.itemName || undefined,
+        partNumber: line.partNumber || undefined,
+        description: buildDescriptionWithPart(cleanLineDescription(line.description, line.partNumber), line.partNumber) || undefined,
+        qty: Number(line.qty || 0),
+        unitPrice: Number(line.unitPrice || 0),
+        amount: Number(line.qty || 0) * Number(line.unitPrice || 0),
       }))
-      .filter((l) => l.amount > 0);
+      .filter((line) => line.amount > 0);
 
     if (!normalized.length) return setError("Add at least one line with quantity and price.");
 
     setSaving(true);
     setError(null);
+    setCreatedMessage(null);
     try {
       const res = await fetch("/api/quickbooks/purchase-orders", {
         method: "POST",
@@ -113,15 +331,21 @@ export default function PurchaseOrdersPage() {
         body: JSON.stringify({
           vendorId,
           memo: memo || undefined,
+          txnDate,
+          dueDate: dueDate || undefined,
+          shipVia: shipVia || undefined,
+          email: vendorEmail.trim() || undefined,
+          send,
           lines: normalized,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
 
-      setMemo("");
-      setLines([{ itemId: "", description: "", qty: 1, unitPrice: 0, partNumber: "", itemName: "" }]);
-      await loadAll();
+      setCreatedMessage(`${data.sent ? "Created and sent" : "Created"} Purchase Order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}`.trim());
+      const pRes = await fetch("/api/quickbooks/purchase-orders");
+      const pData = await pRes.json();
+      if (pRes.ok) setPurchaseOrders(pData.purchaseOrders || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create purchase order");
     } finally {
@@ -135,101 +359,242 @@ export default function PurchaseOrdersPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Purchase Orders</h1>
-            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Create and send purchase orders to QuickBooks vendors</p>
+            <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+              {sourceEstimate ? `Convert Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id} into a vendor purchase order` : "Create and send purchase orders to QuickBooks vendors"}
+            </p>
           </div>
-          <button onClick={loadAll} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
+          <button onClick={() => loadAll(estimateId)} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-4">New Purchase Order</h2>
-
-              {error && (
-                <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
-                  {error}
-                </div>
-              )}
-
-              <div className="space-y-3">
+        <main className="flex-1 overflow-y-auto p-5">
+          <div className="max-w-[1900px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start pb-20">
+            <section className="min-w-0 rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="px-5 py-4 flex flex-col lg:flex-row lg:items-start justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
-                  <select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                    <option value="">Select vendor</option>
-                    {vendors.map((v) => <option key={v.Id} value={v.Id}>{v.DisplayName}</option>)}
-                  </select>
+                  <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Purchase Order</div>
+                  <h2 className="mt-1 text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                    {sourceEstimate ? `From Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id}` : "New Purchase Order"}
+                  </h2>
+                  <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
+                    {sourceEstimate?.CustomerRef?.name ? `Customer: ${sourceEstimate.CustomerRef.name}` : "Select a vendor, review the item details, then save or send."}
+                  </p>
+                </div>
+                <div className="lg:text-right">
+                  <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Amount</div>
+                  <div className="text-4xl font-bold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(totals.subtotal)}</div>
+                  <div className="mt-1 text-xs font-semibold" style={{ color: "#16A34A" }}>OPEN</div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {error && (
+                  <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+                    {error}
+                  </div>
+                )}
+                {createdMessage && (
+                  <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(22,163,74,0.12)", border: "1px solid rgba(22,163,74,0.25)", color: "#15803D" }}>
+                    {createdMessage}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px_160px] gap-4">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
+                    <select
+                      value={vendorId}
+                      onChange={(event) => {
+                        selectVendor(event.target.value);
+                        setCreatedMessage(null);
+                      }}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    >
+                      <option value="">Select vendor</option>
+                      {vendors.map((vendor) => <option key={vendor.Id} value={vendor.Id}>{vendor.DisplayName}</option>)}
+                    </select>
+                    {selectedVendor?.CompanyName && (
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedVendor.CompanyName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Email</label>
+                    <input
+                      value={vendorEmail}
+                      onChange={(event) => {
+                        setVendorEmail(event.target.value);
+                        setCreatedMessage(null);
+                      }}
+                      placeholder="vendor@email.com"
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Status</label>
+                    <div className="px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.25)", color: "#15803D" }}>Open</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>PO Date</label>
+                    <input type="date" value={txnDate} onChange={(event) => setTxnDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Due Date</label>
+                    <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Ship Via</label>
+                    <input value={shipVia} onChange={(event) => setShipVia(event.target.value)} placeholder="Delivery method" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Source</label>
+                    <div className="px-3 py-2 rounded-lg text-sm truncate" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                      {sourceEstimate ? `Estimate ${sourceEstimate.DocNumber || sourceEstimate.Id}` : "Manual"}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Memo</label>
-                  <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Optional internal note" className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                  <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="Optional internal note" className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 </div>
 
-                <div className="space-y-2">
-                  {lines.map((line, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                      <select
-                        value={line.itemId}
-                        onChange={(e) => {
-                          const item = items.find((i) => i.Id === e.target.value);
-                          updateLine(idx, {
-                            itemId: e.target.value,
-                            itemName: item?.Name || "",
-                            partNumber: getItemPartNumber(item),
-                            description: item ? buildDescriptionWithPart(item.Name, getItemPartNumber(item)) : line.description,
-                            unitPrice: Number(item?.UnitPrice || line.unitPrice || 0),
-                          });
-                        }}
-                        className="col-span-4 px-2 py-2 rounded-lg text-sm"
-                        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-                      >
-                        <option value="">Item</option>
-                        {items.map((i) => <option key={i.Id} value={i.Id}>{i.Name} · {getItemPartNumber(i)}</option>)}
-                      </select>
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Item Details</h3>
+                    <button onClick={() => addLine()} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>+ Add line</button>
+                  </div>
 
-                      <input value={line.description} onChange={(e) => updateLine(idx, { description: e.target.value })} placeholder="Description" className="col-span-4 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                      <input type="number" min={1} value={line.qty} onChange={(e) => updateLine(idx, { qty: Number(e.target.value || 1) })} className="col-span-1 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                      <input type="number" min={0} step="0.01" value={line.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value || 0) })} className="col-span-2 px-2 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
-                      <button onClick={() => removeLine(idx)} className="col-span-1 px-2 py-2 rounded-lg text-xs" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E" }}>✕</button>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                    <div className="min-w-[1040px]">
+                      <div className="grid grid-cols-[46px_230px_minmax(360px,1fr)_76px_110px_120px_48px] gap-3 px-3 py-2 text-xs font-bold" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
+                        <div>#</div>
+                        <div>Product/service</div>
+                        <div>Description</div>
+                        <div className="text-right">Qty</div>
+                        <div className="text-right">Rate</div>
+                        <div className="text-right">Amount</div>
+                        <div></div>
+                      </div>
+
+                      {lines.map((line, idx) => {
+                        const results = activeItemSearchIndex === idx ? getItemSearchResults(line.itemQuery || line.itemName) : [];
+                        return (
+                          <div key={idx} className="grid grid-cols-[46px_230px_minmax(360px,1fr)_76px_110px_120px_48px] gap-3 px-3 py-3 items-start text-sm" style={{ borderTop: "1px solid var(--color-border)" }}>
+                            <div className="flex items-center gap-1 pt-2">
+                              <span style={{ color: "var(--color-text-muted)" }}>{idx + 1}</span>
+                              <button onClick={() => addLine(idx)} className="w-6 h-6 rounded-full text-sm font-bold" title="Add line below" style={{ border: "1px solid var(--color-border)", color: "#2563EB" }}>+</button>
+                            </div>
+
+                            <div className="relative">
+                              <input
+                                value={line.itemQuery}
+                                onFocus={() => setActiveItemSearchIndex(idx)}
+                                onChange={(event) => {
+                                  updateLine(idx, { itemQuery: event.target.value, itemId: "", itemName: event.target.value });
+                                  setActiveItemSearchIndex(idx);
+                                }}
+                                placeholder="Search product"
+                                className="w-full px-2 py-2 rounded-lg text-sm"
+                                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                              />
+                              {results.length > 0 && (
+                                <div className="absolute z-30 mt-2 w-[360px] max-h-72 overflow-auto rounded-lg shadow-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                                  {results.map((item) => (
+                                    <button
+                                      key={item.Id}
+                                      type="button"
+                                      onMouseDown={(event) => event.preventDefault()}
+                                      onClick={() => applyItemToLine(idx, item)}
+                                      className="w-full px-3 py-2 text-left"
+                                      style={{ borderBottom: "1px solid var(--color-border)" }}
+                                    >
+                                      <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{item.Name}</div>
+                                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{getItemPartNumber(item)}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <textarea
+                              value={line.description}
+                              onChange={(event) => updateLine(idx, { description: event.target.value })}
+                              placeholder="Description shown on the purchase order"
+                              rows={2}
+                              className="w-full px-2 py-2 rounded-lg text-sm resize-none"
+                              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                            />
+                            <input type="number" min={1} value={line.qty} onChange={(event) => updateLine(idx, { qty: Number(event.target.value || 1) })} className="w-full px-2 py-2 rounded-lg text-sm text-right" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                            <input type="text" inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(idx, { unitPrice: Number(event.target.value || 0) })} className="w-full px-2 py-2 rounded-lg text-sm text-right" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                            <div className="pt-2 text-right font-semibold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(Number(line.qty || 0) * Number(line.unitPrice || 0))}</div>
+                            <button onClick={() => removeLine(idx)} className="w-9 h-9 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.10)", color: "#FF204E" }}>x</button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
                 </div>
 
-                <button onClick={addLine} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>+ Add line</button>
-
-                <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid var(--color-border)" }}>
-                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Subtotal</div>
-                  <div className="font-semibold">${totals.subtotal.toFixed(2)}</div>
+                <div className="flex justify-end">
+                  <div className="w-full max-w-sm space-y-2 text-sm">
+                    <div className="flex justify-between" style={{ color: "var(--color-text-muted)" }}>
+                      <span>Subtotal</span>
+                      <span>{formatMoney(totals.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 text-lg font-bold" style={{ borderTop: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                      <span>Total</span>
+                      <span>{formatMoney(totals.subtotal)}</span>
+                    </div>
+                  </div>
                 </div>
-
-                <button disabled={saving || loading} onClick={createPO} className="w-full py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)", opacity: saving ? 0.7 : 1 }}>
-                  {saving ? "Sending to QuickBooks..." : "Create Purchase Order"}
-                </button>
               </div>
-            </div>
 
-            <div className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <h2 className="font-semibold mb-3">Recent Purchase Orders</h2>
+              <div className="sticky bottom-0 px-5 py-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between" style={{ background: "var(--color-surface-1)", borderTop: "1px solid var(--color-border)" }}>
+                <button onClick={() => { window.location.href = sourceEstimate ? `/estimates?id=${encodeURIComponent(sourceEstimate.Id)}` : "/estimates"; }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+                <div className="flex gap-2 justify-end">
+                  <button disabled={saving || loading} onClick={() => createPO(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)", opacity: saving ? 0.7 : 1 }}>
+                    {saving ? "Saving..." : "Save"}
+                  </button>
+                  <button disabled={saving || loading} onClick={() => createPO(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
+                    {saving ? "Saving..." : "Save and send"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <aside className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Recent POs</h2>
+                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{purchaseOrders.length}</span>
+              </div>
               {loading ? (
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading...</p>
               ) : purchaseOrders.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No purchase orders found.</p>
               ) : (
-                <div className="space-y-2 max-h-[560px] overflow-auto pr-1">
+                <div className="space-y-2 max-h-[720px] overflow-auto pr-1">
                   {purchaseOrders.slice(0, 30).map((po) => (
                     <div key={po.Id} className="p-3 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
-                      <div className="text-sm font-semibold">{po.VendorRef?.name || "Vendor"}</div>
-                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.TxnDate || "—"}</div>
-                      <div className="text-sm font-semibold mt-1">${Number(po.TotalAmt || 0).toFixed(2)}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
+                          <div className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{po.VendorRef?.name || "Vendor"}</div>
+                        </div>
+                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(po.TotalAmt)}</div>
+                      </div>
+                      <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{po.TxnDate || "-"}</div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </aside>
           </div>
         </main>
       </div>
