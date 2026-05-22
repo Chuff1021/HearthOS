@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, inventoryItems, organizations } from '@/db';
-import { eq } from 'drizzle-orm';
+import { db, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
+import { and, eq } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
 
@@ -18,7 +18,7 @@ function normalizeItemLookup(value: string | undefined | null) {
 function resolveLineItemRef(line: any, items: LocalItemRef[]) {
   if (line.itemId) {
     const matched = items.find((item) => item.qbItemId === line.itemId);
-    return { value: line.itemId, name: matched?.name || line.itemName || line.partNumber || undefined };
+    if (matched?.qbItemId) return { value: matched.qbItemId, name: matched.name };
   }
 
   const lookupKeys = [line.partNumber, line.itemName, line.description]
@@ -35,6 +35,38 @@ function resolveLineItemRef(line: any, items: LocalItemRef[]) {
   });
 
   return matched?.qbItemId ? { value: matched.qbItemId, name: matched.name } : undefined;
+}
+
+function buildSalesLine(line: any, idx: number, itemRef?: { value: string; name?: string }) {
+  const description = line.partNumber
+    ? `${line.description || ''}\nPart: ${line.partNumber}`.trim()
+    : line.description || undefined;
+
+  if (!itemRef) {
+    return {
+      Id: String(idx + 1),
+      Amount: Number(line.amount || 0),
+      DetailType: 'DescriptionOnly',
+      Description: description || 'Estimate line',
+    };
+  }
+
+  return {
+    Id: String(idx + 1),
+    Amount: Number(line.amount || 0),
+    DetailType: 'SalesItemLineDetail',
+    Description: description,
+    SalesItemLineDetail: {
+      ItemRef: itemRef,
+      Qty: Number(line.qty || 1),
+      UnitPrice: Number(line.unitPrice || 0),
+    },
+  };
+}
+
+function quickBooksErrorMessage(err: unknown, fallback: string) {
+  if (!(err instanceof Error)) return fallback;
+  return err.message || fallback;
 }
 
 async function getQBAuth(request: NextRequest) {
@@ -141,6 +173,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, estimate: updatedEstimate });
     }
 
+    if (body.action === 'delete') {
+      if (!body.id) return NextResponse.json({ error: 'id is required for delete' }, { status: 400 });
+      const deletedEstimate = (await withRefresh(auth, (client) => client.deleteEstimate(body.id))) as any;
+
+      const localRows = await db
+        .select({ id: estimates.id })
+        .from(estimates)
+        .where(and(eq(estimates.orgId, auth.orgId), eq(estimates.qbEstimateId, body.id)))
+        .limit(1);
+      const localId = localRows[0]?.id;
+      if (localId) {
+        await db.delete(estimateLineItems).where(eq(estimateLineItems.estimateId, localId));
+        await db.delete(estimates).where(eq(estimates.id, localId));
+      }
+
+      addAuditLog({
+        entityType: 'estimate',
+        entityId: body.id,
+        action: 'delete',
+        actor: 'system',
+        source: 'api',
+        after: deletedEstimate,
+        note: 'Estimate deleted from dashboard',
+      });
+
+      return NextResponse.json({ success: true, estimate: deletedEstimate });
+    }
+
     if (!body.customerId || !Array.isArray(body.lines) || body.lines.length === 0) {
       return NextResponse.json({ error: 'customerId and lines[] are required' }, { status: 400 });
     }
@@ -152,27 +212,14 @@ export async function POST(request: NextRequest) {
         sku: inventoryItems.sku,
       })
       .from(inventoryItems)
-      .where(eq(inventoryItems.orgId, auth.orgId));
+      .where(and(eq(inventoryItems.orgId, auth.orgId), eq(inventoryItems.isActive, true)));
 
     const payload = {
       CustomerRef: { value: body.customerId },
       TxnDate: body.txnDate || new Date().toISOString().split('T')[0],
       ExpirationDate: body.expirationDate || undefined,
       PrivateNote: body.note || undefined,
-      Line: body.lines.map((line: any, idx: number) => {
-        const itemRef = resolveLineItemRef(line, localItems);
-        return {
-          Id: String(idx + 1),
-          Amount: Number(line.amount || 0),
-          DetailType: 'SalesItemLineDetail',
-          Description: line.partNumber ? `${line.description || ''}\nPart: ${line.partNumber}`.trim() : line.description || undefined,
-          SalesItemLineDetail: {
-            ItemRef: itemRef,
-            Qty: Number(line.qty || 1),
-            UnitPrice: Number(line.unitPrice || 0),
-          },
-        };
-      }),
+      Line: body.lines.map((line: any, idx: number) => buildSalesLine(line, idx, resolveLineItemRef(line, localItems))),
     };
 
     const estimate = (await withRefresh(auth, (client) => client.createEstimate(payload))) as any;
@@ -191,6 +238,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ estimate }, { status: 201 });
   } catch (err) {
     console.error('Failed to create QB estimate:', err);
-    return NextResponse.json({ error: 'Failed to create estimate' }, { status: 500 });
+    return NextResponse.json({ error: quickBooksErrorMessage(err, 'Failed to create estimate') }, { status: 500 });
   }
 }

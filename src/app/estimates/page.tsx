@@ -71,6 +71,7 @@ export default function EstimatesPage() {
   const [selectedCustomerName, setSelectedCustomerName] = useState("");
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [convertingEstimateId, setConvertingEstimateId] = useState<string | null>(null);
+  const [deletingEstimateId, setDeletingEstimateId] = useState<string | null>(null);
   const [convertedMap, setConvertedMap] = useState<Record<string, string>>({});
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
@@ -605,6 +606,30 @@ export default function EstimatesPage() {
     }
   }
 
+  async function deleteEstimate(estimate: Estimate) {
+    if (!window.confirm(`Delete estimate ${estimate.DocNumber || estimate.Id}? This also deletes it from QuickBooks.`)) return;
+
+    setDeletingEstimateId(estimate.Id);
+    setError(null);
+    try {
+      const res = await fetch("/api/quickbooks/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id: estimate.Id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete estimate");
+
+      setEstimates((prev) => prev.filter((entry) => entry.Id !== estimate.Id));
+      if (selectedEstimate?.Id === estimate.Id) setSelectedEstimate(null);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete estimate");
+    } finally {
+      setDeletingEstimateId(null);
+    }
+  }
+
   function scheduleFromEstimate(estimate: Estimate) {
     const estimateAddress = [
       estimate.ShipAddr?.Line1 || estimate.BillAddr?.Line1,
@@ -796,6 +821,14 @@ export default function EstimatesPage() {
                         <button onClick={(event) => { event.stopPropagation(); beginEditEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Edit</button>
                         <button onClick={(event) => { event.stopPropagation(); setPnlOpen({ id: e.Id, label: e.DocNumber || e.Id }); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
                         <button onClick={(event) => { event.stopPropagation(); scheduleFromEstimate(e); }} className="py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
+                        <button
+                          onClick={(event) => { event.stopPropagation(); deleteEstimate(e); }}
+                          disabled={deletingEstimateId === e.Id}
+                          className="col-span-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)", opacity: deletingEstimateId === e.Id ? 0.7 : 1 }}
+                        >
+                          {deletingEstimateId === e.Id ? "Deleting..." : "Delete Estimate"}
+                        </button>
                       </div>
 
                       {convertedMap[e.Id] ? (
@@ -890,6 +923,14 @@ export default function EstimatesPage() {
                         {convertingEstimateId === selectedEstimate.Id ? "Converting…" : "Convert"}
                       </button>
                     )}
+                    <button
+                      onClick={() => deleteEstimate(selectedEstimate)}
+                      disabled={deletingEstimateId === selectedEstimate.Id}
+                      className="px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)", opacity: deletingEstimateId === selectedEstimate.Id ? 0.7 : 1 }}
+                    >
+                      {deletingEstimateId === selectedEstimate.Id ? "Deleting..." : "Delete"}
+                    </button>
                   </div>
 
                   {editingEstimateId === selectedEstimate.Id && (

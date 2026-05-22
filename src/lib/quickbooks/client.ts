@@ -332,6 +332,15 @@ export class QuickBooksClient {
     return response.Estimate;
   }
 
+  async deleteEstimate(id: string): Promise<any> {
+    const existing = await this.getEstimate(id);
+    const response = await this.request<{ Estimate: any }>('POST', '/estimate?operation=delete', {
+      Id: existing.Id,
+      SyncToken: existing.SyncToken,
+    });
+    return response.Estimate;
+  }
+
   // === INVOICES ===
 
   async getInvoices(maxResults = 100): Promise<QBInvoice[]> {
