@@ -77,6 +77,13 @@ function formatMoney(value: number | undefined) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
+function formatDateDisplay(value: string | undefined) {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${month}/${day}/${year}`;
+}
+
 function formatAddress(addr: Vendor["BillAddr"] | undefined) {
   if (!addr) return "";
   return [
@@ -143,6 +150,10 @@ function buildDescriptionWithPart(description: string | undefined, partNumber: s
   return descriptionText ? `${part} - ${descriptionText}` : part;
 }
 
+function defaultPoNumber(estimate: Estimate | null) {
+  return estimate?.DocNumber || estimate?.Id || "";
+}
+
 export default function PurchaseOrdersPage() {
   const searchParams = useSearchParams();
   const estimateId = searchParams.get("estimateId");
@@ -178,6 +189,9 @@ export default function PurchaseOrdersPage() {
   const [lines, setLines] = useState<POLine[]>([emptyLine()]);
   const [activeItemSearchIndex, setActiveItemSearchIndex] = useState<number | null>(null);
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendSubject, setSendSubject] = useState("Purchase Order from AARON'S FIREPLACE CO, LLC");
+  const [sendBody, setSendBody] = useState("Dear Vendor,\n\nPlease find our purchase order attached to this email.\n\nThank you.\n\nThanks for your business!\nAARON'S FIREPLACE CO, LLC");
 
   function getItemPartNumber(item: Item | undefined) {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
@@ -371,6 +385,7 @@ export default function PurchaseOrdersPage() {
         setSourceEstimate(estimate);
         if (shouldHydrateEstimate) {
           setMemo(`Copied from Estimate ${estimate.DocNumber || estimate.Id}`);
+          setPoNumber(defaultPoNumber(estimate));
           setLines(estimateToPoLines(estimate));
           setVendorId("");
           setVendorQuery("");
@@ -399,6 +414,7 @@ export default function PurchaseOrdersPage() {
 
   const selectedVendor = vendors.find((vendor) => vendor.Id === vendorId);
   const vendorResults = getVendorSearchResults(vendorQuery);
+  const previewPoNumber = poNumber.trim() || defaultPoNumber(sourceEstimate) || "New";
 
   const totals = useMemo(() => {
     const subtotal = lines.reduce((sum, line) => sum + Number(line.qty || 0) * Number(line.unitPrice || 0), 0);
@@ -437,6 +453,16 @@ export default function PurchaseOrdersPage() {
     setActiveItemSearchIndex(null);
   }
 
+  function openSendDialog() {
+    if (!vendorId) return setError("Please select a vendor.");
+    if (!vendorEmail.trim()) return setError("Vendor email is required to save and send.");
+    if (!poNumber.trim() && sourceEstimate) setPoNumber(defaultPoNumber(sourceEstimate));
+    const vendorGreeting = selectedVendor?.DisplayName || vendorQuery || "Vendor";
+    setSendSubject("Purchase Order from AARON'S FIREPLACE CO, LLC");
+    setSendBody(`Dear ${vendorGreeting},\n\nPlease find our purchase order attached to this email.\n\nThank you.\n\nThanks for your business!\nAARON'S FIREPLACE CO, LLC`);
+    setSendDialogOpen(true);
+  }
+
   async function createPO(send = false) {
     if (!vendorId) return setError("Please select a vendor.");
     if (send && !vendorEmail.trim()) return setError("Vendor email is required to save and send.");
@@ -465,7 +491,8 @@ export default function PurchaseOrdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendorId,
-          poNumber: poNumber.trim() || undefined,
+          poNumber: poNumber.trim() || defaultPoNumber(sourceEstimate) || undefined,
+          vendorName: selectedVendor?.DisplayName || vendorQuery || undefined,
           memo: memo || undefined,
           txnDate,
           dueDate: dueDate || undefined,
@@ -477,6 +504,8 @@ export default function PurchaseOrdersPage() {
           ccBcc: ccBcc.trim() || undefined,
           sourceEstimateId: sourceEstimate?.DocNumber || sourceEstimate?.Id || undefined,
           email: vendorEmail.trim() || undefined,
+          emailSubject: sendSubject,
+          emailBody: sendBody,
           send,
           lines: normalized,
         }),
@@ -484,9 +513,10 @@ export default function PurchaseOrdersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
 
-      setCreatedMessage(`${data.sent ? "Created and sent" : "Created"} Purchase Order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}`.trim());
+      setCreatedMessage(`${data.sent ? "Created and sent" : data.emailError ? "Created but email failed" : "Created"} Purchase Order ${data.purchaseOrder?.DocNumber || data.purchaseOrder?.Id || ""}${data.emailError ? `: ${data.emailError}` : ""}`.trim());
       setPoNumber(data.purchaseOrder?.DocNumber || poNumber);
       setPurchaseOrderStatus(data.purchaseOrder?.POStatus || "Open");
+      if (send && !data.emailError) setSendDialogOpen(false);
       if (data.sent && vendorEmail.trim()) {
         setLastDelivery(`Sent by email to ${vendorEmail.trim()} at ${new Date().toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "long" })}`);
       }
@@ -863,7 +893,7 @@ export default function PurchaseOrdersPage() {
                   <button disabled={saving || loading} onClick={() => createPO(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)", opacity: saving ? 0.7 : 1 }}>
                     {saving ? "Saving..." : "Save"}
                   </button>
-                  <button disabled={saving || loading} onClick={() => createPO(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
+                  <button disabled={saving || loading} onClick={openSendDialog} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
                     {saving ? "Saving..." : "Save and send"}
                   </button>
                 </div>
@@ -898,6 +928,119 @@ export default function PurchaseOrdersPage() {
             </aside>
           </div>
         </main>
+
+        {sendDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/55" onClick={() => !saving && setSendDialogOpen(false)} />
+            <div className="relative w-full max-w-[1500px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Send email</h2>
+                <button disabled={saving} onClick={() => setSendDialogOpen(false)} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_640px] gap-0 overflow-y-auto max-h-[calc(88vh-128px)]">
+                <div className="p-5 space-y-4">
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                    <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>To</label>
+                    <input value={vendorEmail} onChange={(event) => setVendorEmail(event.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                    <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Cc/Bcc</label>
+                    <input value={ccBcc} onChange={(event) => setCcBcc(event.target.value)} placeholder="Optional" className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                    <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Subject</label>
+                    <input value={sendSubject} onChange={(event) => setSendSubject(event.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                    <div></div>
+                    <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Purchase order PDF</div>
+                  </div>
+                  <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                    <label className="text-sm font-semibold pt-2" style={{ color: "var(--color-text-muted)" }}>Email body</label>
+                    <textarea
+                      value={sendBody}
+                      onChange={(event) => setSendBody(event.target.value)}
+                      rows={10}
+                      className="px-3 py-2 rounded-lg text-sm resize-none"
+                      style={{ background: "var(--color-surface-3)", border: "1px solid #16A34A", color: "var(--color-text-primary)" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-5" style={{ background: "#777" }}>
+                  <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "560px", minHeight: "720px", padding: "34px 34px 54px" }}>
+                    <div className="font-bold text-sm">AARON&apos;S FIREPLACE CO, LLC</div>
+                    <div className="mt-2 text-xs leading-5">
+                      <div>611 E HARRISON ST</div>
+                      <div>REPUBLIC, MO&nbsp;&nbsp;65738</div>
+                      <div>+14177329775</div>
+                      <div>aaronsfireplaceco@yahoo.com</div>
+                    </div>
+
+                    <div className="mt-12 text-xl" style={{ color: "#666" }}>Purchase Order</div>
+                    <div className="mt-5 grid grid-cols-[1fr_1fr_120px] gap-8 text-xs">
+                      <div>
+                        <div className="uppercase" style={{ color: "#8a8f98" }}>Vendor</div>
+                        <div className="mt-1 font-medium">{selectedVendor?.DisplayName || vendorQuery}</div>
+                        <div className="whitespace-pre-line">{mailingAddress}</div>
+                      </div>
+                      <div>
+                        <div className="uppercase" style={{ color: "#8a8f98" }}>Ship To</div>
+                        <div className="mt-1 font-medium">{shipTo}</div>
+                        <div className="whitespace-pre-line">{shippingAddress}</div>
+                      </div>
+                      <div className="grid grid-cols-[42px_1fr] gap-x-2 content-start">
+                        <div className="uppercase" style={{ color: "#8a8f98" }}>P.O.</div>
+                        <div className="font-medium">{previewPoNumber}</div>
+                        <div className="uppercase mt-1" style={{ color: "#8a8f98" }}>Date</div>
+                        <div className="mt-1 font-medium">{formatDateDisplay(txnDate)}</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-[minmax(0,1fr)_55px_70px_80px] gap-2 px-2 py-2 text-xs uppercase" style={{ background: "#dedede", color: "#666" }}>
+                      <div>Product</div>
+                      <div className="text-right">Qty</div>
+                      <div className="text-right">Rate</div>
+                      <div className="text-right">Amount</div>
+                    </div>
+                    <div className="text-xs">
+                      {lines.filter((line) => line.itemId || line.description).map((line, idx) => (
+                        <div key={idx} className="grid grid-cols-[minmax(0,1fr)_55px_70px_80px] gap-2 py-2">
+                          <div>{buildDescriptionWithPart(cleanLineDescription(line.description, line.partNumber), line.partNumber)}</div>
+                          <div className="text-right">{Number(line.qty || 0)}</div>
+                          <div className="text-right">{Number(line.unitPrice || 0).toFixed(2)}</div>
+                          <div className="text-right">{(Number(line.qty || 0) * Number(line.unitPrice || 0)).toFixed(2)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-5 border-t border-dashed pt-5 grid grid-cols-[1fr_160px] gap-5 text-sm">
+                      <div style={{ color: "#8a8f98" }}>{sourceEstimate?.DocNumber ? `${sourceEstimate.DocNumber}:` : ""}</div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between"><span style={{ color: "#8a8f98" }}>SUBTOTAL</span><span>{totals.subtotal.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span style={{ color: "#8a8f98" }}>TOTAL</span><span>${totals.subtotal.toFixed(2)}</span></div>
+                      </div>
+                    </div>
+                    <div className="mt-16 grid grid-cols-[90px_1fr] gap-y-8 text-xs" style={{ color: "#8a8f98" }}>
+                      <div>Approved By</div><div className="border-b"></div>
+                      <div>Date</div><div className="border-b"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
+                <button disabled={saving} onClick={() => setSendDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+                <div className="flex gap-2">
+                  <button disabled={saving} onClick={() => window.print()} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Print</button>
+                  <button disabled={saving} onClick={() => createPO(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
+                    {saving ? "Sending..." : "Send and close"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

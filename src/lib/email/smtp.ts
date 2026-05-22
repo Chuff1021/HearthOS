@@ -6,6 +6,11 @@ type SendEmailInput = {
   subject: string;
   text: string;
   html: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }>;
 };
 
 export function isSmtpConfigured() {
@@ -46,5 +51,6 @@ export async function sendSmtpEmail(input: SendEmailInput) {
     subject: input.subject,
     text: input.text,
     html: input.html,
+    attachments: input.attachments,
   });
 }

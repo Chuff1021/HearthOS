@@ -4,6 +4,7 @@ import { db, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getClientFromTokens, persistPurchaseOrdersToDb } from '@/lib/quickbooks/sync';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
+import { renderPurchaseOrderPdf } from '@/lib/purchase-orders/pdf';
 
 async function getQBAuth(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -41,6 +42,10 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
     client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
     return fn(client);
   }
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : 'Unknown error';
 }
 
 function normalizeLookup(value: string | undefined | null) {
@@ -195,13 +200,30 @@ async function sendPurchaseOrderByConfiguredEmail(purchaseOrder: any, body: any)
   if (!body.email) return { sent: false, sentVia: null };
 
   if (isSmtpConfigured()) {
-    const subject = `Purchase Order ${purchaseOrder?.DocNumber || purchaseOrder?.Id || ''}`.trim();
+    const poNumber = purchaseOrder?.DocNumber || body.poNumber || purchaseOrder?.Id || '';
+    const subject = body.emailSubject || `Purchase Order from AARON'S FIREPLACE CO, LLC`;
+    const pdf = await renderPurchaseOrderPdf({
+      poNumber,
+      txnDate: body.txnDate,
+      vendorName: purchaseOrder?.VendorRef?.name || body.vendorName || '',
+      mailingAddress: body.mailingAddress,
+      shipTo: body.shipTo,
+      shippingAddress: body.shippingAddress,
+      lines: body.lines || [],
+    });
     await sendSmtpEmail({
       to: body.email,
       cc: parseEmailList(body.ccBcc),
       subject,
-      text: purchaseOrderEmailText(purchaseOrder, body),
-      html: purchaseOrderEmailHtml(purchaseOrder, body),
+      text: body.emailBody || purchaseOrderEmailText(purchaseOrder, body),
+      html: body.emailBody
+        ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml(body.emailBody)}</div>`
+        : purchaseOrderEmailHtml(purchaseOrder, body),
+      attachments: [{
+        filename: `Purchase Order ${poNumber || 'PO'}.pdf`,
+        content: pdf,
+        contentType: 'application/pdf',
+      }],
     });
     return { sent: true, sentVia: 'smtp' };
   }
@@ -303,16 +325,21 @@ export async function POST(request: NextRequest) {
       };
       let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
       let sentVia: string | null = null;
+      let emailError: string | null = null;
       if (body.send) {
-        const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, emailBody);
-        if (smtpResult.sent) sentVia = smtpResult.sentVia;
-        else {
-          purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
-          sentVia = 'quickbooks';
+        try {
+          const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, emailBody);
+          if (smtpResult.sent) sentVia = smtpResult.sentVia;
+          else {
+            purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+            sentVia = 'quickbooks';
+          }
+        } catch (sendErr) {
+          emailError = errorMessage(sendErr);
         }
       }
       try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist PO from estimate failed', e); }
-      return NextResponse.json({ purchaseOrder, sent: Boolean(body.send), sentVia }, { status: 201 });
+      return NextResponse.json({ purchaseOrder, sent: Boolean(body.send && sentVia), sentVia, emailError }, { status: 201 });
     }
 
     if (!body.vendorId || !Array.isArray(body.lines) || body.lines.length === 0) {
@@ -347,18 +374,23 @@ export async function POST(request: NextRequest) {
 
     let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
     let sentVia: string | null = null;
+    let emailError: string | null = null;
     if (body.send) {
-      const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, body);
-      if (smtpResult.sent) sentVia = smtpResult.sentVia;
-      else {
-        purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
-        sentVia = 'quickbooks';
+      try {
+        const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, body);
+        if (smtpResult.sent) sentVia = smtpResult.sentVia;
+        else {
+          purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+          sentVia = 'quickbooks';
+        }
+      } catch (sendErr) {
+        emailError = errorMessage(sendErr);
       }
     }
     try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist created PO failed', e); }
-    return NextResponse.json({ purchaseOrder, sent: Boolean(body.send), sentVia }, { status: 201 });
+    return NextResponse.json({ purchaseOrder, sent: Boolean(body.send && sentVia), sentVia, emailError }, { status: 201 });
   } catch (err) {
     console.error('Failed to create QuickBooks purchase order:', err);
-    return NextResponse.json({ error: 'Failed to create purchase order' }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(err) || 'Failed to create purchase order' }, { status: 500 });
   }
 }
