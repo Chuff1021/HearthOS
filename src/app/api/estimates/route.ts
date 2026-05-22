@@ -38,6 +38,9 @@ type QBEstimate = {
 const customerDisplay = (first: string | null, last: string | null, company: string | null) =>
   company || [first, last].filter(Boolean).join(" ").trim() || null;
 
+const cleanDocumentNumber = (value: string | null | undefined) =>
+  value?.replace(/^QB-/i, "") || undefined;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -120,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     const out: QBEstimate[] = headerRows.map((h) => ({
       Id: h.qbEstimateId || h.id,
-      DocNumber: h.estimateNumber || undefined,
+      DocNumber: cleanDocumentNumber(h.estimateNumber),
       TxnDate: h.issueDate || undefined,
       ExpirationDate: h.expirationDate || undefined,
       PrivateNote: h.privateNote || undefined,

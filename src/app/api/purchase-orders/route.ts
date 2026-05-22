@@ -76,9 +76,10 @@ function privateNoteFromBody(body: any) {
 }
 
 function shapePurchaseOrder(po: typeof purchaseOrders.$inferSelect, vendor?: typeof vendors.$inferSelect | null) {
+  const docNumber = po.poNumber?.replace(/^QB-/i, '') || po.id;
   return {
     Id: po.id,
-    DocNumber: po.poNumber || po.id,
+    DocNumber: docNumber,
     TxnDate: po.issueDate || undefined,
     DueDate: po.expectedDate || undefined,
     POStatus: po.status ? po.status.charAt(0).toUpperCase() + po.status.slice(1) : 'Open',
