@@ -431,6 +431,9 @@ export default function EstimatesPage() {
   }, [estimates, activeCustomerFilterId]);
   const selectedEstimateLines = selectedEstimate?.Line || [];
   const emailEstimateForDialog = emailEstimateId ? estimates.find((estimate) => estimate.Id === emailEstimateId) || selectedEstimate : null;
+  const emailEstimateLines = emailEstimateForDialog?.Line || [];
+  const emailEstimateSubtotal = emailEstimateLines.reduce((sum, line) => sum + Number(line.Amount || 0), 0);
+  const emailEstimateTotal = Number(emailEstimateForDialog?.TotalAmt || emailEstimateSubtotal);
 
   useEffect(() => {
     if (selectedEstimateId) {
@@ -1415,19 +1418,59 @@ export default function EstimatesPage() {
                 </div>
               </div>
               <div className="p-5" style={{ background: "#777" }}>
-                <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "28px" }}>
-                  <div className="font-bold text-sm">AARON&apos;S FIREPLACE CO, LLC</div>
-                  <div className="mt-8 text-xl" style={{ color: "#666" }}>ESTIMATE</div>
-                  <div className="mt-5 text-sm">
-                    <div className="uppercase text-xs" style={{ color: "#8a8f98" }}>Bill To</div>
-                    <div className="font-semibold">{emailEstimateForDialog?.CustomerRef?.name || "Customer"}</div>
-                    <div className="mt-4 grid grid-cols-[90px_1fr] gap-y-1">
-                      <span style={{ color: "#8a8f98" }}>Estimate</span><span>{emailEstimateForDialog?.DocNumber || emailEstimateForDialog?.Id}</span>
-                      <span style={{ color: "#8a8f98" }}>Date</span><span>{emailEstimateForDialog?.TxnDate || "-"}</span>
+                <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "24px" }}>
+                  <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+                    <div>
+                      <div className="font-bold text-[12px]">AARON&apos;S FIREPLACE CO, LLC</div>
+                      <div className="mt-1 leading-4 text-[10px] text-[#333]">
+                        6927 Briar Cove Dr<br />
+                        Dallas, TX 75254<br />
+                        fireplaceservice@aaronsfireplace.com
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[20px]" style={{ color: "#666" }}>ESTIMATE</div>
+                      <div className="mt-1 text-[10px] text-[#666]">{emailEstimateForDialog?.DocNumber || emailEstimateForDialog?.Id || "-"}</div>
                     </div>
                   </div>
-                  <div className="mt-6 border-t border-dashed pt-4 text-sm">
-                    <div className="flex justify-between"><span>Total</span><strong>${Number(emailEstimateForDialog?.TotalAmt || 0).toFixed(2)}</strong></div>
+                  <div className="mt-8 grid grid-cols-[1fr_150px] gap-5 text-[11px]">
+                    <div>
+                      <div className="uppercase text-[9px] font-bold" style={{ color: "#8a8f98" }}>Bill To</div>
+                      <div className="mt-1 font-semibold leading-4">{emailEstimateForDialog?.CustomerRef?.name || "Customer"}</div>
+                    </div>
+                    <div className="grid grid-cols-[62px_1fr] gap-y-1 leading-4">
+                      <span className="uppercase text-[9px] font-bold" style={{ color: "#8a8f98" }}>Date</span><span>{emailEstimateForDialog?.TxnDate || "-"}</span>
+                      <span className="uppercase text-[9px] font-bold" style={{ color: "#8a8f98" }}>Expires</span><span>{emailEstimateForDialog?.ExpirationDate || "-"}</span>
+                    </div>
+                  </div>
+                  <table className="mt-7 w-full border-collapse text-[10px]">
+                    <thead>
+                      <tr style={{ background: "#dedede", color: "#666" }}>
+                        <th className="px-2 py-1.5 text-left font-bold">PRODUCT/SERVICE</th>
+                        <th className="px-2 py-1.5 text-right font-bold">QTY</th>
+                        <th className="px-2 py-1.5 text-right font-bold">RATE</th>
+                        <th className="px-2 py-1.5 text-right font-bold">AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emailEstimateLines.map((line, idx) => (
+                        <tr key={`${line.SalesItemLineDetail?.ItemRef?.value || "line"}-${idx}`} style={{ borderBottom: "1px solid #e8e8e8" }}>
+                          <td className="px-2 py-2 align-top font-semibold leading-4">{getEstimateProductLine(line)}</td>
+                          <td className="px-2 py-2 align-top text-right">{Number(line.SalesItemLineDetail?.Qty || 1)}</td>
+                          <td className="px-2 py-2 align-top text-right">${Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0).toFixed(2)}</td>
+                          <td className="px-2 py-2 align-top text-right font-semibold">${Number(line.Amount || 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      {emailEstimateLines.length === 0 && (
+                        <tr>
+                          <td className="px-2 py-5 text-center text-[#777]" colSpan={4}>No estimate line items found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="mt-5 ml-auto w-[180px] space-y-1.5 text-[11px]">
+                    <div className="flex justify-between"><span>Subtotal</span><span>${emailEstimateSubtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between border-t border-dashed pt-2 font-bold"><span>Total</span><span>${emailEstimateTotal.toFixed(2)}</span></div>
                   </div>
                 </div>
               </div>
