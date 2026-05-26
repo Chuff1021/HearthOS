@@ -119,6 +119,27 @@ function paymentUrl(request: NextRequest, invoice: QBInvoice) {
   return `${origin}/pay?${params.toString()}`;
 }
 
+function paymentInstructionsText(payUrl: string) {
+  return [
+    'Payment options:',
+    `Pay by card or bank account/e-check: ${payUrl}`,
+    "Paper checks payable to AARON'S FIREPLACE CO, LLC.",
+    'Mail checks to 611 E HARRISON ST, REPUBLIC, MO 65738.',
+    'Please include the invoice number on check payments.',
+  ].join('\n');
+}
+
+function paymentInstructionsHtml(payUrl: string) {
+  return `
+    <div style="margin-top:22px;padding:14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">
+      <div style="font-weight:700;margin-bottom:8px;">Payment options</div>
+      <p style="margin:0 0 12px;">Pay by card or bank account/e-check through Square:</p>
+      <p style="margin:0 0 14px;"><a href="${escapeHtml(payUrl)}" style="background:#f8971f;color:#111111;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:6px;display:inline-block;">Pay invoice</a></p>
+      <p style="margin:0;color:#4b5563;">Paper checks payable to AARON'S FIREPLACE CO, LLC. Mail checks to 611 E HARRISON ST, REPUBLIC, MO 65738. Please include the invoice number.</p>
+    </div>
+  `;
+}
+
 function invoiceEmailText(invoice: QBInvoice, payUrl: string) {
   const invoiceNumber = invoice.DocNumber || invoice.Id;
   const balance = Number(invoice.Balance || invoice.TotalAmt || 0);
@@ -128,7 +149,7 @@ function invoiceEmailText(invoice: QBInvoice, payUrl: string) {
     `Balance due: $${money(balance)}`,
     invoice.DueDate ? `Due date: ${invoice.DueDate}` : undefined,
     '',
-    balance > 0 ? `Pay online: ${payUrl}` : undefined,
+    balance > 0 ? paymentInstructionsText(payUrl) : undefined,
     '',
     'Thank you,',
     "AARON'S FIREPLACE CO, LLC",
@@ -139,7 +160,7 @@ function invoiceEmailHtml(invoice: QBInvoice, payUrl: string) {
   const invoiceNumber = invoice.DocNumber || invoice.Id;
   const balance = Number(invoice.Balance || invoice.TotalAmt || 0);
   const payButton = balance > 0
-    ? `<p style="margin:22px 0;"><a href="${escapeHtml(payUrl)}" style="background:#f8971f;color:#111111;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:6px;display:inline-block;">Pay invoice</a></p>`
+    ? paymentInstructionsHtml(payUrl)
     : '';
 
   return `
@@ -316,9 +337,11 @@ export async function POST(request: NextRequest) {
           cc: parseEmailList((body as any).ccBcc),
           bcc: (body as any).sendMeCopy === false ? undefined : parseEmailList(process.env.SMTP_FROM || process.env.SMTP_USER),
           subject: (body as any).emailSubject || `Invoice ${invoiceNumber} from AARON'S FIREPLACE CO, LLC`,
-          text: (body as any).emailBody || invoiceEmailText(invoice, payUrl),
+          text: (body as any).emailBody
+            ? `${(body as any).emailBody}\n\n${paymentInstructionsText(payUrl)}`
+            : invoiceEmailText(invoice, payUrl),
           html: (body as any).emailBody
-            ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml((body as any).emailBody)}</div>`
+            ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml((body as any).emailBody)}</div>${paymentInstructionsHtml(payUrl)}`
             : invoiceEmailHtml(invoice, payUrl),
           attachments: [{
             filename: `Invoice ${invoiceNumber}.pdf`,

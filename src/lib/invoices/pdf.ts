@@ -240,10 +240,14 @@ export function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
     doc.font("Helvetica").fontSize(10).fillColor(muted)
       .text("Thank You, We appreciate your business.", left + 8, totalsTop);
     if (input.paymentUrl && balance > 0) {
-      doc.font("Helvetica-Bold").fillColor(accent).text("Pay online", left + 8, totalsTop + 24, {
+      doc.font("Helvetica-Bold").fillColor(accent).text("Pay by card or bank account/e-check", left + 8, totalsTop + 24, {
         link: input.paymentUrl,
         underline: true,
       });
+      doc.font("Helvetica").fontSize(9).fillColor(muted)
+        .text("Checks payable to AARON'S FIREPLACE CO, LLC", left + 8, totalsTop + 42)
+        .text("Mail to 611 E HARRISON ST, REPUBLIC, MO 65738", left + 8, totalsTop + 56)
+        .text("Please include the invoice number.", left + 8, totalsTop + 70);
     }
 
     const totalRows = [

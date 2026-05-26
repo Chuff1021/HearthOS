@@ -642,6 +642,40 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleRecordCheckPayment = async (invoice: Invoice) => {
+    const amountText = prompt("Payment amount", Number(invoice.balance || invoice.totalAmount || 0).toFixed(2));
+    if (amountText === null) return;
+    const amount = Number(amountText);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a payment amount greater than 0.");
+      return;
+    }
+
+    const checkNumber = prompt("Check number (optional)", "");
+    if (checkNumber === null) return;
+
+    try {
+      const res = await fetch("/api/invoices/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceNumber: invoice.invoiceNumber,
+          amount,
+          paymentMethod: "check",
+          checkNumber: checkNumber.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to record payment");
+      await fetchInvoices();
+      const refreshed = await fetch(`/api/invoices?id=${encodeURIComponent(invoice.id)}`, { cache: "no-store" });
+      const refreshedData = await refreshed.json().catch(() => ({}));
+      if (refreshed.ok && refreshedData.invoice) setSelectedInvoice(refreshedData.invoice);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to record payment");
+    }
+  };
+
   const handleDeleteInvoice = async (id: string) => {
     if (!confirm("Are you sure you want to delete this invoice?")) return;
     try {
@@ -660,7 +694,7 @@ export default function InvoicesPage() {
     setEmailTo("");
     setEmailCcBcc("");
     setEmailSubject(`Invoice ${invoice.invoiceNumber} from AARON'S FIREPLACE CO, LLC`);
-    setEmailBody(`Dear ${invoice.customerName || "Customer"},\n\nPlease find your invoice attached to this email.\n\nBalance due: $${Number(invoice.balance || invoice.totalAmount || 0).toFixed(2)}\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
+    setEmailBody(`Dear ${invoice.customerName || "Customer"},\n\nPlease find your invoice attached to this email.\n\nBalance due: $${Number(invoice.balance || invoice.totalAmount || 0).toFixed(2)}\n\nA payment link for card or e-check is included below. Paper check instructions are included as well.\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
     setEmailSendMeCopy(true);
     setEmailStatus(null);
     setEmailDialogOpen(true);
@@ -1357,11 +1391,11 @@ export default function InvoicesPage() {
                   )}
                   {(selectedInvoice.status === "sent" || selectedInvoice.status === "overdue") && (
                     <button
-                      onClick={() => handleUpdateStatus(selectedInvoice.id, "paid")}
+                      onClick={() => handleRecordCheckPayment(selectedInvoice)}
                       className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
                       style={{ background: "linear-gradient(135deg, #98CD00, #98CD00)", color: "white" }}
                     >
-                      Record Payment (Mark Paid)
+                      Record Check Payment
                     </button>
                   )}
                   {selectedInvoice.status !== "void" && selectedInvoice.status !== "paid" && (

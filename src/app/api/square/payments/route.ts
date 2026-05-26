@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordInvoicePayment } from "@/lib/invoices/record-payment";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
 
 const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || "production";
@@ -9,6 +10,13 @@ function baseUrl() {
   return SQUARE_ENV === "sandbox"
     ? "https://connect.squareupsandbox.com"
     : "https://connect.squareup.com";
+}
+
+function paymentMethodFromSquare(sourceType: string | undefined) {
+  const source = String(sourceType || "").toUpperCase();
+  if (source.includes("BANK")) return "ach";
+  if (source.includes("CARD")) return "credit_card";
+  return source.toLowerCase() || "square";
 }
 
 export async function POST(request: NextRequest) {
@@ -74,14 +82,16 @@ export async function POST(request: NextRequest) {
     }
 
     const payment = data?.payment;
+    const squareStatus = String(payment?.status || "COMPLETED");
+    const sourceType = payment?.source_type || "CARD";
     upsertSquarePayment({
       id: String(payment?.id || crypto.randomUUID()),
-      status: String(payment?.status || "COMPLETED"),
+      status: squareStatus,
       amount,
       currency: payment?.amount_money?.currency || "USD",
       customerName,
       invoiceNumber,
-      sourceType: payment?.source_type || "CARD",
+      sourceType,
       orderId: payment?.order_id,
       receiptUrl: payment?.receipt_url,
       createdAt: payment?.created_at || new Date().toISOString(),
@@ -89,12 +99,38 @@ export async function POST(request: NextRequest) {
       raw: data,
     });
 
+    let invoicePayment;
+    if (invoiceNumber && squareStatus.toUpperCase() === "COMPLETED") {
+      try {
+        invoicePayment = await recordInvoicePayment({
+          invoiceNumber,
+          amount,
+          paymentMethod: paymentMethodFromSquare(sourceType),
+          transactionId: payment?.id,
+          paidAt: payment?.created_at ? new Date(payment.created_at) : new Date(),
+          notes: [
+            `Square ${sourceType} payment ${payment?.id || ""}`.trim(),
+            squareStatus ? `Status: ${squareStatus}` : undefined,
+            payment?.receipt_url ? `Receipt: ${payment.receipt_url}` : undefined,
+            buyerEmail ? `Buyer email: ${buyerEmail}` : undefined,
+          ].filter(Boolean).join("\n"),
+        });
+      } catch (recordErr) {
+        console.error("Square payment captured but invoice payment recording failed:", recordErr);
+        invoicePayment = {
+          recorded: false,
+          reason: recordErr instanceof Error ? recordErr.message : "recording_failed",
+        };
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       paymentId: payment?.id,
       status: payment?.status,
       receiptUrl: payment?.receipt_url,
       payment,
+      invoicePayment,
     });
   } catch (err) {
     return NextResponse.json(

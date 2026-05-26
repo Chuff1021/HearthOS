@@ -82,7 +82,7 @@ export default function CustomerPayPage() {
           invoiceNumber: context.invoiceNumber || undefined,
           buyerEmail: context.buyerEmail || undefined,
           note: context.invoiceNumber
-            ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
+              ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
             : `${methodLabel} payment`,
         }),
       });
@@ -116,14 +116,14 @@ export default function CustomerPayPage() {
             if (tokenResult?.status !== "OK" || !tokenResult?.token) {
               throw new Error("Bank account authorization was not completed.");
             }
-            const data = await createSquarePayment(tokenResult.token, "ACH bank transfer");
+            const data = await createSquarePayment(tokenResult.token, "e-check");
             setStatus({
               type: "success",
-              message: `Bank payment submitted for ${fmtMoney(formAmount(paymentContextRef.current.amount))}. ACH payments can take a few business days to settle.`,
+              message: `E-check payment submitted for ${fmtMoney(formAmount(paymentContextRef.current.amount))}. Bank payments can take a few business days to settle.`,
               receiptUrl: data.receiptUrl || undefined,
             });
           } catch (err) {
-            setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to submit bank payment." });
+            setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to submit e-check payment." });
           } finally {
             setProcessingAch(false);
           }
@@ -226,7 +226,7 @@ export default function CustomerPayPage() {
           <div className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>AARON&apos;S FIREPLACE CO, LLC</div>
           <h1 className="mt-1 text-3xl font-bold">Pay Invoice</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
-            Pay securely by card or ACH bank transfer through Square.
+            Pay securely by card or e-check through Square.
           </p>
         </div>
 
@@ -306,9 +306,9 @@ export default function CustomerPayPage() {
 
           <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-semibold">Pay by bank account</h2>
+              <h2 className="font-semibold">Pay by e-check</h2>
               <span className="text-[10px] font-semibold uppercase" style={{ color: achReady ? "#16A34A" : "var(--color-text-muted)" }}>
-                {achReady ? "ACH Ready" : "Loading"}
+                {achReady ? "Ready" : "Loading"}
               </span>
             </div>
             <label className="block">
@@ -327,7 +327,7 @@ export default function CustomerPayPage() {
               className="w-full py-3 rounded-lg text-sm font-semibold disabled:opacity-60"
               style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
             >
-              {processingAch ? "Opening bank verification..." : `Pay by Bank Account ${amount ? fmtMoney(amount) : ""}`}
+              {processingAch ? "Opening bank verification..." : `Pay by E-check ${amount ? fmtMoney(amount) : ""}`}
             </button>
           </div>
         </section>
