@@ -12,6 +12,8 @@ type PaymentStatus = {
 const fmtMoney = (value: number) =>
   `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const CARD_FEE_RATE = 0.035;
+
 function formAmount(value: string) {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
@@ -49,6 +51,8 @@ export default function CustomerPayPage() {
   const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
   const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
   const amount = formAmount(form.amount);
+  const cardFee = amount * CARD_FEE_RATE;
+  const cardTotal = amount + cardFee;
 
   useEffect(() => {
     paymentContextRef.current = form;
@@ -67,9 +71,9 @@ export default function CustomerPayPage() {
         ? "https://sandbox.web.squarecdn.com/v1/square.js"
         : "https://web.squarecdn.com/v1/square.js";
 
-    async function createSquarePayment(sourceId: string, methodLabel: string) {
+    async function createSquarePayment(sourceId: string, methodLabel: string, chargeAmount?: number) {
       const context = paymentContextRef.current;
-      const nextAmount = formAmount(context.amount);
+      const nextAmount = chargeAmount ?? formAmount(context.amount);
       if (!nextAmount) throw new Error("Enter an amount greater than 0.");
 
       const res = await fetch("/api/square/payments", {
@@ -82,7 +86,7 @@ export default function CustomerPayPage() {
           invoiceNumber: context.invoiceNumber || undefined,
           buyerEmail: context.buyerEmail || undefined,
           note: context.invoiceNumber
-              ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
+            ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
             : `${methodLabel} payment`,
         }),
       });
@@ -116,7 +120,7 @@ export default function CustomerPayPage() {
             if (tokenResult?.status !== "OK" || !tokenResult?.token) {
               throw new Error("Bank account authorization was not completed.");
             }
-            const data = await createSquarePayment(tokenResult.token, "e-check");
+      const data = await createSquarePayment(tokenResult.token, "e-check");
             setStatus({
               type: "success",
               message: `E-check payment submitted for ${fmtMoney(formAmount(paymentContextRef.current.amount))}. Bank payments can take a few business days to settle.`,
@@ -176,19 +180,21 @@ export default function CustomerPayPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount,
+          amount: cardTotal,
           sourceId: tokenResult.token,
           customerName: form.customerName || "Customer",
           invoiceNumber: form.invoiceNumber || undefined,
           buyerEmail: form.buyerEmail || undefined,
-          note: form.invoiceNumber ? `Card payment for invoice ${form.invoiceNumber}` : "Card payment",
+          note: form.invoiceNumber
+            ? `Card payment for invoice ${form.invoiceNumber}. Invoice amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`
+            : `Card payment. Amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit card payment");
       setStatus({
         type: "success",
-        message: `Card payment captured for ${fmtMoney(amount)}.`,
+        message: `Card payment captured for ${fmtMoney(cardTotal)}, including a ${fmtMoney(cardFee)} card processing fee.`,
         receiptUrl: data.receiptUrl || undefined,
       });
     } catch (err) {
@@ -294,13 +300,18 @@ export default function CustomerPayPage() {
               </span>
             </div>
             <div ref={cardContainerRef} className="min-h-[96px] rounded-lg p-3" style={{ background: "#fff", border: "1px solid var(--color-border)" }} />
+            <div className="rounded-lg px-3 py-2 text-sm" style={{ background: "rgba(248,151,31,0.10)", border: "1px solid rgba(248,151,31,0.25)", color: "var(--color-text-primary)" }}>
+              <div className="flex justify-between"><span>Invoice amount</span><span>{fmtMoney(amount)}</span></div>
+              <div className="flex justify-between"><span>Card fee (3.5%)</span><span>{fmtMoney(cardFee)}</span></div>
+              <div className="flex justify-between font-semibold pt-1 mt-1" style={{ borderTop: "1px solid rgba(248,151,31,0.25)" }}><span>Card total</span><span>{fmtMoney(cardTotal)}</span></div>
+            </div>
             <button
               onClick={payByCard}
               disabled={!cardReady || processingCard || !sdkReady}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #f8971f, #eaa23f)" }}
             >
-              {processingCard ? "Processing..." : `Pay by Card ${amount ? fmtMoney(amount) : ""}`}
+              {processingCard ? "Processing..." : `Pay by Card ${amount ? fmtMoney(cardTotal) : ""}`}
             </button>
           </div>
 
@@ -324,8 +335,8 @@ export default function CustomerPayPage() {
             <button
               onClick={payByBank}
               disabled={!achReady || processingAch || !sdkReady}
-              className="w-full py-3 rounded-lg text-sm font-semibold disabled:opacity-60"
-              style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+              className="w-full py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "#16A34A", border: "1px solid rgba(22,163,74,0.35)" }}
             >
               {processingAch ? "Opening bank verification..." : `Pay by E-check ${amount ? fmtMoney(amount) : ""}`}
             </button>

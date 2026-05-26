@@ -24,7 +24,42 @@ function cleanDocumentNumber(value: string | undefined) {
   return value?.replace(/^QB-/i, '') || '';
 }
 
-function estimateEmailText(estimate: any) {
+function publicOrigin(request: NextRequest) {
+  const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(':', '');
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (host) return `${proto}://${host}`;
+  return new URL(request.url).origin;
+}
+
+function estimateAcceptanceUrl(request: NextRequest, estimate: any) {
+  const origin = publicOrigin(request);
+  const params = new URLSearchParams({
+    id: String(estimate.Id || estimate.DocNumber || ''),
+  });
+  return `${origin}/accept-estimate?${params.toString()}`;
+}
+
+function estimateAcceptanceText(acceptUrl: string) {
+  return [
+    'Accept estimate and service agreement:',
+    acceptUrl,
+    '',
+    'Once the estimate is accepted, AARON\'S FIREPLACE CO, LLC will contact you to schedule the work.',
+  ].join('\n');
+}
+
+function estimateAcceptanceHtml(acceptUrl: string) {
+  return `
+    <div style="margin-top:22px;padding:14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">
+      <div style="font-weight:700;margin-bottom:8px;">Accept estimate</div>
+      <p style="margin:0 0 12px;">Review and accept the estimate and service agreement online.</p>
+      <p style="margin:0 0 14px;"><a href="${escapeHtml(acceptUrl)}" style="background:#16A34A;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:6px;display:inline-block;">Accept estimate</a></p>
+      <p style="margin:0;color:#4b5563;">Once accepted, AARON'S FIREPLACE CO, LLC will contact you to schedule the work.</p>
+    </div>
+  `;
+}
+
+function estimateEmailText(estimate: any, acceptUrl: string) {
   const estimateNumber = estimate.DocNumber || estimate.Id;
   return [
     `Estimate ${estimateNumber} from AARON'S FIREPLACE CO, LLC`,
@@ -34,12 +69,14 @@ function estimateEmailText(estimate: any) {
     '',
     'The estimate PDF is attached.',
     '',
+    estimateAcceptanceText(acceptUrl),
+    '',
     'Thank you,',
     "AARON'S FIREPLACE CO, LLC",
   ].filter((part) => part !== undefined).join('\n');
 }
 
-function estimateEmailHtml(estimate: any) {
+function estimateEmailHtml(estimate: any, acceptUrl: string) {
   const estimateNumber = estimate.DocNumber || estimate.Id;
   return `
     <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.5;">
@@ -48,6 +85,7 @@ function estimateEmailHtml(estimate: any) {
       <p style="margin:0 0 8px;">Total: <strong>$${money(estimate.TotalAmt)}</strong></p>
       ${estimate.ExpirationDate ? `<p style="margin:0 0 8px;">Expiration date: ${escapeHtml(estimate.ExpirationDate)}</p>` : ''}
       <p style="margin-top:22px;">The estimate PDF is attached.</p>
+      ${estimateAcceptanceHtml(acceptUrl)}
       <p style="margin-top:22px;">Thank you,<br />AARON'S FIREPLACE CO, LLC</p>
     </div>
   `;
@@ -323,15 +361,18 @@ export async function POST(request: NextRequest) {
           }
         }
         const pdf = await renderEstimatePdf({ estimate: estimateForPdf, customer });
+        const acceptUrl = estimateAcceptanceUrl(request, estimate);
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList(body.ccBcc),
           bcc: body.sendMeCopy === false ? undefined : parseEmailList(process.env.SMTP_FROM || process.env.SMTP_USER),
           subject: body.emailSubject || `Estimate ${estimateNumber} from AARON'S FIREPLACE CO, LLC`,
-          text: body.emailBody || estimateEmailText(estimate),
+          text: body.emailBody
+            ? `${body.emailBody}\n\n${estimateAcceptanceText(acceptUrl)}`
+            : estimateEmailText(estimate, acceptUrl),
           html: body.emailBody
-            ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml(body.emailBody)}</div>`
-            : estimateEmailHtml(estimate),
+            ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml(body.emailBody)}</div>${estimateAcceptanceHtml(acceptUrl)}`
+            : estimateEmailHtml(estimate, acceptUrl),
           attachments: [{
             filename: `Estimate ${estimateNumber}.pdf`,
             content: pdf,

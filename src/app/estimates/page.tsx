@@ -495,7 +495,7 @@ export default function EstimatesPage() {
     setEmailTo(e.BillEmail?.Address || "");
     setEmailCcBcc("");
     setEmailSubject(`Estimate ${e.DocNumber || e.Id} from AARON'S FIREPLACE CO, LLC`);
-    setEmailBody(`Dear ${e.CustomerRef?.name || "Customer"},\n\nPlease find your estimate attached to this email.\n\nEstimate total: $${Number(e.TotalAmt || 0).toFixed(2)}\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
+    setEmailBody(`Dear ${e.CustomerRef?.name || "Customer"},\n\nPlease find your estimate attached to this email.\n\nEstimate total: $${Number(e.TotalAmt || 0).toFixed(2)}\n\nAn online acceptance link and service agreement are included below. Once accepted, we will contact you to schedule the work.\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
     setEmailSendMeCopy(true);
     setEmailStatus(null);
     setEmailDialogOpen(true);
