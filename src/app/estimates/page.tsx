@@ -1423,9 +1423,10 @@ export default function EstimatesPage() {
                     <div>
                       <div className="font-bold text-[12px]">AARON&apos;S FIREPLACE CO, LLC</div>
                       <div className="mt-1 leading-4 text-[10px] text-[#333]">
-                        6927 Briar Cove Dr<br />
-                        Dallas, TX 75254<br />
-                        fireplaceservice@aaronsfireplace.com
+                        611 E HARRISON ST<br />
+                        REPUBLIC, MO 65738<br />
+                        +14177329775<br />
+                        aaronsfireplaceco@yahoo.com
                       </div>
                     </div>
                     <div className="text-right">
