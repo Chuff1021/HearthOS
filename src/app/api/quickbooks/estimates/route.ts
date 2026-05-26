@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
-import { and, eq, or } from 'drizzle-orm';
+import { and, asc, eq, or } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
@@ -61,6 +61,60 @@ type LocalItemRef = {
 
 function normalizeItemLookup(value: string | undefined | null) {
   return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function localDescriptionWithProduct(description: string | null, product: string | null | undefined) {
+  const text = (description || '').trim();
+  const productText = (product || '').trim();
+  if (!productText || normalizeItemLookup(text).includes(normalizeItemLookup(productText))) return text || productText || 'Item';
+  return `${productText} - ${text}`;
+}
+
+async function localEstimateLinesForPdf(orgId: string, estimateId: string) {
+  const [localEstimate] = await db
+    .select({ id: estimates.id })
+    .from(estimates)
+    .where(and(
+      eq(estimates.orgId, orgId),
+      or(eq(estimates.id, estimateId), eq(estimates.qbEstimateId, estimateId), eq(estimates.estimateNumber, estimateId))!,
+    ))
+    .limit(1);
+
+  if (!localEstimate) return [];
+
+  const rows = await db
+    .select({
+      qbItemId: estimateLineItems.qbItemId,
+      description: estimateLineItems.description,
+      quantity: estimateLineItems.quantity,
+      unitPrice: estimateLineItems.unitPrice,
+      total: estimateLineItems.total,
+      order: estimateLineItems.order,
+      itemName: inventoryItems.name,
+      itemSku: inventoryItems.sku,
+    })
+    .from(estimateLineItems)
+    .leftJoin(
+      inventoryItems,
+      and(eq(inventoryItems.orgId, orgId), eq(inventoryItems.qbItemId, estimateLineItems.qbItemId)),
+    )
+    .where(eq(estimateLineItems.estimateId, localEstimate.id))
+    .orderBy(asc(estimateLineItems.order));
+
+  return rows.map((line, idx) => {
+    const product = line.itemSku || line.itemName || line.description?.split(/\r?\n/)[0] || 'Item';
+    return {
+      Id: String(line.order ?? idx + 1),
+      Amount: Number(line.total ?? 0),
+      DetailType: 'SalesItemLineDetail',
+      Description: localDescriptionWithProduct(line.description, product),
+      SalesItemLineDetail: {
+        ItemRef: line.qbItemId ? { value: line.qbItemId, name: product } : { value: '', name: product },
+        Qty: Number(line.quantity ?? 1),
+        UnitPrice: Number(line.unitPrice ?? 0),
+      },
+    };
+  });
 }
 
 function cleanLineDescription(description: string | undefined | null, partNumber: string | undefined | null) {
@@ -254,6 +308,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Enter a customer email before sending this estimate.' }, { status: 400 });
         }
 
+        const localLines = await localEstimateLinesForPdf(auth.orgId, String(body.id || estimate.Id || estimate.DocNumber || ''));
+        const estimateForPdf = localLines.length ? { ...estimate, Line: localLines } : estimate;
         const estimateNumber = cleanDocumentNumber(estimate.DocNumber) || estimate.Id;
         let customer: any = null;
         if (estimate.CustomerRef?.value) {
@@ -263,7 +319,7 @@ export async function POST(request: NextRequest) {
             console.error('Failed to load estimate customer for PDF:', customerErr);
           }
         }
-        const pdf = await renderEstimatePdf({ estimate, customer });
+        const pdf = await renderEstimatePdf({ estimate: estimateForPdf, customer });
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList(body.ccBcc),

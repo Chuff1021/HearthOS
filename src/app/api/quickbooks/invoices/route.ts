@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { and, asc, eq, or } from 'drizzle-orm';
+import { db, inventoryItems, invoiceLineItems, invoices as dbInvoices } from '@/db';
 import { 
   getCachedInvoices, 
   getInvoicesForCustomer,
@@ -31,6 +33,64 @@ function money(value: number | undefined) {
 
 function cleanDocumentNumber(value: string | undefined) {
   return value?.replace(/^QB-/i, '') || '';
+}
+
+function normalizeLookup(value: string | undefined | null) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function localDescriptionWithProduct(description: string | null, product: string | null | undefined) {
+  const text = (description || '').trim();
+  const productText = (product || '').trim();
+  if (!productText || normalizeLookup(text).includes(normalizeLookup(productText))) return text || productText || 'Item';
+  return `${productText} - ${text}`;
+}
+
+async function localInvoiceLinesForPdf(orgId: string, invoiceId: string) {
+  const [localInvoice] = await db
+    .select({ id: dbInvoices.id })
+    .from(dbInvoices)
+    .where(and(
+      eq(dbInvoices.orgId, orgId),
+      or(eq(dbInvoices.id, invoiceId), eq(dbInvoices.qbInvoiceId, invoiceId), eq(dbInvoices.invoiceNumber, invoiceId))!,
+    ))
+    .limit(1);
+
+  if (!localInvoice) return [];
+
+  const rows = await db
+    .select({
+      qbItemId: invoiceLineItems.qbItemId,
+      description: invoiceLineItems.description,
+      quantity: invoiceLineItems.quantity,
+      unitPrice: invoiceLineItems.unitPrice,
+      total: invoiceLineItems.total,
+      order: invoiceLineItems.order,
+      itemName: inventoryItems.name,
+      itemSku: inventoryItems.sku,
+    })
+    .from(invoiceLineItems)
+    .leftJoin(
+      inventoryItems,
+      and(eq(inventoryItems.orgId, orgId), eq(inventoryItems.qbItemId, invoiceLineItems.qbItemId)),
+    )
+    .where(eq(invoiceLineItems.invoiceId, localInvoice.id))
+    .orderBy(asc(invoiceLineItems.order));
+
+  return rows.map((line, idx) => {
+    const product = line.itemSku || line.itemName || line.description?.split(/\r?\n/)[0] || 'Item';
+    return {
+      Id: String(line.order ?? idx + 1),
+      Amount: Number(line.total ?? 0),
+      DetailType: 'SalesItemLineDetail',
+      Description: localDescriptionWithProduct(line.description, product),
+      SalesItemLineDetail: {
+        ItemRef: line.qbItemId ? { value: line.qbItemId, name: product } : { value: '', name: product },
+        Qty: Number(line.quantity ?? 1),
+        UnitPrice: Number(line.unitPrice ?? 0),
+      },
+    };
+  });
 }
 
 function publicOrigin(request: NextRequest) {
@@ -224,12 +284,15 @@ export async function POST(request: NextRequest) {
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
 
       if (isSmtpConfigured()) {
+        const org = await getOrCreateDefaultOrg();
         const invoice = await client.getInvoice((body as any).id);
         const recipient = String((body as any).email || invoice.BillEmail?.Address || '').trim();
         if (!recipient) {
           return NextResponse.json({ error: 'Enter a customer email before sending this invoice.' }, { status: 400 });
         }
 
+        const localLines = await localInvoiceLinesForPdf(org.id, String((body as any).id || invoice.Id || invoice.DocNumber || ''));
+        const invoiceForPdf = localLines.length ? { ...invoice, Line: localLines } : invoice;
         const payUrl = paymentUrl(request, invoice);
         const invoiceNumber = cleanDocumentNumber(invoice.DocNumber) || invoice.Id;
         let customer: any = null;
@@ -240,7 +303,7 @@ export async function POST(request: NextRequest) {
             console.error('Failed to load invoice customer for PDF:', customerErr);
           }
         }
-        const pdf = await renderInvoicePdf({ invoice, paymentUrl: payUrl, customer });
+        const pdf = await renderInvoicePdf({ invoice: invoiceForPdf, paymentUrl: payUrl, customer });
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList((body as any).ccBcc),
