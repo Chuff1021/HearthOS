@@ -45,25 +45,50 @@ function invoiceLines(invoice: QBInvoice) {
   return (invoice.Line || []).filter((line) => line.DetailType === "SalesItemLineDetail" || line.DetailType === "DescriptionOnly");
 }
 
+function normalizeLookup(value: string | undefined) {
+  return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractPartNumber(description: string | undefined) {
+  const text = (description || "").trim();
+  const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
+  if (partLine?.[1]) return partLine[1].trim();
+  const prefix = text.match(/^([A-Z0-9][A-Z0-9:._/-]{2,})\s+-\s+/i);
+  return prefix?.[1]?.trim() || "";
+}
+
+function cleanLineDescription(description: string | undefined, product: string | undefined) {
+  let cleaned = (description || "").replace(/\n\s*Part:\s*.+$/i, "").trim();
+  const productText = (product || "").trim();
+  if (!productText) return cleaned;
+  return cleaned
+    .replace(new RegExp(`^${escapeRegExp(productText)}\\s*-\\s*`, "i"), "")
+    .replace(new RegExp(`\\s*\\(${escapeRegExp(productText)}\\)\\s*$`, "i"), "")
+    .trim();
+}
+
 function lineProduct(line: QBInvoiceLine) {
+  const description = (line.Description || "").trim();
+  const partNumber = extractPartNumber(description);
   const itemName = line.SalesItemLineDetail?.ItemRef?.name?.trim();
-  if (itemName) return itemName;
-  const first = line.Description?.split(/\r?\n/)[0]?.trim();
-  return first || "Item";
+  const product = partNumber || itemName || description.split(/\r?\n/)[0]?.trim() || "Item";
+  const cleanedDescription = cleanLineDescription(description, product);
+  if (cleanedDescription && !normalizeLookup(cleanedDescription).includes(normalizeLookup(product))) {
+    return `${product} - ${cleanedDescription}`;
+  }
+  return product;
 }
 
 function lineDescription(line: QBInvoiceLine) {
   const product = lineProduct(line).trim();
   const description = (line.Description || "").trim();
   if (!description) return "";
-  const [first, ...rest] = description.split(/\r?\n/);
-  const firstLine = first.trim();
-  const normalizedProduct = product.toLowerCase();
-  if (firstLine.toLowerCase() === normalizedProduct) return rest.join("\n").trim();
-  if (firstLine.toLowerCase().startsWith(`${normalizedProduct} - `)) {
-    return [firstLine.slice(product.length + 3).trim(), ...rest].filter(Boolean).join("\n").trim();
-  }
-  return description;
+  const cleanedDescription = cleanLineDescription(description, extractPartNumber(description) || line.SalesItemLineDetail?.ItemRef?.name);
+  return normalizeLookup(lineProduct(line)).includes(normalizeLookup(cleanedDescription)) ? "" : cleanedDescription;
 }
 
 function lineQty(line: QBInvoiceLine) {

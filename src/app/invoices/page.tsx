@@ -170,11 +170,37 @@ export default function InvoicesPage() {
     return item?.Sku || item?.FullyQualifiedName || item?.Name || "";
   }
 
+  function extractLinePartNumber(description: string | undefined) {
+    const text = (description || "").trim();
+    const partLine = text.match(/\n\s*Part:\s*([^\n]+)/i);
+    if (partLine?.[1]) return partLine[1].trim();
+    const prefix = text.match(/^([A-Z0-9][A-Z0-9:._/-]{2,})\s+-\s+/i);
+    return prefix?.[1]?.trim() || "";
+  }
+
+  function cleanInvoiceLineDescription(description: string | undefined, product: string | undefined) {
+    let cleaned = (description || "").replace(/\n\s*Part:\s*.+$/i, "").trim();
+    const productText = (product || "").trim();
+    if (!productText) return cleaned;
+    return cleaned
+      .replace(new RegExp(`^${productText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*-\\s*`, "i"), "")
+      .replace(new RegExp(`\\s*\\(${productText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)\\s*$`, "i"), "")
+      .trim();
+  }
+
+  function buildInvoiceProductLine(line: InvoiceLineItem) {
+    const product = extractLinePartNumber(line.description) || line.partNumber || line.itemName || line.description.split(/\r?\n/)[0] || "Item";
+    const description = cleanInvoiceLineDescription(line.description, product);
+    if (description && !normalizeSearchValue(description).includes(normalizeSearchValue(product))) {
+      return `${product} - ${description}`;
+    }
+    return product;
+  }
+
   function buildInvoiceDocument(invoice: Invoice) {
     const billTo = invoice.customerName || "Customer";
     const lines = invoice.lineItems.map((line) => ({
-      product: line.partNumber || line.itemName || line.description.split(/\r?\n/)[0] || "Item",
-      description: line.description.replace(new RegExp(`^${(line.partNumber || line.itemName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*-\\s*`, "i"), "").trim(),
+      product: buildInvoiceProductLine(line),
       qty: Number(line.qty || 0),
       unitPrice: Number(line.unitPrice || 0),
       total: Number(line.total || 0),
@@ -246,7 +272,6 @@ export default function InvoicesPage() {
           <tr>
             <td>
               <div class="product">${line.product}</div>
-              <div class="desc">${line.description}</div>
             </td>
             <td class="num">${line.qty}</td>
             <td class="num">${line.unitPrice.toFixed(2)}</td>
@@ -1221,10 +1246,7 @@ export default function InvoicesPage() {
                             </div>
                           ) : (
                             <>
-                              <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{item.description}</div>
-                              {item.partNumber && (
-                                <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>Part: {item.partNumber}</div>
-                              )}
+                              <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{buildInvoiceProductLine(item)}</div>
                               <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                                 {item.qty} × ${item.unitPrice.toFixed(2)}
                               </div>
