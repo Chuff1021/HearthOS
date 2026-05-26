@@ -41,6 +41,15 @@ type EditRequest = {
   created_at: string;
 };
 
+type GustoStatus = {
+  configured: boolean;
+  connected: boolean;
+  environment?: string;
+  connectedAt?: string | null;
+  expiresAt?: string | null;
+  error?: string;
+};
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function getWeekStart(date: Date): Date {
@@ -95,6 +104,7 @@ export default function AdminTimePage() {
   const [payrollSent, setPayrollSent] = useState(false);
   const [sendingPayroll, setSendingPayroll] = useState(false);
   const [payrollResult, setPayrollResult] = useState<string>("");
+  const [gustoStatus, setGustoStatus] = useState<GustoStatus | null>(null);
 
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -149,10 +159,39 @@ export default function AdminTimePage() {
     }
   }
 
+  async function loadGustoStatus() {
+    try {
+      const res = await fetch("/api/gusto/status", { cache: "no-store" });
+      if (res.ok) setGustoStatus(await res.json());
+    } catch {
+      setGustoStatus({ configured: false, connected: false, error: "Failed to load Gusto status" });
+    }
+  }
+
+  function connectGusto() {
+    window.location.href = "/api/gusto/connect";
+  }
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeek]);
+
+  useEffect(() => {
+    void loadGustoStatus();
+    const params = new URLSearchParams(window.location.search);
+    const gusto = params.get("gusto");
+    if (gusto === "connected") {
+      setPayrollResult("Gusto connected.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (gusto === "not_configured") {
+      setPayrollResult("Add Gusto credentials in Vercel before connecting.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (gusto === "error") {
+      setPayrollResult(params.get("message") || "Gusto connection failed.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Build the weekly grid data
   const [tick, setTick] = useState(0);
@@ -587,12 +626,23 @@ export default function AdminTimePage() {
                   <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Weekly Time Approval</h2>
                   <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Review and approve each employee's hours for {weekLabel}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
                   {payrollResult && (
-                    <span className="text-xs font-medium" style={{ color: payrollResult.includes("sent") || payrollResult.includes("downloaded") ? "#16A34A" : "#DC2626" }}>
+                    <span className="text-xs font-medium" style={{ color: payrollResult.includes("sent") || payrollResult.includes("downloaded") || payrollResult.includes("connected") ? "#16A34A" : "#DC2626" }}>
                       {payrollResult}
                     </span>
                   )}
+                  <div className="text-xs font-medium" style={{ color: gustoStatus?.connected ? "#16A34A" : "var(--color-text-muted)" }}>
+                    {gustoStatus?.connected ? "Gusto connected" : gustoStatus?.configured ? "Gusto ready" : "Gusto not configured"}
+                  </div>
+                  <button
+                    onClick={connectGusto}
+                    disabled={gustoStatus?.configured === false}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                    style={{ background: gustoStatus?.connected ? "rgba(22,163,74,0.12)" : "var(--color-surface-2)", color: gustoStatus?.connected ? "#16A34A" : "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+                  >
+                    {gustoStatus?.connected ? "Reconnect Gusto" : "Connect Gusto"}
+                  </button>
                   <button
                     onClick={sendPayrollReport}
                     disabled={sendingPayroll || Object.keys(approvals).length === 0}
