@@ -135,7 +135,7 @@ export default function EstimatesPage() {
 
   function getLineProductService(line: NonNullable<Estimate["Line"]>[number]) {
     const itemRef = line.SalesItemLineDetail?.ItemRef;
-    return extractPartNumber(line.Description) || itemRef?.name || "";
+    return extractPartNumber(line.Description) || itemRef?.name || line.Description?.split(/\r?\n/)[0]?.trim() || "";
   }
 
   function extractPartNumber(description: string | undefined) {
@@ -242,7 +242,7 @@ export default function EstimatesPage() {
   function buildEstimateDocument(estimate: Estimate) {
     const lines = (estimate.Line || []).map((line) => ({
       productService: getLineProductService(line),
-      description: getLineDescriptionWithSku(line),
+      description: getLineDescription(line),
       qty: Number(line.SalesItemLineDetail?.Qty || 1),
       unitPrice: Number(line.SalesItemLineDetail?.UnitPrice || line.Amount || 0),
       amount: Number(line.Amount || 0),
@@ -254,59 +254,85 @@ export default function EstimatesPage() {
     <meta charset="utf-8" />
     <title>${estimate.DocNumber || estimate.Id}</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 40px; color: #111827; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-      .eyebrow { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-      h1 { margin: 6px 0 0; font-size: 30px; }
-      .meta { color: #4b5563; font-size: 14px; line-height: 1.6; }
-      table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; }
-      th:last-child, td:last-child { text-align: right; }
-      .totals { width: 320px; margin-left: auto; margin-top: 24px; }
-      .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
-      .total { font-weight: 700; font-size: 18px; border-top: 2px solid #111827; margin-top: 8px; padding-top: 10px; }
-      .note { margin-top: 28px; padding: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; }
-      @media print { body { margin: 24px; } }
+      body { font-family: Arial, sans-serif; margin: 44px; color: #111; font-size: 13px; }
+      .company { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+      .company-lines { line-height: 1.55; font-size: 12px; }
+      .title { color: #666; font-size: 22px; margin: 42px 0 22px; }
+      .meta { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 50px; align-items: start; }
+      .label { color: #8a8f98; text-transform: uppercase; font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+      .billto { line-height: 1.55; }
+      .meta-row { display: grid; grid-template-columns: 118px 1fr; gap: 14px; line-height: 1.55; }
+      .meta-row .label { margin: 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 34px; }
+      th { background: #dedede; color: #666; font-size: 11px; font-weight: 700; padding: 8px; text-align: left; }
+      td { padding: 9px 8px; vertical-align: top; line-height: 1.45; }
+      th.num, td.num { text-align: right; white-space: nowrap; }
+      .product { font-weight: 700; }
+      .desc { color: #111; margin-top: 3px; white-space: pre-wrap; }
+      .rule { border-top: 1px dashed #b8bec8; margin-top: 18px; }
+      .footer { display: grid; grid-template-columns: 1fr 270px; gap: 40px; margin-top: 22px; }
+      .thanks { color: #555; }
+      .totals div { display: flex; justify-content: space-between; padding: 5px 0; }
+      .total { border-top: 1px dashed #b8bec8; margin-top: 12px; padding-top: 12px; font-weight: 700; font-size: 16px; }
+      .note { margin-top: 18px; color: #444; white-space: pre-wrap; }
+      @media print { body { margin: 36px; } }
     </style>
   </head>
   <body>
-    <div class="header">
-      <div>
-        <div class="eyebrow">Estimate</div>
-        <h1>${estimate.DocNumber || estimate.Id}</h1>
+    <div class="company">AARON'S FIREPLACE CO, LLC</div>
+    <div class="company-lines">
+      <div>611 E HARRISON ST</div>
+      <div>REPUBLIC, MO 65738</div>
+      <div>+14177329775</div>
+      <div>aaronsfireplaceco@yahoo.com</div>
+    </div>
+    <div class="title">ESTIMATE</div>
+    <div class="meta">
+      <div class="billto">
+        <div class="label">Bill To</div>
+        <div>${estimate.CustomerRef?.name || "Customer"}</div>
       </div>
-      <div class="meta">
-        <div><strong>Customer:</strong> ${estimate.CustomerRef?.name || "Customer"}</div>
-        <div><strong>Date:</strong> ${estimate.TxnDate || "—"}</div>
-        <div><strong>Expires:</strong> ${estimate.ExpirationDate || "—"}</div>
+      <div>
+        <div class="meta-row"><div class="label">Estimate</div><div>${estimate.DocNumber || estimate.Id}</div></div>
+        <div class="meta-row"><div class="label">Date</div><div>${estimate.TxnDate || "—"}</div></div>
+        <div class="meta-row"><div class="label">Expiration</div><div>${estimate.ExpirationDate || "—"}</div></div>
       </div>
     </div>
     <table>
       <thead>
         <tr>
-          <th>Product/service</th>
-          <th>Description</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th>Amount</th>
+          <th>Product</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
         </tr>
       </thead>
       <tbody>
         ${lines.map((line) => `
           <tr>
-            <td>${line.productService}</td>
-            <td>${line.description}</td>
-            <td>${line.qty}</td>
-            <td>$${line.unitPrice.toFixed(2)}</td>
-            <td>$${line.amount.toFixed(2)}</td>
+            <td>
+              <div class="product">${line.productService || "Estimate line"}</div>
+              <div class="desc">${line.description}</div>
+            </td>
+            <td class="num">${line.qty}</td>
+            <td class="num">${line.unitPrice.toFixed(2)}</td>
+            <td class="num">${line.amount.toFixed(2)}</td>
           </tr>
         `).join("")}
       </tbody>
     </table>
-    <div class="totals">
-      <div class="total"><span>Total</span><span>$${Number(estimate.TotalAmt || 0).toFixed(2)}</span></div>
+    <div class="rule"></div>
+    <div class="footer">
+      <div>
+        <div class="thanks">Thank You, We appreciate your business.</div>
+        ${estimate.PrivateNote ? `<div class="note">${estimate.PrivateNote}</div>` : ""}
+      </div>
+      <div class="totals">
+        <div><span>SUBTOTAL</span><span>${lines.reduce((sum, line) => sum + line.amount, 0).toFixed(2)}</span></div>
+        <div><span>TAX (0%)</span><span>0.00</span></div>
+        <div class="total"><span>TOTAL</span><span>$${Number(estimate.TotalAmt || lines.reduce((sum, line) => sum + line.amount, 0)).toFixed(2)}</span></div>
+      </div>
     </div>
-    ${estimate.PrivateNote ? `<div class="note"><strong>Notes</strong><div style="margin-top:8px;">${estimate.PrivateNote}</div></div>` : ""}
   </body>
 </html>`;
   }

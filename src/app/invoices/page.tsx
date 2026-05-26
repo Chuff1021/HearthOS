@@ -173,8 +173,8 @@ export default function InvoicesPage() {
   function buildInvoiceDocument(invoice: Invoice) {
     const billTo = invoice.customerName || "Customer";
     const lines = invoice.lineItems.map((line) => ({
-      description: line.description,
-      partNumber: line.partNumber || line.itemName || "",
+      product: line.partNumber || line.itemName || line.description.split(/\r?\n/)[0] || "Item",
+      description: line.description.replace(new RegExp(`^${(line.partNumber || line.itemName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*-\\s*`, "i"), "").trim(),
       qty: Number(line.qty || 0),
       unitPrice: Number(line.unitPrice || 0),
       total: Number(line.total || 0),
@@ -186,79 +186,88 @@ export default function InvoicesPage() {
     <meta charset="utf-8" />
     <title>${invoice.invoiceNumber}</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 36px; color: #111827; }
-      .header { display: flex; justify-content: space-between; margin-bottom: 28px; }
-      .brand { font-size: 28px; font-weight: 700; }
-      .doc { text-align: right; }
-      .doc h1 { margin: 0; font-size: 30px; }
-      .muted { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-      .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
-      .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-      th, td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-      th { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; }
-      th:last-child, td:last-child { text-align: right; }
-      .desc { font-weight: 600; }
-      .part { color: #6b7280; font-size: 12px; margin-top: 4px; }
-      .totals { width: 320px; margin-left: auto; margin-top: 20px; }
-      .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
-      .total { border-top: 2px solid #111827; margin-top: 8px; padding-top: 10px; font-size: 18px; font-weight: 700; }
-      .note { margin-top: 24px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+      body { font-family: Arial, sans-serif; margin: 44px; color: #111; font-size: 13px; }
+      .company { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+      .company-lines { line-height: 1.55; font-size: 12px; }
+      .title { color: #666; font-size: 22px; margin: 42px 0 22px; }
+      .meta { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 50px; align-items: start; }
+      .label { color: #8a8f98; text-transform: uppercase; font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+      .billto { line-height: 1.55; }
+      .meta-row { display: grid; grid-template-columns: 118px 1fr; gap: 14px; line-height: 1.55; }
+      .meta-row .label { margin: 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 34px; }
+      th { background: #dedede; color: #666; font-size: 11px; font-weight: 700; padding: 8px; text-align: left; }
+      td { padding: 9px 8px; vertical-align: top; line-height: 1.45; }
+      th.num, td.num { text-align: right; white-space: nowrap; }
+      .product { font-weight: 700; }
+      .desc { color: #111; margin-top: 3px; white-space: pre-wrap; }
+      .rule { border-top: 1px dashed #b8bec8; margin-top: 18px; }
+      .footer { display: grid; grid-template-columns: 1fr 270px; gap: 40px; margin-top: 22px; }
+      .thanks { color: #555; }
+      .totals div { display: flex; justify-content: space-between; padding: 5px 0; }
+      .total { font-weight: 700; }
+      .balance { border-top: 1px dashed #b8bec8; margin-top: 12px; padding-top: 12px; font-weight: 700; font-size: 16px; }
+      .note { margin-top: 18px; color: #444; white-space: pre-wrap; }
+      @media print { body { margin: 36px; } }
     </style>
   </head>
   <body>
-    <div class="header">
-      <div>
-        <div class="muted">Invoice</div>
-        <div class="brand">HearthOS</div>
-      </div>
-      <div class="doc">
-        <h1>Invoice</h1>
-        <div># ${invoice.invoiceNumber}</div>
-      </div>
+    <div class="company">AARON'S FIREPLACE CO, LLC</div>
+    <div class="company-lines">
+      <div>611 E HARRISON ST</div>
+      <div>REPUBLIC, MO 65738</div>
+      <div>+14177329775</div>
+      <div>aaronsfireplaceco@yahoo.com</div>
     </div>
+    <div class="title">INVOICE</div>
     <div class="meta">
-      <div class="card">
-        <div class="muted">Bill To</div>
-        <div style="font-weight:700; margin-top:6px;">${billTo}</div>
-        <div style="margin-top:6px;">${invoice.jobTitle || ""}</div>
+      <div class="billto">
+        <div class="label">Bill To</div>
+        <div>${billTo}</div>
       </div>
-      <div class="card">
-        <div><strong>Issue Date:</strong> ${invoice.issueDate}</div>
-        <div style="margin-top:6px;"><strong>Due Date:</strong> ${invoice.dueDate}</div>
-        <div style="margin-top:6px;"><strong>Status:</strong> ${invoice.status.toUpperCase()}</div>
+      <div>
+        <div class="meta-row"><div class="label">Invoice</div><div>${invoice.invoiceNumber}</div></div>
+        <div class="meta-row"><div class="label">Date</div><div>${invoice.issueDate}</div></div>
+        <div class="meta-row"><div class="label">Terms</div><div>Due on receipt</div></div>
+        <div class="meta-row"><div class="label">Due Date</div><div>${invoice.dueDate}</div></div>
       </div>
     </div>
     <table>
       <thead>
         <tr>
-          <th>Description</th>
-          <th>Qty</th>
-          <th>Rate</th>
-          <th>Amount</th>
+          <th>Product</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
         </tr>
       </thead>
       <tbody>
         ${lines.map((line) => `
           <tr>
             <td>
+              <div class="product">${line.product}</div>
               <div class="desc">${line.description}</div>
-              ${line.partNumber ? `<div class="part">Part: ${line.partNumber}</div>` : ""}
             </td>
-            <td>${line.qty}</td>
-            <td>$${line.unitPrice.toFixed(2)}</td>
-            <td>$${line.total.toFixed(2)}</td>
+            <td class="num">${line.qty}</td>
+            <td class="num">${line.unitPrice.toFixed(2)}</td>
+            <td class="num">${line.total.toFixed(2)}</td>
           </tr>
         `).join("")}
       </tbody>
     </table>
-    <div class="totals">
-      <div><span>Subtotal</span><span>$${invoice.subtotal.toFixed(2)}</span></div>
-      <div><span>Tax</span><span>$${invoice.taxAmount.toFixed(2)}</span></div>
-      <div class="total"><span>Total</span><span>$${invoice.totalAmount.toFixed(2)}</span></div>
-      <div><span>Balance Due</span><span>$${invoice.balance.toFixed(2)}</span></div>
+    <div class="rule"></div>
+    <div class="footer">
+      <div>
+        <div class="thanks">Thank You, We appreciate your business.</div>
+        ${invoice.notes ? `<div class="note">${invoice.notes}</div>` : ""}
+      </div>
+      <div class="totals">
+        <div><span>SUBTOTAL</span><span>${invoice.subtotal.toFixed(2)}</span></div>
+        <div><span>TAX (${invoice.taxRate ? `${invoice.taxRate.toFixed(2)}%` : "0%"})</span><span>${invoice.taxAmount.toFixed(2)}</span></div>
+        <div class="total"><span>TOTAL</span><span>${invoice.totalAmount.toFixed(2)}</span></div>
+        <div class="balance"><span>BALANCE DUE</span><span>$${invoice.balance.toFixed(2)}</span></div>
+      </div>
     </div>
-    ${invoice.notes ? `<div class="note"><strong>Notes</strong><div style="margin-top:8px;">${invoice.notes}</div></div>` : ""}
   </body>
 </html>`;
   }
@@ -267,30 +276,26 @@ export default function InvoicesPage() {
     setLoading(true);
     setError(null);
     try {
-      // Try QuickBooks endpoint first
-      const res = await fetch("/api/quickbooks/invoices?live=true", { cache: "no-store" });
+      const res = await fetch("/api/invoices", { cache: "no-store" });
       const data = await res.json();
-      
-      if (data.error) {
-        // Fallback to local if QB not connected
-        const localRes = await fetch("/api/invoices");
-        const localData = await localRes.json();
-        if (localData.error) {
-          setError(localData.error);
-        } else {
-          setInvoices(localData.invoices || []);
-        }
-      } else {
+
+      if (res.ok && !data.error) {
         setInvoices(data.invoices || []);
+        return;
       }
-    } catch {
-      // Fallback to local API on error
+
+      const liveRes = await fetch("/api/quickbooks/invoices?live=true", { cache: "no-store" });
+      const liveData = await liveRes.json();
+      if (!liveRes.ok || liveData.error) throw new Error(liveData.error || data.error || "Failed to load invoices");
+      setInvoices(liveData.invoices || []);
+    } catch (err) {
       try {
-        const localRes = await fetch("/api/invoices");
-        const localData = await localRes.json();
-        setInvoices(localData.invoices || []);
+        const liveRes = await fetch("/api/quickbooks/invoices?live=true", { cache: "no-store" });
+        const liveData = await liveRes.json();
+        if (!liveRes.ok || liveData.error) throw new Error(liveData.error || "Failed to load invoices");
+        setInvoices(liveData.invoices || []);
       } catch {
-        setError("Failed to load invoices");
+        setError(err instanceof Error ? err.message : "Failed to load invoices");
       }
     } finally {
       setLoading(false);

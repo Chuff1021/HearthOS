@@ -64,12 +64,12 @@ function lineDescription(line: any) {
 }
 
 function lineQty(line: any) {
-  return Number(line.SalesItemLineDetail?.Qty || (line.DetailType === "DescriptionOnly" ? 0 : 1));
+  return Number(line.SalesItemLineDetail?.Qty || 1);
 }
 
 function lineRate(line: any) {
   const qty = lineQty(line);
-  return Number(line.SalesItemLineDetail?.UnitPrice || (qty ? Number(line.Amount || 0) / qty : 0));
+  return Number(line.SalesItemLineDetail?.UnitPrice ?? (qty ? Number(line.Amount || 0) / qty : Number(line.Amount || 0)));
 }
 
 function drawFooter(doc: PDFKit.PDFDocument) {

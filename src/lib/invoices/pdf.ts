@@ -67,12 +67,12 @@ function lineDescription(line: QBInvoiceLine) {
 }
 
 function lineQty(line: QBInvoiceLine) {
-  return Number(line.SalesItemLineDetail?.Qty || (line.DetailType === "DescriptionOnly" ? 0 : 1));
+  return Number(line.SalesItemLineDetail?.Qty || 1);
 }
 
 function lineRate(line: QBInvoiceLine) {
   const qty = lineQty(line);
-  return Number(line.SalesItemLineDetail?.UnitPrice || (qty ? Number(line.Amount || 0) / qty : 0));
+  return Number(line.SalesItemLineDetail?.UnitPrice ?? (qty ? Number(line.Amount || 0) / qty : Number(line.Amount || 0)));
 }
 
 function isTaxable(line: QBInvoiceLine) {

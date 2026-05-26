@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db, customers, inventoryItems, invoiceLineItems, invoices as dbInvoices } from "@/db";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { getOrCreateDefaultOrg } from "@/lib/org";
 import {
-  getInvoices,
   getInvoiceById,
-  getInvoicesForCustomer,
   createInvoice,
   updateInvoice,
   deleteInvoice,
@@ -17,26 +18,106 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id");
     const customerId = searchParams.get("customerId");
     const stats = searchParams.get("stats");
+    const limit = Math.min(1000, Math.max(20, parseInt(searchParams.get("limit") || "500", 10)));
 
     if (stats === "true") {
       return NextResponse.json(getDashboardStats());
     }
 
-    if (id) {
-      const invoice = getInvoiceById(id);
-      if (!invoice) {
-        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
-      }
-      return NextResponse.json({ invoice });
-    }
-
+    const org = await getOrCreateDefaultOrg();
+    const where = [eq(dbInvoices.orgId, org.id)];
+    if (id) where.push(or(eq(dbInvoices.id, id), eq(dbInvoices.qbInvoiceId, id))!);
     if (customerId) {
-      const invoices = getInvoicesForCustomer(customerId);
-      return NextResponse.json({ invoices, total: invoices.length });
+      where.push(eq(dbInvoices.customerId, customerId));
     }
 
-    const invoices = getInvoices();
-    return NextResponse.json({ invoices, total: invoices.length });
+    const headerRows = await db
+      .select({
+        invoice: dbInvoices,
+        customerFirst: customers.firstName,
+        customerLast: customers.lastName,
+        customerCompany: customers.companyName,
+        qbCustomerId: customers.qbCustomerId,
+      })
+      .from(dbInvoices)
+      .leftJoin(customers, eq(customers.id, dbInvoices.customerId))
+      .where(and(...where))
+      .orderBy(desc(dbInvoices.issueDate), desc(dbInvoices.updatedAt))
+      .limit(id ? 1 : limit);
+
+    if (id && headerRows.length === 0) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+
+    const invoiceIds = headerRows.map((row) => row.invoice.id);
+    const lineRows = invoiceIds.length
+      ? await db
+          .select({
+            invoiceId: invoiceLineItems.invoiceId,
+            id: invoiceLineItems.id,
+            qbItemId: invoiceLineItems.qbItemId,
+            description: invoiceLineItems.description,
+            quantity: invoiceLineItems.quantity,
+            unitPrice: invoiceLineItems.unitPrice,
+            total: invoiceLineItems.total,
+            order: invoiceLineItems.order,
+            itemName: inventoryItems.name,
+            itemSku: inventoryItems.sku,
+          })
+          .from(invoiceLineItems)
+          .leftJoin(
+            inventoryItems,
+            and(eq(inventoryItems.orgId, org.id), eq(inventoryItems.qbItemId, invoiceLineItems.qbItemId)),
+          )
+          .where(inArray(invoiceLineItems.invoiceId, invoiceIds))
+          .orderBy(asc(invoiceLineItems.order))
+      : [];
+
+    const linesByInvoice = new Map<string, any[]>();
+    for (const line of lineRows) {
+      const lines = linesByInvoice.get(line.invoiceId) || [];
+      lines.push({
+        id: line.id,
+        description: line.description || line.itemName || line.itemSku || "Item",
+        itemId: line.qbItemId || undefined,
+        itemName: line.itemName || undefined,
+        partNumber: line.itemSku || line.itemName || undefined,
+        qty: Number(line.quantity ?? 1),
+        unitPrice: Number(line.unitPrice ?? 0),
+        total: Number(line.total ?? 0),
+      });
+      linesByInvoice.set(line.invoiceId, lines);
+    }
+
+    const shaped = headerRows.map((row) => {
+      const invoice = row.invoice;
+      const customerName = row.customerCompany || [row.customerFirst, row.customerLast].filter(Boolean).join(" ").trim() || "Unknown Customer";
+      const lineItems = linesByInvoice.get(invoice.id) || [];
+      return {
+        id: invoice.qbInvoiceId || invoice.id,
+        localId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber?.replace(/^QB-/i, "") || invoice.qbInvoiceId || invoice.id,
+        customerId: row.qbCustomerId || invoice.customerId,
+        customerName,
+        jobTitle: lineItems[0]?.description || "Invoice",
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate || invoice.issueDate,
+        status: invoice.status || "sent",
+        subtotal: Number(invoice.subtotal ?? 0),
+        taxRate: Number(invoice.subtotal ?? 0) > 0 ? (Number(invoice.taxAmount ?? 0) / Number(invoice.subtotal ?? 0)) * 100 : 0,
+        taxAmount: Number(invoice.taxAmount ?? 0),
+        totalAmount: Number(invoice.totalAmount ?? 0),
+        balance: Number(invoice.balance ?? 0),
+        lineItems,
+        notes: invoice.notes || undefined,
+        createdAt: invoice.createdAt?.toISOString?.() || String(invoice.createdAt || ""),
+        updatedAt: invoice.updatedAt?.toISOString?.() || String(invoice.updatedAt || ""),
+      };
+    });
+
+    if (id) return NextResponse.json({ invoice: shaped[0] });
+    if (customerId) return NextResponse.json({ invoices: shaped, total: shaped.length });
+    return NextResponse.json({ invoices: shaped, total: shaped.length });
   } catch (err) {
     console.error("Failed to get invoices:", err);
     return NextResponse.json({ error: "Failed to get invoices" }, { status: 500 });
