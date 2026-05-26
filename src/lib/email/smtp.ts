@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import dns from "node:dns/promises";
+import net from "node:net";
 
 type SendEmailInput = {
   to: string;
@@ -52,6 +54,28 @@ function isTransientSmtpError(err: unknown) {
   return /getaddrinfo|dns|timeout|temporar|socket|connection/i.test(message);
 }
 
+async function resolveSmtpConnectHost(smtpHost: string, maxAttempts: number) {
+  const configuredIp = (process.env.SMTP_HOST_IP || "").trim();
+  if (configuredIp) return configuredIp;
+  if (net.isIP(smtpHost)) return smtpHost;
+
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const addresses = await dns.resolve4(smtpHost);
+      const address = addresses[0];
+      if (!address) throw new Error(`No IPv4 address found for SMTP host ${smtpHost}`);
+      return address;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxAttempts || !isTransientSmtpError(err)) throw err;
+      await sleep(500 * attempt * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
 export async function sendSmtpEmail(input: SendEmailInput) {
   if (!isSmtpConfigured()) {
     throw new Error("SMTP is not configured");
@@ -62,11 +86,13 @@ export async function sendSmtpEmail(input: SendEmailInput) {
   const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
   const fromName = process.env.SMTP_FROM_NAME || "Hearth OS";
   const maxAttempts = Math.max(1, Number(process.env.SMTP_SEND_ATTEMPTS || 4));
+  const smtpHost = String(process.env.SMTP_HOST || "").trim();
+  const connectHost = await resolveSmtpConnectHost(smtpHost, maxAttempts);
 
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: connectHost,
       port,
       secure,
       family: 4,
@@ -77,6 +103,9 @@ export async function sendSmtpEmail(input: SendEmailInput) {
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
+      },
+      tls: {
+        servername: smtpHost,
       },
     } as any);
 
