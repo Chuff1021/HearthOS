@@ -124,3 +124,54 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 });
   }
 }
+
+function cleanString(value: unknown) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text || null;
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const org = await getOrCreateDefaultOrg();
+    const displayName = cleanString(body.displayName);
+
+    if (!displayName) {
+      return NextResponse.json({ error: 'Vendor name is required' }, { status: 400 });
+    }
+
+    const [existing] = await db
+      .select({ id: vendors.id })
+      .from(vendors)
+      .where(and(eq(vendors.orgId, org.id), eq(vendors.id, id)))
+      .limit(1);
+
+    if (!existing) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+
+    const [vendor] = await db.update(vendors).set({
+      displayName,
+      companyName: cleanString(body.companyName),
+      email: cleanString(body.email),
+      phone: cleanString(body.phone),
+      phoneAlt: cleanString(body.phoneAlt),
+      website: cleanString(body.website),
+      addressLine1: cleanString(body.addressLine1),
+      addressLine2: cleanString(body.addressLine2),
+      city: cleanString(body.city),
+      state: cleanString(body.state),
+      zip: cleanString(body.zip),
+      accountNumber: cleanString(body.accountNumber),
+      paymentTerms: cleanString(body.paymentTerms),
+      notes: cleanString(body.notes),
+      is1099: Boolean(body.is1099),
+      isActive: body.isActive !== false,
+      updatedAt: new Date(),
+    }).where(and(eq(vendors.orgId, org.id), eq(vendors.id, id))).returning();
+
+    return NextResponse.json({ vendor });
+  } catch (err: any) {
+    console.error('Vendor update failed:', err);
+    return NextResponse.json({ error: err?.message || 'Failed to update vendor' }, { status: 500 });
+  }
+}

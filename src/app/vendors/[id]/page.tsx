@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
@@ -57,6 +57,34 @@ type DetailResponse = {
 };
 
 type Tab = "transactions" | "bills" | "pos" | "profile";
+type VendorDetail = DetailResponse["vendor"];
+
+type BillForm = {
+  billNumber: string;
+  issueDate: string;
+  dueDate: string;
+  totalAmount: string;
+  privateNote: string;
+};
+
+type VendorEditForm = {
+  displayName: string;
+  companyName: string;
+  email: string;
+  phone: string;
+  phoneAlt: string;
+  website: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zip: string;
+  accountNumber: string;
+  paymentTerms: string;
+  notes: string;
+  is1099: boolean;
+  isActive: boolean;
+};
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -69,6 +97,8 @@ const fmtDate = (s: string | null | undefined) => {
   const d = new Date(s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 const relTime = (s: string | null | undefined) => {
   if (!s) return "Never";
@@ -97,14 +127,130 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("transactions");
   const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
+  const [deletingPoId, setDeletingPoId] = useState<string | null>(null);
+  const [savingBill, setSavingBill] = useState(false);
+  const [savingVendor, setSavingVendor] = useState(false);
+  const [billDialogOpen, setBillDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [billForm, setBillForm] = useState<BillForm>(() => ({
+    billNumber: "",
+    issueDate: today(),
+    dueDate: "",
+    totalAmount: "",
+    privateNote: "",
+  }));
+  const [vendorForm, setVendorForm] = useState<VendorEditForm | null>(null);
+
+  const loadVendor = useCallback(async (clear = true) => {
+    if (clear) setData(null);
+    setError(null);
+    try {
+      const r = await fetch(`/api/vendors/${id}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed");
+      setData(j);
+      return j as DetailResponse;
+    } catch (e: any) {
+      setError(e?.message || "Failed");
+      return null;
+    }
+  }, [id]);
 
   useEffect(() => {
-    setData(null); setError(null);
-    fetch(`/api/vendors/${id}`)
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => ok ? setData(j) : setError(j.error || "Failed"))
-      .catch((e) => setError(e?.message || "Failed"));
-  }, [id]);
+    loadVendor();
+  }, [loadVendor]);
+
+  function openEditDialog(vendor: VendorDetail) {
+    setVendorForm({
+      displayName: vendor.displayName || "",
+      companyName: vendor.companyName || "",
+      email: vendor.email || "",
+      phone: vendor.phone || "",
+      phoneAlt: vendor.phoneAlt || "",
+      website: vendor.website || "",
+      addressLine1: vendor.addressLine1 || "",
+      addressLine2: vendor.addressLine2 || "",
+      city: vendor.city || "",
+      state: vendor.state || "",
+      zip: vendor.zip || "",
+      accountNumber: vendor.accountNumber || "",
+      paymentTerms: vendor.paymentTerms || "",
+      notes: vendor.notes || "",
+      is1099: Boolean(vendor.is1099),
+      isActive: vendor.isActive !== false,
+    });
+    setEditDialogOpen(true);
+  }
+
+  async function saveVendor() {
+    if (!vendorForm) return;
+    if (!vendorForm.displayName.trim()) return setError("Vendor name is required.");
+    setSavingVendor(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/vendors/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vendorForm),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed to update vendor");
+      setEditDialogOpen(false);
+      await loadVendor(false);
+    } catch (e: any) {
+      setError(e?.message || "Failed to update vendor");
+    } finally {
+      setSavingVendor(false);
+    }
+  }
+
+  async function createBill() {
+    const amount = Number(billForm.totalAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return setError("Bill amount must be greater than zero.");
+    setSavingBill(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/bills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: id,
+          billNumber: billForm.billNumber.trim() || undefined,
+          issueDate: billForm.issueDate || today(),
+          dueDate: billForm.dueDate || undefined,
+          totalAmount: amount,
+          privateNote: billForm.privateNote.trim() || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed to create bill");
+      setBillDialogOpen(false);
+      setBillForm({ billNumber: "", issueDate: today(), dueDate: "", totalAmount: "", privateNote: "" });
+      setTab("bills");
+      await loadVendor(false);
+    } catch (e: any) {
+      setError(e?.message || "Failed to create bill");
+    } finally {
+      setSavingBill(false);
+    }
+  }
+
+  async function deletePurchaseOrder(po: Txn) {
+    const label = po.number ? `PO #${po.number}` : "this PO";
+    if (!window.confirm(`Delete ${label}? This removes the purchase order and its line items from Hearth OS.`)) return;
+    setDeletingPoId(po.id);
+    setError(null);
+    try {
+      const r = await fetch(`/api/purchase-orders/${encodeURIComponent(po.id)}`, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed to delete purchase order");
+      await loadVendor(false);
+    } catch (e: any) {
+      setError(e?.message || "Failed to delete purchase order");
+    } finally {
+      setDeletingPoId(null);
+    }
+  }
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
@@ -136,7 +282,13 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
             {data && (
               <>
                 {/* Hero card */}
-                <VendorHero vendor={data.vendor} summary={data.summary} />
+                <VendorHero
+                  vendor={data.vendor}
+                  summary={data.summary}
+                  onNewBill={() => setBillDialogOpen(true)}
+                  onNewPO={() => router.push(`/purchase-orders?vendorId=${encodeURIComponent(data.vendor.id)}`)}
+                  onEdit={() => openEditDialog(data.vendor)}
+                />
 
                 {/* Stats row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -165,6 +317,8 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
                           tab === "pos"   ? data.transactions.filter((t) => t.type === "po") :
                           data.transactions
                         }
+                        deletingPoId={deletingPoId}
+                        onDeletePO={deletePurchaseOrder}
                         onRowClick={(t) => setDocDrill({
                           type: t.type === "bill" ? "bill" : "purchase-order",
                           id: t.id,
@@ -186,6 +340,27 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
           onClose={() => setDocDrill(null)}
         />
       )}
+
+      {data && billDialogOpen && (
+        <BillDialog
+          vendor={data.vendor}
+          form={billForm}
+          saving={savingBill}
+          onChange={(patch) => setBillForm((prev) => ({ ...prev, ...patch }))}
+          onClose={() => !savingBill && setBillDialogOpen(false)}
+          onSave={createBill}
+        />
+      )}
+
+      {data && editDialogOpen && vendorForm && (
+        <VendorEditDialog
+          form={vendorForm}
+          saving={savingVendor}
+          onChange={(patch) => setVendorForm((prev) => prev ? ({ ...prev, ...patch }) : prev)}
+          onClose={() => !savingVendor && setEditDialogOpen(false)}
+          onSave={saveVendor}
+        />
+      )}
     </div>
   );
 }
@@ -193,7 +368,19 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
 // ───────────────────────────────────────────────────────────────────────────
 // Hero card
 // ───────────────────────────────────────────────────────────────────────────
-function VendorHero({ vendor, summary }: { vendor: DetailResponse["vendor"]; summary: DetailResponse["summary"] }) {
+function VendorHero({
+  vendor,
+  summary,
+  onNewBill,
+  onNewPO,
+  onEdit,
+}: {
+  vendor: DetailResponse["vendor"];
+  summary: DetailResponse["summary"];
+  onNewBill: () => void;
+  onNewPO: () => void;
+  onEdit: () => void;
+}) {
   const bg = colorFromName(vendor.displayName);
   const initials = initialsFromName(vendor.displayName);
   const addrParts = [vendor.addressLine1, vendor.city, vendor.state, vendor.zip].filter(Boolean);
@@ -272,13 +459,13 @@ function VendorHero({ vendor, summary }: { vendor: DetailResponse["vendor"]; sum
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 mt-6 pt-5" style={{ borderTop: "1px solid var(--color-border)" }}>
-        <button disabled className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-white" style={{ opacity: 0.6, cursor: "not-allowed" }} title="Coming soon">
+        <button onClick={onNewBill} className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-white">
           + New bill
         </button>
-        <button disabled className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", opacity: 0.6, cursor: "not-allowed" }} title="Coming soon">
+        <button onClick={onNewPO} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
           + New PO
         </button>
-        <button disabled className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", opacity: 0.6, cursor: "not-allowed" }} title="Coming soon">
+        <button onClick={onEdit} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
           Edit
         </button>
         {vendor.email && (
@@ -333,7 +520,17 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
   );
 }
 
-function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => void }) {
+function TxnTable({
+  rows,
+  onRowClick,
+  onDeletePO,
+  deletingPoId,
+}: {
+  rows: Txn[];
+  onRowClick: (t: Txn) => void;
+  onDeletePO: (t: Txn) => void;
+  deletingPoId: string | null;
+}) {
   if (rows.length === 0) {
     return <p className="p-8 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>No transactions yet.</p>;
   }
@@ -348,6 +545,7 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
             <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Status</th>
             <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Total</th>
             <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Balance</th>
+            <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -382,12 +580,169 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
                 <td className="px-3 py-2.5 text-right font-medium" style={{ color: t.balance > 0 ? "#F59E0B" : "var(--color-text-muted)" }}>
                   {t.balance > 0 ? fmtMoney(t.balance) : "—"}
                 </td>
+                <td className="px-3 py-2.5 text-right">
+                  {t.type === "po" ? (
+                    <button
+                      type="button"
+                      disabled={deletingPoId === t.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeletePO(t);
+                      }}
+                      className="px-2.5 py-1 rounded-md text-xs font-semibold disabled:opacity-60"
+                      style={{ background: "rgba(255,32,78,0.10)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}
+                    >
+                      {deletingPoId === t.id ? "Deleting..." : "Delete PO"}
+                    </button>
+                  ) : (
+                    <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                  )}
+                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function DialogShell({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/55" onClick={onClose} />
+      <div className="relative w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{title}</h2>
+          <button onClick={onClose} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BillDialog({
+  vendor,
+  form,
+  saving,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  vendor: VendorDetail;
+  form: BillForm;
+  saving: boolean;
+  onChange: (patch: Partial<BillForm>) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <DialogShell title="New bill" onClose={onClose}>
+      <div className="p-5 space-y-4">
+        <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+          Vendor: <span className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{vendor.displayName}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Bill no." value={form.billNumber} onChange={(value) => onChange({ billNumber: value })} placeholder="Optional" />
+          <Input label="Amount" value={form.totalAmount} onChange={(value) => onChange({ totalAmount: value })} placeholder="0.00" inputMode="decimal" />
+          <Input label="Bill date" type="date" value={form.issueDate} onChange={(value) => onChange({ issueDate: value })} />
+          <Input label="Due date" type="date" value={form.dueDate} onChange={(value) => onChange({ dueDate: value })} />
+        </div>
+        <TextArea label="Memo" value={form.privateNote} onChange={(value) => onChange({ privateNote: value })} rows={4} />
+      </div>
+      <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+        <button disabled={saving} onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+        <button disabled={saving} onClick={onSave} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#F97316", opacity: saving ? 0.7 : 1 }}>
+          {saving ? "Saving..." : "Save bill"}
+        </button>
+      </div>
+    </DialogShell>
+  );
+}
+
+function VendorEditDialog({
+  form,
+  saving,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  form: VendorEditForm;
+  saving: boolean;
+  onChange: (patch: Partial<VendorEditForm>) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <DialogShell title="Edit vendor" onClose={onClose}>
+      <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Display name" value={form.displayName} onChange={(value) => onChange({ displayName: value })} />
+          <Input label="Company" value={form.companyName} onChange={(value) => onChange({ companyName: value })} />
+          <Input label="Email" value={form.email} onChange={(value) => onChange({ email: value })} />
+          <Input label="Phone" value={form.phone} onChange={(value) => onChange({ phone: value })} />
+          <Input label="Alt phone" value={form.phoneAlt} onChange={(value) => onChange({ phoneAlt: value })} />
+          <Input label="Website" value={form.website} onChange={(value) => onChange({ website: value })} />
+          <Input label="Street" value={form.addressLine1} onChange={(value) => onChange({ addressLine1: value })} />
+          <Input label="Street 2" value={form.addressLine2} onChange={(value) => onChange({ addressLine2: value })} />
+          <Input label="City" value={form.city} onChange={(value) => onChange({ city: value })} />
+          <Input label="State" value={form.state} onChange={(value) => onChange({ state: value })} />
+          <Input label="ZIP" value={form.zip} onChange={(value) => onChange({ zip: value })} />
+          <Input label="Account #" value={form.accountNumber} onChange={(value) => onChange({ accountNumber: value })} />
+          <Input label="Payment terms" value={form.paymentTerms} onChange={(value) => onChange({ paymentTerms: value })} />
+        </div>
+        <div className="flex flex-wrap gap-5">
+          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+            <input type="checkbox" checked={form.is1099} onChange={(e) => onChange({ is1099: e.target.checked })} />
+            1099 vendor
+          </label>
+          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+            <input type="checkbox" checked={form.isActive} onChange={(e) => onChange({ isActive: e.target.checked })} />
+            Active
+          </label>
+        </div>
+        <TextArea label="Notes" value={form.notes} onChange={(value) => onChange({ notes: value })} rows={4} />
+      </div>
+      <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
+        <button disabled={saving} onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+        <button disabled={saving} onClick={onSave} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#2563EB", opacity: saving ? 0.7 : 1 }}>
+          {saving ? "Saving..." : "Save changes"}
+        </button>
+      </div>
+    </DialogShell>
+  );
+}
+
+function Input({ label, value, onChange, placeholder, type = "text", inputMode }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string; inputMode?: "decimal" | "numeric" | "text" }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>{label}</span>
+      <input
+        type={type}
+        value={value}
+        inputMode={inputMode}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 rounded-lg text-sm"
+        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+      />
+    </label>
+  );
+}
+
+function TextArea({ label, value, onChange, rows }: { label: string; value: string; onChange: (value: string) => void; rows: number }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+        style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+      />
+    </label>
   );
 }
 

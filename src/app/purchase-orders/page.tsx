@@ -7,6 +7,8 @@ import Header from "@/components/layout/Header";
 
 type Vendor = {
   Id: string;
+  LocalId?: string;
+  QbVendorId?: string;
   DisplayName: string;
   CompanyName?: string;
   PrimaryEmailAddr?: { Address?: string };
@@ -173,6 +175,7 @@ function defaultPoNumber(estimate: Estimate | null) {
 export default function PurchaseOrdersPage() {
   const searchParams = useSearchParams();
   const estimateId = searchParams.get("estimateId");
+  const initialVendorId = searchParams.get("vendorId");
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -387,8 +390,8 @@ export default function PurchaseOrdersPage() {
   }
 
   function selectVendor(id: string, vendorList = vendors) {
-    const vendor = vendorList.find((v) => v.Id === id);
-    setVendorId(id);
+    const vendor = vendorList.find((v) => v.Id === id || v.LocalId === id || v.QbVendorId === id);
+    setVendorId(vendor?.Id || id);
     setVendorQuery(vendor?.DisplayName || "");
     setVendorEmail(vendor?.PrimaryEmailAddr?.Address || "");
     setMailingAddress(formatAddress(vendor?.BillAddr));
@@ -466,7 +469,9 @@ export default function PurchaseOrdersPage() {
       if (eRes && !eRes.ok) throw new Error(eData?.error || "Failed estimate load");
 
       const nextVendors = (vData.items || vData.vendors || []).map((vendor: any) => ({
-        Id: vendor.qbVendorId || vendor.id || vendor.Id,
+        Id: vendor.id || vendor.LocalId || vendor.qbVendorId || vendor.Id,
+        LocalId: vendor.id || vendor.LocalId,
+        QbVendorId: vendor.qbVendorId || vendor.QbVendorId || vendor.Id,
         DisplayName: vendor.displayName || vendor.DisplayName || "",
         CompanyName: vendor.companyName || vendor.CompanyName || undefined,
         PrimaryEmailAddr: vendor.email ? { Address: vendor.email } : vendor.PrimaryEmailAddr,
@@ -513,7 +518,11 @@ export default function PurchaseOrdersPage() {
         }
       } else {
         setSourceEstimate(null);
-        if (!vendorId && nextVendors.length) selectVendor(nextVendors[0].Id, nextVendors);
+        if (initialVendorId) {
+          selectVendor(initialVendorId, nextVendors);
+        } else if (!vendorId && nextVendors.length) {
+          selectVendor(nextVendors[0].Id, nextVendors);
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load purchase order data");
