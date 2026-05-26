@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -102,6 +102,22 @@ function formatShipToAddress(addr: ShipToResult["address"] | undefined) {
   ].filter(Boolean).join("\n");
 }
 
+function mapShipToCustomer(customer: any): ShipToResult {
+  return {
+    id: customer.id || customer.Id,
+    displayName: customer.displayName || customer.DisplayName || customer.name || customer.companyName || "",
+    email: customer.email || customer.PrimaryEmailAddr?.Address,
+    phone: customer.phone || customer.primaryPhone || customer.PrimaryPhone?.FreeFormNumber,
+    address: customer.address || (customer.BillAddr ? {
+      line1: customer.BillAddr.Line1,
+      line2: customer.BillAddr.Line2,
+      city: customer.BillAddr.City,
+      state: customer.BillAddr.CountrySubDivisionCode,
+      zip: customer.BillAddr.PostalCode,
+    } : undefined),
+  };
+}
+
 function normalizeLookup(value: string | undefined) {
   return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -178,8 +194,10 @@ export default function PurchaseOrdersPage() {
   const [mailingAddress, setMailingAddress] = useState("");
   const [shipTo, setShipTo] = useState("Hearth OS");
   const [shipToSearchOpen, setShipToSearchOpen] = useState(false);
+  const [shipToCustomers, setShipToCustomers] = useState<ShipToResult[]>([]);
   const [shipToResults, setShipToResults] = useState<ShipToResult[]>([]);
   const [shipToSearching, setShipToSearching] = useState(false);
+  const shipToSearchSeq = useRef(0);
   const [shippingAddress, setShippingAddress] = useState("");
   const [memo, setMemo] = useState("");
   const [txnDate, setTxnDate] = useState(today());
@@ -290,6 +308,57 @@ export default function PurchaseOrdersPage() {
       .slice(0, 10);
   }
 
+  function getShipToSearchResults(query: string, customerList = shipToCustomers) {
+    const normalizedQuery = normalizeLookup(query);
+    const queryTokens = tokenizeLookup(query);
+    const searchableCustomers = customerList.filter((customer) => customer.displayName || customer.email || customer.phone || formatShipToAddress(customer.address));
+
+    if (normalizedQuery.length < 2 || queryTokens.length === 0) return [];
+
+    return searchableCustomers
+      .map((customer) => {
+        const address = formatShipToAddress(customer.address);
+        const rawFields = [
+          customer.displayName,
+          customer.email,
+          customer.phone,
+          customer.address?.line1,
+          customer.address?.line2,
+          customer.address?.city,
+          customer.address?.state,
+          customer.address?.zip,
+          address,
+        ].filter(Boolean) as string[];
+        const normalizedFields = rawFields.map(normalizeLookup);
+        const customerTokens = tokenizeLookup(rawFields.join(" "));
+        const contiguousMatch = normalizedFields.some((value) => value.includes(normalizedQuery));
+        const allTokensMatch = queryTokens.every((queryToken) => (
+          normalizedFields.some((value) => value.includes(queryToken)) ||
+          customerTokens.some((customerToken) => customerToken.includes(queryToken))
+        ));
+
+        if (!contiguousMatch && !allTokensMatch) return null;
+
+        let score = 0;
+        if (normalizeLookup(customer.displayName) === normalizedQuery) score += 140;
+        if (normalizeLookup(customer.displayName).startsWith(normalizedQuery)) score += 95;
+        if (contiguousMatch) score += 60;
+
+        for (const queryToken of queryTokens) {
+          if (customerTokens.includes(queryToken)) score += 32;
+          else if (customerTokens.some((customerToken) => customerToken.startsWith(queryToken))) score += 22;
+          else if (normalizedFields.some((value) => value.includes(queryToken))) score += 12;
+        }
+
+        score -= Math.min((customer.displayName || "").length, 80) / 100;
+        return { customer, score };
+      })
+      .filter((result): result is { customer: ShipToResult; score: number } => Boolean(result))
+      .sort((a, b) => b.score - a.score || a.customer.displayName.localeCompare(b.customer.displayName))
+      .map((result) => result.customer)
+      .slice(0, 10);
+  }
+
   function estimateToPoLines(estimate: Estimate): POLine[] {
     const mapped = (estimate.Line || [])
       .filter((line) => line.SalesItemLineDetail)
@@ -327,22 +396,39 @@ export default function PurchaseOrdersPage() {
 
   async function searchShipTo(query: string) {
     const trimmed = query.trim();
+    const searchId = ++shipToSearchSeq.current;
     if (trimmed.length < 2) {
       setShipToResults([]);
       setShipToSearching(false);
       return;
     }
 
-    setShipToSearching(true);
+    const localResults = getShipToSearchResults(trimmed);
+    setShipToResults(localResults);
+    if (localResults.length > 0) {
+      setShipToSearching(false);
+      return;
+    }
+
+    setShipToSearching(shipToCustomers.length === 0);
     try {
       const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(trimmed)}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to search customers");
-      setShipToResults((data.customers || []).slice(0, 10));
+      if (searchId !== shipToSearchSeq.current) return;
+      const fallbackResults = (data.customers || []).slice(0, 10);
+      setShipToResults(fallbackResults);
+      if (fallbackResults.length) {
+        setShipToCustomers((prev) => {
+          const byId = new Map(prev.map((customer) => [customer.id, customer]));
+          for (const customer of fallbackResults) byId.set(customer.id, customer);
+          return Array.from(byId.values());
+        });
+      }
     } catch {
-      setShipToResults([]);
+      if (searchId === shipToSearchSeq.current) setShipToResults([]);
     } finally {
-      setShipToSearching(false);
+      if (searchId === shipToSearchSeq.current) setShipToSearching(false);
     }
   }
 
@@ -362,13 +448,15 @@ export default function PurchaseOrdersPage() {
         fetch("/api/vendors?filter=all"),
         fetch("/api/inventory?filter=all&limit=500"),
         fetch("/api/purchase-orders"),
+        fetch("/api/quickbooks/customers"),
       ];
       if (nextEstimateId) requests.push(fetch(`/api/estimates?id=${encodeURIComponent(nextEstimateId)}`));
 
-      const [vRes, iRes, pRes, eRes] = await Promise.all(requests);
+      const [vRes, iRes, pRes, cRes, eRes] = await Promise.all(requests);
       const vData = await vRes.json();
       const iData = await iRes.json();
       const pData = await pRes.json();
+      const cData = await cRes.json();
       const eData = eRes ? await eRes.json() : null;
 
       if (!vRes.ok) throw new Error(vData.error || "Failed vendors load");
@@ -401,6 +489,9 @@ export default function PurchaseOrdersPage() {
         UnitPrice: Number(item.unitPrice ?? item.UnitPrice ?? item.cost ?? 0),
       })));
       setPurchaseOrders(pData.purchaseOrders || []);
+      if (cRes.ok && Array.isArray(cData.customers)) {
+        setShipToCustomers(cData.customers.map(mapShipToCustomer).filter((customer: ShipToResult) => customer.id && customer.displayName));
+      }
 
       if (eData?.estimate) {
         const estimate = eData.estimate as Estimate;
@@ -434,6 +525,19 @@ export default function PurchaseOrdersPage() {
     loadAll(estimateId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimateId]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(async () => {
+      try {
+        const res = await fetch("/api/quickbooks/customers?live=true", { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data.customers)) return;
+        setShipToCustomers(data.customers.map(mapShipToCustomer).filter((customer: ShipToResult) => customer.id && customer.displayName));
+      } catch {}
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   const selectedVendor = vendors.find((vendor) => vendor.Id === vendorId);
   const vendorResults = getVendorSearchResults(vendorQuery);

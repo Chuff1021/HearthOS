@@ -19,16 +19,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const qbRes = await fetch(`${origin}/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`, {
+    const qbRes = await fetch(`${origin}/api/quickbooks/customers?q=${encodeURIComponent(q)}`, {
       headers: { cookie: request.headers.get("cookie") || "" },
       cache: "no-store",
     });
     const qbData = await qbRes.json().catch(() => ({}));
-    if (qbRes.ok && Array.isArray(qbData.customers)) {
+    if (qbRes.ok && Array.isArray(qbData.customers) && qbData.customers.length > 0) {
       return NextResponse.json({
         customers: qbData.customers.map(mapCustomer),
         total: qbData.customers.length,
-        source: "quickbooks",
+        source: "quickbooks-cache",
       });
     }
   } catch {}
@@ -39,11 +39,26 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
     const localData = await localRes.json().catch(() => ({}));
-    if (localRes.ok && Array.isArray(localData.customers)) {
+    if (localRes.ok && Array.isArray(localData.customers) && localData.customers.length > 0) {
       return NextResponse.json({
         customers: localData.customers.map(mapCustomer),
         total: localData.customers.length,
         source: "local",
+      });
+    }
+  } catch {}
+
+  try {
+    const liveRes = await fetch(`${origin}/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`, {
+      headers: { cookie: request.headers.get("cookie") || "" },
+      cache: "no-store",
+    });
+    const liveData = await liveRes.json().catch(() => ({}));
+    if (liveRes.ok && Array.isArray(liveData.customers)) {
+      return NextResponse.json({
+        customers: liveData.customers.map(mapCustomer),
+        total: liveData.customers.length,
+        source: "quickbooks-live",
       });
     }
   } catch {}
