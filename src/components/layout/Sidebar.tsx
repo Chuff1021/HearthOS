@@ -26,6 +26,7 @@ const iconTone: Record<string, { bg: string; color: string; border: string }> = 
   "Dispatch Map": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
   "Invoices": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
   "Payments": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
+  "Banking": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
   "Estimates": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
   "Inventory": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
   "Vendors": { bg: "rgba(255,255,255,0.04)", color: "#C7D2FE", border: "rgba(255,255,255,0.08)" },
@@ -162,6 +163,17 @@ const navItems = [
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path d="M3 5a2 2 0 012-2h3a1 1 0 010 2H5v10h10v-3a1 1 0 112 0v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
             <path d="M12 3a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 11-2 0V5.414l-5.293 5.293a1 1 0 01-1.414-1.414L14.586 4H13a1 1 0 01-1-1z" />
+          </svg>
+        ),
+      },
+      {
+        label: "Banking",
+        href: "/banking",
+        badge: null,
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M10.496 2.132a1 1 0 00-.992 0l-7 4A1 1 0 003 8h14a1 1 0 00.496-1.868l-7-4z" />
+            <path fillRule="evenodd" d="M4 9h2v5H4V9zm5 0h2v5H9V9zm5 0h2v5h-2V9zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
           </svg>
         ),
       },
