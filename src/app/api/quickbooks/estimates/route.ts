@@ -20,6 +20,10 @@ function money(value: number | undefined) {
   return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function cleanDocumentNumber(value: string | undefined) {
+  return value?.replace(/^QB-/i, '') || '';
+}
+
 function estimateEmailText(estimate: any) {
   const estimateNumber = estimate.DocNumber || estimate.Id;
   return [
@@ -250,8 +254,16 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Enter a customer email before sending this estimate.' }, { status: 400 });
         }
 
-        const estimateNumber = estimate.DocNumber || estimate.Id;
-        const pdf = await renderEstimatePdf({ estimate });
+        const estimateNumber = cleanDocumentNumber(estimate.DocNumber) || estimate.Id;
+        let customer: any = null;
+        if (estimate.CustomerRef?.value) {
+          try {
+            customer = await withRefresh(auth, (client) => client.getCustomer(estimate.CustomerRef.value));
+          } catch (customerErr) {
+            console.error('Failed to load estimate customer for PDF:', customerErr);
+          }
+        }
+        const pdf = await renderEstimatePdf({ estimate, customer });
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList(body.ccBcc),

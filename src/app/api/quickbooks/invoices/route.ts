@@ -29,6 +29,10 @@ function money(value: number | undefined) {
   return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function cleanDocumentNumber(value: string | undefined) {
+  return value?.replace(/^QB-/i, '') || '';
+}
+
 function publicOrigin(request: NextRequest) {
   const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(':', '');
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
@@ -227,8 +231,16 @@ export async function POST(request: NextRequest) {
         }
 
         const payUrl = paymentUrl(request, invoice);
-        const invoiceNumber = invoice.DocNumber || invoice.Id;
-        const pdf = await renderInvoicePdf({ invoice, paymentUrl: payUrl });
+        const invoiceNumber = cleanDocumentNumber(invoice.DocNumber) || invoice.Id;
+        let customer: any = null;
+        if (invoice.CustomerRef?.value) {
+          try {
+            customer = await client.getCustomer(invoice.CustomerRef.value);
+          } catch (customerErr) {
+            console.error('Failed to load invoice customer for PDF:', customerErr);
+          }
+        }
+        const pdf = await renderInvoicePdf({ invoice, paymentUrl: payUrl, customer });
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList((body as any).ccBcc),

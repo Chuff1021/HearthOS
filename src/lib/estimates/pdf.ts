@@ -2,6 +2,7 @@ const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("
 
 type EstimatePdfInput = {
   estimate: any;
+  customer?: any;
 };
 
 const COMPANY = {
@@ -27,10 +28,14 @@ function date(value: string | undefined) {
   return `${month}/${day}/${year}`;
 }
 
+function cleanDocumentNumber(value: string | undefined) {
+  return value?.replace(/^QB-/i, "") || "";
+}
+
 function addressLines(addr: any) {
   if (!addr) return [];
   const cityLine = [addr.City, addr.CountrySubDivisionCode, addr.PostalCode].filter(Boolean).join(", ");
-  return [addr.Line1, addr.Line2, cityLine].filter(Boolean) as string[];
+  return [addr.Line1, addr.Line2, addr.Line3, addr.Line4, addr.Line5, cityLine].filter(Boolean) as string[];
 }
 
 function estimateLines(estimate: any) {
@@ -38,7 +43,10 @@ function estimateLines(estimate: any) {
 }
 
 function lineProduct(line: any) {
-  return line.SalesItemLineDetail?.ItemRef?.name || line.Description?.split(/\r?\n/)[0] || "Item";
+  const itemName = line.SalesItemLineDetail?.ItemRef?.name?.trim();
+  if (itemName) return itemName;
+  const first = line.Description?.split(/\r?\n/)[0]?.trim();
+  return first || "Item";
 }
 
 function lineDescription(line: any) {
@@ -46,7 +54,12 @@ function lineDescription(line: any) {
   const description = (line.Description || "").trim();
   if (!description) return "";
   const [first, ...rest] = description.split(/\r?\n/);
-  if (first.trim().toLowerCase() === product.toLowerCase()) return rest.join("\n").trim();
+  const firstLine = first.trim();
+  const normalizedProduct = product.toLowerCase();
+  if (firstLine.toLowerCase() === normalizedProduct) return rest.join("\n").trim();
+  if (firstLine.toLowerCase().startsWith(`${normalizedProduct} - `)) {
+    return [firstLine.slice(product.length + 3).trim(), ...rest].filter(Boolean).join("\n").trim();
+  }
   return description;
 }
 
@@ -77,6 +90,7 @@ export function renderEstimatePdf(input: EstimatePdfInput): Promise<Buffer> {
     doc.on("error", reject);
 
     const estimate = input.estimate;
+    const customer = input.customer || {};
     const left = doc.page.margins.left;
     const right = doc.page.width - doc.page.margins.right;
     const pageWidth = right - left;
@@ -94,10 +108,15 @@ export function renderEstimatePdf(input: EstimatePdfInput): Promise<Buffer> {
 
     const metaTop = 212;
     doc.font("Helvetica").fontSize(10.5).fillColor(muted).text("BILL TO", left + 8, metaTop);
-    doc.font("Helvetica").fontSize(10.5).fillColor(dark).text(estimate.CustomerRef?.name || "Customer", left + 8, metaTop + 17);
+    doc.font("Helvetica").fontSize(10.5).fillColor(dark).text(estimate.CustomerRef?.name || customer.DisplayName || "Customer", left + 8, metaTop + 17);
     let billY = metaTop + 34;
-    for (const line of addressLines(estimate.BillAddr)) {
+    for (const line of addressLines(estimate.BillAddr || customer.BillAddr || customer.ShipAddr)) {
       doc.text(line, left + 8, billY);
+      billY += 16;
+    }
+    const customerPhone = customer.PrimaryPhone?.FreeFormNumber || customer.AlternatePhone?.FreeFormNumber;
+    if (customerPhone) {
+      doc.text(customerPhone, left + 8, billY);
       billY += 16;
     }
     if (estimate.BillEmail?.Address) doc.text(estimate.BillEmail.Address, left + 8, billY);
@@ -105,7 +124,7 @@ export function renderEstimatePdf(input: EstimatePdfInput): Promise<Buffer> {
     const metaX = right - 244;
     const metaValueX = right - 112;
     [
-      ["ESTIMATE", estimate.DocNumber || estimate.Id],
+      ["ESTIMATE", cleanDocumentNumber(estimate.DocNumber) || estimate.Id],
       ["DATE", date(estimate.TxnDate)],
       ["EXPIRATION", date(estimate.ExpirationDate)],
       ["STATUS", estimate.TxnStatus || estimate.EmailStatus || ""],
