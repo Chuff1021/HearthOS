@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList((body as any).ccBcc),
-          bcc: parseEmailList(process.env.SMTP_FROM || process.env.SMTP_USER),
+          bcc: (body as any).sendMeCopy === false ? undefined : parseEmailList(process.env.SMTP_FROM || process.env.SMTP_USER),
           subject: (body as any).emailSubject || `Invoice ${invoiceNumber} from AARON'S FIREPLACE CO, LLC`,
           text: (body as any).emailBody || invoiceEmailText(invoice, payUrl),
           html: (body as any).emailBody

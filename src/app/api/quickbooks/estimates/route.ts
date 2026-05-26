@@ -4,6 +4,50 @@ import { db, estimateLineItems, estimates, inventoryItems, organizations } from 
 import { and, eq, or } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
+import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
+import { renderEstimatePdf } from '@/lib/estimates/pdf';
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function money(value: number | undefined) {
+  return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function estimateEmailText(estimate: any) {
+  const estimateNumber = estimate.DocNumber || estimate.Id;
+  return [
+    `Estimate ${estimateNumber} from AARON'S FIREPLACE CO, LLC`,
+    '',
+    `Total: $${money(estimate.TotalAmt)}`,
+    estimate.ExpirationDate ? `Expiration date: ${estimate.ExpirationDate}` : undefined,
+    '',
+    'The estimate PDF is attached.',
+    '',
+    'Thank you,',
+    "AARON'S FIREPLACE CO, LLC",
+  ].filter((part) => part !== undefined).join('\n');
+}
+
+function estimateEmailHtml(estimate: any) {
+  const estimateNumber = estimate.DocNumber || estimate.Id;
+  return `
+    <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.5;">
+      <h1 style="font-size:22px;margin:0 0 6px;">Estimate ${escapeHtml(estimateNumber)}</h1>
+      <p style="margin:0 0 16px;color:#4b5563;">AARON'S FIREPLACE CO, LLC</p>
+      <p style="margin:0 0 8px;">Total: <strong>$${money(estimate.TotalAmt)}</strong></p>
+      ${estimate.ExpirationDate ? `<p style="margin:0 0 8px;">Expiration date: ${escapeHtml(estimate.ExpirationDate)}</p>` : ''}
+      <p style="margin-top:22px;">The estimate PDF is attached.</p>
+      <p style="margin-top:22px;">Thank you,<br />AARON'S FIREPLACE CO, LLC</p>
+    </div>
+  `;
+}
 
 type LocalItemRef = {
   qbItemId: string | null;
@@ -199,6 +243,44 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'send') {
       if (!body.id) return NextResponse.json({ error: 'id is required for send' }, { status: 400 });
+      if (isSmtpConfigured()) {
+        const estimate = (await withRefresh(auth, (client) => client.getEstimate(body.id))) as any;
+        const recipient = String(body.email || estimate.BillEmail?.Address || '').trim();
+        if (!recipient) {
+          return NextResponse.json({ error: 'Enter a customer email before sending this estimate.' }, { status: 400 });
+        }
+
+        const estimateNumber = estimate.DocNumber || estimate.Id;
+        const pdf = await renderEstimatePdf({ estimate });
+        await sendSmtpEmail({
+          to: recipient,
+          cc: parseEmailList(body.ccBcc),
+          bcc: body.sendMeCopy === false ? undefined : parseEmailList(process.env.SMTP_FROM || process.env.SMTP_USER),
+          subject: body.emailSubject || `Estimate ${estimateNumber} from AARON'S FIREPLACE CO, LLC`,
+          text: body.emailBody || estimateEmailText(estimate),
+          html: body.emailBody
+            ? `<div style="font-family:Arial,sans-serif;white-space:pre-wrap;">${escapeHtml(body.emailBody)}</div>`
+            : estimateEmailHtml(estimate),
+          attachments: [{
+            filename: `Estimate ${estimateNumber}.pdf`,
+            content: pdf,
+            contentType: 'application/pdf',
+          }],
+        });
+
+        try { await persistEstimatesToDb(auth.orgId, [estimate]); } catch (e) { console.error('persist after send failed', e); }
+        addAuditLog({
+          entityType: 'estimate',
+          entityId: body.id,
+          action: 'update',
+          actor: 'system',
+          source: 'api',
+          after: estimate,
+          note: 'Estimate emailed from dashboard with Hearth PDF',
+        });
+        return NextResponse.json({ success: true, sentVia: 'smtp', estimate });
+      }
+
       const sentEstimate = (await withRefresh(auth, (client) => client.sendEstimate(body.id, body.email))) as any;
       try { await persistEstimatesToDb(auth.orgId, [sentEstimate]); } catch (e) { console.error('persist after send failed', e); }
       addAuditLog({

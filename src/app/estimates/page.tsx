@@ -81,6 +81,11 @@ export default function EstimatesPage() {
   const [pnlOpen, setPnlOpen] = useState<{ id: string; label: string } | null>(null);
   const [focusedEstimateItemLine, setFocusedEstimateItemLine] = useState<number | null>(null);
   const [emailTo, setEmailTo] = useState("");
+  const [emailCcBcc, setEmailCcBcc] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSendMeCopy, setEmailSendMeCopy] = useState(true);
+  const [emailStatus, setEmailStatus] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
   const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
   const [estimateEditForm, setEstimateEditForm] = useState({
     expirationDate: "",
@@ -392,6 +397,7 @@ export default function EstimatesPage() {
     return estimates.filter((estimate) => !activeCustomerFilterId || estimate.CustomerRef?.value === activeCustomerFilterId);
   }, [estimates, activeCustomerFilterId]);
   const selectedEstimateLines = selectedEstimate?.Line || [];
+  const emailEstimateForDialog = emailEstimateId ? estimates.find((estimate) => estimate.Id === emailEstimateId) || selectedEstimate : null;
 
   useEffect(() => {
     if (selectedEstimateId) {
@@ -451,6 +457,11 @@ export default function EstimatesPage() {
   function openEmailDialog(e: Estimate) {
     setEmailEstimateId(e.Id);
     setEmailTo(e.BillEmail?.Address || "");
+    setEmailCcBcc("");
+    setEmailSubject(`Estimate ${e.DocNumber || e.Id} from AARON'S FIREPLACE CO, LLC`);
+    setEmailBody(`Dear ${e.CustomerRef?.name || "Customer"},\n\nPlease find your estimate attached to this email.\n\nEstimate total: $${Number(e.TotalAmt || 0).toFixed(2)}\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
+    setEmailSendMeCopy(true);
+    setEmailStatus(null);
     setEmailDialogOpen(true);
   }
 
@@ -462,16 +473,28 @@ export default function EstimatesPage() {
       const res = await fetch("/api/quickbooks/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", id: emailEstimateId, email: emailTo.trim() || undefined }),
+        body: JSON.stringify({
+          action: "send",
+          id: emailEstimateId,
+          email: emailTo.trim() || undefined,
+          ccBcc: emailCcBcc.trim() || undefined,
+          emailSubject: emailSubject.trim() || undefined,
+          emailBody: emailBody.trim() || undefined,
+          sendMeCopy: emailSendMeCopy,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to email estimate");
+      setEmailStatus({ type: "success", message: `Sent to ${emailTo.trim() || "customer email"} through Hearth OS email.` });
       setEmailDialogOpen(false);
       setEmailEstimateId(null);
       setEmailTo("");
+      setEmailCcBcc("");
+      setEmailSubject("");
+      setEmailBody("");
       await loadAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to email estimate");
+      setEmailStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to email estimate" });
     } finally {
       setSendingEstimateEmail(false);
     }
@@ -1033,7 +1056,7 @@ export default function EstimatesPage() {
                         </>
                       ) : (
                         <>
-                          <button onClick={() => openEmailDialog(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Email</button>
+                          <button onClick={() => openEmailDialog(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Send Estimate</button>
                           <button onClick={() => printEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Print</button>
                           <button onClick={() => downloadEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Download</button>
                           <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Edit</button>
@@ -1321,34 +1344,67 @@ export default function EstimatesPage() {
 
       {emailDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setEmailDialogOpen(false)} />
-          <div className="relative w-full max-w-md rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-            <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Email Estimate</h2>
-            <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-              This sends the estimate through QuickBooks using the selected customer email or the address you enter here.
-            </p>
-            <input
-              value={emailTo}
-              onChange={(event) => setEmailTo(event.target.value)}
-              placeholder="customer@email.com"
-              className="mt-4 w-full px-3 py-2 rounded-lg text-sm"
-              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={emailEstimate}
-                disabled={sendingEstimateEmail}
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white"
-                style={{ background: "#2563EB", opacity: sendingEstimateEmail ? 0.7 : 1 }}
-              >
-                {sendingEstimateEmail ? "Sending..." : "Send from QuickBooks"}
-              </button>
-              <button
-                onClick={() => setEmailDialogOpen(false)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium"
-                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
-              >
-                Cancel
+          <div className="absolute inset-0 bg-black/55" onClick={() => !sendingEstimateEmail && setEmailDialogOpen(false)} />
+          <div className="relative w-full max-w-[1200px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Send estimate</h2>
+              <button disabled={sendingEstimateEmail} onClick={() => setEmailDialogOpen(false)} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_480px] gap-0 overflow-y-auto max-h-[calc(88vh-128px)]">
+              <div className="p-5 space-y-4">
+                {emailStatus && (
+                  <div className="px-3 py-2 rounded-lg text-sm" style={{ background: emailStatus.type === "error" ? "rgba(255,32,78,0.12)" : "rgba(22,163,74,0.12)", border: emailStatus.type === "error" ? "1px solid rgba(255,32,78,0.35)" : "1px solid rgba(22,163,74,0.25)", color: emailStatus.type === "error" ? "#FF204E" : "#15803D" }}>{emailStatus.message}</div>
+                )}
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>To</label>
+                  <input value={emailTo} onChange={(event) => setEmailTo(event.target.value)} placeholder="customer@email.com" className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Cc/Bcc</label>
+                  <input value={emailCcBcc} onChange={(event) => setEmailCcBcc(event.target.value)} placeholder="Optional" className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Subject</label>
+                  <input value={emailSubject} onChange={(event) => setEmailSubject(event.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                  <div />
+                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimate PDF</div>
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <div />
+                  <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                    <input type="checkbox" checked={emailSendMeCopy} onChange={(event) => setEmailSendMeCopy(event.target.checked)} />
+                    Send me a copy
+                  </label>
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                  <label className="text-sm font-semibold pt-2" style={{ color: "var(--color-text-muted)" }}>Email body</label>
+                  <textarea value={emailBody} onChange={(event) => setEmailBody(event.target.value)} rows={10} className="px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid #16A34A", color: "var(--color-text-primary)" }} />
+                </div>
+              </div>
+              <div className="p-5" style={{ background: "#777" }}>
+                <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "28px" }}>
+                  <div className="font-bold text-sm">AARON&apos;S FIREPLACE CO, LLC</div>
+                  <div className="mt-8 text-xl" style={{ color: "#666" }}>ESTIMATE</div>
+                  <div className="mt-5 text-sm">
+                    <div className="uppercase text-xs" style={{ color: "#8a8f98" }}>Bill To</div>
+                    <div className="font-semibold">{emailEstimateForDialog?.CustomerRef?.name || "Customer"}</div>
+                    <div className="mt-4 grid grid-cols-[90px_1fr] gap-y-1">
+                      <span style={{ color: "#8a8f98" }}>Estimate</span><span>{emailEstimateForDialog?.DocNumber || emailEstimateForDialog?.Id}</span>
+                      <span style={{ color: "#8a8f98" }}>Date</span><span>{emailEstimateForDialog?.TxnDate || "-"}</span>
+                    </div>
+                  </div>
+                  <div className="mt-6 border-t border-dashed pt-4 text-sm">
+                    <div className="flex justify-between"><span>Total</span><strong>${Number(emailEstimateForDialog?.TotalAmt || 0).toFixed(2)}</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button disabled={sendingEstimateEmail} onClick={() => setEmailDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+              <button onClick={emailEstimate} disabled={sendingEstimateEmail} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingEstimateEmail ? 0.7 : 1 }}>
+                {sendingEstimateEmail ? "Sending..." : "Send and close"}
               </button>
             </div>
           </div>

@@ -180,6 +180,7 @@ export default function PurchaseOrdersPage() {
   const [sourceEstimate, setSourceEstimate] = useState<Estimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingPoId, setDeletingPoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createdMessage, setCreatedMessage] = useState<string | null>(null);
 
@@ -682,6 +683,26 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  async function deletePurchaseOrder(po: PO) {
+    const label = po.DocNumber || `PO ${po.Id}`;
+    if (!window.confirm(`Delete ${label}? This removes the purchase order and its line items from Hearth OS.`)) return;
+
+    setDeletingPoId(po.Id);
+    setError(null);
+    setCreatedMessage(null);
+    try {
+      const res = await fetch(`/api/purchase-orders/${encodeURIComponent(po.Id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete purchase order");
+      setPurchaseOrders((prev) => prev.filter((entry) => entry.Id !== po.Id));
+      setCreatedMessage(`Deleted ${label}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete purchase order");
+    } finally {
+      setDeletingPoId(null);
+    }
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
@@ -1059,7 +1080,18 @@ export default function PurchaseOrdersPage() {
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
                           <div className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{po.VendorRef?.name || "Vendor"}</div>
                         </div>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(po.TotalAmt)}</div>
+                        <div className="text-right shrink-0">
+                          <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(po.TotalAmt)}</div>
+                          <button
+                            type="button"
+                            disabled={deletingPoId === po.Id}
+                            onClick={() => deletePurchaseOrder(po)}
+                            className="mt-2 px-2 py-1 rounded-md text-xs font-semibold disabled:opacity-60"
+                            style={{ background: "rgba(255,32,78,0.10)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}
+                          >
+                            {deletingPoId === po.Id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{po.TxnDate || "-"}</div>
                     </div>

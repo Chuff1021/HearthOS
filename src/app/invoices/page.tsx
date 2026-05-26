@@ -144,6 +144,11 @@ export default function InvoicesPage() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailInvoiceId, setEmailInvoiceId] = useState<string | null>(null);
   const [emailTo, setEmailTo] = useState("");
+  const [emailCcBcc, setEmailCcBcc] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSendMeCopy, setEmailSendMeCopy] = useState(true);
+  const [emailStatus, setEmailStatus] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
   const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false);
   const selectedInvoiceId = searchParams.get("id");
   const selectedCustomerId = searchParams.get("customer");
@@ -623,6 +628,11 @@ export default function InvoicesPage() {
   const openInvoiceEmailDialog = (invoice: Invoice) => {
     setEmailInvoiceId(invoice.id);
     setEmailTo("");
+    setEmailCcBcc("");
+    setEmailSubject(`Invoice ${invoice.invoiceNumber} from AARON'S FIREPLACE CO, LLC`);
+    setEmailBody(`Dear ${invoice.customerName || "Customer"},\n\nPlease find your invoice attached to this email.\n\nBalance due: $${Number(invoice.balance || invoice.totalAmount || 0).toFixed(2)}\n\nThank you.\n\nAARON'S FIREPLACE CO, LLC`);
+    setEmailSendMeCopy(true);
+    setEmailStatus(null);
     setEmailDialogOpen(true);
   };
 
@@ -633,15 +643,27 @@ export default function InvoicesPage() {
       const res = await fetch("/api/quickbooks/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", id: emailInvoiceId, email: emailTo.trim() || undefined }),
+        body: JSON.stringify({
+          action: "send",
+          id: emailInvoiceId,
+          email: emailTo.trim() || undefined,
+          ccBcc: emailCcBcc.trim() || undefined,
+          emailSubject: emailSubject.trim() || undefined,
+          emailBody: emailBody.trim() || undefined,
+          sendMeCopy: emailSendMeCopy,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to email invoice");
+      setEmailStatus({ type: "success", message: `Sent to ${emailTo.trim() || "customer email"} through Hearth OS email.` });
       setEmailDialogOpen(false);
       setEmailInvoiceId(null);
       setEmailTo("");
+      setEmailCcBcc("");
+      setEmailSubject("");
+      setEmailBody("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to email invoice");
+      setEmailStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to email invoice" });
     } finally {
       setSendingInvoiceEmail(false);
     }
@@ -775,6 +797,7 @@ export default function InvoicesPage() {
   const selectedSubtotal = selectedInvoice ? selectedInvoice.lineItems.reduce((s, li) => s + li.qty * li.unitPrice, 0) : 0;
   const selectedTax = selectedInvoice ? selectedSubtotal * ((selectedInvoice.taxRate || 0) / 100) : 0;
   const selectedTotal = selectedInvoice ? selectedSubtotal + selectedTax : 0;
+  const emailInvoice = emailInvoiceId ? invoices.find((invoice) => invoice.id === emailInvoiceId) || selectedInvoice : null;
 
   const handleSyncWithQuickBooks = async () => {
     setSyncing(true);
@@ -1259,7 +1282,7 @@ export default function InvoicesPage() {
                       className="px-3 py-2 rounded-lg text-sm font-medium"
                       style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                     >
-                      Email
+                      Send Invoice
                     </button>
                     <button
                       onClick={() => handlePrintInvoice(selectedInvoice)}
@@ -1535,34 +1558,67 @@ export default function InvoicesPage() {
 
       {emailDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setEmailDialogOpen(false)} />
-          <div className="relative w-full max-w-md rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-            <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Email Invoice</h2>
-            <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
-              This sends the invoice through QuickBooks using the customer email or the address you enter here.
-            </p>
-            <input
-              value={emailTo}
-              onChange={(e) => setEmailTo(e.target.value)}
-              placeholder="customer@email.com"
-              className="mt-4 w-full px-3 py-2 rounded-lg text-sm"
-              style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={handleEmailInvoice}
-                disabled={sendingInvoiceEmail}
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white"
-                style={{ background: "#2563EB", opacity: sendingInvoiceEmail ? 0.7 : 1 }}
-              >
-                {sendingInvoiceEmail ? "Sending..." : "Send from QuickBooks"}
-              </button>
-              <button
-                onClick={() => setEmailDialogOpen(false)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium"
-                style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
-              >
-                Cancel
+          <div className="absolute inset-0 bg-black/55" onClick={() => !sendingInvoiceEmail && setEmailDialogOpen(false)} />
+          <div className="relative w-full max-w-[1200px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Send invoice</h2>
+              <button disabled={sendingInvoiceEmail} onClick={() => setEmailDialogOpen(false)} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_480px] gap-0 overflow-y-auto max-h-[calc(88vh-128px)]">
+              <div className="p-5 space-y-4">
+                {emailStatus && (
+                  <div className="px-3 py-2 rounded-lg text-sm" style={{ background: emailStatus.type === "error" ? "rgba(255,32,78,0.12)" : "rgba(22,163,74,0.12)", border: emailStatus.type === "error" ? "1px solid rgba(255,32,78,0.35)" : "1px solid rgba(22,163,74,0.25)", color: emailStatus.type === "error" ? "#FF204E" : "#15803D" }}>{emailStatus.message}</div>
+                )}
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>To</label>
+                  <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="customer@email.com" className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Cc/Bcc</label>
+                  <input value={emailCcBcc} onChange={(e) => setEmailCcBcc(e.target.value)} placeholder="Optional" className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <label className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>Subject</label>
+                  <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                  <div />
+                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Invoice PDF</div>
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 items-center">
+                  <div />
+                  <label className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                    <input type="checkbox" checked={emailSendMeCopy} onChange={(e) => setEmailSendMeCopy(e.target.checked)} />
+                    Send me a copy
+                  </label>
+                </div>
+                <div className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+                  <label className="text-sm font-semibold pt-2" style={{ color: "var(--color-text-muted)" }}>Email body</label>
+                  <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={10} className="px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid #16A34A", color: "var(--color-text-primary)" }} />
+                </div>
+              </div>
+              <div className="p-5" style={{ background: "#777" }}>
+                <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "28px" }}>
+                  <div className="font-bold text-sm">AARON&apos;S FIREPLACE CO, LLC</div>
+                  <div className="mt-8 text-xl" style={{ color: "#666" }}>INVOICE</div>
+                  <div className="mt-5 text-sm">
+                    <div className="uppercase text-xs" style={{ color: "#8a8f98" }}>Bill To</div>
+                    <div className="font-semibold">{emailInvoice?.customerName || "Customer"}</div>
+                    <div className="mt-4 grid grid-cols-[90px_1fr] gap-y-1">
+                      <span style={{ color: "#8a8f98" }}>Invoice</span><span>{emailInvoice?.invoiceNumber}</span>
+                      <span style={{ color: "#8a8f98" }}>Due Date</span><span>{emailInvoice?.dueDate}</span>
+                    </div>
+                  </div>
+                  <div className="mt-6 border-t border-dashed pt-4 text-sm">
+                    <div className="flex justify-between"><span>Balance due</span><strong>{`$${Number(emailInvoice?.balance || emailInvoice?.totalAmount || 0).toFixed(2)}`}</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button disabled={sendingInvoiceEmail} onClick={() => setEmailDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
+              <button onClick={handleEmailInvoice} disabled={sendingInvoiceEmail} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingInvoiceEmail ? 0.7 : 1 }}>
+                {sendingInvoiceEmail ? "Sending..." : "Send and close"}
               </button>
             </div>
           </div>
