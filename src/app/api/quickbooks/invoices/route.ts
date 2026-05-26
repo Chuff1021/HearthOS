@@ -46,13 +46,20 @@ function localDescriptionWithProduct(description: string | null, product: string
   return `${productText} - ${text}`;
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 async function localInvoiceLinesForPdf(orgId: string, invoiceId: string) {
+  const idFilters = [eq(dbInvoices.qbInvoiceId, invoiceId), eq(dbInvoices.invoiceNumber, invoiceId)];
+  if (isUuid(invoiceId)) idFilters.push(eq(dbInvoices.id, invoiceId));
+
   const [localInvoice] = await db
     .select({ id: dbInvoices.id })
     .from(dbInvoices)
     .where(and(
       eq(dbInvoices.orgId, orgId),
-      or(eq(dbInvoices.id, invoiceId), eq(dbInvoices.qbInvoiceId, invoiceId), eq(dbInvoices.invoiceNumber, invoiceId))!,
+      or(...idFilters)!,
     ))
     .limit(1);
 

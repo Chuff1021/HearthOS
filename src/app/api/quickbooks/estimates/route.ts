@@ -71,12 +71,15 @@ function localDescriptionWithProduct(description: string | null, product: string
 }
 
 async function localEstimateLinesForPdf(orgId: string, estimateId: string) {
+  const idFilters = [eq(estimates.qbEstimateId, estimateId), eq(estimates.estimateNumber, estimateId)];
+  if (isUuid(estimateId)) idFilters.push(eq(estimates.id, estimateId));
+
   const [localEstimate] = await db
     .select({ id: estimates.id })
     .from(estimates)
     .where(and(
       eq(estimates.orgId, orgId),
-      or(eq(estimates.id, estimateId), eq(estimates.qbEstimateId, estimateId), eq(estimates.estimateNumber, estimateId))!,
+      or(...idFilters)!,
     ))
     .limit(1);
 
