@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getOrCreateDefaultOrg } from '@/lib/org';
 
 type PlaidAccount = {
   account_id: string;
@@ -33,6 +34,17 @@ const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID;
 const PLAID_SECRET = process.env.PLAID_SECRET;
 const PLAID_ACCESS_TOKEN = process.env.PLAID_ACCESS_TOKEN;
 
+type OrgSettings = {
+  banking?: {
+    plaidAccessToken?: string;
+    connectedAt?: string;
+    institution?: {
+      name?: string;
+      institutionId?: string;
+    };
+  };
+};
+
 function plaidBaseUrl() {
   switch (PLAID_ENV) {
     case 'sandbox':
@@ -44,14 +56,14 @@ function plaidBaseUrl() {
   }
 }
 
-async function plaidPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+async function plaidPost<T>(path: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(`${plaidBaseUrl()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       client_id: PLAID_CLIENT_ID,
       secret: PLAID_SECRET,
-      access_token: PLAID_ACCESS_TOKEN,
+      access_token: accessToken,
       ...body,
     }),
     cache: 'no-store',
@@ -70,15 +82,19 @@ function money(value: unknown) {
 }
 
 export async function GET() {
+  const org = await getOrCreateDefaultOrg();
+  const settings = (org.settings || {}) as OrgSettings;
+  const storedAccessToken = settings.banking?.plaidAccessToken;
+  const accessToken = storedAccessToken || PLAID_ACCESS_TOKEN;
   const missing = [
     !PLAID_CLIENT_ID ? 'PLAID_CLIENT_ID' : null,
     !PLAID_SECRET ? 'PLAID_SECRET' : null,
-    !PLAID_ACCESS_TOKEN ? 'PLAID_ACCESS_TOKEN' : null,
   ].filter(Boolean);
 
   if (missing.length) {
     return NextResponse.json({
       configured: false,
+      connected: false,
       missing,
       accounts: [],
       transactions: [],
@@ -92,8 +108,25 @@ export async function GET() {
     });
   }
 
+  if (!accessToken) {
+    return NextResponse.json({
+      configured: true,
+      connected: false,
+      missing: [],
+      accounts: [],
+      transactions: [],
+      summary: {
+        currentBalance: 0,
+        availableBalance: 0,
+        moneyIn30: 0,
+        moneyOut30: 0,
+        pendingCount: 0,
+      },
+    });
+  }
+
   try {
-    const accountsData = await plaidPost<{ accounts: PlaidAccount[] }>('/accounts/balance/get', {});
+    const accountsData = await plaidPost<{ accounts: PlaidAccount[] }>('/accounts/balance/get', accessToken, {});
     const accounts = accountsData.accounts || [];
     const transactionAdds: PlaidTransaction[] = [];
     let cursor: string | undefined;
@@ -106,7 +139,7 @@ export async function GET() {
         modified?: PlaidTransaction[];
         has_more?: boolean;
         next_cursor?: string;
-      }>('/transactions/sync', {
+      }>('/transactions/sync', accessToken, {
         cursor,
         count: 100,
       });
@@ -134,7 +167,10 @@ export async function GET() {
 
     return NextResponse.json({
       configured: true,
+      connected: true,
       environment: PLAID_ENV,
+      institution: settings.banking?.institution,
+      connectedAt: settings.banking?.connectedAt,
       fetchedAt: new Date().toISOString(),
       accounts: accounts.map((account) => ({
         id: account.account_id,
@@ -165,6 +201,7 @@ export async function GET() {
     return NextResponse.json(
       {
         configured: true,
+        connected: Boolean(accessToken),
         error: err instanceof Error ? err.message : 'Failed to load banking data',
         accounts: [],
         transactions: [],

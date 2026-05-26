@@ -29,8 +29,14 @@ type BankTransaction = {
 
 type BankingData = {
   configured: boolean;
+  connected?: boolean;
   missing?: string[];
   environment?: string;
+  institution?: {
+    name?: string;
+    institutionId?: string;
+  };
+  connectedAt?: string;
   fetchedAt?: string;
   error?: string;
   accounts: BankAccount[];
@@ -55,6 +61,8 @@ function signedAmount(value: number) {
 export default function BankingPage() {
   const [data, setData] = useState<BankingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [connectMessage, setConnectMessage] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -67,6 +75,7 @@ export default function BankingPage() {
     } catch (err) {
       setData({
         configured: false,
+        connected: false,
         error: err instanceof Error ? err.message : "Failed to load banking data",
         accounts: [],
         transactions: [],
@@ -74,6 +83,67 @@ export default function BankingPage() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  function loadPlaidScript() {
+    return new Promise<void>((resolve, reject) => {
+      const existing = document.getElementById("plaid-link-script") as HTMLScriptElement | null;
+      if (existing) {
+        if ((window as any).Plaid) resolve();
+        else existing.addEventListener("load", () => resolve(), { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "plaid-link-script";
+      script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load Plaid Link."));
+      document.body.appendChild(script);
+    });
+  }
+
+  async function connectBankAccount() {
+    setConnectMessage(null);
+    setConnecting(true);
+    try {
+      const tokenRes = await fetch("/api/banking/link-token", { method: "POST" });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || "Failed to start Plaid Link.");
+      await loadPlaidScript();
+
+      const plaid = (window as any).Plaid;
+      if (!plaid) throw new Error("Plaid Link did not load.");
+
+      const handler = plaid.create({
+        token: tokenData.linkToken,
+        onSuccess: async (publicToken: string, metadata: unknown) => {
+          try {
+            const exchangeRes = await fetch("/api/banking/exchange-token", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ publicToken, metadata }),
+            });
+            const exchangeData = await exchangeRes.json();
+            if (!exchangeRes.ok) throw new Error(exchangeData.error || "Failed to save bank connection.");
+            setConnectMessage("Bank account connected.");
+            await loadBanking();
+          } catch (err) {
+            setConnectMessage(err instanceof Error ? err.message : "Failed to save bank connection.");
+          }
+        },
+        onExit: (err: { display_message?: string; error_message?: string } | null) => {
+          if (err) setConnectMessage(err.display_message || err.error_message || "Bank connection was not completed.");
+        },
+      });
+
+      handler.open();
+    } catch (err) {
+      setConnectMessage(err instanceof Error ? err.message : "Failed to connect bank account.");
+    } finally {
+      setConnecting(false);
     }
   }
 
@@ -118,7 +188,21 @@ export default function BankingPage() {
               >
                 {loading ? "Refreshing..." : "Refresh"}
               </button>
+              <button
+                onClick={connectBankAccount}
+                disabled={connecting || data?.configured === false}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: "#16A34A", border: "1px solid rgba(22,163,74,0.35)" }}
+              >
+                {connecting ? "Opening Plaid..." : data?.connected ? "Reconnect Bank" : "Connect Bank Account"}
+              </button>
             </div>
+
+            {connectMessage && (
+              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.25)", color: "#2563EB" }}>
+                {connectMessage}
+              </div>
+            )}
 
             {data?.error && (
               <div className="rounded-lg px-4 py-3 text-sm" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.25)", color: "#DC2626" }}>
@@ -130,7 +214,7 @@ export default function BankingPage() {
               <section className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                 <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Bank connection not configured</div>
                 <p className="text-sm mt-2" style={{ color: "var(--color-text-muted)" }}>
-                  Add Plaid credentials in Vercel to turn this into a live checking account view.
+                  Add Plaid credentials in Vercel, then use Connect Bank Account to log in with your bank.
                 </p>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                   {(data.missing || []).map((key) => (
@@ -140,8 +224,25 @@ export default function BankingPage() {
                   ))}
                 </div>
                 <p className="text-xs mt-4" style={{ color: "var(--color-text-muted)" }}>
-                  Required env vars: PLAID_ENV, PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ACCESS_TOKEN.
+                  Required env vars: PLAID_ENV, PLAID_CLIENT_ID, PLAID_SECRET.
                 </p>
+              </section>
+            )}
+
+            {data?.configured && !data.connected && (
+              <section className="rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                <div className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Connect your business checking account</div>
+                <p className="text-sm mt-2 max-w-2xl" style={{ color: "var(--color-text-muted)" }}>
+                  Use Plaid Link to securely log in with your bank. HearthOS stores the Plaid access token server-side and uses it to show balances and transactions.
+                </p>
+                <button
+                  onClick={connectBankAccount}
+                  disabled={connecting}
+                  className="mt-4 px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: "#16A34A" }}
+                >
+                  {connecting ? "Opening Plaid..." : "Connect Bank Account"}
+                </button>
               </section>
             )}
 
@@ -163,7 +264,9 @@ export default function BankingPage() {
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <div>
                   <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Accounts</div>
-                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{data?.environment ? `Plaid ${data.environment}` : "Plaid"}</div>
+                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {[data?.institution?.name, data?.environment ? `Plaid ${data.environment}` : "Plaid"].filter(Boolean).join(" · ")}
+                  </div>
                 </div>
                 {data?.summary.pendingCount ? (
                   <span className="text-xs font-semibold px-2 py-1 rounded-md" style={{ background: "rgba(248,151,31,0.12)", color: "#f8971f", border: "1px solid rgba(248,151,31,0.25)" }}>
