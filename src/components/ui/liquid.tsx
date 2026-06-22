@@ -8,7 +8,7 @@ type PanelProps = ComponentPropsWithoutRef<"div"> & {
 export function LiquidPanel({ className = "", strong, ...props }: PanelProps) {
   return (
     <div
-      className={`${strong ? "liquid-panel liquid-panel-strong" : "liquid-panel"} ${className}`}
+      className={`${strong ? "liquid-panel liquid-panel-strong glass-panel" : "liquid-panel glass-card"} ${className}`}
       {...props}
     />
   );

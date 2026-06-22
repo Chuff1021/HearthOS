@@ -93,13 +93,13 @@ export default function Sidebar() {
   return (
     <>
     <aside
-      className={`${collapsed ? "w-[76px]" : "w-[252px]"} liquid-rail relative m-4 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] transition-all duration-200 lg:flex`}
+      className={`${collapsed ? "w-[76px]" : "w-[228px]"} liquid-rail glass-shell relative m-3 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.9rem] transition-all duration-200 lg:flex`}
       style={{
-        background: "linear-gradient(160deg, rgba(255,255,255,0.82), rgba(255,255,255,0.52))",
-        border: "1px solid rgba(255,255,255,0.82)",
-        boxShadow: "var(--shadow-glow)",
-        backdropFilter: "blur(30px) saturate(1.55)",
-        WebkitBackdropFilter: "blur(30px) saturate(1.55)",
+        background: "linear-gradient(160deg, rgba(255,255,255,0.44), rgba(255,255,255,0.2))",
+        border: "1px solid rgba(255,255,255,0.94)",
+        boxShadow: "0 30px 90px rgba(49,73,105,0.2), inset 0 1px 0 rgba(255,255,255,0.96)",
+        backdropFilter: "blur(42px) saturate(1.9)",
+        WebkitBackdropFilter: "blur(42px) saturate(1.9)",
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.9),transparent_32%),radial-gradient(circle_at_8%_18%,rgba(255,106,0,0.16),transparent_22%)]" />

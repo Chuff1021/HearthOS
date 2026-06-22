@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import OperationsLeafletMap from "@/components/dashboard/OperationsLeafletMap";
 import { LiquidPanel, StatusPill } from "@/components/ui/liquid";
 
 type ProfitResp = {
@@ -169,16 +170,6 @@ function relativeDate(value: string | null | undefined) {
   return `${days}d ago`;
 }
 
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
 export default function DashboardPage() {
   const [profit, setProfit] = useState<ProfitResp | null>(null);
   const [cust, setCust] = useState<CustomerResp | null>(null);
@@ -225,7 +216,7 @@ export default function DashboardPage() {
       <div className="flex w-full min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto px-3 pb-28 lg:px-5 lg:pb-6">
-          <div className="mx-auto w-full min-w-0 max-w-[1720px] space-y-4">
+          <div className="liquid-dashboard mx-auto w-full min-w-0 max-w-[1720px] space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div className="min-w-0 flex-1 basis-[220px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-text-muted)" }}>
@@ -317,10 +308,11 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
               <RevenueOverview profit={profit} topRevenue={topRevenue} />
-              <CommandDock />
+              <ServicePipeline jobs={jobs} />
             </section>
+            <CommandDock />
           </div>
         </main>
       </div>
@@ -354,7 +346,7 @@ function MetricTile({
   series: number[];
 }) {
   const content = (
-    <LiquidPanel className="liquid-metric min-h-[164px] p-4" strong>
+    <LiquidPanel className="liquid-metric min-h-[142px] p-4" strong>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--color-text-muted)" }}>
@@ -479,8 +471,6 @@ function CollectionsPanel({ customer, vendor }: { customer: CustomerResp | null;
 
 function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job[] }) {
   const techs = dispatch?.techs || [];
-  const markers = buildMapMarkers(techs);
-
   const selected = techs.find((tech) => tech.currentJob) || techs[0];
 
   return (
@@ -500,31 +490,10 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
 
       <div className="grid gap-4">
         <div className="liquid-map-stage relative min-h-[430px] overflow-hidden rounded-[1.55rem] border border-white/80">
-          <div className="map-label left-[14%] top-[16%]">Springfield</div>
-          <div className="map-label right-[14%] top-[24%]">Rogersville</div>
-          <div className="map-label bottom-[18%] left-[22%]">Ozark</div>
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 800 520" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M60 370 C 190 270, 250 315, 360 210 S 560 140, 740 220" className="map-road map-road-orange" />
-            <path d="M90 150 C 240 220, 315 190, 420 310 S 610 430, 750 330" className="map-road map-road-blue" />
-            <path d="M210 30 C 255 160, 250 260, 315 500" className="map-road map-road-muted" />
-            <path d="M520 20 C 500 140, 548 248, 500 515" className="map-road map-road-muted" />
-          </svg>
-
-          {markers.map(({ tech, x, y, index, live }) => (
-            <Link
-              key={tech.id}
-              href="/dispatch"
-              className="map-marker"
-              style={{ left: `${x}%`, top: `${y}%`, "--marker": tech.color || (index % 2 ? "#2563eb" : "var(--color-ember)") } as CSSProperties}
-            >
-              <span>{(tech.initials || initials(tech.name) || "T").slice(0, 2)}</span>
-              <em>{live ? "LIVE" : tech.status || "ready"}</em>
-            </Link>
-          ))}
-
-          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center gap-2">
+          <OperationsLeafletMap techs={techs} jobs={jobs} />
+          <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-[450] flex flex-wrap items-center gap-2">
             <span className="map-glass-chip"><Navigation size={14} /> {jobs.length} jobs today</span>
-            <span className="map-glass-chip"><Radio size={14} /> {markers.filter((m) => m.live).length} live GPS</span>
+            <span className="map-glass-chip"><Radio size={14} /> {techs.filter((tech) => tech.location).length} live GPS</span>
             <span className="map-glass-chip"><Route size={14} /> Route load synced</span>
           </div>
         </div>
@@ -570,33 +539,6 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
       </div>
     </LiquidPanel>
   );
-}
-
-function buildMapMarkers(techs: DispatchTech[]) {
-  const live = techs.filter((tech) => tech.location);
-  if (live.length) {
-    const lats = live.map((tech) => tech.location!.lat);
-    const lngs = live.map((tech) => tech.location!.lng);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    return live.slice(0, 8).map((tech, index) => ({
-      tech,
-      index,
-      x: 14 + ((tech.location!.lng - minLng) / Math.max(0.01, maxLng - minLng)) * 72,
-      y: 18 + (1 - (tech.location!.lat - minLat) / Math.max(0.01, maxLat - minLat)) * 62,
-      live: true,
-    }));
-  }
-
-  return techs.slice(0, 8).map((tech, index) => ({
-    tech,
-    index,
-    x: [18, 38, 64, 78, 52, 28, 70, 44][index] || 50,
-    y: [30, 19, 28, 52, 66, 72, 76, 45][index] || 50,
-    live: false,
-  }));
 }
 
 function TodaySchedule({ jobs }: { jobs: Job[] }) {
@@ -743,23 +685,56 @@ function RevenueOverview({ profit, topRevenue }: { profit: ProfitResp | null; to
   );
 }
 
+function ServicePipeline({ jobs }: { jobs: Job[] }) {
+  const total = Math.max(1, jobs.length);
+  const rows = [
+    { label: "Scheduled", value: jobs.filter((job) => job.status === "scheduled").length, color: "var(--color-ember)" },
+    { label: "In Progress", value: jobs.filter((job) => job.status === "in_progress").length, color: "#2563eb" },
+    { label: "Completed", value: jobs.filter((job) => job.status === "completed").length, color: "#12b76a" },
+    { label: "Assigned", value: jobs.filter((job) => job.assignedTechs?.length).length, color: "#8b5cf6" },
+  ];
+
+  return (
+    <LiquidPanel className="p-5" strong>
+      <PanelTitle icon={<Route size={17} />} title="Service Pipeline" href="/jobs" />
+      <div className="mt-5 grid grid-cols-4 gap-3">
+        {rows.map((row) => (
+          <div key={row.label} className="service-stat">
+            <span className="mono-number" style={{ color: row.color }}>{row.value}</span>
+            <small>{row.label}</small>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 space-y-3">
+        {rows.map((row) => (
+          <BarRow key={row.label} label={row.label} value={row.value} max={total} color={row.color} />
+        ))}
+      </div>
+    </LiquidPanel>
+  );
+}
+
 function CommandDock() {
   return (
-    <LiquidPanel className="bottom-copilot p-5" strong>
-      <PanelTitle icon={<Sparkles size={17} />} title="GABE Command Dock" href="/gabe" />
-      <div className="mt-5 rounded-[1.35rem] border border-white/80 bg-white/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-        <div className="flex items-center gap-3">
-          <Search size={18} style={{ color: "var(--color-ember)" }} />
-          <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
-            Ask about jobs, customers, invoices, QuickBooks, or route risk...
+    <LiquidPanel className="bottom-copilot glass-dock p-3" strong>
+      <div className="grid items-center gap-3 lg:grid-cols-[220px_1fr_auto]">
+        <Link href="/gabe" className="flex min-w-0 items-center gap-3 rounded-[1.25rem] px-3 py-2">
+          <span className="copilot-orb"><Sparkles size={22} /></span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">HearthOS Copilot</span>
+            <span className="block truncate text-xs" style={{ color: "var(--color-text-muted)" }}>Your AI operations assistant</span>
           </span>
-          <Link href="/gabe" className="ui-btn-primary px-4 py-2 text-sm">Open</Link>
+        </Link>
+        <div className="copilot-input">
+          <Search size={17} style={{ color: "var(--color-text-muted)" }} />
+          <span>Ask anything about your business...</span>
+          <span className="copilot-mic">AI</span>
         </div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {["Collections", "Dispatch gaps", "Profit leaks", "Customer risk"].map((label) => (
-          <Link key={label} href="/gabe" className="glass-chip">{label}</Link>
-        ))}
+        <div className="flex flex-wrap justify-end gap-2">
+          {["Summarize today", "Top customers", "Jobs by tech", "Revenue by service"].map((label) => (
+            <Link key={label} href="/gabe" className="glass-chip">{label}</Link>
+          ))}
+        </div>
       </div>
     </LiquidPanel>
   );

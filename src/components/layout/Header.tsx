@@ -140,13 +140,13 @@ export default function Header() {
   return (
     <header className="shrink-0 px-3 pb-2 pt-3 lg:px-5 lg:pt-4">
       <div
-        className="flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-3 sm:gap-4 sm:px-4"
+        className="glass-shell glass-toolbar flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-2 sm:gap-4 sm:px-4"
         style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.84), rgba(255,255,255,0.56))",
-          border: "1px solid rgba(255,255,255,0.82)",
-          boxShadow: "var(--shadow-subtle)",
-          backdropFilter: "blur(28px) saturate(1.5)",
-          WebkitBackdropFilter: "blur(28px) saturate(1.5)",
+          background: "linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.22))",
+          border: "1px solid rgba(255,255,255,0.92)",
+          boxShadow: "0 20px 70px rgba(49,73,105,0.16), inset 0 1px 0 rgba(255,255,255,0.95)",
+          backdropFilter: "blur(38px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(38px) saturate(1.8)",
         }}
       >
         <div ref={searchRef} className="relative min-w-0 flex-1 max-w-xl">
