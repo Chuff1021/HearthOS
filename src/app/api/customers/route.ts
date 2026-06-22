@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id");
 
     if (id) {
-      const customer = getCustomerById(id);
+      const customer = await getCustomerById(id);
       if (!customer) {
         return NextResponse.json({ error: "Customer not found" }, { status: 404 });
       }
@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (query) {
-      const results = searchCustomersLocal(query);
+      const results = await searchCustomersLocal(query);
       return NextResponse.json({ customers: results, total: results.length });
     }
 
-    const customers = getCustomers();
+    const customers = await getCustomers();
     return NextResponse.json({ customers, total: customers.length });
   } catch (err) {
     console.error("Failed to get customers:", err);
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customer = createCustomer({
+    const customer = await createCustomer({
       displayName: body.displayName,
       firstName: body.firstName,
       lastName: body.lastName,
@@ -83,7 +83,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const customer = updateCustomer(body.id, body);
+    const customer = await updateCustomer(body.id, body);
     if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
@@ -112,7 +112,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const deleted = deleteCustomer(id);
+    const deleted = await deleteCustomer(id);
     if (!deleted) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }

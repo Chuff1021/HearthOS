@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/quickbooks-sync",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/time-reminders",
       "schedule": "31 13 * * 1-5"
     },

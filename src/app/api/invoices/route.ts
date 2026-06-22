@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(1000, Math.max(20, parseInt(searchParams.get("limit") || "500", 10)));
 
     if (stats === "true") {
-      return NextResponse.json(getDashboardStats());
+      return NextResponse.json(await getDashboardStats());
     }
 
     const org = await getOrCreateDefaultOrg();
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     const taxAmount = subtotal * (taxRate / 100);
     const totalAmount = subtotal + taxAmount;
 
-    const invoice = createInvoice({
+    const invoice = await createInvoice({
       customerId: body.customerId || "",
       customerName: body.customerName,
       jobNumber: body.jobNumber,
@@ -195,8 +195,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const before = getInvoiceById(body.id);
-    const invoice = updateInvoice(body.id, body);
+    const before = await getInvoiceById(body.id);
+    const invoice = await updateInvoice(body.id, body);
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
@@ -235,8 +235,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const before = getInvoiceById(id);
-    const deleted = deleteInvoice(id);
+    const before = await getInvoiceById(id);
+    const deleted = await deleteInvoice(id);
     if (!deleted) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }

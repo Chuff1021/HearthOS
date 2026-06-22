@@ -226,8 +226,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const localCustomer = getLocalCustomerById(id);
-    const localInvoices = getLocalInvoices()
+    const localCustomer = await getLocalCustomerById(id);
+    const localInvoices = (await getLocalInvoices())
       .filter((invoice) => invoice.customerId === id || normalize(invoice.customerName) === normalize(localCustomer?.displayName))
       .sort((a, b) => +new Date(b.issueDate) - +new Date(a.issueDate));
 

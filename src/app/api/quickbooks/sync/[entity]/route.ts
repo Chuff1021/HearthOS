@@ -19,8 +19,15 @@ export const maxDuration = 60;
 
 type Entity = 'customers' | 'items' | 'vendors' | 'invoices' | 'payments' | 'estimates' | 'purchase-orders' | 'bills';
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
+function boundedInt(value: string | null, fallback: number, min: number, max: number) {
+  const parsed = Number(value || fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
   const { entity } = await params;
+  const { searchParams } = new URL(request.url);
   const allowed: Entity[] = ['customers', 'items', 'vendors', 'invoices', 'payments', 'estimates', 'purchase-orders', 'bills'];
   if (!allowed.includes(entity as Entity)) {
     return NextResponse.json({ error: `Unknown entity ${entity}` }, { status: 400 });
@@ -76,6 +83,30 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
         break;
       }
       case 'invoices': {
+        const startPosition = searchParams.has('startPosition')
+          ? boundedInt(searchParams.get('startPosition'), 1, 1, 1_000_000)
+          : null;
+        const pageSize = boundedInt(searchParams.get('pageSize'), 500, 1, 500);
+
+        if (startPosition) {
+          const page = await client.queryPage<any>(
+            `SELECT * FROM Invoice ORDERBY TxnDate DESC STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`
+          );
+          fetched = page.rows.length;
+          persisted = await persistInvoicesToDb(org.id, page.rows);
+          return NextResponse.json({
+            success: true,
+            entity,
+            fetched,
+            persisted,
+            startPosition,
+            pageSize,
+            nextStartPosition: fetched === pageSize ? startPosition + pageSize : null,
+            done: fetched < pageSize,
+            ms: Date.now() - start,
+          });
+        }
+
         const rows = await client.getAllInvoices();
         fetched = rows.length;
         persisted = await persistInvoicesToDb(org.id, rows);

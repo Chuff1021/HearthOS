@@ -1,4 +1,5 @@
 import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
+import postgres from 'postgres';
 
 export interface Customer {
   id: string;
@@ -91,6 +92,53 @@ type Store = {
 };
 
 const FILE = 'core-data-store.json';
+const STORE_KEY = 'core';
+let sqlClient: ReturnType<typeof postgres> | null = null;
+let initPromise: Promise<void> | null = null;
+
+function getDatabaseUrl() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    null
+  );
+}
+
+function getSql() {
+  const databaseUrl = getDatabaseUrl();
+  if (!databaseUrl) return null;
+  if (!sqlClient) {
+    sqlClient = postgres(databaseUrl, {
+      max: 3,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      prepare: false,
+    });
+  }
+  return sqlClient;
+}
+
+async function ensureTable() {
+  const sql = getSql();
+  if (!sql) return;
+
+  if (!initPromise) {
+    initPromise = (async () => {
+      await sql`
+        create table if not exists hearth_core_data_store (
+          key text primary key,
+          payload jsonb not null,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        );
+      `;
+    })();
+  }
+
+  await initPromise;
+}
 
 function normalizeSearchValue(value: string | undefined): string {
   return (value || '')
@@ -113,13 +161,25 @@ function matchesSearchQuery(query: string, field: string | undefined): boolean {
   return queryTokens.every((token) => normalizedField.includes(token));
 }
 
-function loadStore(): Store {
-  const store = readJsonFile<Store>(FILE, {
+function emptyStore(): Store {
+  return {
     customers: [],
     invoices: [],
     nextInvoiceNum: 1000,
     nextCustomerNum: 1,
-  });
+  };
+}
+
+function normalizeStore(raw: Store | string | null | undefined): Store {
+  const store = typeof raw === 'string'
+    ? (() => {
+        try {
+          return JSON.parse(raw) as Store;
+        } catch {
+          return emptyStore();
+        }
+      })()
+    : raw || emptyStore();
 
   if (typeof store.nextInvoiceNum !== 'number') store.nextInvoiceNum = 1000;
   if (typeof store.nextCustomerNum !== 'number') store.nextCustomerNum = 1;
@@ -128,20 +188,74 @@ function loadStore(): Store {
   return store;
 }
 
-function saveStore(store: Store) {
+function loadFileStore(): Store {
+  return normalizeStore(readJsonFile<Store>(FILE, emptyStore()));
+}
+
+function saveFileStore(store: Store) {
   writeJsonFileWithBackup(FILE, store);
 }
 
-export function getCustomers(): Customer[] {
-  return loadStore().customers;
+async function loadStore(): Promise<Store> {
+  const sql = getSql();
+  if (!sql) {
+    if (process.env.VERCEL === '1') {
+      throw new Error('DATABASE_URL is required for durable customer/invoice storage on Vercel');
+    }
+    return loadFileStore();
+  }
+
+  await ensureTable();
+  const rows = await sql<{ payload: Store }[]>`
+    select payload
+    from hearth_core_data_store
+    where key = ${STORE_KEY}
+    limit 1
+  `;
+
+  if (rows[0]?.payload) return normalizeStore(rows[0].payload);
+
+  const seed = loadFileStore();
+  await sql`
+    insert into hearth_core_data_store (key, payload)
+    values (${STORE_KEY}, ${JSON.stringify(seed)}::jsonb)
+    on conflict (key) do nothing
+  `;
+  return seed;
 }
 
-export function getCustomerById(id: string): Customer | undefined {
-  return loadStore().customers.find((c) => c.id === id);
+async function saveStore(store: Store) {
+  const normalized = normalizeStore(store);
+  const sql = getSql();
+  if (!sql) {
+    if (process.env.VERCEL === '1') {
+      throw new Error('DATABASE_URL is required for durable customer/invoice storage on Vercel');
+    }
+    saveFileStore(normalized);
+    return;
+  }
+
+  await ensureTable();
+  await sql`
+    insert into hearth_core_data_store (key, payload, updated_at)
+    values (${STORE_KEY}, ${JSON.stringify(normalized)}::jsonb, now())
+    on conflict (key) do update set
+      payload = excluded.payload,
+      updated_at = now()
+  `;
 }
 
-export function searchCustomersLocal(query: string): Customer[] {
-  return getCustomers().filter(
+export async function getCustomers(): Promise<Customer[]> {
+  return (await loadStore()).customers;
+}
+
+export async function getCustomerById(id: string): Promise<Customer | undefined> {
+  return (await loadStore()).customers.find((c) => c.id === id);
+}
+
+export async function searchCustomersLocal(query: string): Promise<Customer[]> {
+  const customers = await getCustomers();
+  return customers.filter(
     (c) =>
       matchesSearchQuery(query, c.displayName) ||
       matchesSearchQuery(query, c.email) ||
@@ -150,8 +264,8 @@ export function searchCustomersLocal(query: string): Customer[] {
   );
 }
 
-export function createCustomer(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'totalJobs' | 'totalRevenue' | 'balance'>): Customer {
-  const store = loadStore();
+export async function createCustomer(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'totalJobs' | 'totalRevenue' | 'balance'>): Promise<Customer> {
+  const store = await loadStore();
   const customer: Customer = {
     ...data,
     id: `cust-${String(store.nextCustomerNum++).padStart(3, '0')}`,
@@ -162,42 +276,42 @@ export function createCustomer(data: Omit<Customer, 'id' | 'createdAt' | 'update
     updatedAt: new Date().toISOString(),
   };
   store.customers.push(customer);
-  saveStore(store);
+  await saveStore(store);
   return customer;
 }
 
-export function updateCustomer(id: string, data: Partial<Customer>): Customer | null {
-  const store = loadStore();
+export async function updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | null> {
+  const store = await loadStore();
   const idx = store.customers.findIndex((c) => c.id === id);
   if (idx === -1) return null;
   store.customers[idx] = { ...store.customers[idx], ...data, updatedAt: new Date().toISOString() };
-  saveStore(store);
+  await saveStore(store);
   return store.customers[idx];
 }
 
-export function deleteCustomer(id: string): boolean {
-  const store = loadStore();
+export async function deleteCustomer(id: string): Promise<boolean> {
+  const store = await loadStore();
   const idx = store.customers.findIndex((c) => c.id === id);
   if (idx === -1) return false;
   store.customers.splice(idx, 1);
-  saveStore(store);
+  await saveStore(store);
   return true;
 }
 
-export function getInvoices(): Invoice[] {
-  return loadStore().invoices;
+export async function getInvoices(): Promise<Invoice[]> {
+  return (await loadStore()).invoices;
 }
 
-export function getInvoiceById(id: string): Invoice | undefined {
-  return loadStore().invoices.find((i) => i.id === id);
+export async function getInvoiceById(id: string): Promise<Invoice | undefined> {
+  return (await loadStore()).invoices.find((i) => i.id === id);
 }
 
-export function getInvoicesForCustomer(customerId: string): Invoice[] {
-  return getInvoices().filter((i) => i.customerId === customerId);
+export async function getInvoicesForCustomer(customerId: string): Promise<Invoice[]> {
+  return (await getInvoices()).filter((i) => i.customerId === customerId);
 }
 
-export function createInvoice(data: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>): Invoice {
-  const store = loadStore();
+export async function createInvoice(data: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>): Promise<Invoice> {
+  const store = await loadStore();
   const invoice: Invoice = recalculateInvoice({
     ...data,
     id: `inv-${String(store.invoices.length + 1).padStart(3, '0')}`,
@@ -206,30 +320,30 @@ export function createInvoice(data: Omit<Invoice, 'id' | 'invoiceNumber' | 'crea
     updatedAt: new Date().toISOString(),
   });
   store.invoices.unshift(invoice);
-  saveStore(store);
+  await saveStore(store);
   return invoice;
 }
 
-export function updateInvoice(id: string, data: Partial<Invoice>): Invoice | null {
-  const store = loadStore();
+export async function updateInvoice(id: string, data: Partial<Invoice>): Promise<Invoice | null> {
+  const store = await loadStore();
   const idx = store.invoices.findIndex((i) => i.id === id);
   if (idx === -1) return null;
   store.invoices[idx] = recalculateInvoice({ ...store.invoices[idx], ...data, updatedAt: new Date().toISOString() });
-  saveStore(store);
+  await saveStore(store);
   return store.invoices[idx];
 }
 
-export function deleteInvoice(id: string): boolean {
-  const store = loadStore();
+export async function deleteInvoice(id: string): Promise<boolean> {
+  const store = await loadStore();
   const idx = store.invoices.findIndex((i) => i.id === id);
   if (idx === -1) return false;
   store.invoices.splice(idx, 1);
-  saveStore(store);
+  await saveStore(store);
   return true;
 }
 
-export function getDashboardStats() {
-  const store = loadStore();
+export async function getDashboardStats() {
+  const store = await loadStore();
   const { customers, invoices } = store;
   const totalCustomers = customers.filter((c) => c.active).length;
   const totalOutstanding = invoices.filter((i) => i.balance > 0).reduce((sum, i) => sum + i.balance, 0);

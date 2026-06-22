@@ -32,6 +32,11 @@ interface Job {
   assignedTechs: Array<{ id: string; name: string; color: string }>;
 }
 
+type JobLayout = {
+  column: number;
+  columns: number;
+};
+
 interface CustomerLookup {
   id: string;
   displayName: string;
@@ -152,6 +157,59 @@ function addMinutes(time: string, minutesToAdd: number) {
   const nextHours = Math.floor(total / 60);
   const nextMinutes = total % 60;
   return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
+}
+
+function layoutOverlappingJobs(dayJobs: Job[]) {
+  const sortedJobs = [...dayJobs].sort((a, b) => {
+    const startDiff = toHourFloat(a.scheduledTimeStart) - toHourFloat(b.scheduledTimeStart);
+    if (startDiff !== 0) return startDiff;
+    return toHourFloat(b.scheduledTimeEnd) - toHourFloat(a.scheduledTimeEnd);
+  });
+
+  const layouts = new Map<string, JobLayout>();
+  let group: Job[] = [];
+  let groupEnd = -Infinity;
+
+  function flushGroup() {
+    if (!group.length) return;
+
+    const activeColumns: Array<{ column: number; end: number }> = [];
+    const assigned = new Map<string, number>();
+    let maxColumns = 1;
+
+    for (const job of group) {
+      const start = toHourFloat(job.scheduledTimeStart);
+      const end = toHourFloat(job.scheduledTimeEnd);
+      for (let i = activeColumns.length - 1; i >= 0; i--) {
+        if (activeColumns[i].end <= start) activeColumns.splice(i, 1);
+      }
+
+      let column = 0;
+      const used = new Set(activeColumns.map((item) => item.column));
+      while (used.has(column)) column += 1;
+      assigned.set(job.id, column);
+      activeColumns.push({ column, end });
+      maxColumns = Math.max(maxColumns, activeColumns.length, column + 1);
+    }
+
+    for (const job of group) {
+      layouts.set(job.id, { column: assigned.get(job.id) ?? 0, columns: maxColumns });
+    }
+
+    group = [];
+    groupEnd = -Infinity;
+  }
+
+  for (const job of sortedJobs) {
+    const start = toHourFloat(job.scheduledTimeStart);
+    const end = toHourFloat(job.scheduledTimeEnd);
+    if (group.length && start >= groupEnd) flushGroup();
+    group.push(job);
+    groupEnd = Math.max(groupEnd, end);
+  }
+  flushGroup();
+
+  return layouts;
 }
 
 export default function SchedulePage() {
@@ -340,6 +398,16 @@ export default function SchedulePage() {
     if (!focusTechId) return [];
     return weekJobs.filter((j) => j.assignedTechs.some((t) => t.id === focusTechId));
   }, [weekJobs, selectedTechIds, viewMode, focusTechId]);
+
+  const weekJobLayouts = useMemo(() => {
+    const layoutsByDay = new Map<string, Map<string, JobLayout>>();
+    for (const date of weekDates) {
+      const iso = isoDate(date);
+      const dayJobs = visibleJobs.filter((job) => job.scheduledDate === iso);
+      layoutsByDay.set(iso, layoutOverlappingJobs(dayJobs));
+    }
+    return layoutsByDay;
+  }, [visibleJobs, weekDates]);
 
   // Jobs for month view — all jobs in the visible month range
   const monthJobs = useMemo(() => {
@@ -915,8 +983,14 @@ export default function SchedulePage() {
                           const start = toHourFloat(job.scheduledTimeStart);
                           const end = toHourFloat(job.scheduledTimeEnd);
                           const duration = Math.max(0.5, end - start);
+                          const layout = weekJobLayouts.get(iso)?.get(job.id) || { column: 0, columns: 1 };
+                          const columnGap = 6;
+                          const columnWidth = `calc(${100 / layout.columns}% - ${(8 / layout.columns) + ((layout.columns - 1) * columnGap / layout.columns)}px)`;
+                          const columnLeft = `calc(${(layout.column * 100) / layout.columns}% + ${4 + (layout.column * (columnGap - 8) / layout.columns)}px)`;
+                          const topOffset = ((start - hour) * 90) + 2;
                           const techColor = job.assignedTechs[0]?.color || "#2563EB";
                           const isHighPriority = job.priority === "high" || job.priority === "urgent";
+                          const compact = layout.columns > 1;
 
                           return (
                             <div
@@ -935,9 +1009,11 @@ export default function SchedulePage() {
                                 setDragOverSlot(null);
                               }}
                               onClick={() => setSelectedJob(job)}
-                              className="absolute left-1 right-1 rounded-lg cursor-pointer overflow-hidden"
+                              className="absolute rounded-lg cursor-pointer overflow-hidden"
                               style={{
-                                top: 2,
+                                top: topOffset,
+                                left: columnLeft,
+                                width: columnWidth,
                                 height: Math.max(duration * 90 - 4, 42),
                                 background: "var(--color-surface-1)",
                                 border: `1px solid ${isHighPriority ? "#F59E0B" : "var(--color-border)"}`,
@@ -947,7 +1023,7 @@ export default function SchedulePage() {
                               }}
                               title={`${job.title}\n${job.customerName}\n${job.propertyAddress}\n${formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}`}
                             >
-                              <div className="px-2 py-1.5 h-full flex flex-col">
+                              <div className="px-2 py-1.5 h-full flex flex-col min-w-0">
                                 {/* Time + status */}
                                 <div className="flex items-center gap-1.5">
                                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: STATUS_COLORS[job.status] || "#9CA3AF" }} />
@@ -964,16 +1040,16 @@ export default function SchedulePage() {
                                   {job.title}
                                 </div>
                                 {/* Address — only show if card is tall enough */}
-                                {duration >= 1 && (
+                                {duration >= 1 && !compact && (
                                   <div className="text-[10px] truncate mt-auto" style={{ color: "var(--color-text-muted)" }}>
                                     {job.propertyAddress}
                                   </div>
                                 )}
                                 {/* Tech pills */}
-                                {duration >= 1.5 && job.assignedTechs.length > 0 && (
-                                  <div className="flex gap-1 mt-1">
+                                {duration >= 1.5 && !compact && job.assignedTechs.length > 0 && (
+                                  <div className="flex gap-1 mt-1 min-w-0">
                                     {job.assignedTechs.map((t) => (
-                                      <span key={t.id} className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white" style={{ background: t.color }}>
+                                      <span key={t.id} className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white truncate" style={{ background: t.color }}>
                                         {t.name.split(" ")[0]}
                                       </span>
                                     ))}

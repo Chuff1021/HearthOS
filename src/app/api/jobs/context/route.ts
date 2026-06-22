@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const localInvoices = getLocalInvoices()
+    const localInvoices = (await getLocalInvoices())
       .filter((invoice) =>
         invoice.customerId === job.customerId ||
         normalize(invoice.customerName) === normalize(job.customerName) ||

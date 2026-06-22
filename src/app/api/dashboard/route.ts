@@ -5,8 +5,8 @@ import { getTechs } from "@/app/api/techs/route";
 
 export async function GET() {
   try {
-    const baseStats = getDashboardStats();
-    const customers = getCustomers();
+    const baseStats = await getDashboardStats();
+    const customers = await getCustomers();
     const [jobs, techs] = await Promise.all([getJobs(), Promise.resolve(getTechs())]);
     const today = new Date().toISOString().split("T")[0];
     const todaysJobs = jobs.filter((job) => job.scheduledDate === today);
