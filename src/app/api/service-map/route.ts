@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import {
   customers,
@@ -10,6 +11,7 @@ import {
   servicePlans,
 } from "@/db";
 import { getJobs } from "@/app/api/jobs/route";
+import { isClerkConfigured } from "@/lib/auth";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 
 export const dynamic = "force-dynamic";
@@ -160,8 +162,20 @@ function isScheduledServiceJob(job: any) {
   return SERVICE_RE.test(typeText) || ["service", "inspection", "cleaning"].includes(String(job.jobType));
 }
 
+async function requireInternalUser() {
+  if (!isClerkConfigured()) return null;
+
+  const { userId } = await auth();
+  if (userId) return null;
+
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
 export async function GET() {
   try {
+    const authError = await requireInternalUser();
+    if (authError) return authError;
+
     const org = await getOrCreateDefaultOrg();
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - TARGET_WINDOW_MONTHS);
