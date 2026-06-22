@@ -46,6 +46,7 @@ const navGroups = [
       { label: "Schedule", href: "/schedule", icon: CalendarDays },
       { label: "Jobs", href: "/jobs", icon: BriefcaseBusiness },
       { label: "Customers", href: "/customers", icon: Users },
+      { label: "Service Map", href: "/service-map", icon: MapPinned },
       { label: "Dispatch Map", href: "/dispatch", icon: MapPinned },
     ],
   },
