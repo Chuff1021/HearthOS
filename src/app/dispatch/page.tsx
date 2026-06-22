@@ -6,6 +6,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import { createTrackingTileLayer, hasMapboxTiles, mapboxProviderLabel } from "@/lib/mapbox";
 
 type Tech = {
   id: string;
@@ -126,6 +127,34 @@ export default function DispatchPage() {
     return haversineMiles(p, proj);
   }
 
+  async function geocodeAddress(address: string): Promise<[number, number] | null> {
+    const cached = geocodeCacheRef.current.get(address);
+    if (cached) return cached;
+
+    const res = await fetch(`/api/mapbox/geocode?q=${encodeURIComponent(address)}`, { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data.center) || data.center.length < 2) return null;
+
+    const point: [number, number] = [Number(data.center[0]), Number(data.center[1])];
+    geocodeCacheRef.current.set(address, point);
+    return point;
+  }
+
+  async function routeToNextJob(current: [number, number], dest: [number, number]) {
+    const res = await fetch(
+      `/api/mapbox/directions?from=${current[0]},${current[1]}&to=${dest[0]},${dest[1]}`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data.coordinates) || data.coordinates.length < 2) return null;
+    return {
+      coordinates: data.coordinates as [number, number][],
+      durationMin: Number(data.durationMin || 0) || null,
+    };
+  }
+
   // Keep ref in sync so the polling interval always has the current value
   useEffect(() => {
     selectedTechIdRef.current = selectedTechId;
@@ -178,10 +207,7 @@ export default function DispatchPage() {
         zoomControl: true,
       }).setView([39.5, -98.35], 4);
 
-      const initialTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20,
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      }).addTo(map);
+      const initialTile = createTrackingTileLayer(L, mapStyle).addTo(map);
 
       tileLayerRef.current = initialTile;
       const clusterFactory = (L as any).markerClusterGroup;
@@ -228,15 +254,7 @@ export default function DispatchPage() {
       map.removeLayer(tileLayerRef.current);
     }
 
-    const nextTile = mapStyle === 'satellite'
-      ? L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxZoom: 20,
-          attribution: 'Tiles &copy; Esri',
-        })
-      : L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 20,
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        });
+    const nextTile = createTrackingTileLayer(L, mapStyle);
 
     nextTile.addTo(map);
     tileLayerRef.current = nextTile;
@@ -357,20 +375,7 @@ export default function DispatchPage() {
       const address = selectedTech.nextJob.address.trim();
       if (!address) return;
 
-      let dest = geocodeCacheRef.current.get(address);
-      if (!dest) {
-        try {
-          const q = encodeURIComponent(address);
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${q}`);
-          const rows = await res.json();
-          if (Array.isArray(rows) && rows[0]?.lat && rows[0]?.lon) {
-            dest = [Number(rows[0].lat), Number(rows[0].lon)];
-            geocodeCacheRef.current.set(address, dest);
-          }
-        } catch {
-          return;
-        }
-      }
+      const dest = await geocodeAddress(address);
 
       if (!dest) return;
 
@@ -381,32 +386,23 @@ export default function DispatchPage() {
 
       if (selectedTech.currentJob?.address) {
         const startAddress = selectedTech.currentJob.address.trim();
-        let start = geocodeCacheRef.current.get(startAddress);
-        if (!start && startAddress) {
-          try {
-            const qStart = encodeURIComponent(startAddress);
-            const resStart = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${qStart}`);
-            const rowsStart = await resStart.json();
-            if (Array.isArray(rowsStart) && rowsStart[0]?.lat && rowsStart[0]?.lon) {
-              start = [Number(rowsStart[0].lat), Number(rowsStart[0].lon)];
-              geocodeCacheRef.current.set(startAddress, start);
-            }
-          } catch {
-            // ignore start geocode failures
-          }
-        }
+        const start = startAddress ? await geocodeAddress(startAddress) : null;
         if (start) {
           setSelectedOffRouteMiles(pointToSegmentMiles(current, start, dest));
         }
       }
 
-      routeLineRef.current = L.polyline(
-        [
-          current,
-          dest,
-        ],
-        { color: '#f8971f', weight: 3, opacity: 0.8, dashArray: '8 6' }
-      ).addTo(map);
+      const route = await routeToNextJob(current, dest);
+      if (route?.durationMin) {
+        setSelectedRouteEtaMin(route.durationMin);
+      }
+
+      routeLineRef.current = L.polyline(route?.coordinates || [current, dest], {
+        color: '#f8971f',
+        weight: 4,
+        opacity: 0.86,
+        dashArray: route ? undefined : '8 6',
+      }).addTo(map);
     }
 
     drawRouteToNextJob();
@@ -445,7 +441,12 @@ export default function DispatchPage() {
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
           <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
+              <div>
+                <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {mapboxProviderLabel()} tiles · {hasMapboxTiles() ? 'Mapbox employee tracking enabled' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
+                </p>
+              </div>
               <div className="flex items-center gap-2">
                 <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
                   <button onClick={() => setMapStyle('street')} className="px-2.5 py-1 text-xs" style={{ background: mapStyle === 'street' ? '#2563EB' : 'var(--color-surface-3)', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)' }}>Street</button>
