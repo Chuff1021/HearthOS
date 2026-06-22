@@ -830,7 +830,8 @@ body::after {
 
 .glass-shell {
   overflow: hidden;
-  filter: url("#liquid-glass-soft");
+  filter: none;
+  transform: translateZ(0);
 }
 
 .glass-toolbar {
@@ -838,19 +839,26 @@ body::after {
 }
 
 .liquid-rail {
-  filter: url("#liquid-glass-soft");
+  filter: none;
+  transform: translateZ(0);
 }
 
 .liquid-rail::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background:
     url("/liquid-glass/specular-streaks.png") center / cover,
     linear-gradient(92deg, rgba(255,255,255,0.64), transparent 18%, transparent 78%, rgba(255,255,255,0.54)),
     radial-gradient(circle at 8% 14%, rgba(255,106,0,0.14), transparent 22%);
   opacity: 0.82;
+  filter: url("#liquid-glass-soft");
+}
+
+.liquid-rail::after {
+  z-index: 0;
 }
 
 .liquid-rail nav a {
@@ -1135,6 +1143,179 @@ body::after {
   border: 1px solid rgba(255,255,255,0.78);
   color: var(--color-text-secondary);
   font-weight: 800;
+}
+
+.glass-shell > *,
+.liquid-rail > * {
+  position: relative;
+  z-index: 1;
+  filter: none;
+  transform: translateZ(0);
+}
+
+.liquid-rail .relative,
+.liquid-rail nav,
+.liquid-rail a,
+.liquid-rail button,
+.glass-toolbar > * {
+  filter: none !important;
+}
+
+.liquid-rail svg,
+.liquid-rail img,
+.liquid-rail [class*="rounded-full"],
+.glass-toolbar svg,
+.glass-toolbar img,
+.glass-toolbar [class*="rounded-full"] {
+  filter: none !important;
+  image-rendering: auto;
+}
+
+.flex.h-screen.overflow-hidden {
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.22), rgba(226,240,255,0.32)),
+    url("/liquid-glass/specular-streaks.png") center / cover fixed,
+    url("/liquid-glass/caustic-field.png") center / cover fixed,
+    linear-gradient(135deg, #edf7ff, #f8fbff 48%, #dcecff) !important;
+}
+
+.flex.h-screen.overflow-hidden > .flex-1,
+.flex.h-screen.overflow-hidden main {
+  position: relative;
+  z-index: 1;
+}
+
+.flex.h-screen.overflow-hidden main::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 16% 9%, rgba(255,255,255,0.56), transparent 19%),
+    radial-gradient(circle at 88% 24%, rgba(255,106,0,0.08), transparent 18%),
+    radial-gradient(circle at 58% 82%, rgba(37,99,235,0.10), transparent 24%),
+    url("/liquid-glass/frost-noise.png") center / 420px 420px repeat;
+  opacity: 0.82;
+  mix-blend-mode: screen;
+}
+
+.flex.h-screen.overflow-hidden main > div {
+  position: relative;
+}
+
+main :is(section, article, div)[style*="--color-surface-1"],
+main :is(section, article, div)[style*="--color-surface-2"],
+main :is(section, article, div)[style*="--color-surface-3"],
+main :is(section, article, div)[style*="--color-surface-4"] {
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.56), rgba(255,255,255,0.18)),
+    url("/liquid-glass/frost-noise.png") center / 360px 360px repeat,
+    rgba(255,255,255,0.22) !important;
+  border-color: rgba(255,255,255,0.78) !important;
+  box-shadow:
+    0 18px 62px rgba(49,73,105,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.92),
+    inset 0 -18px 46px rgba(87,126,181,0.08) !important;
+  backdrop-filter: blur(34px) saturate(1.8);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8);
+}
+
+main :is(section, article, div)[style*="--color-surface-1"] {
+  border-radius: 1.35rem;
+}
+
+main :is(section, article, div)[style*="--color-surface-2"],
+main :is(section, article, div)[style*="--color-surface-3"],
+main :is(section, article, div)[style*="--color-surface-4"] {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.48), rgba(255,255,255,0.14)),
+    rgba(255,255,255,0.18) !important;
+}
+
+main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.62), rgba(255,255,255,0.22)),
+    rgba(255,255,255,0.22) !important;
+  border-color: rgba(255,255,255,0.76) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 10px 28px rgba(53,74,105,0.05);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):focus {
+  outline: none;
+  border-color: rgba(255,106,0,0.58) !important;
+  box-shadow:
+    0 0 0 4px rgba(255,106,0,0.13),
+    inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+main table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+main thead,
+main thead[style],
+main tr[style*="--color-surface-2"] {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.6), rgba(255,255,255,0.18)),
+    rgba(255,255,255,0.22) !important;
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+main tbody tr {
+  background: transparent;
+}
+
+main tbody tr:hover {
+  background: rgba(255,255,255,0.34);
+}
+
+main th,
+main td {
+  border-color: rgba(103,119,153,0.13) !important;
+}
+
+main [class*="bg-[#252540]"],
+main .bg-gray-700,
+main .bg-gray-600 {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.58), rgba(255,255,255,0.2)),
+    rgba(255,255,255,0.22) !important;
+  color: var(--color-text-primary) !important;
+  border-color: rgba(255,255,255,0.72) !important;
+}
+
+main .border-gray-700 {
+  border-color: rgba(255,255,255,0.72) !important;
+}
+
+main [class*="from-orange-500"],
+main [class*="to-amber-500"] {
+  border-color: rgba(255,106,0,0.24) !important;
+}
+
+main button[style*="--color-surface"],
+main a[style*="--color-surface"] {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.54), rgba(255,255,255,0.16)),
+    rgba(255,255,255,0.2) !important;
+  border-color: rgba(255,255,255,0.72) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.86);
+  backdrop-filter: blur(22px) saturate(1.55);
+  -webkit-backdrop-filter: blur(22px) saturate(1.55);
+}
+
+main .rounded-xl[style*="--color-border"],
+main .rounded-2xl[style*="--color-border"],
+main .rounded-lg[style*="--color-border"] {
+  border-color: rgba(255,255,255,0.7) !important;
 }
 
 @media (max-width: 767px) {
