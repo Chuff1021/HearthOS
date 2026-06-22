@@ -72,6 +72,9 @@ const statusColors = {
   unscheduled: "#dc2626",
 };
 
+const SPRINGFIELD_CENTER: [number, number] = [37.2089, -93.2923];
+const CORE_SERVICE_RADIUS_MILES = 100;
+
 const categoryLabels: Record<ServiceCategory, string> = {
   gas: "Gas",
   wood: "Wood",
@@ -189,6 +192,22 @@ export default function ServiceMapPage() {
       });
   }, [data, filter, query, zoneFilter]);
 
+  const mapItems = useMemo(() => {
+    const focused = query.trim() || zoneFilter !== "all";
+    const base = focused
+      ? visibleItems
+      : visibleItems.filter((item) => {
+          if (item.lat == null || item.lng == null) return false;
+          return distanceMiles(SPRINGFIELD_CENTER, [Number(item.lat), Number(item.lng)]) <= CORE_SERVICE_RADIUS_MILES;
+        });
+
+    if (!selected || selected.lat == null || selected.lng == null || base.some((item) => item.id === selected.id)) {
+      return base;
+    }
+
+    return [...base, selected];
+  }, [query, selected, visibleItems, zoneFilter]);
+
   const callList = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (data?.items || [])
@@ -224,13 +243,42 @@ export default function ServiceMapPage() {
         zoomControl: true,
         scrollWheelZoom: true,
       }).setView([37.2089, -93.2923], 10);
+      map.createPane("serviceZonePane");
+      map.getPane("serviceZonePane")!.style.zIndex = "650";
 
       tileRef.current = createTrackingTileLayer(L, "street").addTo(map);
-      clusterRef.current = (L as any).markerClusterGroup({
-        showCoverageOnHover: false,
-        spiderfyOnMaxZoom: true,
-        disableClusteringAtZoom: 14,
-      }).addTo(map);
+      const clusterFactory = (L as any).markerClusterGroup;
+      clusterRef.current = (
+        typeof clusterFactory === "function"
+          ? clusterFactory({
+              showCoverageOnHover: false,
+              spiderfyOnMaxZoom: true,
+              disableClusteringAtZoom: 13,
+              maxClusterRadius: 42,
+              iconCreateFunction: (cluster: any) => {
+                const children = cluster.getAllChildMarkers?.() || [];
+                const scheduledCount = children.filter((marker: any) => marker.options?.serviceScheduled).length;
+                const total = cluster.getChildCount();
+                const needsCount = Math.max(total - scheduledCount, 0);
+                const dominantColor = needsCount > 0 ? statusColors.unscheduled : statusColors.scheduled;
+                const mixLabel = needsCount > 0 ? `${needsCount}` : `${scheduledCount}`;
+
+                return L.divIcon({
+                  className: "service-map-cluster-wrap",
+                  html: `
+                    <div class="service-map-cluster" style="--cluster-color:${dominantColor}">
+                      <strong>${total}</strong>
+                      <span>${needsCount > 0 ? "calls" : "set"}</span>
+                      <em>${mixLabel}</em>
+                    </div>
+                  `,
+                  iconSize: [58, 58],
+                  iconAnchor: [29, 29],
+                });
+              },
+            })
+          : L.layerGroup()
+      ).addTo(map);
       zoneRef.current = L.layerGroup().addTo(map);
       mapRef.current = { map, L };
       requestAnimationFrame(() => map.invalidateSize());
@@ -261,12 +309,13 @@ export default function ServiceMapPage() {
     zoneRef.current.clearLayers();
 
     const markers: any[] = [];
-    for (const item of visibleItems) {
+    for (const item of mapItems) {
       const lat = Number(item.lat);
       const lng = Number(item.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
       const color = item.scheduled ? statusColors.scheduled : statusColors.unscheduled;
       const marker = L.marker([lat, lng], {
+        serviceScheduled: item.scheduled,
         icon: L.divIcon({
           className: "service-map-marker-wrap",
           html: `<div class="service-map-marker" style="--marker-color:${color}"><span>${escapeHtml(item.displayName.slice(0, 1).toUpperCase())}</span></div>`,
@@ -282,7 +331,7 @@ export default function ServiceMapPage() {
       clusterRef.current.addLayer(marker);
     }
 
-    const zoneSource = selected?.lat && selected?.lng ? [selected] : visibleItems.filter((item) => item.isTarget).slice(0, 60);
+    const zoneSource = selected?.lat && selected?.lng ? [selected] : mapItems.filter((item) => item.isTarget).slice(0, 70);
     for (const item of zoneSource) {
       const lat = Number(item.lat);
       const lng = Number(item.lng);
@@ -290,10 +339,11 @@ export default function ServiceMapPage() {
       L.circle([lat, lng], {
         radius: radiusMiles * 1609.344,
         color: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
-        weight: selected?.id === item.id ? 2 : 1,
-        opacity: selected?.id === item.id ? 0.45 : 0.18,
+        weight: selected?.id === item.id ? 3 : 1.6,
+        opacity: selected?.id === item.id ? 0.72 : 0.34,
         fillColor: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
-        fillOpacity: selected?.id === item.id ? 0.08 : 0.025,
+        fillOpacity: selected?.id === item.id ? 0.12 : 0.045,
+        className: "service-map-zone-ring",
       }).addTo(zoneRef.current);
     }
 
@@ -303,7 +353,7 @@ export default function ServiceMapPage() {
       const bounds = L.latLngBounds(markers.map((marker) => marker.getLatLng()));
       map.fitBounds(bounds, { padding: [42, 42], maxZoom: 12 });
     }
-  }, [visibleItems, radiusMiles, selected]);
+  }, [mapItems, radiusMiles, selected]);
 
   async function geocodeMissing() {
     setGeocoding(true);
@@ -445,9 +495,34 @@ export default function ServiceMapPage() {
                 <div className="ops-map-topbar">
                   <span className="map-glass-chip">{mapboxProviderLabel()}</span>
                   <span className="map-glass-chip">{hasMapboxTiles() ? "customer targeting" : "fallback tiles"}</span>
-                  <span className="map-glass-chip">{visibleItems.length} pins</span>
+                  <span className="map-glass-chip">{mapItems.length} map pins</span>
+                  {visibleItems.length > mapItems.length && (
+                    <span className="map-glass-chip">{visibleItems.length - mapItems.length} outside core</span>
+                  )}
                   <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-red-600" /> red needs call</span>
                   <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-green-600" /> green scheduled</span>
+                </div>
+                <div className="service-map-zone-panel">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: "#f15b00" }}>Top Zones</span>
+                    <button onClick={() => setZoneFilter("all")} className="text-[10px] font-bold" style={{ color: "var(--color-text-muted)" }}>All</button>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {zoneOptions.slice(0, 6).map((zone) => (
+                      <button
+                        key={zone.key}
+                        onClick={() => setZoneFilter(zone.key)}
+                        className="service-map-zone-row"
+                        style={{
+                          borderColor: zoneFilter === zone.key ? "rgba(255,106,0,0.42)" : undefined,
+                          background: zoneFilter === zone.key ? "rgba(255,106,0,0.12)" : undefined,
+                        }}
+                      >
+                        <strong>{zone.label}</strong>
+                        <span>{zone.unscheduled} calls · {zone.total} homes</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {loading && (
                   <div className="absolute inset-0 z-[430] flex items-center justify-center bg-white/55 text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>
