@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import {
   Bell,
   CircleHelp,
   Command,
   Moon,
-  RefreshCw,
   Search,
   Settings,
   SunMedium,
@@ -247,33 +245,27 @@ export default function Header() {
 
           <div className="mx-1 hidden h-8 w-px bg-slate-200/80 sm:block" />
 
-          <SignedIn>
-            <div
-              className="rounded-2xl p-1"
-              style={{
-                background: "rgba(255,255,255,0.62)",
-                border: "1px solid rgba(255,255,255,0.76)",
-              }}
+          <Link
+            href="/settings"
+            className="flex h-10 items-center gap-2 rounded-2xl py-1 pl-1 pr-3"
+            style={{
+              color: "var(--color-text-primary)",
+              background: "rgba(255,255,255,0.62)",
+              border: "1px solid rgba(255,255,255,0.78)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.84)",
+            }}
+          >
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}
             >
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: "h-9 w-9",
-                  },
-                }}
-              />
-            </div>
-          </SignedIn>
-          <SignedOut>
-            <Link
-              href="/sign-in"
-              className="flex h-10 w-10 items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white sm:w-auto sm:px-4"
-              style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" }}
-            >
-              <UserRound size={16} /> <span className="hidden sm:inline">Sign In</span>
-            </Link>
-          </SignedOut>
+              JB
+            </span>
+            <span className="hidden leading-tight md:block">
+              <span className="block text-xs font-semibold">Jim B.</span>
+              <span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>Owner</span>
+            </span>
+          </Link>
         </div>
       </div>
     </header>

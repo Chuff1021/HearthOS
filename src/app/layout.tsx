@@ -17,11 +17,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider>
-      <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+  const document = (
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body>{children}</body>
+    </html>
   );
+
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return document;
+  }
+
+  return <ClerkProvider>{document}</ClerkProvider>;
 }

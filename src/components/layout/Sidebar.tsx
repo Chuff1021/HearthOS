@@ -2,9 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import {
   Banknote,
   BarChart3,
@@ -16,7 +14,6 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
-  Flame,
   Gauge,
   MapPinned,
   NotebookTabs,
@@ -91,13 +88,12 @@ function isActivePath(pathname: string | null, href: string) {
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { user } = useUser();
   const hydrated = useHydrated();
 
   return (
     <>
     <aside
-      className={`${collapsed ? "w-[76px]" : "w-[252px]"} relative m-4 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] transition-all duration-200 lg:flex`}
+      className={`${collapsed ? "w-[76px]" : "w-[252px]"} liquid-rail relative m-4 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.75rem] transition-all duration-200 lg:flex`}
       style={{
         background: "linear-gradient(160deg, rgba(255,255,255,0.82), rgba(255,255,255,0.52))",
         border: "1px solid rgba(255,255,255,0.82)",
@@ -225,49 +221,29 @@ export default function Sidebar() {
       </nav>
 
       <div className="relative shrink-0 p-3">
-        <SignedIn>
-          <div
-            className={`flex items-center gap-3 rounded-2xl p-2.5 ${collapsed ? "justify-center" : ""}`}
-            style={{
-              background: "rgba(255,255,255,0.62)",
-              border: "1px solid rgba(255,255,255,0.76)",
-            }}
-          >
-            {user?.imageUrl ? (
-              <Image
-                src={user.imageUrl}
-                alt={user.fullName || "User"}
-                width={38}
-                height={38}
-                className="h-9 w-9 shrink-0 rounded-full"
-              />
-            ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
-                {user?.firstName?.[0] || "U"}
-              </div>
-            )}
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                  {user?.fullName || "User"}
-                </div>
-                <div className="truncate text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-                  {user?.primaryEmailAddress?.emailAddress || "Owner"}
-                </div>
-              </div>
-            )}
+        <Link
+          href="/settings"
+          className={`flex items-center gap-3 rounded-2xl p-2.5 ${collapsed ? "justify-center" : ""}`}
+          style={{
+            background: "rgba(255,255,255,0.62)",
+            border: "1px solid rgba(255,255,255,0.8)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.82)",
+          }}
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
+            JB
           </div>
-        </SignedIn>
-        <SignedOut>
-          <Link
-            href="/sign-in"
-            className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-[13px] font-semibold ${collapsed ? "justify-center" : ""}`}
-            style={{ color: "var(--color-ember)", background: "rgba(255,255,255,0.62)" }}
-          >
-            <Flame size={16} />
-            {!collapsed && <span>Sign In</span>}
-          </Link>
-        </SignedOut>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                Jim B.
+              </div>
+              <div className="truncate text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                Owner
+              </div>
+            </div>
+          )}
+        </Link>
       </div>
     </aside>
     <MobileDock pathname={hydrated ? pathname : null} />
