@@ -205,7 +205,7 @@ export default function DispatchPage() {
 
       const map = L.map(mapContainerRef.current, {
         zoomControl: true,
-      }).setView([39.5, -98.35], 4);
+      }).setView([37.2089, -93.2923], 11);
 
       const initialTile = createTrackingTileLayer(L, mapStyle).addTo(map);
 
@@ -224,6 +224,7 @@ export default function DispatchPage() {
       }
 
       mapRef.current = { map, L };
+      requestAnimationFrame(() => map.invalidateSize());
       map.on('dragstart zoomstart movestart', () => {
         autoFollowRef.current = false;
       });
