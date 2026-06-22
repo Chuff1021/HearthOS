@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import "leaflet/dist/leaflet.css";
+import { createTrackingTileLayer, mapboxProviderLabel } from "@/lib/mapbox";
 
 type DispatchTech = {
   id: string;
@@ -123,9 +124,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
         keyboard: false,
       }).setView([37.2089, -93.2923], 11);
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 20,
-      }).addTo(map);
+      createTrackingTileLayer(L, "street").addTo(map);
 
       L.control.zoom({ position: "topright" }).addTo(map);
       mapRef.current = { map, L };
@@ -195,6 +194,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
       <div className="ops-map-glass" />
       <div className="ops-map-topbar">
         <span>Today</span>
+        <span>{mapboxProviderLabel()}</span>
         <span>{markerData.filter((item) => item.live).length} live GPS</span>
         <span>{jobs.length} jobs</span>
       </div>
