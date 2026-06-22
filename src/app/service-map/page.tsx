@@ -14,6 +14,7 @@ import { createTrackingTileLayer, hasMapboxTiles, mapboxProviderLabel } from "@/
 type ServiceCategory = "gas" | "wood" | "pellet" | "unknown";
 type FilterKey = "target" | "all" | "gas" | "wood" | "pellet" | "unknown";
 type MapStyle = "street" | "satellite";
+type MapMode = "zones" | "customers";
 
 type ServiceMapCustomer = {
   id: string;
@@ -58,6 +59,16 @@ type ServiceMapResponse = {
     pellet: number;
     unknown: number;
   };
+};
+
+type ServiceZoneGroup = {
+  key: string;
+  label: string;
+  total: number;
+  unscheduled: number;
+  scheduled: number;
+  lat: number;
+  lng: number;
 };
 
 const categoryColors: Record<ServiceCategory, string> = {
@@ -135,6 +146,7 @@ export default function ServiceMapPage() {
   const [query, setQuery] = useState("");
   const [radiusMiles, setRadiusMiles] = useState(1);
   const [mapStyle, setMapStyle] = useState<MapStyle>("street");
+  const [mapMode, setMapMode] = useState<MapMode>("zones");
   const [selected, setSelected] = useState<ServiceMapCustomer | null>(null);
 
   const loadMapData = useCallback(async () => {
@@ -192,21 +204,70 @@ export default function ServiceMapPage() {
       });
   }, [data, filter, query, zoneFilter]);
 
+  const showZoneOverview = mapMode === "zones" && !query.trim() && zoneFilter === "all" && !selected;
+
   const mapItems = useMemo(() => {
-    const focused = query.trim() || zoneFilter !== "all";
+    const focused = query.trim() || zoneFilter !== "all" || mapMode === "customers";
     const base = focused
       ? visibleItems
       : visibleItems.filter((item) => {
           if (item.lat == null || item.lng == null) return false;
           return distanceMiles(SPRINGFIELD_CENTER, [Number(item.lat), Number(item.lng)]) <= CORE_SERVICE_RADIUS_MILES;
         });
+    const prioritized = base
+      .filter((item) => item.isTarget)
+      .sort((a, b) => {
+        if (a.scheduled !== b.scheduled) return a.scheduled ? 1 : -1;
+        if (b.serviceCount18mo !== a.serviceCount18mo) return b.serviceCount18mo - a.serviceCount18mo;
+        return String(b.lastServiceDate || "").localeCompare(String(a.lastServiceDate || ""));
+      });
+    const cleanedBase = mapMode === "customers" && zoneFilter === "all" && !query.trim()
+      ? prioritized.slice(0, 160)
+      : base;
 
-    if (!selected || selected.lat == null || selected.lng == null || base.some((item) => item.id === selected.id)) {
-      return base;
+    if (!selected || selected.lat == null || selected.lng == null || cleanedBase.some((item) => item.id === selected.id)) {
+      return cleanedBase;
     }
 
-    return [...base, selected];
-  }, [query, selected, visibleItems, zoneFilter]);
+    return [...cleanedBase, selected];
+  }, [mapMode, query, selected, visibleItems, zoneFilter]);
+
+  const zoneMapGroups = useMemo<ServiceZoneGroup[]>(() => {
+    const groups = new Map<string, Omit<ServiceZoneGroup, "lat" | "lng"> & { latTotal: number; lngTotal: number }>();
+    for (const item of visibleItems) {
+      if (!item.isTarget || item.lat == null || item.lng == null) continue;
+      if (distanceMiles(SPRINGFIELD_CENTER, [Number(item.lat), Number(item.lng)]) > CORE_SERVICE_RADIUS_MILES) continue;
+
+      const current = groups.get(item.zoneKey) || {
+        key: item.zoneKey,
+        label: item.zoneLabel || "Unknown zone",
+        total: 0,
+        unscheduled: 0,
+        scheduled: 0,
+        latTotal: 0,
+        lngTotal: 0,
+      };
+      current.total += 1;
+      if (item.scheduled) current.scheduled += 1;
+      else current.unscheduled += 1;
+      current.latTotal += Number(item.lat);
+      current.lngTotal += Number(item.lng);
+      groups.set(item.zoneKey, current);
+    }
+
+    return [...groups.values()]
+      .map((zone) => ({
+        key: zone.key,
+        label: zone.label,
+        total: zone.total,
+        unscheduled: zone.unscheduled,
+        scheduled: zone.scheduled,
+        lat: zone.latTotal / zone.total,
+        lng: zone.lngTotal / zone.total,
+      }))
+      .sort((a, b) => b.unscheduled - a.unscheduled || b.total - a.total)
+      .slice(0, 10);
+  }, [visibleItems]);
 
   const callList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -309,42 +370,83 @@ export default function ServiceMapPage() {
     zoneRef.current.clearLayers();
 
     const markers: any[] = [];
-    for (const item of mapItems) {
-      const lat = Number(item.lat);
-      const lng = Number(item.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      const color = item.scheduled ? statusColors.scheduled : statusColors.unscheduled;
-      const marker = L.marker([lat, lng], {
-        serviceScheduled: item.scheduled,
-        icon: L.divIcon({
-          className: "service-map-marker-wrap",
-          html: `<div class="service-map-marker" style="--marker-color:${color}"><span>${escapeHtml(item.displayName.slice(0, 1).toUpperCase())}</span></div>`,
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-        }),
-      });
-      marker.bindTooltip(
-        `<strong>${escapeHtml(item.displayName)}</strong><br/>${item.scheduled ? "Scheduled" : "Needs contact"} - ${categoryLabels[item.serviceCategory]} - ${escapeHtml(item.zoneLabel)}`
-      );
-      marker.on("click", () => setSelected(item));
-      markers.push(marker);
-      clusterRef.current.addLayer(marker);
-    }
 
-    const zoneSource = selected?.lat && selected?.lng ? [selected] : mapItems.filter((item) => item.isTarget).slice(0, 70);
-    for (const item of zoneSource) {
-      const lat = Number(item.lat);
-      const lng = Number(item.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      L.circle([lat, lng], {
-        radius: radiusMiles * 1609.344,
-        color: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
-        weight: selected?.id === item.id ? 3 : 1.6,
-        opacity: selected?.id === item.id ? 0.72 : 0.34,
-        fillColor: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
-        fillOpacity: selected?.id === item.id ? 0.12 : 0.045,
-        className: "service-map-zone-ring",
-      }).addTo(zoneRef.current);
+    if (showZoneOverview) {
+      for (const zone of zoneMapGroups) {
+        const color = zone.unscheduled > 0 ? statusColors.unscheduled : statusColors.scheduled;
+        const radiusMeters = Math.min(19000, Math.max(5200, Math.sqrt(zone.total) * 1650));
+        L.circle([zone.lat, zone.lng], {
+          radius: radiusMeters,
+          color,
+          weight: 2,
+          opacity: 0.28,
+          fillColor: color,
+          fillOpacity: 0.08,
+          className: "service-map-zone-ring service-map-zone-aggregate",
+        }).addTo(zoneRef.current);
+
+        const marker = L.marker([zone.lat, zone.lng], {
+          pane: "serviceZonePane",
+          zIndexOffset: 5000,
+          icon: L.divIcon({
+            className: "service-map-zone-bubble-wrap",
+            html: `
+              <button class="service-map-zone-bubble" type="button" style="--zone-color:${color}">
+                <strong>${zone.total}</strong>
+                <span>${escapeHtml(zone.label)}</span>
+                <em>${zone.unscheduled} calls</em>
+              </button>
+            `,
+            iconSize: [106, 106],
+            iconAnchor: [53, 53],
+          }),
+        });
+        marker.on("click", () => {
+          setSelected(null);
+          setZoneFilter(zone.key);
+          setMapMode("customers");
+        });
+        markers.push(marker);
+        marker.addTo(zoneRef.current);
+      }
+    } else {
+      for (const item of mapItems) {
+        const lat = Number(item.lat);
+        const lng = Number(item.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const color = item.scheduled ? statusColors.scheduled : statusColors.unscheduled;
+        const marker = L.marker([lat, lng], {
+          serviceScheduled: item.scheduled,
+          icon: L.divIcon({
+            className: "service-map-marker-wrap",
+            html: `<div class="service-map-marker" style="--marker-color:${color}"><span>${escapeHtml(item.displayName.slice(0, 1).toUpperCase())}</span></div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+          }),
+        });
+        marker.bindTooltip(
+          `<strong>${escapeHtml(item.displayName)}</strong><br/>${item.scheduled ? "Scheduled" : "Needs contact"} - ${categoryLabels[item.serviceCategory]} - ${escapeHtml(item.zoneLabel)}`
+        );
+        marker.on("click", () => setSelected(item));
+        markers.push(marker);
+        clusterRef.current.addLayer(marker);
+      }
+
+      const zoneSource = selected?.lat && selected?.lng ? [selected] : mapItems.filter((item) => item.isTarget).slice(0, 36);
+      for (const item of zoneSource) {
+        const lat = Number(item.lat);
+        const lng = Number(item.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        L.circle([lat, lng], {
+          radius: radiusMiles * 1609.344,
+          color: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
+          weight: selected?.id === item.id ? 3 : 1.4,
+          opacity: selected?.id === item.id ? 0.72 : 0.24,
+          fillColor: item.scheduled ? statusColors.scheduled : statusColors.unscheduled,
+          fillOpacity: selected?.id === item.id ? 0.12 : 0.026,
+          className: "service-map-zone-ring",
+        }).addTo(zoneRef.current);
+      }
     }
 
     if (markers.length === 1) {
@@ -353,7 +455,7 @@ export default function ServiceMapPage() {
       const bounds = L.latLngBounds(markers.map((marker) => marker.getLatLng()));
       map.fitBounds(bounds, { padding: [42, 42], maxZoom: 12 });
     }
-  }, [mapItems, radiusMiles, selected]);
+  }, [mapItems, radiusMiles, selected, showZoneOverview, zoneMapGroups]);
 
   async function geocodeMissing() {
     setGeocoding(true);
@@ -458,9 +560,39 @@ export default function ServiceMapPage() {
                   ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+                    <button
+                      onClick={() => {
+                        setSelected(null);
+                        setZoneFilter("all");
+                        setMapMode("zones");
+                      }}
+                      className="rounded-xl px-3 py-1.5 text-xs font-semibold"
+                      style={{
+                        background: mapMode === "zones" && zoneFilter === "all" && !query ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent",
+                        color: mapMode === "zones" && zoneFilter === "all" && !query ? "#fff" : "var(--color-text-secondary)",
+                      }}
+                    >
+                      Zones
+                    </button>
+                    <button
+                      onClick={() => setMapMode("customers")}
+                      className="rounded-xl px-3 py-1.5 text-xs font-semibold"
+                      style={{
+                        background: mapMode === "customers" || zoneFilter !== "all" || Boolean(query) ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent",
+                        color: mapMode === "customers" || zoneFilter !== "all" || Boolean(query) ? "#fff" : "var(--color-text-secondary)",
+                      }}
+                    >
+                      Customers
+                    </button>
+                  </div>
                   <select
                     value={zoneFilter}
-                    onChange={(event) => setZoneFilter(event.target.value)}
+                    onChange={(event) => {
+                      setSelected(null);
+                      setZoneFilter(event.target.value);
+                      setMapMode(event.target.value === "all" ? "zones" : "customers");
+                    }}
                     className="map-glass-chip rounded-2xl px-3 py-2 text-xs font-semibold outline-none"
                     style={{ color: "var(--color-text-primary)" }}
                   >
@@ -475,7 +607,10 @@ export default function ServiceMapPage() {
                     <Search size={15} style={{ color: "var(--color-text-muted)" }} />
                     <input
                       value={query}
-                      onChange={(event) => setQuery(event.target.value)}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                        if (event.target.value.trim()) setMapMode("customers");
+                      }}
                       placeholder="Search customers, address, phone..."
                       className="w-[240px] bg-transparent text-sm outline-none"
                       style={{ color: "var(--color-text-primary)" }}
@@ -495,23 +630,37 @@ export default function ServiceMapPage() {
                 <div className="ops-map-topbar">
                   <span className="map-glass-chip">{mapboxProviderLabel()}</span>
                   <span className="map-glass-chip">{hasMapboxTiles() ? "customer targeting" : "fallback tiles"}</span>
-                  <span className="map-glass-chip">{mapItems.length} map pins</span>
-                  {visibleItems.length > mapItems.length && (
-                    <span className="map-glass-chip">{visibleItems.length - mapItems.length} outside core</span>
+                  <span className="map-glass-chip">{showZoneOverview ? `${zoneMapGroups.length} zones` : `${mapItems.length} customer pins`}</span>
+                  {!showZoneOverview && visibleItems.length > mapItems.length && (
+                    <span className="map-glass-chip">{visibleItems.length - mapItems.length} more in list</span>
                   )}
-                  <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-red-600" /> red needs call</span>
-                  <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-green-600" /> green scheduled</span>
+                  <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-red-600" /> needs call</span>
+                  <span className="map-glass-chip"><span className="inline-block h-2 w-2 rounded-full bg-green-600" /> scheduled</span>
                 </div>
                 <div className="service-map-zone-panel">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: "#f15b00" }}>Top Zones</span>
-                    <button onClick={() => setZoneFilter("all")} className="text-[10px] font-bold" style={{ color: "var(--color-text-muted)" }}>All</button>
+                    <button
+                      onClick={() => {
+                        setSelected(null);
+                        setZoneFilter("all");
+                        setMapMode("zones");
+                      }}
+                      className="text-[10px] font-bold"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      Overview
+                    </button>
                   </div>
                   <div className="grid gap-1.5">
                     {zoneOptions.slice(0, 6).map((zone) => (
                       <button
                         key={zone.key}
-                        onClick={() => setZoneFilter(zone.key)}
+                        onClick={() => {
+                          setSelected(null);
+                          setZoneFilter(zone.key);
+                          setMapMode("customers");
+                        }}
                         className="service-map-zone-row"
                         style={{
                           borderColor: zoneFilter === zone.key ? "rgba(255,106,0,0.42)" : undefined,

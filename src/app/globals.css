@@ -1021,22 +1021,22 @@ body::after {
 }
 
 .service-map-marker {
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background:
     radial-gradient(circle at 32% 22%, rgba(255,255,255,0.78), transparent 24%),
     linear-gradient(135deg, var(--marker-color), color-mix(in srgb, var(--marker-color) 78%, #111827));
-  border: 3px solid rgba(255,255,255,0.96);
+  border: 2px solid rgba(255,255,255,0.96);
   box-shadow:
-    0 18px 34px rgba(21, 32, 52, 0.34),
-    0 0 0 7px rgba(255,255,255,0.34),
-    0 0 0 11px color-mix(in srgb, var(--marker-color) 18%, transparent),
+    0 12px 24px rgba(21, 32, 52, 0.22),
+    0 0 0 4px rgba(255,255,255,0.28),
+    0 0 0 7px color-mix(in srgb, var(--marker-color) 13%, transparent),
     inset 0 1px 0 rgba(255,255,255,0.82);
   color: #fff;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1;
 }
@@ -1105,8 +1105,66 @@ body::after {
 
 .service-map-zone-ring {
   filter:
-    drop-shadow(0 0 8px rgba(255,255,255,0.75))
-    drop-shadow(0 12px 22px rgba(20,35,60,0.18));
+    drop-shadow(0 0 6px rgba(255,255,255,0.62))
+    drop-shadow(0 10px 18px rgba(20,35,60,0.12));
+}
+
+.service-map-zone-aggregate {
+  filter:
+    drop-shadow(0 18px 38px rgba(20,35,60,0.16))
+    drop-shadow(0 0 10px rgba(255,255,255,0.72));
+}
+
+.service-map-zone-bubble-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.service-map-zone-bubble {
+  width: 106px;
+  height: 106px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.16rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.92);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255,255,255,0.92), transparent 24%),
+    linear-gradient(145deg, color-mix(in srgb, var(--zone-color) 84%, #ffffff), color-mix(in srgb, var(--zone-color) 62%, #172033));
+  box-shadow:
+    0 22px 46px rgba(37,57,88,0.2),
+    0 0 0 8px rgba(255,255,255,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.78);
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.service-map-zone-bubble strong {
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.service-map-zone-bubble span {
+  max-width: 82px;
+  overflow: hidden;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.service-map-zone-bubble em {
+  border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+  padding: 0.14rem 0.45rem;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 850;
 }
 
 .service-map-zone-badge-wrap {
@@ -1162,16 +1220,16 @@ body::after {
   z-index: 455;
   left: 0.9rem;
   bottom: 0.9rem;
-  width: min(15rem, calc(100% - 1.8rem));
+  width: min(15.5rem, calc(100% - 1.8rem));
   border-radius: 1.35rem;
   border: 1px solid rgba(255,255,255,0.82);
   background:
-    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.92), transparent 28%),
-    linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.34));
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.94), transparent 28%),
+    linear-gradient(145deg, rgba(255,255,255,0.82), rgba(255,255,255,0.46));
   box-shadow:
     0 18px 44px rgba(37,57,88,0.16),
     inset 0 1px 0 rgba(255,255,255,0.9);
-  padding: 0.75rem;
+  padding: 0.72rem;
   backdrop-filter: blur(24px) saturate(1.65);
   -webkit-backdrop-filter: blur(24px) saturate(1.65);
 }
@@ -1181,10 +1239,10 @@ body::after {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  min-height: 2rem;
+  min-height: 1.82rem;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.68);
-  background: rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.5);
   padding: 0.24rem 0.58rem 0.24rem 0.7rem;
   text-align: left;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.72);
