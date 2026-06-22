@@ -1,8 +1,13 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-// Hotfix: keep Clerk middleware active so existing Clerk hooks/components
-// in app shell routes do not throw runtime auth() / client exceptions.
-export default clerkMiddleware();
+const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+export default hasClerk
+  ? clerkMiddleware()
+  : function proxy(_request: NextRequest) {
+      return NextResponse.next();
+    };
 
 export const config = {
   matcher: [

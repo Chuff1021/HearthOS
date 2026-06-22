@@ -1,8 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { useEffect, useRef, useState } from "react";
+import {
+  Bell,
+  CircleHelp,
+  Command,
+  Moon,
+  Search,
+  Settings,
+  SunMedium,
+  UserRound,
+  Zap,
+} from "lucide-react";
+import { StatusPill } from "@/components/ui/liquid";
 
 interface SearchResult {
   id: string;
@@ -11,6 +22,18 @@ interface SearchResult {
   subtitle: string;
   href: string;
 }
+
+type QuickBooksStatus = {
+  connected?: boolean;
+  companyName?: string | null;
+};
+
+type DispatchStatus = {
+  stats?: {
+    activeTechs?: number;
+    onJob?: number;
+  };
+};
 
 export default function Header() {
   const [query, setQuery] = useState("");
@@ -22,6 +45,8 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [qb, setQb] = useState<QuickBooksStatus | null>(null);
+  const [dispatch, setDispatch] = useState<DispatchStatus | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +57,39 @@ export default function Header() {
     root.setAttribute("data-theme", initialTheme);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatus() {
+      try {
+        const [qbRes, dispatchRes] = await Promise.all([
+          fetch("/api/quickbooks/status", { cache: "no-store" }),
+          fetch("/api/dispatch?activeOnly=true", { cache: "no-store" }),
+        ]);
+        const [qbJson, dispatchJson] = await Promise.all([
+          qbRes.ok ? qbRes.json() : null,
+          dispatchRes.ok ? dispatchRes.json() : null,
+        ]);
+        if (!cancelled) {
+          setQb(qbJson);
+          setDispatch(dispatchJson);
+        }
+      } catch {
+        if (!cancelled) {
+          setQb(null);
+          setDispatch(null);
+        }
+      }
+    }
+
+    loadStatus();
+    const timer = setInterval(loadStatus, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
   function toggleTheme() {
     const root = document.documentElement;
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -40,7 +98,6 @@ export default function Header() {
     localStorage.setItem("theme", nextTheme);
   }
 
-  // Debounced search
   useEffect(() => {
     if (query.length < 2) {
       setResults({ customers: [], jobs: [], invoices: [] });
@@ -65,7 +122,6 @@ export default function Header() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -77,325 +133,209 @@ export default function Header() {
   }, []);
 
   const totalResults = results.customers.length + results.jobs.length + results.invoices.length;
+  const activeTechs = dispatch?.stats?.activeTechs ?? 0;
+  const onJob = dispatch?.stats?.onJob ?? 0;
+  const qbConnected = qb?.connected ?? false;
 
   return (
-    <header
-      className="flex items-center gap-4 px-6 py-3 flex-shrink-0"
-      style={{
-        background: "var(--color-surface-1)",
-        borderBottom: "1px solid var(--color-border)",
-      }}
-    >
-      {/* Search */}
-      <div className="flex-1 max-w-sm relative">
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </span>
+    <header className="shrink-0 px-3 pb-2 pt-3 lg:px-5 lg:pt-4">
+      <div
+        className="glass-shell glass-toolbar flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-2 sm:gap-4 sm:px-4"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.22))",
+          border: "1px solid rgba(255,255,255,0.92)",
+          boxShadow: "0 20px 70px rgba(49,73,105,0.16), inset 0 1px 0 rgba(255,255,255,0.95)",
+          backdropFilter: "blur(38px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(38px) saturate(1.8)",
+        }}
+      >
+        <div ref={searchRef} className="relative min-w-0 flex-1 max-w-xl">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
           <input
             type="text"
             placeholder="Search customers, jobs, invoices..."
-            className="w-full pl-9 pr-10 py-2 text-sm rounded-lg focus:outline-none transition-all"
-            style={{
-              background: "var(--color-surface-3)",
-              border: "1px solid var(--color-border)",
-              color: "var(--color-text-primary)",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(29,78,216,0.5)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(29,78,216,0.1)";
+            className="shell-input h-11 w-full rounded-2xl pl-10 pr-3 text-sm sm:h-12 sm:pl-11 sm:pr-16"
+            value={query}
+            onFocus={() => {
               if (query.length >= 2) setIsOpen(true);
             }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "var(--color-border)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => setQuery(event.target.value)}
           />
           <kbd
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 rounded border"
+            className="absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-xl px-2 py-1 text-[11px] sm:flex"
             style={{
               color: "var(--color-text-muted)",
-              background: "var(--color-surface-4)",
-              borderColor: "var(--color-border)",
+              background: "rgba(255,255,255,0.68)",
+              border: "1px solid rgba(255,255,255,0.8)",
             }}
           >
-            ⌘K
+            <Command size={12} /> K
           </kbd>
-        </div>
-        {/* Search Dropdown */}
-        {isOpen && (
-          <div
-            ref={searchRef}
-            className="absolute top-full left-0 right-0 mt-2 rounded-lg shadow-xl border overflow-hidden z-50"
-            style={{
-              background: "var(--color-surface-1)",
-              borderColor: "var(--color-border)",
-            }}
-          >
-            {isLoading ? (
-              <div className="p-4 text-center" style={{ color: "var(--color-text-muted)" }}>
-                Searching...
-              </div>
-            ) : totalResults === 0 ? (
-              <div className="p-4 text-center" style={{ color: "var(--color-text-muted)" }}>
-                No results found for &quot;{query}&quot;
-              </div>
-            ) : (
-              <div className="max-h-96 overflow-y-auto">
-                {results.customers.length > 0 && (
-                  <div>
-                    <div
-                      className="px-4 py-2 text-xs font-medium uppercase"
-                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
-                    >
-                      Customers
-                    </div>
-                    {results.customers.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.href}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors"
-                        style={{ color: "var(--color-text-primary)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(37,99,235,0.2)", color: "#2563EB" }}
-                        >
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{item.title}</div>
-                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
-                            {item.subtitle}
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {results.jobs.length > 0 && (
-                  <div>
-                    <div
-                      className="px-4 py-2 text-xs font-medium uppercase"
-                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
-                    >
-                      Jobs
-                    </div>
-                    {results.jobs.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.href}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors"
-                        style={{ color: "var(--color-text-primary)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(29,78,216,0.2)", color: "#2563EB" }}
-                        >
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                            <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
-                            <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{item.title}</div>
-                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
-                            {item.subtitle}
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {results.invoices.length > 0 && (
-                  <div>
-                    <div
-                      className="px-4 py-2 text-xs font-medium uppercase"
-                      style={{ color: "var(--color-text-muted)", background: "var(--color-surface-3)" }}
-                    >
-                      Invoices
-                    </div>
-                    {results.invoices.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={item.href}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors"
-                        style={{ color: "var(--color-text-primary)" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{ background: "rgba(152,205,0,0.2)", color: "#98CD00" }}
-                        >
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{item.title}</div>
-                          <div className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
-                            {item.subtitle}
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-2 ml-auto">
-        {/* QuickBooks sync status */}
-        <Link
-          href="/integrations/quickbooks"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-          style={{
-            background: "rgba(152,205,0,0.1)",
-            border: "1px solid rgba(152,205,0,0.2)",
-            color: "#98CD00",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(152,205,0,0.18)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(152,205,0,0.1)";
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
-          <span>QB Synced</span>
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60">
-            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-          </svg>
-        </Link>
-
-        {/* Active techs */}
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
-          style={{
-            background: "var(--color-surface-3)",
-            border: "1px solid var(--color-border)",
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
-          <span>4 techs active</span>
+          {isOpen && (
+            <div
+              className="liquid-panel absolute left-0 right-0 top-full z-50 mt-3 max-h-[420px] overflow-hidden rounded-3xl"
+              style={{ boxShadow: "var(--shadow-elevated)" }}
+            >
+              {isLoading ? (
+                <div className="p-5 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>
+                  Searching...
+                </div>
+              ) : totalResults === 0 ? (
+                <div className="p-5 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>
+                  No results found for &quot;{query}&quot;
+                </div>
+              ) : (
+                <div className="max-h-[420px] overflow-y-auto p-2">
+                  <SearchGroup label="Customers" items={results.customers} onPick={() => setIsOpen(false)} />
+                  <SearchGroup label="Jobs" items={results.jobs} onPick={() => setIsOpen(false)} />
+                  <SearchGroup label="Invoices" items={results.invoices} onPick={() => setIsOpen(false)} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-5 mx-1" style={{ background: "var(--color-border)" }}></div>
-
-        {/* Notifications */}
-        <button
-          className="relative w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-          style={{ color: "var(--color-text-secondary)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-surface-3)";
-            e.currentTarget.style.color = "var(--color-text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-          </svg>
-          <span
-            className="absolute top-0.5 right-0.5 w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
-            style={{ background: "var(--color-ember)" }}
-          >
-            7
-          </span>
-        </button>
-
-        {/* Help */}
-        <button
-          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-          style={{ color: "var(--color-text-secondary)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-surface-3)";
-            e.currentTarget.style.color = "var(--color-text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-          </svg>
-        </button>
-
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 transition-colors text-xs font-medium"
-          style={{
-            color: "var(--color-text-secondary)",
-            border: "1px solid var(--color-border)",
-            background: "var(--color-surface-3)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-border-hover)";
-            e.currentTarget.style.color = "var(--color-text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-border)";
-            e.currentTarget.style.color = "var(--color-text-secondary)";
-          }}
-          aria-label="Toggle dark mode"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-          <span>{theme === "dark" ? "Light" : "Dark"}</span>
-        </button>
-
-        {/* Divider */}
-        <div className="w-px h-5 mx-1" style={{ background: "var(--color-border)" }}></div>
-
-        {/* User / Auth */}
-        <SignedIn>
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: "w-8 h-8",
-              },
-            }}
-          />
-        </SignedIn>
-        <SignedOut>
-          <Link
-            href="/sign-in"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{
-              background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
-              color: "white",
-            }}
-          >
-            Sign In
+        <div className="hidden items-center gap-2 xl:flex">
+          <Link href="/integrations/quickbooks">
+            <StatusPill tone={qbConnected ? "success" : "warning"}>
+              {qbConnected ? "QB Synced" : "QB Attention"}
+            </StatusPill>
           </Link>
-        </SignedOut>
+          <Link href="/dispatch">
+            <StatusPill tone="success">
+              {activeTechs} techs active{onJob ? ` · ${onJob} on job` : ""}
+            </StatusPill>
+          </Link>
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          <IconButton label="Notifications">
+            <Bell size={17} />
+            <span
+              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white"
+              style={{ background: "var(--color-ember)" }}
+            >
+              7
+            </span>
+          </IconButton>
+          <span className="hidden sm:inline-flex">
+          <IconButton label="Help">
+            <CircleHelp size={17} />
+          </IconButton>
+          </span>
+          <button
+            onClick={toggleTheme}
+            className="relative hidden h-10 w-10 items-center justify-center rounded-2xl sm:flex"
+            style={{
+              color: "var(--color-text-secondary)",
+              background: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.78)",
+            }}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <SunMedium size={17} /> : <Moon size={17} />}
+          </button>
+          <Link href="/settings" className="hidden sm:block">
+            <IconButton label="Settings">
+              <Settings size={17} />
+            </IconButton>
+          </Link>
+
+          <div className="mx-1 hidden h-8 w-px bg-slate-200/80 sm:block" />
+
+          <Link
+            href="/settings"
+            className="flex h-10 items-center gap-2 rounded-2xl py-1 pl-1 pr-3"
+            style={{
+              color: "var(--color-text-primary)",
+              background: "rgba(255,255,255,0.62)",
+              border: "1px solid rgba(255,255,255,0.78)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.84)",
+            }}
+          >
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}
+            >
+              JB
+            </span>
+            <span className="hidden leading-tight md:block">
+              <span className="block text-xs font-semibold">Jim B.</span>
+              <span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>Owner</span>
+            </span>
+          </Link>
+        </div>
       </div>
     </header>
   );
+}
+
+function IconButton({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <button
+      className="relative flex h-10 w-10 items-center justify-center rounded-2xl"
+      style={{
+        color: "var(--color-text-secondary)",
+        background: "rgba(255,255,255,0.6)",
+        border: "1px solid rgba(255,255,255,0.78)",
+      }}
+      aria-label={label}
+      title={label}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+function SearchGroup({
+  label,
+  items,
+  onPick,
+}: {
+  label: string;
+  items: SearchResult[];
+  onPick: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="py-1">
+      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--color-text-muted)" }}>
+        {label}
+      </div>
+      {items.map((item) => (
+        <Link
+          key={`${item.type}-${item.id}`}
+          href={item.href}
+          className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-white/60"
+          onClick={onPick}
+        >
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+            style={{
+              color: item.type === "invoice" ? "var(--color-success)" : item.type === "job" ? "var(--color-info)" : "var(--color-ember)",
+              background: "rgba(255,255,255,0.68)",
+              border: "1px solid rgba(255,255,255,0.78)",
+            }}
+          >
+            {item.type === "invoice" ? <ReceiptIcon /> : item.type === "job" ? <Zap size={16} /> : <UserRound size={16} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+              {item.title}
+            </span>
+            <span className="block truncate text-xs" style={{ color: "var(--color-text-muted)" }}>
+              {item.subtitle}
+            </span>
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ReceiptIcon() {
+  return <Zap size={16} />;
 }

@@ -1,17 +1,8 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Montserrat } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-
-// Forge & Flame uses Montserrat for everything (their --font-body-family +
-// --font-heading-family). Match exactly so the dashboard feels cut from
-// the same cloth as forgenflame.com.
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-  variable: "--font-sans",
-});
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +17,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider>
-      <html lang="en" className={montserrat.variable}>
-        <body className={montserrat.className}>{children}</body>
-      </html>
-    </ClerkProvider>
+  const document = (
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body>
+        <svg className="liquid-svg-defs" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="liquid-glass-distort" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.028" numOctaves="2" seed="7" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <filter id="liquid-glass-soft" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="0.38" />
+              <feColorMatrix type="saturate" values="1.22" />
+            </filter>
+          </defs>
+        </svg>
+        {children}
+      </body>
+    </html>
   );
+
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return document;
+  }
+
+  return <ClerkProvider>{document}</ClerkProvider>;
 }
