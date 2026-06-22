@@ -170,7 +170,7 @@ export default function RecentActivity() {
 
   return (
     <>
-      <div className="rounded-xl overflow-hidden h-full flex flex-col" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+      <div className="liquid-panel h-full overflow-hidden flex flex-col" style={{ borderRadius: "var(--radius-xl)" }}>
         <div className="px-5 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -247,8 +247,8 @@ export default function RecentActivity() {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="w-full max-w-md rounded-xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div className="liquid-panel w-full max-w-md rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{selected.title}</h3>

@@ -88,7 +88,6 @@ function mapJobToUI(job: {
     techColor: tech?.color || "#6b7280",
     priority: job.priority === "urgent" ? "emergency" : job.priority === "high" ? "high" : undefined,
     checklistPct: job.status === "completed" ? 100 : job.status === "in_progress" ? 65 : 0,
-    photosCount: Math.floor(Math.random() * 5),
     notes: job.notes,
   };
 }
@@ -153,6 +152,12 @@ export default function TodaysJobs() {
   }, []);
 
   const filtered = filter === "all" ? jobs : jobs.filter((j) => j.status === filter);
+  const todayLabel = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const counts = {
     all: jobs.length,
@@ -164,10 +169,9 @@ export default function TodaysJobs() {
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="liquid-panel overflow-hidden"
       style={{
-        background: "var(--color-surface-2)",
-        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-xl)",
       }}
     >
       {/* Header */}
@@ -180,21 +184,22 @@ export default function TodaysJobs() {
             {"Today's Jobs"}
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-            Monday, February 24, 2026
+            {todayLabel}
           </p>
         </div>
         <button
           className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
           style={{
-            background: "rgba(29,78,216,0.15)",
-            color: "#2563EB",
-            border: "1px solid rgba(29,78,216,0.2)",
+            background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))",
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,0.45)",
+            boxShadow: "0 12px 28px rgba(255,106,0,0.22)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(29,78,216,0.25)";
+            e.currentTarget.style.transform = "translateY(-1px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(29,78,216,0.15)";
+            e.currentTarget.style.transform = "translateY(0)";
           }}
         >
           + New Job

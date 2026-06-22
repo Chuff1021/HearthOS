@@ -27,13 +27,16 @@ export default function DispatchBoard() {
   }
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, 15000);
-    return () => clearInterval(t);
+    const initial = window.setTimeout(load, 0);
+    const t = window.setInterval(load, 15000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(t);
+    };
   }, []);
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+    <div className="liquid-panel overflow-hidden" style={{ borderRadius: "var(--radius-xl)" }}>
       <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
         <h2 className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>Dispatch Board</h2>
         <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>Live from real tech + job records</p>
