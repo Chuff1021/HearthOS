@@ -13,6 +13,7 @@ import {
 import { getJobs } from "@/app/api/jobs/route";
 import { isClerkConfigured } from "@/lib/auth";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { listLatestServiceOutreach } from "@/lib/service-map-outreach-store";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -41,6 +42,12 @@ type CustomerPoint = {
   scheduled: boolean;
   scheduledJobId: string | null;
   scheduledDate: string | null;
+  outreachStatus: string | null;
+  outreachNote: string | null;
+  outreachContactDate: string | null;
+  outreachNeedsFollowUp: boolean;
+  outreachFollowUpDate: string | null;
+  outreachUpdatedAt: string | null;
   evidence: string[];
   scheduleUrl: string;
 };
@@ -182,7 +189,7 @@ export async function GET() {
     const cutoffIso = cutoff.toISOString().slice(0, 10);
     const cutoffTime = dateMs(cutoffIso);
 
-    const [customerRows, propertyRows, unitRows, invoiceRows, planRows, jobRows] = await Promise.all([
+    const [customerRows, propertyRows, unitRows, invoiceRows, planRows, jobRows, latestOutreach] = await Promise.all([
       db.select().from(customers).where(eq(customers.orgId, org.id)),
       db.select().from(properties).where(eq(properties.orgId, org.id)),
       db.select().from(fireplaceUnits).where(eq(fireplaceUnits.orgId, org.id)),
@@ -198,6 +205,7 @@ export async function GET() {
         .where(eq(invoices.orgId, org.id)),
       db.select().from(servicePlans).where(eq(servicePlans.orgId, org.id)),
       getJobs().catch(() => []),
+      listLatestServiceOutreach(org.id).catch(() => new Map()),
     ]);
 
     const propsByCustomer = new Map<string, typeof propertyRows[number][]>();
@@ -305,6 +313,7 @@ export async function GET() {
           scheduledByCustomer.get(c.id) ||
           (c.qbCustomerId ? scheduledByCustomer.get(c.qbCustomerId) : undefined) ||
           null;
+        const outreach = latestOutreach.get(c.id) || null;
 
         const item: CustomerPoint = {
           id: c.id,
@@ -328,6 +337,12 @@ export async function GET() {
           scheduled: Boolean(scheduled),
           scheduledJobId: scheduled?.id || null,
           scheduledDate: scheduled?.date || null,
+          outreachStatus: outreach?.outcome || null,
+          outreachNote: outreach?.note || null,
+          outreachContactDate: outreach?.contactDate || null,
+          outreachNeedsFollowUp: Boolean(outreach?.needsFollowUp),
+          outreachFollowUpDate: outreach?.followUpDate || null,
+          outreachUpdatedAt: outreach?.createdAt || null,
           evidence: [...new Set(evidence)].slice(0, 4),
           scheduleUrl: "",
         };

@@ -15,6 +15,7 @@ type ServiceCategory = "gas" | "wood" | "pellet" | "unknown";
 type FilterKey = "target" | "all" | "gas" | "wood" | "pellet" | "unknown";
 type MapStyle = "street" | "satellite";
 type MapMode = "zones" | "customers";
+type OutreachOutcome = "not_called" | "called" | "no_answer" | "left_message" | "texted" | "emailed" | "follow_up";
 
 type ServiceMapCustomer = {
   id: string;
@@ -38,6 +39,12 @@ type ServiceMapCustomer = {
   scheduled: boolean;
   scheduledJobId: string | null;
   scheduledDate: string | null;
+  outreachStatus: OutreachOutcome | null;
+  outreachNote: string | null;
+  outreachContactDate: string | null;
+  outreachNeedsFollowUp: boolean;
+  outreachFollowUpDate: string | null;
+  outreachUpdatedAt: string | null;
   evidence: string[];
   scheduleUrl: string;
 };
@@ -102,6 +109,28 @@ const filterLabels: Record<FilterKey, string> = {
   unknown: "Unknown",
 };
 
+const outreachLabels: Record<OutreachOutcome, string> = {
+  not_called: "Not called",
+  called: "Called",
+  no_answer: "No answer",
+  left_message: "Left voicemail",
+  texted: "Texted",
+  emailed: "Emailed",
+  follow_up: "Follow-up needed",
+};
+
+type OutreachDraft = {
+  outcome: OutreachOutcome;
+  contactDate: string;
+  needsFollowUp: boolean;
+  followUpDate: string;
+  note: string;
+};
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -148,6 +177,9 @@ export default function ServiceMapPage() {
   const [mapStyle, setMapStyle] = useState<MapStyle>("street");
   const [mapMode, setMapMode] = useState<MapMode>("zones");
   const [selected, setSelected] = useState<ServiceMapCustomer | null>(null);
+  const [activeOutreachId, setActiveOutreachId] = useState<string | null>(null);
+  const [savingOutreachId, setSavingOutreachId] = useState<string | null>(null);
+  const [outreachDrafts, setOutreachDrafts] = useState<Record<string, OutreachDraft>>({});
 
   const loadMapData = useCallback(async () => {
     setLoading(true);
@@ -284,6 +316,10 @@ export default function ServiceMapPage() {
       })
       .sort((a, b) => {
         if (a.scheduled !== b.scheduled) return a.scheduled ? 1 : -1;
+        if (a.outreachNeedsFollowUp !== b.outreachNeedsFollowUp) return a.outreachNeedsFollowUp ? -1 : 1;
+        if (a.outreachFollowUpDate || b.outreachFollowUpDate) {
+          return String(a.outreachFollowUpDate || "9999-12-31").localeCompare(String(b.outreachFollowUpDate || "9999-12-31"));
+        }
         const zoneCompare = a.zoneLabel.localeCompare(b.zoneLabel);
         if (zoneCompare !== 0 && zoneFilter === "all") return zoneCompare;
         if (b.serviceCount18mo !== a.serviceCount18mo) return b.serviceCount18mo - a.serviceCount18mo;
@@ -493,6 +529,79 @@ export default function ServiceMapPage() {
       }).length
     : visibleItems.filter((item) => item.isTarget).length;
 
+  function defaultOutreachDraft(item: ServiceMapCustomer): OutreachDraft {
+    return {
+      outcome: item.outreachStatus || "called",
+      contactDate: item.outreachContactDate || todayIso(),
+      needsFollowUp: item.outreachNeedsFollowUp || false,
+      followUpDate: item.outreachFollowUpDate || "",
+      note: "",
+    };
+  }
+
+  function openOutreach(item: ServiceMapCustomer) {
+    setActiveOutreachId((current) => (current === item.id ? null : item.id));
+    setOutreachDrafts((current) => ({
+      ...current,
+      [item.id]: current[item.id] || defaultOutreachDraft(item),
+    }));
+  }
+
+  function updateOutreachDraft(customerId: string, patch: Partial<OutreachDraft>) {
+    setOutreachDrafts((current) => ({
+      ...current,
+      [customerId]: {
+        ...(current[customerId] || {
+          outcome: "called",
+          contactDate: todayIso(),
+          needsFollowUp: false,
+          followUpDate: "",
+          note: "",
+        }),
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveOutreach(item: ServiceMapCustomer) {
+    const draft = outreachDrafts[item.id] || defaultOutreachDraft(item);
+    setSavingOutreachId(item.id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/service-map/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: item.id,
+          outcome: draft.outcome,
+          contactDate: draft.contactDate || todayIso(),
+          needsFollowUp: draft.needsFollowUp,
+          followUpDate: draft.needsFollowUp ? draft.followUpDate || null : null,
+          note: draft.note,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Failed to save outreach note");
+      setMessage(`Saved outreach note for ${item.displayName}.`);
+      setActiveOutreachId(null);
+      setOutreachDrafts((current) => ({
+        ...current,
+        [item.id]: {
+          outcome: draft.outcome,
+          contactDate: todayIso(),
+          needsFollowUp: draft.needsFollowUp,
+          followUpDate: draft.followUpDate,
+          note: "",
+        },
+      }));
+      await loadMapData();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save outreach note");
+    } finally {
+      setSavingOutreachId(null);
+    }
+  }
+
   return (
     <div className="app-chrome flex h-screen overflow-hidden">
       <Sidebar />
@@ -698,7 +807,7 @@ export default function ServiceMapPage() {
                   {callList.slice(0, 50).map((item) => (
                     <div
                       key={item.id}
-                      className="glass-row w-full rounded-2xl p-3 text-left transition hover:translate-y-[-1px]"
+                      className="glass-row service-call-card w-full min-w-0 overflow-hidden rounded-2xl p-3 text-left transition hover:translate-y-[-1px]"
                     >
                       <button onClick={() => setSelected(item)} className="flex w-full items-start gap-3 text-left">
                         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: item.scheduled ? statusColors.scheduled : statusColors.unscheduled }} />
@@ -707,19 +816,49 @@ export default function ServiceMapPage() {
                           <span className="mt-0.5 block text-xs" style={{ color: "var(--color-text-muted)" }}>
                             {item.zoneLabel} - {categoryLabels[item.serviceCategory]} - last {relDate(item.lastServiceDate)}
                           </span>
+                          <span className="mt-1 block text-xs font-semibold" style={{ color: item.outreachNeedsFollowUp ? "#c2410c" : "var(--color-text-muted)" }}>
+                            {item.outreachContactDate
+                              ? `${outreachLabels[item.outreachStatus || "called"]} ${formatDate(item.outreachContactDate)}`
+                              : "No outreach logged"}
+                            {item.outreachNeedsFollowUp
+                              ? ` - follow up ${item.outreachFollowUpDate ? formatDate(item.outreachFollowUpDate) : "needed"}`
+                              : ""}
+                          </span>
                         </span>
                         <span className="text-xs font-semibold" style={{ color: item.scheduled ? statusColors.scheduled : statusColors.unscheduled }}>
                           {item.scheduled ? "Scheduled" : "Call"}
                         </span>
                       </button>
-                      <div className="mt-3 grid grid-cols-4 gap-2">
+                      {item.outreachNote && (
+                        <p className="mt-2 rounded-xl px-2.5 py-2 text-xs leading-5" style={{ background: "rgba(255,255,255,0.38)", color: "var(--color-text-secondary)" }}>
+                          {item.outreachNote}
+                        </p>
+                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Action href={item.phone ? `tel:${item.phone}` : undefined} label="Call" icon={<Phone size={14} />} />
                         <Action href={item.phone ? `sms:${item.phone}` : undefined} label="Text" icon={<MessageSquare size={14} />} />
                         <Action href={item.email ? `mailto:${item.email}` : undefined} label="Email" icon={<Mail size={14} />} />
-                        <Link href={item.scheduleUrl} className="rounded-xl px-2 py-1.5 text-center text-xs font-semibold" style={{ background: "rgba(255,106,0,0.14)", color: "#c2410c", border: "1px solid rgba(255,106,0,0.22)" }}>
+                        <button
+                          onClick={() => openOutreach(item)}
+                          className="rounded-xl px-2 py-1.5 text-center text-xs font-semibold"
+                          style={{ background: "rgba(255,255,255,0.46)", color: "var(--color-text-primary)", border: "1px solid rgba(255,255,255,0.68)" }}
+                        >
+                          Note
+                        </button>
+                        <Link href={item.scheduleUrl} className="rounded-xl px-2.5 py-1.5 text-center text-xs font-semibold" style={{ background: "rgba(255,106,0,0.14)", color: "#c2410c", border: "1px solid rgba(255,106,0,0.22)" }}>
                           Schedule
                         </Link>
                       </div>
+                      {activeOutreachId === item.id && (
+                        <OutreachEditor
+                          item={item}
+                          draft={outreachDrafts[item.id] || defaultOutreachDraft(item)}
+                          saving={savingOutreachId === item.id}
+                          onChange={(patch) => updateOutreachDraft(item.id, patch)}
+                          onCancel={() => setActiveOutreachId(null)}
+                          onSave={() => saveOutreach(item)}
+                        />
+                      )}
                     </div>
                   ))}
                   {callList.length === 0 && (
@@ -786,6 +925,95 @@ function Segmented({ value, onChange, values, suffix }: { value: number; onChang
           {item}{suffix}
         </button>
       ))}
+    </div>
+  );
+}
+
+function OutreachEditor({
+  item,
+  draft,
+  saving,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  item: ServiceMapCustomer;
+  draft: OutreachDraft;
+  saving: boolean;
+  onChange: (patch: Partial<OutreachDraft>) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="mt-3 w-full min-w-0 overflow-hidden rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.42)", border: "1px solid rgba(255,255,255,0.72)" }}>
+      <div className="grid gap-2">
+        <label className="grid min-w-0 gap-1 text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>
+          Call result
+          <select
+            value={draft.outcome}
+            onChange={(event) => onChange({ outcome: event.target.value as OutreachOutcome })}
+            className="w-full min-w-0 rounded-xl px-2.5 py-2 text-xs font-semibold normal-case tracking-normal outline-none"
+            style={{ background: "rgba(255,255,255,0.64)", border: "1px solid rgba(255,255,255,0.78)", color: "var(--color-text-primary)" }}
+          >
+            {Object.entries(outreachLabels).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-1 text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>
+          Date
+          <input
+            type="date"
+            value={draft.contactDate}
+            onChange={(event) => onChange({ contactDate: event.target.value })}
+            className="w-full min-w-0 rounded-xl px-2.5 py-2 text-xs font-semibold normal-case tracking-normal outline-none"
+            style={{ background: "rgba(255,255,255,0.64)", border: "1px solid rgba(255,255,255,0.78)", color: "var(--color-text-primary)" }}
+          />
+        </label>
+      </div>
+      <label className="mt-2 flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
+        <input
+          type="checkbox"
+          checked={draft.needsFollowUp}
+          onChange={(event) => onChange({ needsFollowUp: event.target.checked })}
+        />
+        Needs follow-up
+      </label>
+      {draft.needsFollowUp && (
+        <label className="mt-2 grid min-w-0 gap-1 text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>
+          Follow-up date
+          <input
+            type="date"
+            value={draft.followUpDate}
+            onChange={(event) => onChange({ followUpDate: event.target.value })}
+            className="w-full min-w-0 rounded-xl px-2.5 py-2 text-xs font-semibold normal-case tracking-normal outline-none"
+            style={{ background: "rgba(255,255,255,0.64)", border: "1px solid rgba(255,255,255,0.78)", color: "var(--color-text-primary)" }}
+          />
+        </label>
+      )}
+      <label className="mt-2 grid min-w-0 gap-1 text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--color-text-muted)" }}>
+        Note for {item.displayName}
+        <textarea
+          value={draft.note}
+          onChange={(event) => onChange({ note: event.target.value })}
+          rows={3}
+          placeholder="Example: left voicemail, prefers mornings, call back next Tuesday..."
+          className="w-full min-w-0 resize-none rounded-xl px-2.5 py-2 text-xs normal-case tracking-normal outline-none"
+          style={{ background: "rgba(255,255,255,0.64)", border: "1px solid rgba(255,255,255,0.78)", color: "var(--color-text-primary)" }}
+        />
+      </label>
+      <div className="mt-3 flex justify-end gap-2">
+        <button onClick={onCancel} className="rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+          Cancel
+        </button>
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="btn-ember rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {saving ? "Saving..." : "Save note"}
+        </button>
+      </div>
     </div>
   );
 }
