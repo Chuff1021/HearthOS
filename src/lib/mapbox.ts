@@ -12,14 +12,14 @@ export function hasMapboxTiles() {
 }
 
 export function mapboxProviderLabel() {
-  return hasMapboxTiles() ? "Mapbox" : "Carto";
+  return hasMapboxTiles() ? "Mapbox Navigation" : "Carto";
 }
 
 export function createTrackingTileLayer(L: any, style: TileStyle) {
   const token = publicMapboxToken();
 
   if (token) {
-    const mapboxStyle = style === "satellite" ? "satellite-streets-v12" : "streets-v12";
+    const mapboxStyle = style === "satellite" ? "satellite-streets-v12" : "navigation-day-v1";
     return L.tileLayer(
       `https://api.mapbox.com/styles/v1/mapbox/${mapboxStyle}/tiles/512/{z}/{x}/{y}@2x?access_token=${encodeURIComponent(token)}`,
       {

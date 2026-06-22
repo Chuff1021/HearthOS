@@ -439,33 +439,33 @@ export default function DispatchPage() {
         </div>
 
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
-          <div className="xl:col-span-2 rounded-xl p-5" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
+          <div className="xl:col-span-2 rounded-3xl p-5 glass-panel" style={{ border: '1px solid rgba(255,255,255,0.72)' }}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
                 <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                  {mapboxProviderLabel()} tiles · {hasMapboxTiles() ? 'Mapbox employee tracking enabled' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
+                  {mapboxProviderLabel()} · {hasMapboxTiles() ? 'high-detail employee tracking map' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
-                  <button onClick={() => setMapStyle('street')} className="px-2.5 py-1 text-xs" style={{ background: mapStyle === 'street' ? '#2563EB' : 'var(--color-surface-3)', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)' }}>Street</button>
-                  <button onClick={() => setMapStyle('satellite')} className="px-2.5 py-1 text-xs" style={{ background: mapStyle === 'satellite' ? '#2563EB' : 'var(--color-surface-3)', color: mapStyle === 'satellite' ? '#fff' : 'var(--color-text-secondary)' }}>Satellite</button>
+                <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+                  <button onClick={() => setMapStyle('street')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'street' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'street' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Navigation</button>
+                  <button onClick={() => setMapStyle('satellite')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'satellite' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'satellite' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'satellite' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Satellite</button>
                 </div>
                 <button
                   onClick={centerOnSelectedTech}
                   disabled={!selectedTech?.location}
-                  className="px-2.5 py-1 rounded-lg text-xs disabled:opacity-50"
-                  style={{ border: '1px solid var(--color-border)' }}
+                  className="map-glass-chip rounded-2xl px-3 py-2 text-xs font-semibold disabled:opacity-50"
                 >
                   Center on tech
                 </button>
               </div>
             </div>
-            <div className="h-[480px] rounded-xl overflow-hidden relative" style={{ background: '#f5f7fa', border: '1px solid var(--color-border)' }}>
-              <div ref={mapContainerRef} className="absolute inset-0" />
+            <div className="premium-tracking-map liquid-map-stage h-[480px] overflow-hidden rounded-[1.7rem] relative">
+              <div ref={mapContainerRef} className="absolute inset-0 ops-map-canvas" />
+              <div className="ops-map-glass" />
               {liveTechs.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
+                <div className="absolute inset-0 z-[430] flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
                   No live GPS pings yet. Techs need to clock in on their phone app to start GPS tracking.
                 </div>
               )}
