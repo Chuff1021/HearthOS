@@ -232,10 +232,10 @@ export default function DashboardPage() {
           <div className="liquid-dashboard mx-auto w-full min-w-0 max-w-[1720px] space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div className="min-w-0 flex-1 basis-[220px]">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-text-muted)" }} suppressHydrationWarning>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-text-muted)" }}>
                   {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 </p>
-                <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight md:text-[2.35rem]" suppressHydrationWarning>
+                <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight md:text-[2.35rem]">
                   {greetingFor(now)}, Colton.
                 </h1>
               </div>
