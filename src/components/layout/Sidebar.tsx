@@ -94,16 +94,16 @@ export default function Sidebar() {
   return (
     <>
     <aside
-      className={`${collapsed ? "w-[76px]" : "w-[228px]"} liquid-rail glass-shell relative m-3 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.9rem] transition-all duration-200 lg:flex`}
-      style={{
-        background: "linear-gradient(160deg, rgba(255,255,255,0.44), rgba(255,255,255,0.2))",
-        border: "1px solid rgba(255,255,255,0.94)",
-        boxShadow: "0 30px 90px rgba(49,73,105,0.2), inset 0 1px 0 rgba(255,255,255,0.96)",
-        backdropFilter: "blur(42px) saturate(1.9)",
-        WebkitBackdropFilter: "blur(42px) saturate(1.9)",
-      }}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.9),transparent_32%),radial-gradient(circle_at_8%_18%,rgba(255,106,0,0.16),transparent_22%)]" />
+	      className={`${collapsed ? "w-[76px]" : "w-[228px]"} liquid-rail glass-shell relative m-3 mr-0 hidden shrink-0 flex-col overflow-hidden rounded-[1.9rem] transition-all duration-200 lg:flex`}
+	      style={{
+	        background: "linear-gradient(160deg, rgba(255,255,255,0.96), rgba(247,250,255,0.78))",
+	        border: "1px solid rgba(255,255,255,0.98)",
+	        boxShadow: "0 28px 70px rgba(39,55,82,0.12), inset 0 1px 0 rgba(255,255,255,1)",
+	        backdropFilter: "blur(26px) saturate(1.14)",
+	        WebkitBackdropFilter: "blur(26px) saturate(1.14)",
+	      }}
+	    >
+	      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.74),transparent_34%),radial-gradient(circle_at_8%_18%,rgba(255,106,0,0.08),transparent_22%)]" />
 
       <div className="relative flex shrink-0 items-center gap-3 px-4 py-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_14px_30px_rgba(255,106,0,0.18)]">
@@ -124,11 +124,11 @@ export default function Sidebar() {
         <button
           onClick={() => setCollapsed((value) => !value)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{
-            color: "var(--color-text-muted)",
-            background: "rgba(255,255,255,0.58)",
-            border: "1px solid rgba(255,255,255,0.78)",
-          }}
+	          style={{
+	            color: "var(--color-text-muted)",
+	            background: "rgba(255,255,255,0.76)",
+	            border: "1px solid rgba(15,23,42,0.06)",
+	          }}
           aria-label="Toggle sidebar"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -226,10 +226,10 @@ export default function Sidebar() {
           href="/settings"
           className={`flex items-center gap-3 rounded-2xl p-2.5 ${collapsed ? "justify-center" : ""}`}
           style={{
-            background: "rgba(255,255,255,0.62)",
-            border: "1px solid rgba(255,255,255,0.8)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.82)",
-          }}
+	            background: "rgba(255,255,255,0.62)",
+	            border: "1px solid rgba(15,23,42,0.06)",
+	            boxShadow: "0 12px 28px rgba(39,55,82,0.06), inset 0 1px 0 rgba(255,255,255,0.92)",
+	          }}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
             JB

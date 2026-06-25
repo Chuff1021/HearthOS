@@ -140,14 +140,14 @@ export default function Header() {
   return (
     <header className="shrink-0 px-3 pb-2 pt-3 lg:px-5 lg:pt-4">
       <div
-        className="glass-shell glass-toolbar flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-2 sm:gap-4 sm:px-4"
-        style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.22))",
-          border: "1px solid rgba(255,255,255,0.92)",
-          boxShadow: "0 20px 70px rgba(49,73,105,0.16), inset 0 1px 0 rgba(255,255,255,0.95)",
-          backdropFilter: "blur(38px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(38px) saturate(1.8)",
-        }}
+	        className="glass-shell glass-toolbar flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-2 sm:gap-4 sm:px-4"
+	        style={{
+	          background: "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(249,251,255,0.76))",
+	          border: "1px solid rgba(255,255,255,0.96)",
+	          boxShadow: "0 18px 52px rgba(39,55,82,0.1), inset 0 1px 0 rgba(255,255,255,0.98)",
+	          backdropFilter: "blur(24px) saturate(1.16)",
+	          WebkitBackdropFilter: "blur(24px) saturate(1.16)",
+	        }}
       >
         <div ref={searchRef} className="relative min-w-0 flex-1 max-w-xl">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
@@ -163,11 +163,11 @@ export default function Header() {
           />
           <kbd
             className="absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-xl px-2 py-1 text-[11px] sm:flex"
-            style={{
-              color: "var(--color-text-muted)",
-              background: "rgba(255,255,255,0.68)",
-              border: "1px solid rgba(255,255,255,0.8)",
-            }}
+	            style={{
+	              color: "var(--color-text-muted)",
+	              background: "rgba(255,255,255,0.82)",
+	              border: "1px solid rgba(15,23,42,0.06)",
+	            }}
           >
             <Command size={12} /> K
           </kbd>
@@ -227,11 +227,11 @@ export default function Header() {
           <button
             onClick={toggleTheme}
             className="relative hidden h-10 w-10 items-center justify-center rounded-2xl sm:flex"
-            style={{
-              color: "var(--color-text-secondary)",
-              background: "rgba(255,255,255,0.6)",
-              border: "1px solid rgba(255,255,255,0.78)",
-            }}
+	            style={{
+	              color: "var(--color-text-secondary)",
+	              background: "rgba(255,255,255,0.82)",
+	              border: "1px solid rgba(15,23,42,0.06)",
+	            }}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
@@ -248,12 +248,12 @@ export default function Header() {
           <Link
             href="/settings"
             className="flex h-10 items-center gap-2 rounded-2xl py-1 pl-1 pr-3"
-            style={{
-              color: "var(--color-text-primary)",
-              background: "rgba(255,255,255,0.62)",
-              border: "1px solid rgba(255,255,255,0.78)",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.84)",
-            }}
+	            style={{
+	              color: "var(--color-text-primary)",
+	              background: "rgba(255,255,255,0.84)",
+	              border: "1px solid rgba(15,23,42,0.06)",
+	              boxShadow: "0 10px 26px rgba(39,55,82,0.06), inset 0 1px 0 rgba(255,255,255,0.94)",
+	            }}
           >
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
@@ -274,13 +274,13 @@ export default function Header() {
 
 function IconButton({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <button
-      className="relative flex h-10 w-10 items-center justify-center rounded-2xl"
-      style={{
-        color: "var(--color-text-secondary)",
-        background: "rgba(255,255,255,0.6)",
-        border: "1px solid rgba(255,255,255,0.78)",
-      }}
+	    <button
+	      className="relative flex h-10 w-10 items-center justify-center rounded-2xl"
+	      style={{
+	        color: "var(--color-text-secondary)",
+	        background: "rgba(255,255,255,0.82)",
+	        border: "1px solid rgba(15,23,42,0.06)",
+	      }}
       aria-label={label}
       title={label}
       type="button"
