@@ -256,15 +256,15 @@ export default function Header() {
 	            }}
           >
             <span
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}
-            >
-              JB
-            </span>
-            <span className="hidden leading-tight md:block">
-              <span className="block text-xs font-semibold">Jim B.</span>
-              <span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>Owner</span>
-            </span>
+	              className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
+	              style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}
+	            >
+	              CH
+	            </span>
+	            <span className="hidden leading-tight md:block">
+	              <span className="block text-xs font-semibold">Colton</span>
+	              <span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>Owner</span>
+	            </span>
           </Link>
         </div>
       </div>

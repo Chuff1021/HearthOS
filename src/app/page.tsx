@@ -161,6 +161,13 @@ const fmtMoneyShort = (n: number) => {
 
 const todayIso = () => new Date().toISOString().split("T")[0];
 
+function greetingFor(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 function relativeDate(value: string | null | undefined) {
   if (!value) return "No activity";
   const diff = Date.now() - new Date(value).getTime();
@@ -171,6 +178,7 @@ function relativeDate(value: string | null | undefined) {
 }
 
 export default function DashboardPage() {
+  const [now, setNow] = useState(() => new Date());
   const [profit, setProfit] = useState<ProfitResp | null>(null);
   const [cust, setCust] = useState<CustomerResp | null>(null);
   const [vend, setVend] = useState<VendorResp | null>(null);
@@ -178,6 +186,11 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardResp | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const ytdSince = `${new Date().getFullYear()}-01-01`;
@@ -220,10 +233,10 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div className="min-w-0 flex-1 basis-[220px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-text-muted)" }}>
-                  {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                  {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 </p>
                 <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight md:text-[2.35rem]">
-                  Good morning, Jim.
+                  {greetingFor(now)}, Colton.
                 </h1>
               </div>
               <Link href="/jobs/new" className="ui-btn-primary hidden shrink-0 items-center gap-2 px-4 py-3 text-sm sm:inline-flex">

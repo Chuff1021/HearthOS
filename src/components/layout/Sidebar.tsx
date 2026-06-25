@@ -231,14 +231,14 @@ export default function Sidebar() {
 	            boxShadow: "0 12px 28px rgba(39,55,82,0.06), inset 0 1px 0 rgba(255,255,255,0.92)",
 	          }}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
-            JB
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                Jim B.
-              </div>
+	          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
+	            CH
+	          </div>
+	          {!collapsed && (
+	            <div className="min-w-0 flex-1">
+	              <div className="truncate text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
+	                Colton
+	              </div>
               <div className="truncate text-[11px]" style={{ color: "var(--color-text-muted)" }}>
                 Owner
               </div>
