@@ -47,7 +47,7 @@ export default function DemoCredentialSignIn() {
       if (result.status !== "complete" || !result.createdSessionId) {
         throw new Error("This account requires an additional sign-in step.");
       }
-      await setActive({ session: result.createdSessionId, redirectUrl: "/account" });
+      await setActive({ session: result.createdSessionId, redirectUrl: "/account/demo" });
     } catch (nextError) {
       setError(clerkErrorMessage(nextError));
       setSubmitting(false);
