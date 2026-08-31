@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -18,6 +18,11 @@ type CustomerRow = {
   companyName: string | null;
   email: string | null;
   phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   source: string | null;
   isActive: boolean;
   balance: number;
@@ -61,6 +66,29 @@ const relTime = (s: string | null | undefined) => {
   if (days < 365) return `${Math.floor(days / 30)}mo ago`;
   return `${Math.floor(days / 365)}y ago`;
 };
+
+function customerAddressForJob(c: CustomerRow) {
+  return [
+    c.addressLine1,
+    c.addressLine2,
+    [c.city, c.state, c.zip].filter(Boolean).join(", ").replace(/, (\w{2}|\d{5})$/, " $1"),
+  ]
+    .filter((part) => part && String(part).trim())
+    .join(", ");
+}
+
+function addJobHrefForCustomer(c: CustomerRow) {
+  const params = new URLSearchParams({
+    create: "1",
+    customerId: c.id,
+    customerName: c.displayName,
+    jobType: "follow-up",
+    title: "Follow up",
+  });
+  const address = customerAddressForJob(c);
+  if (address) params.set("address", address);
+  return `/schedule?${params.toString()}`;
+}
 
 function useDebounced<T>(value: T, ms = 250): T {
   const [v, setV] = useState(value);
@@ -106,15 +134,20 @@ function CustomersListInner() {
   const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const requestSequence = useRef(0);
 
   const fetchList = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     setLoading(true);
     const params = new URLSearchParams({ q: debounced, filter, sort, dir });
     try {
       const r = await fetch(`/api/customers/center?${params}`);
-      if (r.ok) setData(await r.json());
+      if (r.ok) {
+        const nextData = await r.json();
+        if (requestId === requestSequence.current) setData(nextData);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [debounced, filter, sort, dir]);
 
@@ -197,7 +230,7 @@ function CustomersListInner() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--color-text-muted)" }}>🔍</span>
                 <input
                   type="text"
-                  placeholder="Search by name, company, or email…"
+                  placeholder="Search by name, company, phone, or address..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg outline-none focus:ring-2 focus:ring-orange-500"
@@ -222,7 +255,7 @@ function CustomersListInner() {
                       <Th onClick={sortFor("revenue")} active={sort === "revenue"} dir={dir} className="text-right">Total revenue</Th>
                       <Th onClick={sortFor("balance")} active={sort === "balance"} dir={dir} className="text-right">A/R balance</Th>
                       <Th onClick={sortFor("activity")} active={sort === "activity"} dir={dir} className="text-right">Last activity</Th>
-                      <Th></Th>
+                      <Th className="text-right">Actions</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -258,7 +291,8 @@ function CustomersListInner() {
                         <td className="px-4 py-3 text-xs" style={{ color: "var(--color-text-secondary)" }}>
                           {c.email && <div className="truncate max-w-[220px]">{c.email}</div>}
                           {c.phone && <div style={{ color: "var(--color-text-muted)" }}>{c.phone}</div>}
-                          {!c.email && !c.phone && <span style={{ color: "var(--color-text-muted)" }}>—</span>}
+                          {customerAddressForJob(c) && <div className="truncate max-w-[280px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{customerAddressForJob(c)}</div>}
+                          {!c.email && !c.phone && !customerAddressForJob(c) && <span style={{ color: "var(--color-text-muted)" }}>—</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {c.openInvoiceCount > 0 ? (
@@ -280,7 +314,22 @@ function CustomersListInner() {
                         <td className="px-4 py-3 text-right text-xs" style={{ color: "var(--color-text-muted)" }}>
                           {relTime(c.lastActivity)}
                         </td>
-                        <td className="px-4 py-3 text-right" style={{ color: "var(--color-text-muted)" }}>→</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(addJobHrefForCustomer(c));
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-90"
+                              style={{ background: "#2563EB", color: "white" }}
+                            >
+                              Add Job
+                            </button>
+                            <span style={{ color: "var(--color-text-muted)" }}>→</span>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

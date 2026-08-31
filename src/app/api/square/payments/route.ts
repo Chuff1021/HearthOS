@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const amount = Number(body?.amount);
+    const invoiceAmount = body?.invoiceAmount == null ? amount : Number(body.invoiceAmount);
     const sourceId = String(body?.sourceId || "");
     const customerName = String(body?.customerName || "Customer");
     const invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
@@ -38,6 +39,9 @@ export async function POST(request: NextRequest) {
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: "amount must be greater than 0" }, { status: 400 });
+    }
+    if (!Number.isFinite(invoiceAmount) || invoiceAmount <= 0 || invoiceAmount > amount) {
+      return NextResponse.json({ error: "invoiceAmount must be greater than 0 and no more than amount" }, { status: 400 });
     }
 
     if (!sourceId) {
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
       try {
         invoicePayment = await recordInvoicePayment({
           invoiceNumber,
-          amount,
+          amount: invoiceAmount,
           paymentMethod: paymentMethodFromSquare(sourceType),
           transactionId: payment?.id,
           paidAt: payment?.created_at ? new Date(payment.created_at) : new Date(),

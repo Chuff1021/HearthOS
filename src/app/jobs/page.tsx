@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { CalendarDays, CheckCircle2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
@@ -44,6 +45,18 @@ type RelatedDoc = {
   balance?: number;
   linked?: boolean;
   jobTitle?: string;
+};
+
+type RelatedPayment = {
+  id: string;
+  invoiceId: string;
+  invoiceNumber?: string | null;
+  amount: number;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+  qbPaymentId?: string | null;
+  transactionId?: string | null;
+  notes?: string | null;
 };
 
 type RelatedInvoicePreview = {
@@ -107,11 +120,38 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
 const jobTypeIcons: Record<string, string> = {
   installation: "🔧",
   service: "🛠️",
+  "wood-service": "🪵",
+  "pellet-service": "🔥",
   inspection: "🔍",
   cleaning: "🧹",
   repair: "⚡",
   estimate: "📋",
+  "follow-up": "↻",
 };
+
+const CUSTOM_JOB_TYPE_VALUE = "custom";
+const JOB_TYPE_VALUES = new Set([
+  "service",
+  "wood-service",
+  "pellet-service",
+  "installation",
+  "inspection",
+  "cleaning",
+  "repair",
+  "estimate",
+  "follow-up",
+]);
+
+function jobTypeStateFromValue(value: string | null | undefined) {
+  const cleaned = (value || "").trim();
+  if (!cleaned) return { jobType: "service", customJobType: "" };
+  if (JOB_TYPE_VALUES.has(cleaned)) return { jobType: cleaned, customJobType: "" };
+  return { jobType: CUSTOM_JOB_TYPE_VALUE, customJobType: cleaned };
+}
+
+function resolveJobType(jobType: string, customJobType: string) {
+  return jobType === CUSTOM_JOB_TYPE_VALUE ? customJobType.trim() : jobType.trim();
+}
 
 function addMinutes(time: string, minutesToAdd: number) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -137,6 +177,30 @@ function formatTimeLabel(value: string) {
   const suffix = hours >= 12 ? "PM" : "AM";
   const normalizedHours = hours % 12 || 12;
   return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
+function formatScheduledDate(value?: string | null) {
+  if (!value) return "No date set";
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12)
+    : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+}
+
+function formatPaymentDate(value: string) {
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12)
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
 function checklistTemplateForJobType(jobType: string) {
@@ -176,11 +240,14 @@ export default function JobsPage() {
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [jobContext, setJobContext] = useState<{
     localInvoices: RelatedDoc[];
     quickbooksInvoices: RelatedDoc[];
     quickbooksEstimates: RelatedDoc[];
+    payments: RelatedPayment[];
   } | null>(null);
   const [selectedRelatedDocument, setSelectedRelatedDocument] = useState<SelectedRelatedDocument | null>(null);
   const [relatedDocumentPreview, setRelatedDocumentPreview] = useState<RelatedInvoicePreview | RelatedEstimatePreview | null>(null);
@@ -191,6 +258,7 @@ export default function JobsPage() {
     title: "",
     propertyAddress: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
     scheduledDate: "",
     scheduledTimeStart: "09:00",
@@ -200,11 +268,14 @@ export default function JobsPage() {
   });
   const [creating, setCreating] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [completingJobId, setCompletingJobId] = useState<string | null>(null);
+  const [jobActionError, setJobActionError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
     propertyAddress: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
     scheduledDate: new Date().toISOString().split("T")[0],
     scheduledTimeStart: "09:00",
@@ -235,18 +306,36 @@ export default function JobsPage() {
     const q = customerQuery.trim();
     if (q.length < 2) {
       setCustomerResults([]);
+      setCustomerLoading(false);
+      setCustomerLookupError(null);
       return;
     }
+    const controller = new AbortController();
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setCustomerResults((data.customers || []).map((c: any) => ({
-        id: c.id,
-        name: c.displayName,
-        address: c.address ? [c.address.line1, [c.address.city, c.address.state].filter(Boolean).join(", "), c.address.zip].filter(Boolean).join(" ").trim() : "",
-      })));
+      setCustomerLoading(true);
+      setCustomerLookupError(null);
+      try {
+        const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("Customer lookup failed");
+        const data = await res.json();
+        setCustomerResults((data.customers || []).map((c: any) => ({
+          id: c.id,
+          name: c.displayName,
+          address: c.address?.formatted || (c.address ? [c.address.line1, c.address.line2, [c.address.city, c.address.state].filter(Boolean).join(", "), c.address.zip].filter(Boolean).join(" ").trim() : ""),
+        })));
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setCustomerResults([]);
+          setCustomerLookupError("Customer search could not load. Try again.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setCustomerLoading(false);
+      }
     }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [customerQuery, showCreateModal]);
 
   useEffect(() => {
@@ -268,13 +357,22 @@ export default function JobsPage() {
       });
       setCustomerQuery("");
     }
+    const nextJobType = jobTypeStateFromValue(prefillJobType);
     setFormData((prev) => ({
       ...prev,
       title: buildPrefillTitle(prefillTitle, prefillCustomerName, prefillJobType),
       propertyAddress: prefillAddress || prev.propertyAddress,
-      jobType: (prefillJobType as any) || prev.jobType,
+      jobType: prefillJobType ? nextJobType.jobType : prev.jobType,
+      customJobType: prefillJobType ? nextJobType.customJobType : prev.customJobType,
     }));
   }, [searchParams]);
+
+  useEffect(() => {
+    const jobId = searchParams.get("id");
+    if (!jobId || !jobs.length) return;
+    const job = jobs.find((item) => item.id === jobId);
+    if (job) setSelectedJob(job);
+  }, [jobs, searchParams]);
 
   useEffect(() => {
     if (!selectedJob) return;
@@ -291,8 +389,8 @@ export default function JobsPage() {
     }
     fetch(`/api/jobs/context?id=${encodeURIComponent(selectedJob.id)}`)
       .then((res) => res.json())
-      .then((data) => setJobContext(data.related || { localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }))
-      .catch(() => setJobContext({ localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }));
+      .then((data) => setJobContext(data.related || { localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [], payments: [] }))
+      .catch(() => setJobContext({ localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [], payments: [] }));
   }, [selectedJob]);
 
   useEffect(() => {
@@ -369,10 +467,12 @@ export default function JobsPage() {
       setEditingJob(false);
       return;
     }
+    const nextJobType = jobTypeStateFromValue(selectedJob.jobType);
     setEditForm({
       title: selectedJob.title,
       propertyAddress: selectedJob.propertyAddress || "",
-      jobType: selectedJob.jobType || "service",
+      jobType: nextJobType.jobType,
+      customJobType: nextJobType.customJobType,
       priority: selectedJob.priority || "normal",
       scheduledDate: selectedJob.scheduledDate || new Date().toISOString().split("T")[0],
       scheduledTimeStart: selectedJob.scheduledTimeStart || "09:00",
@@ -423,7 +523,7 @@ export default function JobsPage() {
   const activeLightboxPhoto = lightboxIndex === null ? null : selectedJobPhotos[lightboxIndex] || null;
 
   async function handleCreateJob() {
-    if (!selectedCustomer || !formData.title) return;
+    if (!selectedCustomer || !formData.title || !resolveJobType(formData.jobType, formData.customJobType)) return;
     setCreating(true);
     try {
       const assignedTechs = techs
@@ -438,7 +538,7 @@ export default function JobsPage() {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           propertyAddress: formData.propertyAddress || selectedCustomer.address || "",
-          jobType: formData.jobType,
+          jobType: resolveJobType(formData.jobType, formData.customJobType),
           priority: formData.priority,
           scheduledDate: formData.scheduledDate,
           scheduledTimeStart: formData.scheduledTimeStart,
@@ -450,7 +550,7 @@ export default function JobsPage() {
       });
       if (res.ok) {
         setShowCreateModal(false);
-        setFormData({ ...formData, title: "", notes: "", assignedTechs: [], propertyAddress: "" });
+        setFormData({ ...formData, title: "", notes: "", assignedTechs: [], propertyAddress: "", customJobType: "" });
         setSelectedCustomer(null);
         setCustomerQuery("");
         loadJobs();
@@ -483,7 +583,7 @@ export default function JobsPage() {
           id: selectedJob.id,
           title: editForm.title,
           propertyAddress: editForm.propertyAddress,
-          jobType: editForm.jobType,
+          jobType: resolveJobType(editForm.jobType, editForm.customJobType),
           priority: editForm.priority,
           scheduledDate: editForm.scheduledDate,
           scheduledTimeStart: editForm.scheduledTimeStart,
@@ -497,6 +597,33 @@ export default function JobsPage() {
       await loadJobs();
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function handleCompleteJob(job: Job) {
+    if (job.status === "completed" || completingJobId) return;
+    setCompletingJobId(job.id);
+    setJobActionError(null);
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: job.id,
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.job) {
+        throw new Error(data.error || "Unable to complete this job.");
+      }
+      setJobs((current) => current.map((item) => item.id === job.id ? data.job : item));
+      setSelectedJob((current) => current?.id === job.id ? null : current);
+    } catch (error) {
+      setJobActionError(error instanceof Error ? error.message : "Unable to complete this job.");
+    } finally {
+      setCompletingJobId(null);
     }
   }
 
@@ -551,30 +678,62 @@ export default function JobsPage() {
             </select>
           )}
           <select value={jobTypeFilter} onChange={(e) => setJobTypeFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-            <option value="all">All Types</option><option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
+            <option value="all">All Types</option><option value="installation">Installation</option><option value="service">Service</option><option value="wood-service">Wood Service</option><option value="pellet-service">Pellet Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option><option value="follow-up">Follow up</option>
           </select>
         </div>
+        {jobActionError && (
+          <div className="mx-6 mt-3 rounded-lg px-3 py-2 text-sm" role="alert" style={{ background: "rgba(255,32,78,0.1)", border: "1px solid rgba(255,32,78,0.2)", color: "#D92D20" }}>
+            {jobActionError}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-6"><div className="space-y-3">
           {filteredJobs.map((job) => (
-            <button key={job.id} onClick={() => setSelectedJob(job)} className="w-full rounded-xl p-4 text-left" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{jobTypeIcons[job.jobType] || "📋"}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>{job.jobNumber}</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: statusColors[job.status]?.bg, color: statusColors[job.status]?.text, border: `1px solid ${statusColors[job.status]?.border}` }}>{job.status.replace("_", " ").toUpperCase()}</span>
-                      {job.priority !== "normal" && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: priorityColors[job.priority]?.bg, color: priorityColors[job.priority]?.text }}>{job.priority.toUpperCase()}</span>}
+            <div key={job.id} className="flex w-full items-stretch overflow-hidden rounded-xl" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              <button onClick={() => setSelectedJob(job)} className="min-w-0 flex-1 p-4 text-left">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{jobTypeIcons[job.jobType] || "📋"}</div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>{job.jobNumber}</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: statusColors[job.status]?.bg, color: statusColors[job.status]?.text, border: `1px solid ${statusColors[job.status]?.border}` }}>{job.status.replace("_", " ").toUpperCase()}</span>
+                        {job.priority !== "normal" && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: priorityColors[job.priority]?.bg, color: priorityColors[job.priority]?.text }}>{job.priority.toUpperCase()}</span>}
+                      </div>
+                      <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{job.title}</h3>
+                      <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{job.customerName}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress || "—"}</p>
+                      <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+                        <CalendarDays size={14} aria-hidden="true" style={{ color: "#f8971f" }} />
+                        <span>{formatScheduledDate(job.scheduledDate)}</span>
+                        {job.scheduledTimeStart && (
+                          <>
+                            <span aria-hidden="true" style={{ color: "var(--color-text-muted)" }}>•</span>
+                            <span>{formatTimeLabel(job.scheduledTimeStart)}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{job.title}</h3>
-                    <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{job.customerName}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress || "—"}</p>
                   </div>
+                  <div className="text-right"><div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>${Number(job.totalAmount || 0).toFixed(2)}</div></div>
                 </div>
-                <div className="text-right"><div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>${Number(job.totalAmount || 0).toFixed(2)}</div></div>
-              </div>
-            </button>
+              </button>
+              {jobsTab === "active" && (
+                <div className="flex items-center border-l px-3" style={{ borderColor: "var(--color-border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleCompleteJob(job)}
+                    disabled={completingJobId === job.id}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-all"
+                    style={{ background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.22)", color: "#15803D" }}
+                    title="Move this job to Completed"
+                  >
+                    <CheckCircle2 size={16} />
+                    {completingJobId === job.id ? "Completing..." : "Complete"}
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div></div>
       </div>
@@ -585,12 +744,31 @@ export default function JobsPage() {
           <div className="relative w-full max-w-2xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}><h2 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>Create New Job</h2></div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <input placeholder="Search customers..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-              {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || prev.propertyAddress })); }} className="w-full text-left px-3 py-2 text-sm">{c.name}</button>)}</div>}
+              <div>
+                <input placeholder="Search by customer, phone, or address..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                {customerLoading && <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Looking up customers...</p>}
+                {customerLookupError && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{customerLookupError}</p>}
+                {!!customerResults.length && !selectedCustomer && (
+                  <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                    {customerResults.map((c) => (
+                      <button key={c.id} type="button" onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || "" })); }} className="w-full text-left px-3 py-2 text-sm" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{c.address || "No address on file"}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <input placeholder="Job title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               <input placeholder="Property address" value={formData.propertyAddress} onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               <div className="grid grid-cols-2 gap-4">
-                <select value={formData.jobType} onChange={(e) => setFormData({ ...formData, jobType: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                <div>
+                <select
+                  value={formData.jobType}
+                  onChange={(e) => setFormData({ ...formData, jobType: e.target.value, customJobType: e.target.value === CUSTOM_JOB_TYPE_VALUE ? formData.customJobType : "" })}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                >
                   <optgroup label="Service">
                     <option value="service">Gas Service</option>
                     <option value="wood-service">Wood Fireplace Service</option>
@@ -604,8 +782,20 @@ export default function JobsPage() {
                     <option value="cleaning">Chimney Sweep / Cleaning</option>
                     <option value="repair">Repair</option>
                     <option value="estimate">Estimate / Consultation</option>
+                    <option value="follow-up">Follow up</option>
+                    <option value={CUSTOM_JOB_TYPE_VALUE}>Custom job type...</option>
                   </optgroup>
                 </select>
+                {formData.jobType === CUSTOM_JOB_TYPE_VALUE && (
+                  <input
+                    placeholder="Type custom job type"
+                    value={formData.customJobType}
+                    onChange={(e) => setFormData({ ...formData, customJobType: e.target.value })}
+                    className="w-full mt-2 px-3 py-2 rounded-lg text-sm"
+                    style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                  />
+                )}
+                </div>
                 <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -635,7 +825,7 @@ export default function JobsPage() {
             </div>
             <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Cancel</button>
-              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
+              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title || !resolveJobType(formData.jobType, formData.customJobType)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
             </div>
           </div>
         </div>
@@ -675,9 +865,25 @@ export default function JobsPage() {
                 <input value={editForm.title} onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 <input value={editForm.propertyAddress} onChange={(e) => setEditForm((prev) => ({ ...prev, propertyAddress: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 <div className="grid grid-cols-2 gap-4">
-                  <select value={editForm.jobType} onChange={(e) => setEditForm((prev) => ({ ...prev, jobType: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-                    <option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
-                  </select>
+                  <div>
+                    <select
+                      value={editForm.jobType}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, jobType: e.target.value, customJobType: e.target.value === CUSTOM_JOB_TYPE_VALUE ? prev.customJobType : "" }))}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                    >
+                      <option value="installation">Installation</option><option value="service">Service</option><option value="wood-service">Wood Service</option><option value="pellet-service">Pellet Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option><option value="follow-up">Follow up</option><option value={CUSTOM_JOB_TYPE_VALUE}>Custom job type...</option>
+                    </select>
+                    {editForm.jobType === CUSTOM_JOB_TYPE_VALUE && (
+                      <input
+                        placeholder="Type custom job type"
+                        value={editForm.customJobType}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, customJobType: e.target.value }))}
+                        className="w-full mt-2 px-3 py-2 rounded-lg text-sm"
+                        style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+                      />
+                    )}
+                  </div>
                   <select value={editForm.priority} onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
                     <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option>
                   </select>
@@ -715,7 +921,7 @@ export default function JobsPage() {
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Schedule</div>
-                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.scheduledDate || "No date set"}</div>
+                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{formatScheduledDate(selectedJob.scheduledDate)}</div>
                 <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{formatTimeLabel(selectedJob.scheduledTimeStart)} - {formatTimeLabel(selectedJob.scheduledTimeEnd)}</div>
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -904,6 +1110,32 @@ export default function JobsPage() {
                 </div>
               </div>
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Payments Received</div>
+                {jobContext?.payments?.length ? (
+                  <div className="space-y-2">
+                    {jobContext.payments.map((payment) => (
+                      <div key={payment.id} className="flex items-start justify-between gap-4 rounded-lg px-3 py-3" style={{ background: "var(--color-surface-1)", border: "1px solid rgba(22,163,74,0.18)" }}>
+                        <div>
+                          <div className="text-sm font-semibold" style={{ color: "#15803D" }}>
+                            Payment applied to invoice {payment.invoiceNumber || ""}
+                          </div>
+                          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                            {payment.paidAt ? formatPaymentDate(payment.paidAt) : "Payment received"}
+                            {payment.paymentMethod ? ` · ${payment.paymentMethod.replace("_", " ")}` : ""}
+                          </div>
+                          {payment.transactionId && (
+                            <div className="text-xs mt-1 font-mono" style={{ color: "var(--color-text-muted)" }}>Square {payment.transactionId}</div>
+                          )}
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#15803D" }}>${Number(payment.amount || 0).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No payment has been linked to this job yet.</div>
+                )}
+              </div>
+              <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Tech Checklist</div>
                 <div className="space-y-2">
                   {checklistTemplateForJobType(selectedJob.jobType).map((item) => {
@@ -960,10 +1192,21 @@ export default function JobsPage() {
             </div>
             )}
             </div>
-            <div className="px-6 py-4 flex justify-end border-t" style={{ borderColor: "var(--color-border)" }}>
+            <div className="px-6 py-4 flex items-center justify-between gap-3 border-t" style={{ borderColor: "var(--color-border)" }}>
               <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
                 Delete Job
               </button>
+              {selectedJob.status !== "completed" && selectedJob.status !== "cancelled" && (
+                <button
+                  onClick={() => handleCompleteJob(selectedJob)}
+                  disabled={completingJobId === selectedJob.id}
+                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+                  style={{ background: "#16A34A", color: "white", boxShadow: "0 10px 24px rgba(22,163,74,0.2)" }}
+                >
+                  <CheckCircle2 size={17} />
+                  {completingJobId === selectedJob.id ? "Completing..." : "Complete Job"}
+                </button>
+              )}
             </div>
           </div>
         </div>

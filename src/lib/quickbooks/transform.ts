@@ -6,6 +6,7 @@ import type { QBCustomer, QBInvoice, QBInvoiceLine } from './types';
  * Transform QuickBooks Customer to UI format
  */
 export function transformCustomer(qbCustomer: QBCustomer) {
+  const address = qbCustomer.BillAddr || qbCustomer.ShipAddr;
   return {
     id: qbCustomer.Id,
     displayName: qbCustomer.DisplayName,
@@ -14,11 +15,11 @@ export function transformCustomer(qbCustomer: QBCustomer) {
     companyName: qbCustomer.CompanyName,
     email: qbCustomer.PrimaryEmailAddr?.Address,
     phone: qbCustomer.PrimaryPhone?.FreeFormNumber,
-    address: qbCustomer.BillAddr ? {
-      line1: qbCustomer.BillAddr.Line1 || '',
-      city: qbCustomer.BillAddr.City || '',
-      state: qbCustomer.BillAddr.CountrySubDivisionCode || '',
-      zip: qbCustomer.BillAddr.PostalCode || '',
+    address: address ? {
+      line1: address.Line1 || '',
+      city: address.City || '',
+      state: address.CountrySubDivisionCode || '',
+      zip: address.PostalCode || '',
     } : undefined,
     balance: qbCustomer.Balance || 0,
     active: qbCustomer.Active !== false,

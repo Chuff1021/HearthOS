@@ -19,6 +19,7 @@ interface InvoiceLineItem {
 
 interface Invoice {
   id: string;
+  localId?: string;
   invoiceNumber: string;
   customerId: string;
   customerName: string;
@@ -150,6 +151,7 @@ export default function InvoicesPage() {
   const [emailSendMeCopy, setEmailSendMeCopy] = useState(true);
   const [emailStatus, setEmailStatus] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
   const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false);
+  const [projectActionId, setProjectActionId] = useState<string | null>(null);
   const selectedInvoiceId = searchParams.get("id");
   const selectedCustomerId = searchParams.get("customer");
 
@@ -788,6 +790,25 @@ export default function InvoicesPage() {
     window.location.href = `/schedule?${q.toString()}`;
   };
 
+  const handleAddToProjects = async (invoice: Invoice) => {
+    setProjectActionId(invoice.id);
+    setError(null);
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType: "invoice", sourceId: invoice.localId || invoice.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to add invoice to projects");
+      window.location.href = `/projects?project=${encodeURIComponent(data.project.id)}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to add invoice to projects");
+    } finally {
+      setProjectActionId(null);
+    }
+  };
+
   const handleSaveInvoiceEdits = async () => {
     if (!selectedInvoice) return;
     const normalizedLines = selectedInvoice.lineItems
@@ -1370,6 +1391,14 @@ export default function InvoicesPage() {
                     style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}
                   >
                     Create & Schedule Job
+                  </button>
+                  <button
+                    onClick={() => handleAddToProjects(selectedInvoice)}
+                    disabled={projectActionId === selectedInvoice.id}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
+                    style={{ background: "rgba(248,151,31,0.14)", color: "#B45309", border: "1px solid rgba(248,151,31,0.28)", opacity: projectActionId === selectedInvoice.id ? 0.72 : 1 }}
+                  >
+                    {projectActionId === selectedInvoice.id ? "Adding to Projects..." : "Add to Projects Board"}
                   </button>
                   {selectedInvoice.balance > 0 && (
                     <button

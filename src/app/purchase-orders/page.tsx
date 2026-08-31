@@ -22,6 +22,42 @@ type Vendor = {
 };
 type Item = { Id: string; Name: string; Type?: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
 type PO = { Id: string; DocNumber?: string; TxnDate?: string; VendorRef?: { name?: string }; TotalAmt?: number };
+type PurchaseOrderDetail = {
+  purchaseOrder: {
+    id: string;
+    qbPurchaseOrderId?: string | null;
+    poNumber?: string | null;
+    status?: string | null;
+    issueDate?: string | null;
+    expectedDate?: string | null;
+    receivedDate?: string | null;
+    subtotal?: string | number | null;
+    taxAmount?: string | number | null;
+    totalAmount?: string | number | null;
+    shipAddress?: string | null;
+    vendorMessage?: string | null;
+    privateNote?: string | null;
+    emailStatus?: string | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  };
+  vendor: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  lineItems: Array<{
+    id: string;
+    qbItemId?: string | null;
+    description?: string | null;
+    quantity?: string | number | null;
+    unitCost?: string | number | null;
+    total?: string | number | null;
+    receivedQty?: string | number | null;
+    order?: number | null;
+  }>;
+};
 type ShipToResult = {
   id: string;
   displayName: string;
@@ -84,6 +120,19 @@ function formatDateDisplay(value: string | undefined) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${month}/${day}/${year}`;
+}
+
+function formatDateTimeDisplay(value: string | undefined | null) {
+  if (!value) return "-";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDateDisplay(value);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatStatus(value: string | undefined | null) {
+  if (!value) return "Open";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatAddress(addr: Vendor["BillAddr"] | undefined) {
@@ -184,6 +233,10 @@ export default function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingPoId, setDeletingPoId] = useState<string | null>(null);
+  const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
+  const [selectedPoDetail, setSelectedPoDetail] = useState<PurchaseOrderDetail | null>(null);
+  const [selectedPoLoading, setSelectedPoLoading] = useState(false);
+  const [selectedPoError, setSelectedPoError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createdMessage, setCreatedMessage] = useState<string | null>(null);
 
@@ -704,12 +757,41 @@ export default function PurchaseOrdersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete purchase order");
       setPurchaseOrders((prev) => prev.filter((entry) => entry.Id !== po.Id));
+      if (selectedPoId === po.Id) {
+        setSelectedPoId(null);
+        setSelectedPoDetail(null);
+        setSelectedPoError(null);
+      }
       setCreatedMessage(`Deleted ${label}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete purchase order");
     } finally {
       setDeletingPoId(null);
     }
+  }
+
+  async function openPurchaseOrder(po: PO) {
+    setSelectedPoId(po.Id);
+    setSelectedPoDetail(null);
+    setSelectedPoError(null);
+    setSelectedPoLoading(true);
+    try {
+      const res = await fetch(`/api/purchase-orders/${encodeURIComponent(po.Id)}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load purchase order");
+      setSelectedPoDetail(data);
+    } catch (err) {
+      setSelectedPoError(err instanceof Error ? err.message : "Failed to load purchase order");
+    } finally {
+      setSelectedPoLoading(false);
+    }
+  }
+
+  function closePurchaseOrderDetail() {
+    setSelectedPoId(null);
+    setSelectedPoDetail(null);
+    setSelectedPoError(null);
+    setSelectedPoLoading(false);
   }
 
   return (
@@ -1083,18 +1165,40 @@ export default function PurchaseOrdersPage() {
               ) : (
                 <div className="space-y-2 max-h-[720px] overflow-auto pr-1">
                   {purchaseOrders.slice(0, 30).map((po) => (
-                    <div key={po.Id} className="p-3 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                    <div
+                      key={po.Id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openPurchaseOrder(po)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openPurchaseOrder(po);
+                        }
+                      }}
+                      className="p-3 rounded-lg cursor-pointer transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      style={{
+                        background: selectedPoId === po.Id ? "rgba(255, 106, 0, 0.08)" : "var(--color-surface-3)",
+                        border: selectedPoId === po.Id ? "1px solid rgba(255, 106, 0, 0.45)" : "1px solid var(--color-border)",
+                        boxShadow: selectedPoId === po.Id ? "0 12px 32px rgba(255, 106, 0, 0.10)" : undefined,
+                      }}
+                      title={`Open ${po.DocNumber || `PO ${po.Id}`}`}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
                           <div className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{po.VendorRef?.name || "Vendor"}</div>
+                          <div className="mt-2 text-xs font-semibold" style={{ color: "#F97316" }}>Open details</div>
                         </div>
                         <div className="text-right shrink-0">
                           <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(po.TotalAmt)}</div>
                           <button
                             type="button"
                             disabled={deletingPoId === po.Id}
-                            onClick={() => deletePurchaseOrder(po)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deletePurchaseOrder(po);
+                            }}
                             className="mt-2 px-2 py-1 rounded-md text-xs font-semibold disabled:opacity-60"
                             style={{ background: "rgba(255,32,78,0.10)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}
                           >
@@ -1110,6 +1214,139 @@ export default function PurchaseOrdersPage() {
             </aside>
           </div>
         </main>
+
+        {selectedPoId && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <div className="absolute inset-0 bg-black/35" onClick={closePurchaseOrderDetail} />
+            <section
+              className="relative h-full w-full max-w-[720px] overflow-y-auto shadow-2xl"
+              style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }}
+              aria-label="Purchase order details"
+            >
+              <div className="sticky top-0 z-10 px-5 py-4 flex items-start justify-between gap-4" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+                <div>
+                  <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Purchase Order Detail</div>
+                  <h2 className="mt-1 text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                    {selectedPoDetail?.purchaseOrder.poNumber || purchaseOrders.find((po) => po.Id === selectedPoId)?.DocNumber || "Purchase Order"}
+                  </h2>
+                  <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
+                    {selectedPoDetail?.vendor?.name || purchaseOrders.find((po) => po.Id === selectedPoId)?.VendorRef?.name || "Vendor"}
+                  </p>
+                </div>
+                <button onClick={closePurchaseOrderDetail} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {selectedPoLoading && (
+                  <div className="p-4 rounded-xl text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                    Loading purchase order...
+                  </div>
+                )}
+
+                {selectedPoError && (
+                  <div className="p-4 rounded-xl text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+                    {selectedPoError}
+                  </div>
+                )}
+
+                {selectedPoDetail && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                        <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Status</div>
+                        <div className="mt-1 text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{formatStatus(selectedPoDetail.purchaseOrder.status)}</div>
+                        <div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPoDetail.purchaseOrder.emailStatus || "Email not sent"}</div>
+                      </div>
+                      <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                        <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Total</div>
+                        <div className="mt-1 text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(Number(selectedPoDetail.purchaseOrder.totalAmount || 0))}</div>
+                        <div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPoDetail.lineItems.length} line items</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>PO Date</div>
+                          <div className="mt-1" style={{ color: "var(--color-text-primary)" }}>{formatDateTimeDisplay(selectedPoDetail.purchaseOrder.issueDate)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Expected</div>
+                          <div className="mt-1" style={{ color: "var(--color-text-primary)" }}>{formatDateTimeDisplay(selectedPoDetail.purchaseOrder.expectedDate)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Received</div>
+                          <div className="mt-1" style={{ color: "var(--color-text-primary)" }}>{formatDateTimeDisplay(selectedPoDetail.purchaseOrder.receivedDate)}</div>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Vendor Contact</div>
+                          <div className="mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedPoDetail.vendor?.email || "No email"}</div>
+                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPoDetail.vendor?.phone || "No phone"}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>QuickBooks ID</div>
+                          <div className="mt-1 break-all" style={{ color: "var(--color-text-primary)" }}>{selectedPoDetail.purchaseOrder.qbPurchaseOrderId || "Local Hearth OS PO"}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: "var(--color-surface-2)", borderBottom: "1px solid var(--color-border)" }}>
+                        <h3 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Line Items</h3>
+                        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{selectedPoDetail.lineItems.length}</span>
+                      </div>
+                      {selectedPoDetail.lineItems.length === 0 ? (
+                        <div className="p-4 text-sm" style={{ color: "var(--color-text-muted)" }}>No line items found for this purchase order.</div>
+                      ) : (
+                        <div className="divide-y" style={{ borderColor: "var(--color-border)" }}>
+                          {selectedPoDetail.lineItems.map((line, idx) => (
+                            <div key={line.id || idx} className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{line.description || "Line item"}</div>
+                                  <div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                                    Qty {Number(line.quantity || 0).toLocaleString()} - Received {Number(line.receivedQty || 0).toLocaleString()} - Unit {formatMoney(Number(line.unitCost || 0))}
+                                  </div>
+                                  {line.qbItemId && <div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Item ID: {line.qbItemId}</div>}
+                                </div>
+                                <div className="text-sm font-bold shrink-0" style={{ color: "var(--color-text-primary)" }}>{formatMoney(Number(line.total || 0))}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {(selectedPoDetail.purchaseOrder.shipAddress || selectedPoDetail.purchaseOrder.privateNote || selectedPoDetail.purchaseOrder.vendorMessage) && (
+                      <div className="grid grid-cols-1 gap-3">
+                        {selectedPoDetail.purchaseOrder.shipAddress && (
+                          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                            <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Ship Address</div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedPoDetail.purchaseOrder.shipAddress}</div>
+                          </div>
+                        )}
+                        {selectedPoDetail.purchaseOrder.privateNote && (
+                          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                            <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Internal Note</div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedPoDetail.purchaseOrder.privateNote}</div>
+                          </div>
+                        )}
+                        {selectedPoDetail.purchaseOrder.vendorMessage && (
+                          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                            <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Vendor Message</div>
+                            <div className="mt-2 whitespace-pre-wrap text-sm" style={{ color: "var(--color-text-primary)" }}>{selectedPoDetail.purchaseOrder.vendorMessage}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
 
         {sendDialogOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

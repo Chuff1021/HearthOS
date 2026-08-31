@@ -44,6 +44,8 @@ const navGroups = [
       { label: "Dashboard", href: "/", icon: Gauge },
       { label: "To-Do List", href: "/todos", icon: ClipboardCheck },
       { label: "Schedule", href: "/schedule", icon: CalendarDays },
+      { label: "Meeks Portal", href: "/meeks", icon: CalendarDays },
+      { label: "Projects", href: "/projects", icon: PackageCheck },
       { label: "Jobs", href: "/jobs", icon: BriefcaseBusiness },
       { label: "Customers", href: "/customers", icon: Users },
       { label: "Service Map", href: "/service-map", icon: MapPinned },

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
+import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
 
 type ViewMode = "master" | "tech";
 type CalendarView = "week" | "month";
@@ -45,13 +46,39 @@ interface CustomerLookup {
   companyName?: string;
   address?: {
     line1?: string;
+    line2?: string;
     city?: string;
     state?: string;
     zip?: string;
+    formatted?: string;
   };
 }
 
 type SelectedCustomer = { id: string; name: string; address?: string } | null;
+
+const CUSTOM_JOB_TYPE_VALUE = "custom";
+const JOB_TYPE_VALUES = new Set([
+  "service",
+  "wood-service",
+  "pellet-service",
+  "installation",
+  "inspection",
+  "cleaning",
+  "repair",
+  "estimate",
+  "follow-up",
+]);
+
+function jobTypeStateFromValue(value: string | null | undefined) {
+  const cleaned = (value || "").trim();
+  if (!cleaned) return { jobType: "service", customJobType: "" };
+  if (JOB_TYPE_VALUES.has(cleaned)) return { jobType: cleaned, customJobType: "" };
+  return { jobType: CUSTOM_JOB_TYPE_VALUE, customJobType: cleaned };
+}
+
+function resolveJobType(jobType: string, customJobType: string) {
+  return jobType === CUSTOM_JOB_TYPE_VALUE ? customJobType.trim() : jobType.trim();
+}
 
 function resolveCustomerName(
   selectedCustomer: SelectedCustomer,
@@ -252,6 +279,7 @@ export default function SchedulePage() {
   const [form, setForm] = useState({
     title: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
     customerId: "",
     customerName: "",
@@ -327,6 +355,7 @@ export default function SchedulePage() {
     const address = searchParams.get("address") || "";
     const title = searchParams.get("title") || "";
     const jobType = searchParams.get("jobType") || "installation";
+    const nextJobType = jobTypeStateFromValue(jobType);
     const scheduledDate = searchParams.get("scheduledDate") || isoDate(new Date());
     const linkedInvoiceId = searchParams.get("linkedInvoiceId") || "";
     const linkedEstimateId = searchParams.get("linkedEstimateId") || "";
@@ -339,7 +368,8 @@ export default function SchedulePage() {
     setForm((prev) => ({
       ...prev,
       title: title || prev.title,
-      jobType,
+      jobType: nextJobType.jobType,
+      customJobType: nextJobType.customJobType,
       customerId,
       customerName,
       propertyAddress: address || prev.propertyAddress,
@@ -468,7 +498,8 @@ export default function SchedulePage() {
   function customerAddressLine(c: CustomerLookup) {
     const a = c.address;
     if (!a) return "";
-    return [a.line1, [a.city, a.state].filter(Boolean).join(", "), a.zip].filter(Boolean).join(" ").trim();
+    if (a.formatted) return a.formatted;
+    return [a.line1, a.line2, [a.city, a.state].filter(Boolean).join(", "), a.zip].filter(Boolean).join(" ").trim();
   }
 
   function applyCustomer(c: CustomerLookup) {
@@ -482,7 +513,7 @@ export default function SchedulePage() {
       ...f,
       customerId: c.id,
       customerName: c.displayName || `${c.firstName || ""} ${c.lastName || ""}`.trim(),
-      propertyAddress: address || f.propertyAddress,
+      propertyAddress: address,
     }));
     setCustomerQuery("");
     setCustomerResults([]);
@@ -495,7 +526,7 @@ export default function SchedulePage() {
     const errs: Record<string, string> = {};
     const customerName = resolveCustomerName(selectedCustomer, form.customerName, customerQuery);
     if (!form.title.trim()) errs.title = "Job title is required";
-    if (!form.jobType.trim()) errs.jobType = "Job type is required";
+    if (!resolveJobType(form.jobType, form.customJobType)) errs.jobType = "Job type is required";
     if (!customerName) errs.customerName = "Customer is required";
     if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
@@ -576,7 +607,7 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
-          jobType: form.jobType,
+          jobType: resolveJobType(form.jobType, form.customJobType),
           priority: form.priority,
           customerId: selectedCustomer?.id || form.customerId || undefined,
           customerName,
@@ -606,6 +637,7 @@ export default function SchedulePage() {
       setForm({
         title: "",
         jobType: "service",
+        customJobType: "",
         priority: "normal",
         customerId: "",
         customerName: "",
@@ -1080,6 +1112,7 @@ export default function SchedulePage() {
               ))}
             </div>
           )}
+          <MeeksSchedulePanel internal />
         </div>
       </div>
 
@@ -1143,7 +1176,12 @@ export default function SchedulePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
+                  <select
+                    value={form.jobType}
+                    onChange={(e) => setForm({ ...form, jobType: e.target.value, customJobType: e.target.value === CUSTOM_JOB_TYPE_VALUE ? form.customJobType : "" })}
+                    className="w-full px-3 py-2 rounded-lg"
+                    style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}
+                  >
                     <optgroup label="Service">
                       <option value="service">Gas Service</option>
                       <option value="wood-service">Wood Fireplace Service</option>
@@ -1157,8 +1195,19 @@ export default function SchedulePage() {
                       <option value="cleaning">Chimney Sweep / Cleaning</option>
                       <option value="repair">Repair</option>
                       <option value="estimate">Estimate / Consultation</option>
+                      <option value="follow-up">Follow up</option>
+                      <option value={CUSTOM_JOB_TYPE_VALUE}>Custom job type...</option>
                     </optgroup>
                   </select>
+                  {form.jobType === CUSTOM_JOB_TYPE_VALUE && (
+                    <input
+                      placeholder="Type custom job type"
+                      value={form.customJobType}
+                      onChange={(e) => setForm({ ...form, customJobType: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg mt-2"
+                      style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}
+                    />
+                  )}
                   {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
                 </div>
                 <div>

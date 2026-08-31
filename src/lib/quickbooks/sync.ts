@@ -133,6 +133,12 @@ function splitName(displayName: string | undefined): [string, string] {
   return [parts[0], parts.slice(1).join(' ')];
 }
 
+function boundedCustomerText(value: unknown, maxLength: number): string | null {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
 export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustomer[]): Promise<number> {
   const now = new Date();
   qbCustomers = dedupeBy(qbCustomers, (c) => c.Id);
@@ -144,17 +150,17 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
     const addr: any = (c as any).BillAddr || (c as any).ShipAddr || {};
     return [{
       orgId,
-      qbCustomerId: c.Id,
-      firstName: c.GivenName || fallbackFirst || c.DisplayName || 'Unknown',
-      lastName: c.FamilyName || fallbackLast || '',
-      companyName: c.CompanyName,
-      email: c.PrimaryEmailAddr?.Address,
-      phone: c.PrimaryPhone?.FreeFormNumber,
+      qbCustomerId: boundedCustomerText(c.Id, 50)!,
+      firstName: boundedCustomerText(c.GivenName || fallbackFirst || c.DisplayName || 'Unknown', 100)!,
+      lastName: boundedCustomerText(c.FamilyName || fallbackLast || '', 100) || '',
+      companyName: boundedCustomerText(c.CompanyName, 255),
+      email: boundedCustomerText(c.PrimaryEmailAddr?.Address, 255),
+      phone: boundedCustomerText(c.PrimaryPhone?.FreeFormNumber, 50),
       addressLine1: addr.Line1 || null,
       addressLine2: addr.Line2 || null,
-      city: addr.City || null,
-      state: addr.CountrySubDivisionCode || null,
-      zip: addr.PostalCode || null,
+      city: boundedCustomerText(addr.City, 100),
+      state: boundedCustomerText(addr.CountrySubDivisionCode, 50),
+      zip: boundedCustomerText(addr.PostalCode, 20),
       source: 'quickbooks',
       isActive: c.Active !== false,
       lastSyncedAt: now,
@@ -163,6 +169,7 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
   });
 
   let written = 0;
+  const failures: unknown[] = [];
   for (const part of chunk(rows, 500)) {
     try {
       const ret = await db.insert(customers).values(part).onConflictDoUpdate({
@@ -186,7 +193,12 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
       written += ret.length;
     } catch (err) {
       console.error(`Failed bulk-persist customers (chunk ${part.length}):`, err);
+      failures.push(err);
     }
+  }
+  if (failures.length > 0) {
+    const firstError = failures[0] instanceof Error ? failures[0].message : String(failures[0]);
+    throw new Error(`Customer persistence failed for ${failures.length} batch(es): ${firstError}`);
   }
   return written;
 }

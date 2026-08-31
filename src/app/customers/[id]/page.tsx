@@ -62,15 +62,22 @@ type Tab = "transactions" | "invoices" | "payments" | "profile";
 const fmtMoney = (n: number | null | undefined) =>
   n == null || isNaN(Number(n)) ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const localDisplayDate = (s: string) => {
+  const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12)
+    : new Date(s);
+};
+
 const fmtDate = (s: string | null | undefined) => {
   if (!s) return "—";
-  const d = new Date(s);
+  const d = localDisplayDate(s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const relTime = (s: string | null | undefined) => {
   if (!s) return "Never";
-  const d = new Date(s);
+  const d = localDisplayDate(s);
   if (isNaN(d.getTime())) return "—";
   const days = Math.floor((Date.now() - d.getTime()) / 86400_000);
   if (days < 1) return "Today";
@@ -85,6 +92,27 @@ const isOverdue = (date: string | null, balance: number) => {
   return new Date(date).getTime() < Date.now();
 };
 
+function customerAddressParts(customer: DetailResponse["customer"]) {
+  return [
+    customer.addressLine1,
+    customer.addressLine2,
+    [customer.city, customer.state, customer.zip].filter(Boolean).join(", ").replace(/, (\w{2}|\d{5})$/, " $1"),
+  ].filter((s) => s && String(s).trim()) as string[];
+}
+
+function addJobHrefForCustomer(customer: DetailResponse["customer"]) {
+  const params = new URLSearchParams({
+    create: "1",
+    customerId: customer.id,
+    customerName: customer.displayName,
+    jobType: "follow-up",
+    title: "Follow up",
+  });
+  const address = customerAddressParts(customer).join(", ");
+  if (address) params.set("address", address);
+  return `/schedule?${params.toString()}`;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Page
 // ───────────────────────────────────────────────────────────────────────────
@@ -96,11 +124,25 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
 
   useEffect(() => {
-    setData(null); setError(null);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setData(null);
+        setError(null);
+      }
+    });
     fetch(`/api/customers/${id}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => ok ? setData(j) : setError(j.error || "Failed"))
-      .catch((e) => setError(e?.message || "Failed"));
+      .then(({ ok, j }) => {
+        if (cancelled) return;
+        ok ? setData(j) : setError(j.error || "Failed");
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e?.message || "Failed");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   return (
@@ -225,11 +267,7 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
                 </a>
               )}
               {(() => {
-                const lines = [
-                  customer.addressLine1,
-                  customer.addressLine2,
-                  [customer.city, customer.state, customer.zip].filter(Boolean).join(", ").replace(/, (\w{2}|\d{5})$/, " $1"),
-                ].filter((s) => s && String(s).trim());
+                const lines = customerAddressParts(customer);
                 if (lines.length === 0) return null;
                 const oneLine = lines.join(" · ");
                 const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lines.join(", "))}`;
@@ -252,6 +290,9 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
       </div>
 
       <div className="flex flex-wrap gap-2 mt-6 pt-5" style={{ borderTop: "1px solid var(--color-border)" }}>
+        <Link href={addJobHrefForCustomer(customer)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>
+          + Add Job
+        </Link>
         <button disabled className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-white" style={{ opacity: 0.6, cursor: "not-allowed" }} title="Coming soon">
           + New invoice
         </button>

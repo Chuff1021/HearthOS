@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, customers, invoices, payments } from '@/db';
-import { and, eq, sql, ilike, or } from 'drizzle-orm';
+import { db, customers, invoices, payments, properties } from '@/db';
+import { and, desc, eq, sql, ilike, inArray, or } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 // GET /api/customers/center
@@ -22,13 +22,27 @@ export async function GET(req: NextRequest) {
 
     const where: any[] = [eq(customers.orgId, org.id)];
     if (q) {
-      const like = `%${q}%`;
-      where.push(or(
-        ilike(customers.firstName, like),
-        ilike(customers.lastName, like),
-        ilike(customers.companyName, like),
-        ilike(customers.email, like),
-      ));
+      const terms = q.split(/\s+/).filter(Boolean).slice(0, 8);
+      for (const term of terms) {
+        const like = `%${term}%`;
+        where.push(or(
+          ilike(customers.firstName, like),
+          ilike(customers.lastName, like),
+          ilike(customers.companyName, like),
+          ilike(customers.email, like),
+          ilike(customers.phone, like),
+          ilike(customers.addressLine1, like),
+          ilike(customers.city, like),
+          ilike(customers.zip, like),
+          sql<boolean>`concat_ws(' ', ${customers.firstName}, ${customers.lastName}) ilike ${like}`,
+          sql<boolean>`exists (
+            select 1 from ${properties}
+            where ${properties.customerId} = ${customers.id}
+              and ${properties.orgId} = ${org.id}
+              and concat_ws(' ', ${properties.address}, ${properties.city}, ${properties.state}, ${properties.zip}) ilike ${like}
+          )`,
+        ));
+      }
     }
     if (filter === 'active') where.push(eq(customers.isActive, true));
     if (filter === 'inactive') where.push(eq(customers.isActive, false));
@@ -62,8 +76,25 @@ export async function GET(req: NextRequest) {
     for (const r of payStats) if (r.customerId) payByCust.set(r.customerId, r);
 
     const rows = await db.select().from(customers).where(and(...where));
+    const propertyRows = rows.length > 0
+      ? await db
+          .select()
+          .from(properties)
+          .where(and(
+            eq(properties.orgId, org.id),
+            inArray(properties.customerId, rows.map((row) => row.id)),
+          ))
+          .orderBy(desc(properties.isPrimary), desc(properties.updatedAt))
+      : [];
+    const primaryPropertyByCustomer = new Map<string, typeof properties.$inferSelect>();
+    for (const property of propertyRows) {
+      if (!primaryPropertyByCustomer.has(property.customerId)) {
+        primaryPropertyByCustomer.set(property.customerId, property);
+      }
+    }
 
     let items = rows.map((c) => {
+      const property = primaryPropertyByCustomer.get(c.id);
       const inv = invByCust.get(c.id);
       const pay = payByCust.get(c.id);
       const balance = inv ? Number(inv.balance) : 0;
@@ -85,6 +116,11 @@ export async function GET(req: NextRequest) {
         email: c.email,
         phone: c.phone,
         phoneAlt: c.phoneAlt,
+        addressLine1: property?.address || c.addressLine1,
+        addressLine2: property ? null : c.addressLine2,
+        city: property?.city || c.city,
+        state: property?.state || c.state,
+        zip: property?.zip || c.zip,
         source: c.source,
         isActive: c.isActive ?? true,
         balance,

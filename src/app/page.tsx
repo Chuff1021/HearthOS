@@ -186,6 +186,8 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardResp | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
+  const [completingJobId, setCompletingJobId] = useState<string | null>(null);
+  const [jobActionError, setJobActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
@@ -210,10 +212,45 @@ export default function DashboardPage() {
       if (v) setVend(v);
       if (d) setDispatch(d);
       if (dash) setDashboard(dash);
-      if (Array.isArray(todayJobs)) setJobs(todayJobs);
+      if (Array.isArray(todayJobs?.jobs)) setJobs(todayJobs.jobs);
+      else if (Array.isArray(todayJobs)) setJobs(todayJobs);
       if (activityData?.activity) setActivity(activityData.activity);
     });
   }, []);
+
+  async function completeDashboardJob(job: Job) {
+    if (job.status === "completed" || completingJobId) return;
+    setCompletingJobId(job.id);
+    setJobActionError(null);
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: job.id,
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.job) {
+        throw new Error(data.error || "Unable to complete this job.");
+      }
+      setJobs((current) => current.map((item) => item.id === job.id ? data.job : item));
+      setDashboard((current) => current ? {
+        ...current,
+        stats: {
+          ...current.stats,
+          jobsCompletedToday: current.stats.jobsCompletedToday + 1,
+          jobsRemainingToday: Math.max(0, current.stats.jobsRemainingToday - 1),
+        },
+      } : current);
+    } catch (error) {
+      setJobActionError(error instanceof Error ? error.message : "Unable to complete this job.");
+    } finally {
+      setCompletingJobId(null);
+    }
+  }
 
   const ws = profit?.windowStats;
   const cm = cust?.moneyBar;
@@ -311,7 +348,12 @@ export default function DashboardPage() {
 
               <div className="grid content-start gap-4">
                 <FieldMap dispatch={dispatch} jobs={jobs} />
-                <TodaySchedule jobs={jobs} />
+                <TodaySchedule
+                  jobs={jobs}
+                  completingJobId={completingJobId}
+                  error={jobActionError}
+                  onComplete={completeDashboardJob}
+                />
               </div>
 
               <div className="grid content-start gap-4">
@@ -554,22 +596,52 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
   );
 }
 
-function TodaySchedule({ jobs }: { jobs: Job[] }) {
+function TodaySchedule({
+  jobs,
+  completingJobId,
+  error,
+  onComplete,
+}: {
+  jobs: Job[];
+  completingJobId: string | null;
+  error: string | null;
+  onComplete: (job: Job) => void;
+}) {
   return (
     <LiquidPanel className="p-5">
       <PanelTitle icon={<CalendarClock size={17} />} title="Today's Schedule" href="/schedule" />
+      {error && (
+        <div className="mt-3 rounded-lg px-3 py-2 text-xs" role="alert" style={{ background: "rgba(239,68,68,0.09)", border: "1px solid rgba(239,68,68,0.18)", color: "#B42318" }}>
+          {error}
+        </div>
+      )}
       <div className="mt-4 grid gap-2 md:grid-cols-2">
         {jobs.slice(0, 6).map((job) => (
-          <Link key={job.id} href={`/jobs/${job.id}`} className="schedule-card">
-            <span className="mono-number text-xs font-semibold" style={{ color: "var(--color-ember)" }}>
-              {job.scheduledTimeStart}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">{job.title}</span>
-              <span className="block truncate text-xs" style={{ color: "var(--color-text-muted)" }}>{job.customerName}</span>
-            </span>
-            <span className="status-dot" style={{ background: statusColor(job.status) }} />
-          </Link>
+          <div key={job.id} className="schedule-card">
+            <Link href={`/jobs?id=${encodeURIComponent(job.id)}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="mono-number text-xs font-semibold" style={{ color: "var(--color-ember)" }}>
+                {job.scheduledTimeStart}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{job.title}</span>
+                <span className="block truncate text-xs" style={{ color: "var(--color-text-muted)" }}>{job.customerName}</span>
+              </span>
+              <span className="status-dot" style={{ background: statusColor(job.status) }} />
+            </Link>
+            {job.status !== "completed" && job.status !== "cancelled" && (
+              <button
+                type="button"
+                onClick={() => onComplete(job)}
+                disabled={completingJobId === job.id}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all"
+                style={{ background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", color: "#15803D" }}
+                aria-label={`Complete ${job.title}`}
+                title="Mark job complete"
+              >
+                <CheckCircle2 size={17} />
+              </button>
+            )}
+          </div>
         ))}
         {!jobs.length && <EmptyLine label="No jobs are scheduled for today." />}
       </div>

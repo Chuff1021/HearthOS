@@ -1,5 +1,6 @@
 import { and, eq, or } from 'drizzle-orm';
 import { db, customers, invoices, organizations, payments } from '@/db';
+import { getJob, updateJobRecord } from '@/lib/job-store';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { getClientFromTokens } from '@/lib/quickbooks/sync';
 
@@ -10,6 +11,11 @@ type RecordInvoicePaymentInput = {
   transactionId?: string;
   paidAt?: Date;
   notes?: string;
+};
+
+type InvoicePaymentRow = {
+  invoice: typeof invoices.$inferSelect;
+  qbCustomerId: string | null;
 };
 
 function isUuid(value: string) {
@@ -27,6 +33,69 @@ function moneyNumber(value: unknown) {
 
 function paidDateString(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+async function findInvoice(
+  orgId: string,
+  reference: string,
+  amount: number,
+): Promise<InvoicePaymentRow | null> {
+  const filters = [
+    eq(invoices.qbInvoiceId, reference),
+    eq(invoices.invoiceNumber, reference),
+    eq(invoices.invoiceNumber, `QB-${reference}`),
+  ];
+  if (isUuid(reference)) filters.push(eq(invoices.id, reference));
+
+  const directRows = await db
+    .select({
+      invoice: invoices,
+      qbCustomerId: customers.qbCustomerId,
+    })
+    .from(invoices)
+    .leftJoin(customers, eq(customers.id, invoices.customerId))
+    .where(and(eq(invoices.orgId, orgId), or(...filters)!))
+    .limit(1);
+  if (directRows[0]) return directRows[0];
+
+  if (!isUuid(reference)) return null;
+  const job = await getJob(reference);
+  if (!job) return null;
+
+  const linkedReferences = [job.linkedInvoiceId, job.linkedDocumentNumber]
+    .map((value) => cleanInvoiceNumber(value))
+    .filter((value) => Boolean(value) && value !== reference);
+  for (const linkedReference of linkedReferences) {
+    const linked: InvoicePaymentRow | null = await findInvoice(orgId, linkedReference, amount);
+    if (linked) return linked;
+  }
+
+  if (!isUuid(job.customerId)) return null;
+  const candidates = await db
+    .select({
+      invoice: invoices,
+      qbCustomerId: customers.qbCustomerId,
+    })
+    .from(invoices)
+    .leftJoin(customers, eq(customers.id, invoices.customerId))
+    .where(and(
+      eq(invoices.orgId, orgId),
+      eq(invoices.customerId, job.customerId),
+      eq(invoices.issueDate, job.scheduledDate),
+    ));
+
+  const exactAmount = candidates.filter(
+    (candidate) => Math.abs(moneyNumber(candidate.invoice.totalAmount) - amount) < 0.01,
+  );
+  const match = exactAmount.length === 1 ? exactAmount[0] : candidates.length === 1 ? candidates[0] : null;
+  if (!match) return null;
+
+  await updateJobRecord(job.id, {
+    linkedInvoiceId: match.invoice.id,
+    linkedDocumentNumber: match.invoice.invoiceNumber,
+    totalAmount: moneyNumber(match.invoice.totalAmount),
+  });
+  return match;
 }
 
 async function createQuickBooksPayment(input: {
@@ -87,22 +156,7 @@ export async function recordInvoicePayment(input: RecordInvoicePaymentInput) {
   if (amount <= 0) return { recorded: false, reason: 'invalid_amount' as const };
 
   const org = await getOrCreateDefaultOrg();
-  const filters = [
-    eq(invoices.qbInvoiceId, invoiceNumber),
-    eq(invoices.invoiceNumber, invoiceNumber),
-    eq(invoices.invoiceNumber, `QB-${invoiceNumber}`),
-  ];
-  if (isUuid(invoiceNumber)) filters.push(eq(invoices.id, invoiceNumber));
-
-  const [row] = await db
-    .select({
-      invoice: invoices,
-      qbCustomerId: customers.qbCustomerId,
-    })
-    .from(invoices)
-    .leftJoin(customers, eq(customers.id, invoices.customerId))
-    .where(and(eq(invoices.orgId, org.id), or(...filters)!))
-    .limit(1);
+  const row = await findInvoice(org.id, invoiceNumber, amount);
 
   if (!row) return { recorded: false, reason: 'invoice_not_found' as const };
 

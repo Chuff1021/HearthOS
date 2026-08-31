@@ -64,8 +64,10 @@ export async function GET(request: NextRequest) {
     const sync = searchParams.get('sync');
     const live = searchParams.get('live');
 
-    // If sync/live requested, pull fresh data from QuickBooks
-    if (sync === 'true' || live === 'true' || query) {
+    // If sync/live requested, pull fresh data from QuickBooks.
+    // Plain q= searches must stay cache-only so typeahead fields do not trigger
+    // a full QuickBooks customer sync on every keystroke.
+    if (sync === 'true' || live === 'true') {
       const auth = await getQBAuthFromRequest(request);
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: 401 });

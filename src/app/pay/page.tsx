@@ -81,6 +81,7 @@ export default function CustomerPayPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: nextAmount,
+          invoiceAmount: formAmount(context.amount),
           sourceId,
           customerName: context.customerName || "Customer",
           invoiceNumber: context.invoiceNumber || undefined,
@@ -181,6 +182,7 @@ export default function CustomerPayPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: cardTotal,
+          invoiceAmount: amount,
           sourceId: tokenResult.token,
           customerName: form.customerName || "Customer",
           invoiceNumber: form.invoiceNumber || undefined,

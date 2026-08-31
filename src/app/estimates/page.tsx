@@ -87,6 +87,7 @@ export default function EstimatesPage() {
   const [emailSendMeCopy, setEmailSendMeCopy] = useState(true);
   const [emailStatus, setEmailStatus] = useState<{ type: "info" | "success" | "error"; message: string } | null>(null);
   const [sendingEstimateEmail, setSendingEstimateEmail] = useState(false);
+  const [projectActionId, setProjectActionId] = useState<string | null>(null);
   const [estimateEditForm, setEstimateEditForm] = useState({
     expirationDate: "",
     privateNote: "",
@@ -876,6 +877,25 @@ export default function EstimatesPage() {
     window.location.href = `/schedule?${params.toString()}`;
   }
 
+  async function addEstimateToProjects(estimate: Estimate) {
+    setProjectActionId(estimate.Id);
+    setError(null);
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType: "estimate", sourceId: estimate.Id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to add estimate to projects");
+      window.location.href = `/projects?project=${encodeURIComponent(data.project.id)}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to add estimate to projects");
+    } finally {
+      setProjectActionId(null);
+    }
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
@@ -1098,6 +1118,9 @@ export default function EstimatesPage() {
                           <button onClick={() => beginEditEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Edit</button>
                           <button onClick={() => setPnlOpen({ id: selectedEstimate.Id, label: selectedEstimate.DocNumber || selectedEstimate.Id })} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.12)", color: "#9a5d12", border: "1px solid rgba(248,151,31,0.25)" }}>P&amp;L</button>
                           <button onClick={() => scheduleFromEstimate(selectedEstimate)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(37,99,235,0.12)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.25)" }}>Schedule</button>
+                          <button onClick={() => addEstimateToProjects(selectedEstimate)} disabled={projectActionId === selectedEstimate.Id} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(248,151,31,0.14)", color: "#B45309", border: "1px solid rgba(248,151,31,0.28)", opacity: projectActionId === selectedEstimate.Id ? 0.72 : 1 }}>
+                            {projectActionId === selectedEstimate.Id ? "Adding..." : "Add to Projects"}
+                          </button>
                           <button onClick={() => { window.location.href = `/purchase-orders?estimateId=${encodeURIComponent(selectedEstimate.Id)}`; }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(124,58,237,0.12)", color: "#6D28D9", border: "1px solid rgba(124,58,237,0.25)" }}>Convert to PO</button>
                           {convertedMap[selectedEstimate.Id] ? (
                             <a href="/invoices" className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.25)" }}>View Invoice</a>

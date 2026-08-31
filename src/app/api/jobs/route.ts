@@ -101,6 +101,17 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+    const allowedStatuses: JobStatus[] = ["scheduled", "in_progress", "completed", "cancelled", "on_hold"];
+
+    if (!id) {
+      return NextResponse.json({ error: "Job ID required" }, { status: 400 });
+    }
+    if (updates.status && !allowedStatuses.includes(updates.status)) {
+      return NextResponse.json({ error: "Invalid job status" }, { status: 400 });
+    }
+    if (updates.status === "completed" && !updates.completedAt) {
+      updates.completedAt = new Date().toISOString();
+    }
 
     const job = await updateJobRecord(id, updates);
     if (!job) {

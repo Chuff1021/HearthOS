@@ -225,6 +225,7 @@ export default function TechPaymentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
+          invoiceAmount: amount,
           sourceId: tokenResult.token,
           customerName: form.customerName || "Customer",
           invoiceNumber: form.invoiceNumber || undefined,
