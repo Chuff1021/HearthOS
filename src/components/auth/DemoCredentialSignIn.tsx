@@ -4,14 +4,6 @@ import { useSignIn } from "@clerk/nextjs";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { FormEvent, useState } from "react";
 
-const DEMO_EMAIL_DOMAIN = "demo.hearthos.app";
-
-function resolveIdentifier(value: string) {
-  const identifier = value.trim();
-  if (identifier.includes("@")) return identifier.toLowerCase();
-  return `${identifier.toLowerCase()}@${DEMO_EMAIL_DOMAIN}`;
-}
-
 function clerkErrorMessage(error: unknown) {
   if (!error || typeof error !== "object") return "Sign in failed. Check the username and password.";
   const candidate = error as {
@@ -51,11 +43,14 @@ export default function DemoCredentialSignIn() {
             : "The demo workspace is temporarily unavailable.",
         );
       }
+      const prepared = await preparation.json() as { ticket?: string };
+      if (!prepared.ticket) {
+        throw new Error("The demo workspace is temporarily unavailable.");
+      }
 
       const result = await signIn.create({
-        strategy: "password",
-        identifier: resolveIdentifier(username),
-        password,
+        strategy: "ticket",
+        ticket: prepared.ticket,
       });
       if (result.status !== "complete" || !result.createdSessionId) {
         throw new Error(`This account requires an additional sign-in step (${result.status}).`);

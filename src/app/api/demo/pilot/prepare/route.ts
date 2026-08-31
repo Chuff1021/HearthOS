@@ -54,9 +54,13 @@ export async function POST(request: NextRequest) {
     createOrganizationsLimit: 0,
   });
   await client.users.disableUserMFA(user.id);
+  const signInToken = await client.signInTokens.createSignInToken({
+    userId: user.id,
+    expiresInSeconds: 60,
+  });
 
   return NextResponse.json(
-    { ready: true },
+    { ticket: signInToken.token },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
