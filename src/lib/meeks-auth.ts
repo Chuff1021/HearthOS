@@ -1,5 +1,9 @@
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { isClerkConfigured } from "@/lib/auth";
+import {
+  AARONS_ORGANIZATION_SLUG,
+  isAaronsOrganization,
+} from "@/lib/tenant/features";
 
 const DEFAULT_MEEKS_EMAILS = ["shawn.garvey@meeks.com"];
 const DEFAULT_INTERNAL_EMAILS = [
@@ -38,7 +42,8 @@ function allowedInternalEmails() {
     .split(",")
     .map(normalizeEmail)
     .filter(Boolean);
-  return new Set([...DEFAULT_INTERNAL_EMAILS, ...configured]);
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
+  return new Set([...DEFAULT_INTERNAL_EMAILS, ...configured, adminEmail].filter(Boolean));
 }
 
 function metadataRole(user: any) {
@@ -88,11 +93,7 @@ async function accessFromUser(user: any): Promise<MeeksAccess> {
 
   const isMeeksPartner = allowedMeeksEmails().has(email);
   const role = metadataRole(user);
-  const isKnownInternal = allowedInternalEmails().has(email) || isInternalMetadataRole(role) || await isInternalDbUser(email);
-  // HearthOS staff may not have consistent Clerk metadata yet. If someone is
-  // signed into this Clerk app and they are not an approved Meeks partner email,
-  // treat them as internal so the dashboard sidebar can open the portal.
-  const isInternal = isKnownInternal || !isMeeksPartner;
+  const isInternal = allowedInternalEmails().has(email) || isInternalMetadataRole(role) || await isInternalDbUser(email);
 
   if (!isMeeksPartner && !isInternal) {
     return { ok: false, status: 403, message: "This login is not allowed to access the Meeks portal." };
@@ -102,13 +103,12 @@ async function accessFromUser(user: any): Promise<MeeksAccess> {
     import("@/db"),
     import("drizzle-orm"),
   ]);
-  const orgSlug = String(process.env.MEEKS_ORGANIZATION_SLUG || "default");
   const [organization] = await db
-    .select({ id: organizations.id })
+    .select({ id: organizations.id, slug: organizations.slug })
     .from(organizations)
-    .where(eq(organizations.slug, orgSlug))
+    .where(eq(organizations.slug, AARONS_ORGANIZATION_SLUG))
     .limit(1);
-  if (!organization) {
+  if (!organization || !isAaronsOrganization(organization)) {
     return { ok: false, status: 403, message: "The Meeks portal company is not configured." };
   }
 
@@ -122,11 +122,11 @@ export async function getMeeksPortalAccess(): Promise<MeeksAccess> {
       import("drizzle-orm"),
     ]);
     const [organization] = await db
-      .select({ id: organizations.id })
+      .select({ id: organizations.id, slug: organizations.slug })
       .from(organizations)
-      .where(eq(organizations.slug, String(process.env.MEEKS_ORGANIZATION_SLUG || "default")))
+      .where(eq(organizations.slug, AARONS_ORGANIZATION_SLUG))
       .limit(1);
-    if (!organization) return { ok: false, status: 403, message: "The Meeks portal company is not configured." };
+    if (!organization || !isAaronsOrganization(organization)) return { ok: false, status: 403, message: "The Meeks portal company is not configured." };
     return { ok: true, email: "local", orgId: organization.id, isInternal: true, isMeeksPartner: true };
   }
 

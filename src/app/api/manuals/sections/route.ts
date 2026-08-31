@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManualSections, createManualSection } from "@/lib/manuals";
 import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const body = await request.json();
 
     if (!body.manualId || !body.pageStart || !body.snippet) {

@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
 import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
+import { useOrganizationFeatures } from "@/lib/tenant/use-organization-features";
 
 type ViewMode = "master" | "tech";
 type CalendarView = "week" | "month";
@@ -240,6 +241,7 @@ function layoutOverlappingJobs(dayJobs: Job[]) {
 }
 
 export default function SchedulePage() {
+  const features = useOrganizationFeatures();
   const searchParams = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -1112,7 +1114,7 @@ export default function SchedulePage() {
               ))}
             </div>
           )}
-          <MeeksSchedulePanel internal />
+          {features.meeksPortal && <MeeksSchedulePanel internal />}
         </div>
       </div>
 

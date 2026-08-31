@@ -25,7 +25,10 @@ import {
   Users,
   UserRoundCog,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import FlameLogo from "@/components/FlameLogo";
+import type { OrganizationFeature } from "@/lib/tenant/features";
+import { useOrganizationFeatures } from "@/lib/tenant/use-organization-features";
 
 const emptySubscribe = () => () => {};
 
@@ -37,14 +40,21 @@ function useHydrated() {
   );
 }
 
-const navGroups = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  feature?: OrganizationFeature;
+};
+
+const navGroups: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Main",
     items: [
       { label: "Dashboard", href: "/", icon: Gauge },
       { label: "To-Do List", href: "/todos", icon: ClipboardCheck },
       { label: "Schedule", href: "/schedule", icon: CalendarDays },
-      { label: "Meeks Portal", href: "/meeks", icon: CalendarDays },
+      { label: "Meeks Portal", href: "/meeks", icon: CalendarDays, feature: "meeksPortal" },
       { label: "Projects", href: "/projects", icon: PackageCheck },
       { label: "Jobs", href: "/jobs", icon: BriefcaseBusiness },
       { label: "Customers", href: "/customers", icon: Users },
@@ -68,14 +78,14 @@ const navGroups = [
       { label: "Vendors", href: "/vendors", icon: NotebookTabs },
       { label: "Banking", href: "/banking", icon: Banknote },
       { label: "Reports", href: "/reports", icon: BarChart3 },
-      { label: "GABE", href: "/gabe", icon: Sparkles },
+      { label: "GABE", href: "/gabe", icon: Sparkles, feature: "gabe" },
     ],
   },
   {
     label: "Admin",
     items: [
       { label: "Team", href: "/team", icon: UserRoundCog },
-      { label: "GABE Audit", href: "/admin/gabe-audit", icon: ClipboardCheck },
+      { label: "GABE Audit", href: "/admin/gabe-audit", icon: ClipboardCheck, feature: "gabeAudit" },
       { label: "Time Admin", href: "/admin/time", icon: CalendarDays },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
@@ -92,6 +102,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const hydrated = useHydrated();
+  const features = useOrganizationFeatures();
 
   return (
     <>
@@ -149,7 +160,7 @@ export default function Sidebar() {
               </div>
             )}
             <div className="space-y-1">
-              {group.items.map((item) => {
+              {group.items.filter((item) => !item.feature || features[item.feature]).map((item) => {
                 const active = hydrated && isActivePath(pathname, item.href);
                 const Icon = item.icon;
                 return (

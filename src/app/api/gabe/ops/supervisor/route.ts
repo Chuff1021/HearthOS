@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDefaultRecurringJobs, listJobs, runSupervisorTick } from '@/lib/gabe-ops';
-import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { tenantErrorResponse } from '@/lib/tenant/context';
+import { requireOrganizationFeature } from '@/lib/tenant/feature-access';
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission('gabe:manage');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
     await ensureDefaultRecurringJobs();
     const ran = await runSupervisorTick(baseUrl);
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission('gabe:manage');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     await ensureDefaultRecurringJobs();
     const jobs = await listJobs(200);
     const active = jobs.filter((j) => j.status === 'active').length;

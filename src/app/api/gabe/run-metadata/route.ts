@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
-import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { tenantErrorResponse } from '@/lib/tenant/context';
+import { requireOrganizationFeature } from '@/lib/tenant/feature-access';
 import { isTenantStorageEnabled, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission('gabe:use');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     const { searchParams } = new URL(request.url);
     const limit = Math.max(1, Math.min(500, Number(searchParams.get('limit') || 100)));
     if (!process.env.DATABASE_URL) return NextResponse.json({ runs: [], total: 0 });

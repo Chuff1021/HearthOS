@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useOrganizationFeatures } from "@/lib/tenant/use-organization-features";
 import Link from "next/link";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 
@@ -73,6 +74,7 @@ function deriveModel(manual: Manual) {
 }
 
 export default function ManualsPage() {
+  const features = useOrganizationFeatures();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedBrand, setSelectedBrand] = useState("All Makes");
@@ -333,12 +335,12 @@ export default function ManualsPage() {
             <h1 className="text-lg font-semibold">Manuals Library</h1>
             <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Organized by make and model</p>
           </div>
-          <button
+          {features.gabeAudit && <button
             onClick={() => setShowUploadModal(true)}
             className="ui-btn-primary px-3 py-1.5 rounded-lg text-sm font-medium"
           >
             + Upload
-          </button>
+          </button>}
         </div>
 
         <div className="relative">
@@ -438,7 +440,7 @@ export default function ManualsPage() {
                         >
                           View PDF
                         </a>
-                        <button
+                        {features.gabeAudit && <button
                           onClick={() => ingestManual(manual)}
                           disabled={!!ingestingId}
                           className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
@@ -449,9 +451,9 @@ export default function ManualsPage() {
                           }}
                         >
                           {ingestingId === manual.id ? `${ingestProgress?.current || 0}/${ingestProgress?.total || "?"}` : "Ingest for AI"}
-                        </button>
+                        </button>}
                       </div>
-                      {(ingestingId === manual.id || lastIngestedId === manual.id) && ingestStatus && (
+                      {features.gabeAudit && (ingestingId === manual.id || lastIngestedId === manual.id) && ingestStatus && (
                         <div className="mt-2">
                           {ingestProgress && (
                             <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-3)" }}>
@@ -484,7 +486,7 @@ export default function ManualsPage() {
         )}
       </div>
 
-      {showUploadModal && (
+      {features.gabeAudit && showUploadModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
           <div className="ui-card w-full max-w-md mx-auto rounded-t-2xl p-4">
             <div className="flex justify-between items-center mb-4">

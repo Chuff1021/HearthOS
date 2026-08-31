@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertSupportConversation } from '@/lib/gabe-support';
-import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { tenantErrorResponse } from '@/lib/tenant/context';
+import { requireOrganizationFeature } from '@/lib/tenant/feature-access';
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission('gabe:use');
+    await requireOrganizationFeature('gabe', 'gabe:use');
     const body = await request.json();
     const conversationId = String(body?.conversationId || body?.conversation_id || '');
     const message = String(body?.message || '').trim();

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createJob, ensureDefaultRecurringJobs, listJobs } from '@/lib/gabe-ops';
-import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { tenantErrorResponse } from '@/lib/tenant/context';
+import { requireOrganizationFeature } from '@/lib/tenant/feature-access';
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission('gabe:manage');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     await ensureDefaultRecurringJobs();
     const { searchParams } = new URL(request.url);
     const limit = Number(searchParams.get('limit') || 100);
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission('gabe:manage');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     const body = await request.json();
     const job = await createJob({
       jobType: body.jobType,

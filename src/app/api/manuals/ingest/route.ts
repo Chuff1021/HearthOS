@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createManualSection } from "@/lib/manuals";
 import postgres from "postgres";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 const NEMO_MODEL = "nvidia/nemoretriever-parse";
 const VISION_MODEL = "moonshotai/kimi-k2.5";
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const { manualId, pageNumber, imageBase64 } = await request.json();
 
     if (!manualId || !pageNumber || !imageBase64) {

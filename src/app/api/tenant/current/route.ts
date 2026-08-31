@@ -3,6 +3,7 @@ import {
   requireTenantContext,
   tenantErrorResponse,
 } from "@/lib/tenant/context";
+import { featuresForOrganization } from "@/lib/tenant/features";
 
 export async function GET() {
   try {
@@ -26,6 +27,7 @@ export async function GET() {
         email: context.email,
         isPlatformAdmin: context.isPlatformAdmin,
       },
+      features: featuresForOrganization(context.organization),
       source: context.source,
     });
   } catch (error) {

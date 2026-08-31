@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, listManualSections } from "@/lib/manuals";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 function getEngineUrl() {
   return process.env.GABE_ENGINE_URL || "http://localhost:4100";
@@ -14,7 +15,7 @@ function readTag(tags: unknown, prefix: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const body = await req.json().catch(() => ({}));
     const run = String(body?.run || "dry") === "run";
     const limit = Math.max(1, Math.min(Number(body?.limit || 50), 200));

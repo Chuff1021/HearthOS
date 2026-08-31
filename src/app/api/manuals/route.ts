@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, createManual, updateManual, deleteManual } from "@/lib/manuals";
 import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const body = await request.json();
 
     if (!body.brand || !body.model || !body.url) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const body = await request.json();
 
     if (!body.id) {
@@ -85,7 +86,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

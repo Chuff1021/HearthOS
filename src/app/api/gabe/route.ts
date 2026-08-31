@@ -3,7 +3,8 @@ import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
 import { saveGabeMessage } from "@/lib/gabe-messages";
 import postgres from "postgres";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 import { isTenantStorageEnabled, resolveStorageOrgId } from "@/lib/tenant/storage";
 
 interface ChatMessage {
@@ -117,7 +118,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission("gabe:use");
+    await requireOrganizationFeature("gabe", "gabe:use");
     const body = await request.json() as {
       messages: ChatMessage[];
       jobContext?: {

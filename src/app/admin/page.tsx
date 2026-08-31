@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { requirePermission } from "@/lib/tenant/context";
+import { featuresForOrganization } from "@/lib/tenant/features";
 
-export default function AdminHomePage() {
+export default async function AdminHomePage() {
+  const context = await requirePermission("organization:read");
+  const features = featuresForOrganization(context.organization);
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -36,7 +40,7 @@ export default function AdminHomePage() {
           >
             <div className="text-lg font-medium">Integrations</div>
             <div className="text-sm text-neutral-400">
-              QuickBooks + GABE AI status and setup.
+              QuickBooks{features.gabe ? " and GABE AI" : " connection"} status and setup.
             </div>
           </Link>
         </div>

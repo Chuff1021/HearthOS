@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchManualSections, type ManualSearchResult } from "@/lib/manual-search";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 const BASE_PROMPT = `You are GABE, a senior fireplace technician with 20+ years of experience. You work alongside the field techs at a fireplace service company and they come to you with questions throughout the day.
 
@@ -73,7 +74,7 @@ function buildSourceLinks(results: ManualSearchResult[]): string {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {

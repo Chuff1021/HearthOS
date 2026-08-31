@@ -4,6 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { db, organizations } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getIntegrationConnectionByExternalAccount, isTenantIntegrationsEnabled } from '@/lib/integrations/store';
+import { featuresForOrganization } from '@/lib/tenant/features';
 
 function validWebhookSecret(provided: string | null) {
   const expected = process.env.CHATWOOT_WEBHOOK_SECRET;
@@ -24,6 +25,14 @@ export async function POST(request: NextRequest) {
       ? (accountId ? (await getIntegrationConnectionByExternalAccount('chatwoot', accountId))?.orgId : undefined)
       : (await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, 'default')).limit(1))[0]?.id;
     if (!orgId) return NextResponse.json({ error: 'Chatwoot account is not connected to an organization' }, { status: 404 });
+    const [organization] = await db
+      .select({ slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+    if (!organization || !featuresForOrganization(organization).gabe) {
+      return NextResponse.json({ error: 'GABE is not available for this organization' }, { status: 403 });
+    }
     const conversationId = String(body?.conversation?.id || body?.conversation_id || '');
     const messageId = String(body?.message?.id || body?.id || '');
     const content = String(body?.message?.content || body?.content || body?.message || '').trim();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 export const maxDuration = 300;
 
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
-    await requirePermission("gabe:manage");
+    await requireOrganizationFeature("gabeAudit", "gabe:manage");
     // Get all active manuals that haven't been ingested yet (no sections)
     const manuals = await sql`
       SELECT m.id, m.brand, m.model, m.type, m.url

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { tenantErrorResponse } from '@/lib/tenant/context';
+import { requireOrganizationFeature } from '@/lib/tenant/feature-access';
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission('gabe:manage');
+    await requireOrganizationFeature('gabeAudit', 'gabe:manage');
     const body = await request.json();
     const engine = process.env.GABE_ENGINE_URL;
     if (!engine) return NextResponse.json({ error: 'GABE_ENGINE_URL is required' }, { status: 500 });

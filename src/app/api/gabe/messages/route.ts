@@ -9,12 +9,13 @@ import {
   getGabeMessageStats 
 } from "@/lib/gabe-messages";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
-import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { tenantErrorResponse } from "@/lib/tenant/context";
+import { requireOrganizationFeature } from "@/lib/tenant/feature-access";
 
 // GET - Get messages with optional filters
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission("gabe:use");
+    await requireOrganizationFeature("gabe", "gabe:use");
     const { searchParams } = new URL(request.url);
     
     const filters = {
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 // POST - Save a new message conversation
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission("gabe:use");
+    await requireOrganizationFeature("gabe", "gabe:use");
     const body = await request.json();
     
     const newMessage = await saveGabeMessage({
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update a message (rating, flagging)
 export async function PUT(request: NextRequest) {
   try {
-    await requirePermission("gabe:use");
+    await requireOrganizationFeature("gabe", "gabe:use");
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -152,7 +153,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a message
 export async function DELETE(request: NextRequest) {
   try {
-    await requirePermission("gabe:use");
+    await requireOrganizationFeature("gabe", "gabe:use");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

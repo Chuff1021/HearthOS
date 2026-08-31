@@ -27,6 +27,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import OperationsLeafletMap from "@/components/dashboard/OperationsLeafletMap";
 import { LiquidPanel, StatusPill } from "@/components/ui/liquid";
+import { useOrganizationFeatures } from "@/lib/tenant/use-organization-features";
 
 type ProfitResp = {
   windowStats: {
@@ -178,6 +179,7 @@ function relativeDate(value: string | null | undefined) {
 }
 
 export default function DashboardPage() {
+  const features = useOrganizationFeatures();
   const [now, setNow] = useState(() => new Date());
   const [profit, setProfit] = useState<ProfitResp | null>(null);
   const [cust, setCust] = useState<CustomerResp | null>(null);
@@ -357,7 +359,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid content-start gap-4">
-                <Recommendations customer={cust} vendor={vend} dispatch={dispatch} jobs={jobs} />
+                <Recommendations customer={cust} vendor={vend} dispatch={dispatch} jobs={jobs} gabeEnabled={features.gabe} />
                 <JobsByStatus jobs={jobs} />
                 <ActivityRail activity={activity} />
               </div>
@@ -367,7 +369,7 @@ export default function DashboardPage() {
               <RevenueOverview profit={profit} topRevenue={topRevenue} />
               <ServicePipeline jobs={jobs} />
             </section>
-            <CommandDock />
+            {features.gabe && <CommandDock />}
           </div>
         </main>
       </div>
@@ -654,11 +656,13 @@ function Recommendations({
   vendor,
   dispatch,
   jobs,
+  gabeEnabled,
 }: {
   customer: CustomerResp | null;
   vendor: VendorResp | null;
   dispatch: DispatchResp | null;
   jobs: Job[];
+  gabeEnabled: boolean;
 }) {
   const recs = [
     customer?.moneyBar.overdueCount
@@ -674,7 +678,11 @@ function Recommendations({
 
   return (
     <LiquidPanel className="p-5" strong>
-      <PanelTitle icon={<Bot size={17} />} title="AI Recommendations" href="/gabe" />
+      <PanelTitle
+        icon={gabeEnabled ? <Bot size={17} /> : <Gauge size={17} />}
+        title={gabeEnabled ? "AI Recommendations" : "Operations Focus"}
+        href={gabeEnabled ? "/gabe" : "/reports"}
+      />
       <div className="mt-4 space-y-3">
         {recs.map((rec, index) => (
           <div key={rec} className="recommendation-row">
