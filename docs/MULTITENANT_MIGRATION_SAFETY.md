@@ -46,11 +46,12 @@ Do not create a Vercel preview while `DATABASE_URL` is shared across Production,
 All flags default to off. Enable them in order and never skip a stage:
 
 1. `MULTITENANT_FOUNDATION_ENABLED=true` enables Clerk identity, organizations, memberships, onboarding, invitations, and support sessions.
-2. `MULTITENANT_STORAGE_ENABLED=true` switches legacy stores to organization-owned database records and disables shared JSON fallbacks.
-3. `MULTITENANT_INTEGRATIONS_ENABLED=true` reads encrypted QuickBooks and Square connections per organization. Keep `INTEGRATION_DUAL_WRITE_LEGACY=true` during Aaron's compatibility observation window.
-4. `MULTITENANT_ENFORCEMENT_ENABLED=true` removes hardcoded default-organization resolution from application data paths.
-5. `MULTITENANT_ROUTE_PROTECTION_ENABLED=true` requires Clerk authentication at the routing layer for private application and API routes.
-6. `NEXT_PUBLIC_MULTITENANT_UI_ENABLED=true` exposes organization switching in the authenticated header.
+2. `MULTITENANT_FILES_ENABLED=true` enables private object storage for new photos and attachments without switching any legacy business-data store.
+3. `MULTITENANT_STORAGE_ENABLED=true` switches legacy stores to organization-owned database records and disables shared JSON fallbacks. It also keeps private object storage enabled.
+4. `MULTITENANT_INTEGRATIONS_ENABLED=true` reads encrypted QuickBooks and Square connections per organization. Keep `INTEGRATION_DUAL_WRITE_LEGACY=true` during Aaron's compatibility observation window.
+5. `MULTITENANT_ENFORCEMENT_ENABLED=true` removes hardcoded default-organization resolution from application data paths.
+6. `MULTITENANT_ROUTE_PROTECTION_ENABLED=true` requires Clerk authentication at the routing layer for private application and API routes.
+7. `NEXT_PUBLIC_MULTITENANT_UI_ENABLED=true` exposes organization switching in the authenticated header.
 
 When tenant storage is enabled, new technician photos and Meeks PO attachments are written to private S3-compatible object storage with organization-prefixed object keys. `tenant_private_files` stores only tenant ownership, object metadata, and a SHA-256 integrity checksum. Downloads are streamed through organization-authorized HearthOS routes; the object bucket is never public. Existing embedded attachments remain unchanged during the compatibility window and can be migrated only after checksum and rollback review.
 

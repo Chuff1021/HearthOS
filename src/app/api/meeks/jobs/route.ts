@@ -11,7 +11,7 @@ import {
 import { getMeeksApiAccess, getMeeksInternalAccess } from "@/lib/meeks-auth";
 import { getTechs } from "@/app/api/techs/route";
 import { storeTenantFileFromDataUrl } from '@/lib/tenant/files';
-import { isTenantStorageEnabled } from '@/lib/tenant/storage';
+import { isTenantFileStorageEnabled } from '@/lib/tenant/storage';
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -100,7 +100,7 @@ function cleanPoAttachment(value: unknown): MeeksAttachment | undefined {
 }
 
 async function storePoAttachment(attachment: MeeksAttachment | undefined, orgId: string) {
-  if (!attachment || !isTenantStorageEnabled() || attachment.storageId) return attachment;
+  if (!attachment || !isTenantFileStorageEnabled() || attachment.storageId) return attachment;
   const file = await storeTenantFileFromDataUrl({
     orgId,
     dataUrl: attachment.dataUrl,

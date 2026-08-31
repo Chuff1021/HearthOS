@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 import { storeTenantFileFromDataUrl } from '@/lib/tenant/files';
-import { isTenantStorageEnabled } from '@/lib/tenant/storage';
+import { isTenantFileStorageEnabled } from '@/lib/tenant/storage';
 
 const ALLOWED_TYPES = new Set([
   'application/pdf',
@@ -15,7 +15,7 @@ const ALLOWED_TYPES = new Set([
 export async function POST(request: NextRequest) {
   try {
     const tenant = await requirePermission('files:write');
-    if (!isTenantStorageEnabled()) return NextResponse.json({ enabled: false });
+    if (!isTenantFileStorageEnabled()) return NextResponse.json({ enabled: false });
     const body = await request.json();
     const fileName = String(body.fileName || 'upload').trim();
     const dataUrl = String(body.dataUrl || '');

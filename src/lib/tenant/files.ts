@@ -3,7 +3,7 @@ import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import postgres from 'postgres';
-import { isTenantStorageEnabled } from '@/lib/tenant/storage';
+import { isTenantFileStorageEnabled } from '@/lib/tenant/storage';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -56,7 +56,7 @@ export async function storeTenantFileFromDataUrl(input: {
   allowedContentTypes?: ReadonlySet<string>;
   metadata?: Record<string, unknown>;
 }) {
-  if (!isTenantStorageEnabled()) return null;
+  if (!isTenantFileStorageEnabled()) return null;
   const parsed = parseDataUrl(input.dataUrl);
   if (input.allowedContentTypes && !input.allowedContentTypes.has(parsed.contentType)) {
     throw new Error('This file type is not allowed.');
