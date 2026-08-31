@@ -39,6 +39,19 @@ export default function DemoCredentialSignIn() {
     setSubmitting(true);
     setError("");
     try {
+      const preparation = await fetch("/api/demo/pilot/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!preparation.ok) {
+        throw new Error(
+          preparation.status === 401
+            ? "Sign in failed. Check the username and password."
+            : "The demo workspace is temporarily unavailable.",
+        );
+      }
+
       const result = await signIn.create({
         strategy: "password",
         identifier: resolveIdentifier(username),

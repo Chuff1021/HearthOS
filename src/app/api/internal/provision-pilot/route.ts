@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     createOrganizationEnabled: false,
     createOrganizationsLimit: 0,
   });
+  await client.users.disableUserMFA(clerkUser.id);
 
   await client.instance.updateOrganizationSettings({
     enabled: true,
