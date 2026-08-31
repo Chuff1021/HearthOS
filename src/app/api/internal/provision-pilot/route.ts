@@ -27,7 +27,7 @@ function secretMatches(candidate: string, expected: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const expectedSecret = process.env.PILOT_TENANT_PROVISIONING_SECRET || "";
+  const expectedSecret = (process.env.PILOT_TENANT_PROVISIONING_SECRET || "").trim();
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
   if (
     process.env.VERCEL_ENV !== "preview"
