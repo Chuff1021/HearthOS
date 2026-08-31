@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const file = await getTenantFile(tenant.orgId, id);
     if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    return tenantFileResponse(file);
+    return await tenantFileResponse(file);
   } catch (error) {
     const tenantResponse = tenantErrorResponse(error);
     if (tenantResponse) return tenantResponse;

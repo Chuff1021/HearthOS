@@ -52,7 +52,17 @@ All flags default to off. Enable them in order and never skip a stage:
 5. `MULTITENANT_ROUTE_PROTECTION_ENABLED=true` requires Clerk authentication at the routing layer for private application and API routes.
 6. `NEXT_PUBLIC_MULTITENANT_UI_ENABLED=true` exposes organization switching in the authenticated header.
 
-When tenant storage is enabled, new technician photos and Meeks PO attachments are written to `tenant_private_files` with organization-prefixed object keys. Downloads are served only through organization-authorized routes. Existing embedded attachments remain unchanged during the compatibility window and can be migrated only after checksum and rollback review.
+When tenant storage is enabled, new technician photos and Meeks PO attachments are written to private S3-compatible object storage with organization-prefixed object keys. `tenant_private_files` stores only tenant ownership, object metadata, and a SHA-256 integrity checksum. Downloads are streamed through organization-authorized HearthOS routes; the object bucket is never public. Existing embedded attachments remain unchanged during the compatibility window and can be migrated only after checksum and rollback review.
+
+Required server-only variables:
+
+- `HEARTHOS_OBJECT_STORAGE_ENDPOINT`
+- `HEARTHOS_OBJECT_STORAGE_REGION` (`auto` for Cloudflare R2)
+- `HEARTHOS_OBJECT_STORAGE_BUCKET`
+- `HEARTHOS_OBJECT_STORAGE_ACCESS_KEY_ID`
+- `HEARTHOS_OBJECT_STORAGE_SECRET_ACCESS_KEY`
+
+Configure separate production and staging buckets and credentials. Do not enable `MULTITENANT_STORAGE_ENABLED` until an authenticated upload/download and failed-write rollback rehearsal passes in Preview. Redis is not an attachment store and must not hold job photos, manuals, or PO files.
 
 Public invoice payments and estimate acceptance use opaque, expiring, server-hashed intents in tenant mode. Organization IDs, invoice amounts, and estimate references are resolved from the intent record and are never accepted from public request parameters.
 

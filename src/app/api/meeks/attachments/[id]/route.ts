@@ -18,5 +18,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } else if (file.source_type !== 'meeks-po') {
     return NextResponse.json({ error: 'Attachment not found' }, { status: 404 });
   }
-  return tenantFileResponse(file);
+  return await tenantFileResponse(file);
 }
