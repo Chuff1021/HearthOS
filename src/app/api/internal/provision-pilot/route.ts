@@ -97,10 +97,9 @@ export async function POST(request: NextRequest) {
     limit: 20,
   });
   const clerkOrganization = existingOrganizations.data.find(
-    (organization) => organization.slug === PILOT.organizationSlug,
+    (organization) => organization.name === PILOT.organizationName,
   ) || await client.organizations.createOrganization({
     name: PILOT.organizationName,
-    slug: PILOT.organizationSlug,
     privateMetadata: { hearthosPilot: true, demoData: true },
   });
 
