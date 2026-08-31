@@ -26,6 +26,22 @@ function secretMatches(candidate: string, expected: string) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+function provisioningError(error: unknown) {
+  const value = error as {
+    status?: number;
+    errors?: Array<{ code?: string; longMessage?: string; message?: string }>;
+  };
+  const details = (value.errors || []).map((item) => ({
+    code: item.code || "unknown",
+    message: item.longMessage || item.message || "Provisioning failed",
+  }));
+  console.error("Pilot provisioning failed", { status: value.status, details });
+  return NextResponse.json(
+    { error: "Pilot provisioning failed", details },
+    { status: value.status && value.status >= 400 && value.status < 600 ? value.status : 500 },
+  );
+}
+
 export async function POST(request: NextRequest) {
   const expectedSecret = (process.env.PILOT_TENANT_PROVISIONING_SECRET || "").trim();
   const provisionSecret = request.headers.get("x-hearthos-provision-secret") || "";
@@ -48,6 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid pilot credentials" }, { status: 400 });
   }
 
+  try {
   const client = await clerkClient();
   const existingUsers = await client.users.getUserList({ emailAddress: [PILOT.email], limit: 2 });
   const clerkUser = existingUsers.data[0] || await client.users.createUser({
@@ -185,4 +202,7 @@ export async function POST(request: NextRequest) {
     organization: { id: result.organization.id, slug: result.organization.slug },
     identity: { id: result.identity.id, username: PILOT.username },
   });
+  } catch (error) {
+    return provisioningError(error);
+  }
 }
