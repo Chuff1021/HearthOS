@@ -20,9 +20,9 @@ export const maxDuration = 60;
 type Entity = 'customers' | 'items' | 'vendors' | 'invoices' | 'payments' | 'estimates' | 'purchase-orders' | 'bills';
 
 const entityQueries: Record<Entity, string> = {
-  customers: 'SELECT * FROM Customer',
-  items: 'SELECT * FROM Item',
-  vendors: 'SELECT * FROM Vendor',
+  customers: 'SELECT * FROM Customer WHERE Active IN (true, false)',
+  items: 'SELECT * FROM Item WHERE Active IN (true, false)',
+  vendors: 'SELECT * FROM Vendor WHERE Active IN (true, false)',
   invoices: 'SELECT * FROM Invoice ORDERBY TxnDate DESC',
   payments: 'SELECT * FROM Payment ORDERBY TxnDate DESC',
   estimates: 'SELECT * FROM Estimate ORDERBY TxnDate DESC',

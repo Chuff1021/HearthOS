@@ -211,11 +211,11 @@ export class QuickBooksClient {
   // === CUSTOMERS ===
   
   async getCustomers(maxResults = 1000): Promise<QBCustomer[]> {
-    return this.query<QBCustomer>(`SELECT * FROM Customer MAXRESULTS ${maxResults}`);
+    return this.query<QBCustomer>(`SELECT * FROM Customer WHERE Active IN (true, false) MAXRESULTS ${maxResults}`);
   }
 
   async getAllCustomers(pageSize = 1000): Promise<QBCustomer[]> {
-    return this.queryAll<QBCustomer>('SELECT * FROM Customer', pageSize);
+    return this.queryAll<QBCustomer>('SELECT * FROM Customer WHERE Active IN (true, false)', pageSize);
   }
 
   async getCustomer(id: string): Promise<QBCustomer> {
@@ -249,11 +249,11 @@ export class QuickBooksClient {
   // === ITEMS (Products/Services) ===
 
   async getItems(maxResults = 1000): Promise<QBItem[]> {
-    return this.query<QBItem>(`SELECT * FROM Item MAXRESULTS ${maxResults}`);
+    return this.query<QBItem>(`SELECT * FROM Item WHERE Active IN (true, false) MAXRESULTS ${maxResults}`);
   }
 
   async getAllItems(pageSize = 500): Promise<QBItem[]> {
-    return this.queryAll<QBItem>('SELECT * FROM Item', pageSize);
+    return this.queryAll<QBItem>('SELECT * FROM Item WHERE Active IN (true, false)', pageSize);
   }
 
   async getItem(id: string): Promise<QBItem> {
@@ -441,11 +441,11 @@ export class QuickBooksClient {
   // === VENDORS ===
 
   async getVendors(maxResults = 1000): Promise<any[]> {
-    return this.query<any>(`SELECT * FROM Vendor MAXRESULTS ${maxResults}`);
+    return this.query<any>(`SELECT * FROM Vendor WHERE Active IN (true, false) MAXRESULTS ${maxResults}`);
   }
 
   async getAllVendors(pageSize = 500): Promise<any[]> {
-    return this.queryAll<any>('SELECT * FROM Vendor', pageSize);
+    return this.queryAll<any>('SELECT * FROM Vendor WHERE Active IN (true, false)', pageSize);
   }
 
   // === PURCHASE ORDERS ===
