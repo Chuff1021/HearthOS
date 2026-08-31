@@ -10,8 +10,8 @@ import {
 import { transformCustomers, transformCustomer } from '@/lib/quickbooks/transform';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import type { QBCustomer } from '@/lib/quickbooks/types';
-import { db, organizations } from '@/db';
-import { eq } from 'drizzle-orm';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 async function getQBAuthFromRequest(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -41,22 +41,22 @@ async function getQBAuthFromRequest(request: NextRequest) {
   };
 }
 
-async function refreshTokensAndPersist(client: ReturnType<typeof getClientFromTokens>, orgId: string) {
+async function refreshTokensAndPersist(client: ReturnType<typeof getClientFromTokens>, orgId: string, realmId: string) {
   const newTokens = await client.refreshAccessToken();
-  await db
-    .update(organizations)
-    .set({
-      qbAccessToken: newTokens.access_token,
-      qbRefreshToken: newTokens.refresh_token,
-      qbTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
-      updatedAt: new Date(),
-    })
-    .where(eq(organizations.id, orgId));
+  await saveQuickBooksRefresh({
+    orgId,
+    realmId,
+    accessToken: newTokens.access_token,
+    refreshToken: newTokens.refresh_token,
+    expiresIn: newTokens.expires_in,
+  });
 
   return newTokens;
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi(request.nextUrl.searchParams.get('sync') === 'true' || request.nextUrl.searchParams.get('live') === 'true' ? 'integrations:manage' : 'customers:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.warn('Initial QB customer sync failed, trying token refresh...', err);
         try {
-          const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+          const refreshed = await refreshTokensAndPersist(client, auth.org.id, auth.realmId);
           const retriedClient = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
           await syncCustomers(retriedClient);
         } catch (refreshErr) {
@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('customers:write');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const sync = searchParams.get('sync');
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, synced: customers.length });
       } catch (err) {
         console.warn('Initial QB customer sync POST failed, trying refresh...', err);
-        const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+        const refreshed = await refreshTokensAndPersist(client, auth.org.id, auth.realmId);
         client = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
         const customers = await syncCustomers(client);
         return NextResponse.json({ success: true, synced: customers.length, refreshed: true });
@@ -169,7 +171,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, customer: transformCustomer(customer) });
     } catch (err) {
       console.warn('Initial QB create customer failed, trying refresh...', err);
-      const refreshed = await refreshTokensAndPersist(client, auth.org.id);
+      const refreshed = await refreshTokensAndPersist(client, auth.org.id, auth.realmId);
       client = getClientFromTokens(refreshed.access_token, refreshed.refresh_token, auth.realmId);
       const customer = await createCustomerInQuickBooks(client, qbCustomer);
       return NextResponse.json({ success: true, customer: transformCustomer(customer), refreshed: true });

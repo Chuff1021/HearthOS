@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchManualSections, type ManualSearchResult } from "@/lib/manual-search";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 const BASE_PROMPT = `You are GABE, a senior fireplace technician with 20+ years of experience. You work alongside the field techs at a fireplace service company and they come to you with questions throughout the day.
 
@@ -72,6 +73,7 @@ function buildSourceLinks(results: ManualSearchResult[]): string {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -171,6 +173,8 @@ export async function POST(request: NextRequest) {
       manualPagesUsed: manualResults.length,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("[GABE-TEST] Unhandled error:", err);
     return NextResponse.json({
       error: "Server error",

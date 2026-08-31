@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, vendors, bills, purchaseOrders } from '@/db';
 import { and, eq, sql, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // GET /api/vendors/[id]
 // Vendor detail + unified transactions timeline (bills + POs).
@@ -19,6 +20,8 @@ type Txn = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('inventory:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);
@@ -131,6 +134,8 @@ function cleanString(value: unknown) {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('inventory:write');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const body = await req.json();

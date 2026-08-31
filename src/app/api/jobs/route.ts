@@ -6,15 +6,18 @@ import {
   updateJobRecord,
 } from "@/lib/job-store";
 import type { Job, JobType, JobStatus, JobPriority } from "@/lib/job-store";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export type { Job, JobType, JobStatus, JobPriority };
 
 export async function getJobs(): Promise<Job[]> {
+  await requirePermission("jobs:read");
   return listJobs();
 }
 
 export async function GET(request: Request) {
   try {
+    await requirePermission("jobs:read");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const status = searchParams.get("status");
@@ -62,6 +65,8 @@ export async function GET(request: Request) {
       total: filtered.length,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get jobs:", err);
     return NextResponse.json({ error: "Failed to get jobs" }, { status: 500 });
   }
@@ -69,6 +74,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await requirePermission("jobs:write");
     const body = await request.json();
     const newJob = await createJobRecord({
       title: body.title,
@@ -92,6 +98,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ job: newJob }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create job:", err);
     return NextResponse.json({ error: "Failed to create job" }, { status: 500 });
   }
@@ -99,6 +107,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    await requirePermission("jobs:write");
     const body = await request.json();
     const { id, ...updates } = body;
     const allowedStatuses: JobStatus[] = ["scheduled", "in_progress", "completed", "cancelled", "on_hold"];
@@ -120,6 +129,8 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ job });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update job:", err);
     return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
   }
@@ -127,6 +138,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    await requirePermission("jobs:write");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -141,6 +153,8 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete job:", err);
     return NextResponse.json({ error: "Failed to delete job" }, { status: 500 });
   }

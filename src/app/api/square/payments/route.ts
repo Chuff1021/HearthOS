@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordInvoicePayment } from "@/lib/invoices/record-payment";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
+import { db, organizations } from "@/db";
+import { eq } from "drizzle-orm";
+import { getOrCreateDefaultOrg } from "@/lib/org";
+import { getSquareCredentials } from "@/lib/integrations/store";
+import { completePaymentIntent, getPaymentIntent } from "@/lib/integrations/payment-intents";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
-const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || "production";
-const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
-const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
-
-function baseUrl() {
-  return SQUARE_ENV === "sandbox"
+function baseUrl(environment: string) {
+  return environment === "sandbox"
     ? "https://connect.squareupsandbox.com"
     : "https://connect.squareup.com";
 }
@@ -21,20 +23,36 @@ function paymentMethodFromSquare(sourceType: string | undefined) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
+    const body = await request.json();
+    const paymentToken = String(body?.paymentToken || "");
+    const intent = paymentToken ? await getPaymentIntent(paymentToken) : null;
+    if (paymentToken && !intent) {
+      return NextResponse.json({ error: "Payment link is invalid or expired." }, { status: 404 });
+    }
+
+    let org;
+    if (intent) {
+      [org] = await db.select().from(organizations).where(eq(organizations.id, intent.org_id)).limit(1);
+    } else {
+      await requirePermission("financials:write");
+      org = await getOrCreateDefaultOrg();
+    }
+    if (!org) return NextResponse.json({ error: "Payment organization is unavailable." }, { status: 404 });
+    const square = await getSquareCredentials(org);
+    if (!square?.accessToken || !square.locationId) {
       return NextResponse.json(
         { error: "Square is not configured. Set SQUARE_ACCESS_TOKEN and SQUARE_LOCATION_ID." },
         { status: 500 }
       );
     }
 
-    const body = await request.json();
     const amount = Number(body?.amount);
-    const invoiceAmount = body?.invoiceAmount == null ? amount : Number(body.invoiceAmount);
+    const intendedAmount = intent ? Number(intent.amount) : null;
+    const invoiceAmount = intendedAmount ?? (body?.invoiceAmount == null ? amount : Number(body.invoiceAmount));
     const sourceId = String(body?.sourceId || "");
-    const customerName = String(body?.customerName || "Customer");
-    const invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
-    const buyerEmail = body?.buyerEmail ? String(body.buyerEmail) : undefined;
+    const customerName = String(intent?.customer_name || body?.customerName || "Customer");
+    const invoiceNumber = intent?.invoice_number ? String(intent.invoice_number) : body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
+    const buyerEmail = intent?.buyer_email ? String(intent.buyer_email) : body?.buyerEmail ? String(body.buyerEmail) : undefined;
     const note = body?.note ? String(body.note) : undefined;
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -42,6 +60,14 @@ export async function POST(request: NextRequest) {
     }
     if (!Number.isFinite(invoiceAmount) || invoiceAmount <= 0 || invoiceAmount > amount) {
       return NextResponse.json({ error: "invoiceAmount must be greater than 0 and no more than amount" }, { status: 400 });
+    }
+    if (intendedAmount) {
+      const cardTotal = intendedAmount * 1.035;
+      const matchesInvoice = Math.abs(amount - intendedAmount) <= 0.01;
+      const matchesCardTotal = Math.abs(amount - cardTotal) <= 0.01;
+      if (!matchesInvoice && !matchesCardTotal) {
+        return NextResponse.json({ error: "Payment amount does not match this secure payment link." }, { status: 400 });
+      }
     }
 
     if (!sourceId) {
@@ -52,7 +78,7 @@ export async function POST(request: NextRequest) {
       idempotency_key: crypto.randomUUID(),
       source_id: sourceId,
       autocomplete: true,
-      location_id: SQUARE_LOCATION_ID,
+      location_id: square.locationId,
       amount_money: {
         amount: Math.round(amount * 100),
         currency: "USD",
@@ -62,11 +88,11 @@ export async function POST(request: NextRequest) {
       buyer_email_address: buyerEmail,
     };
 
-    const res = await fetch(`${baseUrl()}/v2/payments`, {
+    const res = await fetch(`${baseUrl(square.environment)}/v2/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${square.accessToken}`,
         "Square-Version": "2024-12-18",
       },
       body: JSON.stringify(payload),
@@ -88,7 +114,10 @@ export async function POST(request: NextRequest) {
     const payment = data?.payment;
     const squareStatus = String(payment?.status || "COMPLETED");
     const sourceType = payment?.source_type || "CARD";
-    upsertSquarePayment({
+    const storageScope = intent
+      ? { orgId: org.id, trustedSystem: true as const }
+      : org.id;
+    await upsertSquarePayment({
       id: String(payment?.id || crypto.randomUUID()),
       status: squareStatus,
       amount,
@@ -101,12 +130,13 @@ export async function POST(request: NextRequest) {
       createdAt: payment?.created_at || new Date().toISOString(),
       updatedAt: payment?.updated_at || new Date().toISOString(),
       raw: data,
-    });
+    }, storageScope);
 
     let invoicePayment;
     if (invoiceNumber && squareStatus.toUpperCase() === "COMPLETED") {
       try {
         invoicePayment = await recordInvoicePayment({
+          orgId: org.id,
           invoiceNumber,
           amount: invoiceAmount,
           paymentMethod: paymentMethodFromSquare(sourceType),
@@ -127,6 +157,9 @@ export async function POST(request: NextRequest) {
         };
       }
     }
+    if (intent && squareStatus.toUpperCase() === "COMPLETED") {
+      await completePaymentIntent(paymentToken, String(payment?.id || ""));
+    }
 
     return NextResponse.json({
       ok: true,
@@ -137,6 +170,8 @@ export async function POST(request: NextRequest) {
       invoicePayment,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unexpected Square payment error" },
       { status: 500 }

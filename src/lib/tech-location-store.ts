@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { isTenantStorageEnabled, requireTenantDatabase, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export interface TechLocationPoint {
   techId: string;
@@ -55,6 +56,10 @@ async function ensureTable() {
       `;
       await sql`create index if not exists idx_tech_locations_live_tech_ts on tech_locations_live (tech_id, ts desc);`;
       await sql`create index if not exists idx_tech_locations_live_email_ts on tech_locations_live (tech_email, ts desc);`;
+      if (isTenantStorageEnabled()) {
+        await sql`alter table tech_locations_live add column if not exists org_id uuid;`;
+        await sql`create index if not exists idx_tech_locations_live_org_id on tech_locations_live (org_id);`;
+      }
     })();
   }
   await initPromise;
@@ -62,10 +67,18 @@ async function ensureTable() {
 
 export async function addLocationPoint(point: TechLocationPoint) {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) return point;
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  await sql`
+  if (orgId) await sql`
+    insert into tech_locations_live
+      (org_id, tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts)
+    values
+      (${orgId}, ${point.techId}, ${point.techName || null}, ${point.techEmail || null}, ${point.lat}, ${point.lng}, ${point.accuracy ?? null}, ${point.speed ?? null}, ${point.heading ?? null}, ${point.timestamp});
+  `;
+  else await sql`
     insert into tech_locations_live
       (tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts)
     values
@@ -74,7 +87,11 @@ export async function addLocationPoint(point: TechLocationPoint) {
 
   // Probabilistic 30-day pruning (runs ~1% of inserts to avoid write amplification)
   if (Math.random() < 0.01) {
-    await sql`
+    if (orgId) await sql`
+      delete from tech_locations_live
+      where org_id = ${orgId} and ts < now() - interval '30 days';
+    `;
+    else await sql`
       delete from tech_locations_live
       where ts < now() - interval '30 days';
     `;
@@ -85,10 +102,28 @@ export async function addLocationPoint(point: TechLocationPoint) {
 
 export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) return [];
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  const rows = await sql<{
+  const rows = orgId ? await sql<{
+    tech_id: string;
+    tech_name: string | null;
+    tech_email: string | null;
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+    speed: number | null;
+    heading: number | null;
+    ts: string;
+  }[]>`
+    select distinct on (tech_id)
+      tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
+    from tech_locations_live
+    where org_id = ${orgId} and ts >= now() - interval '24 hours'
+    order by tech_id, ts desc;
+  ` : await sql<{
     tech_id: string;
     tech_name: string | null;
     tech_email: string | null;
@@ -121,10 +156,28 @@ export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
 
 export async function getLocationHistory(techId: string, limit = 100): Promise<TechLocationPoint[]> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) return [];
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  const rows = await sql<{
+  const rows = orgId ? await sql<{
+    tech_id: string;
+    tech_name: string | null;
+    tech_email: string | null;
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+    speed: number | null;
+    heading: number | null;
+    ts: string;
+  }[]>`
+    select tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
+    from tech_locations_live
+    where org_id = ${orgId} and tech_id = ${techId}
+    order by ts desc
+    limit ${Math.max(1, Math.min(limit, 1000))};
+  ` : await sql<{
     tech_id: string;
     tech_name: string | null;
     tech_email: string | null;
@@ -199,10 +252,28 @@ function sumMiles(points: TechLocationPoint[]) {
 
 export async function getMileageSummary(techId: string): Promise<TechMileageSummary> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) return { dayMiles: 0, weekMiles: 0, monthMiles: 0 };
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  const rows = await sql<{
+  const rows = orgId ? await sql<{
+    tech_id: string;
+    tech_name: string | null;
+    tech_email: string | null;
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+    speed: number | null;
+    heading: number | null;
+    ts: string;
+  }[]>`
+    select tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
+    from tech_locations_live
+    where org_id = ${orgId} and tech_id = ${techId}
+      and ts >= now() - interval '31 days'
+    order by ts asc;
+  ` : await sql<{
     tech_id: string;
     tech_name: string | null;
     tech_email: string | null;

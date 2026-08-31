@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database configured" }, { status: 500 });
   }

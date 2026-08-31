@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { recordInvoicePayment } from '@/lib/invoices/record-payment';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('financials:write');
     const body = await request.json();
     const invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
     const amount = Number(body?.amount);
@@ -36,6 +38,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, payment: result });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to record invoice payment' },
       { status: 500 },

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, eq, or } from 'drizzle-orm';
-import { db, customers, estimateLineItems, estimates, inventoryItems } from '@/db';
+import { db, customers, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import {
+  acceptEstimateAcceptanceIntent,
+  getEstimateAcceptanceIntent,
+} from '@/lib/integrations/estimate-acceptance-intents';
+import { isTenantEnforcementEnabled } from '@/lib/tenant/context';
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -15,14 +20,14 @@ function todayDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function contractText(estimateNumber: string, customerName: string, total: number) {
+function contractText(organizationName: string, estimateNumber: string, customerName: string, total: number) {
   return [
     `Estimate ${estimateNumber} Service Agreement`,
     '',
     `Customer: ${customerName}`,
     `Estimate total: $${Number(total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     '',
-    "By accepting this estimate, the customer authorizes AARON'S FIREPLACE CO, LLC to perform the work described in the estimate. The customer agrees to pay the approved estimate amount and any separately approved change orders, additional parts, labor, taxes, fees, or services required to complete the work.",
+    `By accepting this estimate, the customer authorizes ${organizationName} to perform the work described in the estimate. The customer agrees to pay the approved estimate amount and any separately approved change orders, additional parts, labor, taxes, fees, or services required to complete the work.`,
     '',
     'Scheduling is subject to availability, weather, parts availability, and site readiness. Once the estimate is accepted, AARON\'S FIREPLACE CO, LLC will contact the customer to schedule the work.',
     '',
@@ -52,13 +57,45 @@ async function findEstimate(orgId: string, estimateId: string) {
   return row;
 }
 
+async function resolvePublicEstimate(input: { token?: string | null; legacyId?: string | null }) {
+  if (!isTenantEnforcementEnabled()) {
+    const organization = await getOrCreateDefaultOrg();
+    return {
+      organization,
+      estimateReference: input.legacyId || '',
+      token: null,
+      intentStatus: null,
+    };
+  }
+
+  const token = String(input.token || '');
+  const intent = await getEstimateAcceptanceIntent(token);
+  if (!intent) return null;
+  const [organization] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, String(intent.org_id)))
+    .limit(1);
+  if (!organization) return null;
+  return {
+    organization,
+    estimateReference: String(intent.estimate_reference),
+    token,
+    intentStatus: String(intent.status),
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const id = new URL(request.url).searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const searchParams = new URL(request.url).searchParams;
+    const id = searchParams.get('id');
+    const token = searchParams.get('token');
+    if (!id && !token) return NextResponse.json({ error: 'Estimate link is incomplete.' }, { status: 400 });
 
-    const org = await getOrCreateDefaultOrg();
-    const row = await findEstimate(org.id, id);
+    const publicEstimate = await resolvePublicEstimate({ token, legacyId: id });
+    if (!publicEstimate) return NextResponse.json({ error: 'Estimate link is invalid or expired.' }, { status: 404 });
+    const org = publicEstimate.organization;
+    const row = await findEstimate(org.id, publicEstimate.estimateReference);
     if (!row) return NextResponse.json({ error: 'Estimate not found' }, { status: 404 });
 
     const lineRows = await db
@@ -95,7 +132,8 @@ export async function GET(request: NextRequest) {
         totalAmount: total,
         customerName,
         customerEmail: row.customer?.email || row.estimate.billEmail || '',
-        contractText: contractText(estimateNumber, customerName, total),
+        organizationName: org.name,
+        contractText: contractText(org.name, estimateNumber, customerName, total),
         lines: lineRows.map((line) => ({
           product: line.itemSku || line.itemName || line.description?.split(/\r?\n/)[0] || 'Item',
           description: line.description,
@@ -116,17 +154,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const estimateId = body?.id ? String(body.id) : '';
+    const token = body?.token ? String(body.token) : '';
+    const legacyEstimateId = body?.id ? String(body.id) : '';
     const signerName = body?.signerName ? String(body.signerName).trim() : '';
     const signerEmail = body?.signerEmail ? String(body.signerEmail).trim() : '';
     const agreed = Boolean(body?.agreed);
 
-    if (!estimateId) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    if (!legacyEstimateId && !token) return NextResponse.json({ error: 'Estimate link is incomplete.' }, { status: 400 });
     if (!signerName) return NextResponse.json({ error: 'Enter your name to accept the estimate.' }, { status: 400 });
     if (!agreed) return NextResponse.json({ error: 'You must agree to the service contract to accept.' }, { status: 400 });
 
-    const org = await getOrCreateDefaultOrg();
-    const row = await findEstimate(org.id, estimateId);
+    const publicEstimate = await resolvePublicEstimate({ token, legacyId: legacyEstimateId });
+    if (!publicEstimate) return NextResponse.json({ error: 'Estimate link is invalid or expired.' }, { status: 404 });
+    if (publicEstimate.intentStatus === 'accepted') {
+      return NextResponse.json({ error: 'This estimate has already been accepted.' }, { status: 409 });
+    }
+    const org = publicEstimate.organization;
+    const row = await findEstimate(org.id, publicEstimate.estimateReference);
     if (!row) return NextResponse.json({ error: 'Estimate not found' }, { status: 404 });
 
     const customerName = row.customer?.companyName
@@ -136,7 +180,7 @@ export async function POST(request: NextRequest) {
     const total = Number(row.estimate.totalAmount || 0);
     const acceptedAt = new Date();
     const agreement = [
-      contractText(estimateNumber, customerName, total),
+      contractText(org.name, estimateNumber, customerName, total),
       '',
       `Accepted by: ${signerName}`,
       signerEmail ? `Signer email: ${signerEmail}` : undefined,
@@ -158,6 +202,10 @@ export async function POST(request: NextRequest) {
         email: row.customer.email || signerEmail || undefined,
         updatedAt: acceptedAt,
       }).where(eq(customers.id, row.customer.id));
+    }
+
+    if (publicEstimate.token) {
+      await acceptEstimateAcceptanceIntent(publicEstimate.token);
     }
 
     return NextResponse.json({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, organizations } from "@/db";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import { getCustomerById as getLocalCustomerById, getInvoices as getLocalInvoices } from "@/lib/data-store";
 import { getClientFromTokens } from "@/lib/quickbooks/sync";
 import { transformCustomer, transformInvoice } from "@/lib/quickbooks/transform";
@@ -218,6 +219,8 @@ function transformPayment(payment: QBPayment) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("customers:read");
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

@@ -4,6 +4,7 @@ import { db, purchaseOrderLineItems, purchaseOrders, vendors } from '@/db';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 import { renderPurchaseOrderPdf } from '@/lib/purchase-orders/pdf';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 type PurchaseOrderLineInput = {
   itemId?: string;
@@ -210,6 +211,8 @@ async function sendPurchaseOrderEmail(poNumber: string, body: any, lines: CleanP
 }
 
 export async function GET() {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const org = await getOrCreateDefaultOrg();
     const rows = await db
@@ -229,6 +232,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     const org = await getOrCreateDefaultOrg();
     const body = await request.json();

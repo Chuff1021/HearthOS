@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db, customers, properties } from "@/db";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 type PropertyRow = typeof properties.$inferSelect;
 
@@ -86,6 +87,8 @@ function searchTerm(term: string, orgId: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("customers:read");
+  if (denied) return denied;
   const { searchParams, origin } = new URL(request.url);
   const q = searchParams.get("q")?.trim() || "";
   const live = searchParams.get("live") === "true";

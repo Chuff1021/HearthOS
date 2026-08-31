@@ -3,6 +3,8 @@ import { clerkClient } from '@clerk/nextjs/server';
 import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
 import { appendMemoryEvent } from '@/lib/long-term-memory';
 import { isClerkConfigured } from '@/lib/auth';
+import { isTenantStorageEnabled } from '@/lib/tenant/storage';
+import { isTenantFoundationEnabled, requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 type DbCtx = {
   db: any;
@@ -87,6 +89,7 @@ function fromDbUser(u: any): Tech {
 }
 
 async function sendClerkInvite(email: string, role: Tech['role'], origin?: string) {
+  if (isTenantFoundationEnabled()) return { sent: false, reason: 'use_organization_invitation' };
   if (!isClerkConfigured()) return { sent: false, reason: 'clerk_not_configured' };
   try {
     const client = await clerkClient();
@@ -113,6 +116,7 @@ export function getTechs(): Tech[] {
 
 export async function GET(request: Request) {
   try {
+    await requirePermission('members:read');
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
 
@@ -128,16 +132,21 @@ export async function GET(request: Request) {
         .filter((t: Tech) => ['tech', 'dispatcher', 'admin'].includes(t.role));
 
       // Keep file cache in sync for legacy readers (dispatch/jobs paths)
-      const cache = loadStore();
-      cache.techs = techs;
-      saveStore(cache);
+      if (!isTenantStorageEnabled()) {
+        const cache = loadStore();
+        cache.techs = techs;
+        saveStore(cache);
+      }
 
       return NextResponse.json({ techs: activeOnly ? techs.filter((t) => t.active) : techs });
     }
 
+    if (isTenantStorageEnabled()) throw new Error('Tenant technician storage requires the database.');
     const techs = getTechs();
     return NextResponse.json({ techs: activeOnly ? techs.filter((t) => t.active) : techs });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to get techs:', err);
     return NextResponse.json({ error: 'Failed to get technicians' }, { status: 500 });
   }
@@ -145,6 +154,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await requirePermission('members:manage');
     const store = loadStore();
     const body = await request.json();
     const origin = new URL(request.url).origin;
@@ -194,17 +204,20 @@ export async function POST(request: Request) {
       const tech = fromDbUser(inserted[0]);
 
       // Mirror into file cache for legacy readers
-      const cache = loadStore();
-      if (!cache.techs.find((t) => t.id === tech.id)) {
-        cache.techs.push(tech);
-        saveStore(cache);
+      if (!isTenantStorageEnabled()) {
+        const cache = loadStore();
+        if (!cache.techs.find((t) => t.id === tech.id)) {
+          cache.techs.push(tech);
+          saveStore(cache);
+        }
       }
 
-      appendMemoryEvent({ entity: 'tech', action: 'create', entityId: tech.id, summary: `Tech created: ${tech.name}`, payload: { tech } });
+      await appendMemoryEvent({ entity: 'tech', action: 'create', entityId: tech.id, summary: `Tech created: ${tech.name}`, payload: { tech } });
       const invite = await sendClerkInvite(email, tech.role, origin);
       return NextResponse.json({ tech, invite }, { status: 201 });
     }
 
+    if (isTenantStorageEnabled()) throw new Error('Tenant technician storage requires the database.');
     const existing = store.techs.find((t) => t.email.toLowerCase() === email);
     if (existing) {
       const invite = await sendClerkInvite(email, existing.role, origin);
@@ -227,10 +240,12 @@ export async function POST(request: Request) {
 
     store.techs.push(newTech);
     saveStore(store);
-    appendMemoryEvent({ entity: 'tech', action: 'create', entityId: newTech.id, summary: `Tech created: ${newTech.name}`, payload: { tech: newTech } });
+    await appendMemoryEvent({ entity: 'tech', action: 'create', entityId: newTech.id, summary: `Tech created: ${newTech.name}`, payload: { tech: newTech } });
     const invite = await sendClerkInvite(email, newTech.role, origin);
     return NextResponse.json({ tech: newTech, invite }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to create tech:', err);
     return NextResponse.json({ error: 'Failed to create technician' }, { status: 500 });
   }
@@ -238,6 +253,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    await requirePermission('members:manage');
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const hardDelete = searchParams.get('hard') === 'true';
@@ -245,25 +261,28 @@ export async function DELETE(request: Request) {
 
     const dbCtx = await getDbCtx();
     if (dbCtx) {
+      const org = await dbCtx.getOrCreateDefaultOrg();
       if (hardDelete) {
-        await dbCtx.db.delete(dbCtx.users).where(dbCtx.eq(dbCtx.users.id, id));
+        await dbCtx.db.delete(dbCtx.users).where(dbCtx.and(dbCtx.eq(dbCtx.users.id, id), dbCtx.eq(dbCtx.users.orgId, org.id)));
       } else {
-        await dbCtx.db.update(dbCtx.users).set({ isActive: false, updatedAt: new Date() }).where(dbCtx.eq(dbCtx.users.id, id));
+        await dbCtx.db.update(dbCtx.users).set({ isActive: false, updatedAt: new Date() }).where(dbCtx.and(dbCtx.eq(dbCtx.users.id, id), dbCtx.eq(dbCtx.users.orgId, org.id)));
       }
 
       // Mirror deletion/deactivation to file cache
-      const cache = loadStore();
-      const idx = cache.techs.findIndex((t) => t.id === id);
-      if (idx >= 0) {
-        if (hardDelete) {
-          cache.techs.splice(idx, 1);
-        } else {
-          cache.techs[idx] = { ...cache.techs[idx], active: false };
+      if (!isTenantStorageEnabled()) {
+        const cache = loadStore();
+        const idx = cache.techs.findIndex((t) => t.id === id);
+        if (idx >= 0) {
+          if (hardDelete) {
+            cache.techs.splice(idx, 1);
+          } else {
+            cache.techs[idx] = { ...cache.techs[idx], active: false };
+          }
+          saveStore(cache);
         }
-        saveStore(cache);
       }
 
-      appendMemoryEvent({
+      await appendMemoryEvent({
         entity: 'tech',
         action: 'delete',
         entityId: id,
@@ -272,14 +291,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (isTenantStorageEnabled()) throw new Error('Tenant technician storage requires the database.');
     const store = loadStore();
     const index = store.techs.findIndex((t) => t.id === id);
     if (index === -1) return NextResponse.json({ error: 'Technician not found' }, { status: 404 });
     const deleted = store.techs.splice(index, 1)[0];
     saveStore(store);
-    appendMemoryEvent({ entity: 'tech', action: 'delete', entityId: deleted.id, summary: `Tech deleted: ${deleted.name}` });
+    await appendMemoryEvent({ entity: 'tech', action: 'delete', entityId: deleted.id, summary: `Tech deleted: ${deleted.name}` });
     return NextResponse.json({ tech: deleted });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to delete tech:', err);
     return NextResponse.json({ error: 'Failed to delete technician' }, { status: 500 });
   }

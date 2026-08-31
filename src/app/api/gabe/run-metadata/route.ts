@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+import { isTenantStorageEnabled, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission('gabe:use');
     const { searchParams } = new URL(request.url);
     const limit = Math.max(1, Math.min(500, Number(searchParams.get('limit') || 100)));
     if (!process.env.DATABASE_URL) return NextResponse.json({ runs: [], total: 0 });
 
     const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
-    await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
-    const totalRows = await sql<{ count: number }[]>`select count(*)::int as count from gabe_run_metadata`;
-    const rows = await sql<{ ts: string; payload: any }[]>`
-      select ts, payload
-      from gabe_run_metadata
-      order by ts desc
-      limit ${limit}
-    `;
+    await sql`create table if not exists gabe_run_metadata (id bigserial primary key, org_id uuid references organizations(id) on delete cascade, ts timestamptz not null default now(), payload jsonb not null)`;
+    const orgId = await resolveStorageOrgId();
+    const totalRows = isTenantStorageEnabled()
+      ? await sql<{ count: number }[]>`select count(*)::int as count from gabe_run_metadata where org_id = ${orgId!}`
+      : await sql<{ count: number }[]>`select count(*)::int as count from gabe_run_metadata`;
+    const rows = isTenantStorageEnabled()
+      ? await sql<{ ts: string; payload: any }[]>`
+          select ts, payload from gabe_run_metadata where org_id = ${orgId!} order by ts desc limit ${limit}
+        `
+      : await sql<{ ts: string; payload: any }[]>`
+          select ts, payload from gabe_run_metadata order by ts desc limit ${limit}
+        `;
 
     const runs = rows.map((r) => {
       let payload: any = r.payload;
@@ -33,7 +40,9 @@ export async function GET(request: NextRequest) {
       return { ts: new Date(r.ts).toISOString(), ...p, run_outcome, truth_audit_status };
     });
     return NextResponse.json({ runs, total: totalRows[0]?.count || 0 });
-  } catch {
+  } catch (error) {
+    const tenantResponse = tenantErrorResponse(error);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'Failed to read run metadata' }, { status: 500 });
   }
 }

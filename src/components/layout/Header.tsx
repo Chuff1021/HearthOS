@@ -14,6 +14,8 @@ import {
   Zap,
 } from "lucide-react";
 import { StatusPill } from "@/components/ui/liquid";
+import { OrganizationSwitcher } from "@clerk/nextjs";
+import { isClerkConfiguredClient } from "@/lib/auth";
 
 interface SearchResult {
   id: string;
@@ -210,6 +212,16 @@ export default function Header() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          {isClerkConfiguredClient() && process.env.NEXT_PUBLIC_MULTITENANT_UI_ENABLED === "true" && (
+            <div className="hidden lg:block">
+              <OrganizationSwitcher
+                hidePersonal
+                afterSelectOrganizationUrl="/"
+                afterCreateOrganizationUrl="/onboarding"
+                appearance={{ elements: { rootBox: "max-w-[210px]", organizationSwitcherTrigger: "h-10 rounded-2xl border border-slate-200 bg-white/85 px-3" } }}
+              />
+            </div>
+          )}
           <IconButton label="Notifications">
             <Bell size={17} />
             <span

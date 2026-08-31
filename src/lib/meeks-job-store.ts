@@ -1,12 +1,18 @@
 import postgres from "postgres";
 import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
 import { getJob, listJobs, type Job } from "@/lib/job-store";
+import {
+  isTenantStorageEnabled,
+  requireTenantDatabase,
+  resolveStorageOrgId,
+} from "@/lib/tenant/storage";
 
 export type MeeksWorkType = "install" | "setup" | "service_warranty" | "repair";
 export type MeeksJobStatus = "requested" | "scheduled" | "completed" | "cancelled";
 
 export interface MeeksAttachment {
   id: string;
+  storageId?: string;
   fileName: string;
   contentType: string;
   size: number;
@@ -118,9 +124,13 @@ async function ensureTable() {
       `;
       await sql`create index if not exists idx_hearth_meeks_jobs_requested on hearth_meeks_jobs_store (requested_date, status);`;
       await sql`create index if not exists idx_hearth_meeks_jobs_linked on hearth_meeks_jobs_store (linked_job_id);`;
+      if (isTenantStorageEnabled()) {
+        await sql`alter table hearth_meeks_jobs_store add column if not exists org_id uuid;`;
+        await sql`create index if not exists idx_hearth_meeks_jobs_store_org_id on hearth_meeks_jobs_store (org_id);`;
+      }
 
       const countRows = await sql<{ count: number }[]>`select count(*)::int as count from hearth_meeks_jobs_store`;
-      if ((countRows[0]?.count || 0) === 0) {
+      if ((countRows[0]?.count || 0) === 0 && !isTenantStorageEnabled()) {
         for (const job of loadFileJobs()) {
           await sql`
             insert into hearth_meeks_jobs_store (id, request_number, requested_date, status, linked_job_id, payload, created_at, updated_at)
@@ -177,6 +187,7 @@ function normalizeMeeksJob(raw: any): MeeksJobRequest {
     poAttachment: payload.poAttachment && typeof payload.poAttachment === "object"
       ? {
           id: String(payload.poAttachment.id || crypto.randomUUID()),
+          storageId: payload.poAttachment.storageId ? String(payload.poAttachment.storageId) : undefined,
           fileName: String(payload.poAttachment.fileName || "PO attachment"),
           contentType: String(payload.poAttachment.contentType || "application/octet-stream"),
           size: Number(payload.poAttachment.size || 0),
@@ -205,8 +216,9 @@ function nextRequestNumberFrom(jobs: MeeksJobRequest[]) {
   return `MEEKS-${new Date().getFullYear()}-${String(max + 1).padStart(4, "0")}`;
 }
 
-async function writeJob(job: MeeksJobRequest) {
+async function writeJob(job: MeeksJobRequest, explicitOrgId?: string) {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const jobs = loadFileJobs();
     const idx = jobs.findIndex((item) => item.id === job.id);
@@ -217,6 +229,22 @@ async function writeJob(job: MeeksJobRequest) {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    await sql`
+      insert into hearth_meeks_jobs_store (id, org_id, request_number, requested_date, status, linked_job_id, payload, created_at, updated_at)
+      values (
+        ${job.id}, ${orgId}, ${job.requestNumber}, ${job.requestedDate || null}, ${job.status},
+        ${job.linkedJobId || null}, ${sql.json(job as any)}, ${job.createdAt}, ${job.updatedAt}
+      )
+      on conflict (id) do update set
+        request_number = excluded.request_number, requested_date = excluded.requested_date,
+        status = excluded.status, linked_job_id = excluded.linked_job_id,
+        payload = excluded.payload, updated_at = excluded.updated_at
+      where hearth_meeks_jobs_store.org_id = ${orgId}
+    `;
+    return job;
+  }
   await sql`
     insert into hearth_meeks_jobs_store (id, request_number, requested_date, status, linked_job_id, payload, created_at, updated_at)
     values (
@@ -240,13 +268,23 @@ async function writeJob(job: MeeksJobRequest) {
   return job;
 }
 
-export async function listMeeksJobs(): Promise<MeeksJobRequest[]> {
+export async function listMeeksJobs(explicitOrgId?: string): Promise<MeeksJobRequest[]> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     return loadFileJobs().map((job) => normalizeMeeksJob(job));
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    const rows = await sql<Array<{ payload: MeeksJobRequest }>>`
+      select payload from hearth_meeks_jobs_store
+      where org_id = ${orgId}
+      order by requested_date asc nulls last, created_at desc
+    `;
+    return rows.map((row) => normalizeMeeksJob(row));
+  }
   const rows = await sql<Array<{ payload: MeeksJobRequest }>>`
     select payload
     from hearth_meeks_jobs_store
@@ -255,8 +293,8 @@ export async function listMeeksJobs(): Promise<MeeksJobRequest[]> {
   return rows.map((row) => normalizeMeeksJob(row));
 }
 
-export async function listEnrichedMeeksJobs(): Promise<EnrichedMeeksJobRequest[]> {
-  const [meeksJobs, hearthJobs] = await Promise.all([listMeeksJobs(), listJobs()]);
+export async function listEnrichedMeeksJobs(explicitOrgId?: string): Promise<EnrichedMeeksJobRequest[]> {
+  const [meeksJobs, hearthJobs] = await Promise.all([listMeeksJobs(explicitOrgId), listJobs(explicitOrgId)]);
   const byId = new Map(hearthJobs.map((job) => [job.id, job]));
 
   return meeksJobs.map((request) => {
@@ -276,7 +314,12 @@ export async function listEnrichedMeeksJobs(): Promise<EnrichedMeeksJobRequest[]
         jobNumber: linkedJob.jobNumber,
         status: linkedJob.status,
         notes: linkedJob.notes,
-        photos: linkedJob.photos || [],
+        photos: (linkedJob.photos || []).map((photo) => ({
+          ...photo,
+          uri: photo.uri?.startsWith('/api/files/')
+            ? photo.uri.replace('/api/files/', '/api/meeks/attachments/')
+            : photo.uri,
+        })),
         completedAt: linkedJob.completedAt,
         assignedTechs: linkedJob.assignedTechs,
         scheduledDate: linkedJob.scheduledDate,
@@ -287,13 +330,13 @@ export async function listEnrichedMeeksJobs(): Promise<EnrichedMeeksJobRequest[]
   });
 }
 
-export async function getMeeksJob(id: string): Promise<MeeksJobRequest | null> {
-  const jobs = await listMeeksJobs();
+export async function getMeeksJob(id: string, explicitOrgId?: string): Promise<MeeksJobRequest | null> {
+  const jobs = await listMeeksJobs(explicitOrgId);
   return jobs.find((job) => job.id === id) || null;
 }
 
-export async function createMeeksJob(data: Partial<MeeksJobRequest>): Promise<MeeksJobRequest> {
-  const jobs = await listMeeksJobs();
+export async function createMeeksJob(data: Partial<MeeksJobRequest>, explicitOrgId?: string): Promise<MeeksJobRequest> {
+  const jobs = await listMeeksJobs(explicitOrgId);
   const now = new Date().toISOString();
   const job = normalizeMeeksJob({
     ...data,
@@ -304,11 +347,11 @@ export async function createMeeksJob(data: Partial<MeeksJobRequest>): Promise<Me
     createdAt: now,
     updatedAt: now,
   });
-  return writeJob(job);
+  return writeJob(job, explicitOrgId);
 }
 
-export async function updateMeeksJob(id: string, updates: Partial<MeeksJobRequest>): Promise<MeeksJobRequest | null> {
-  const current = await getMeeksJob(id);
+export async function updateMeeksJob(id: string, updates: Partial<MeeksJobRequest>, explicitOrgId?: string): Promise<MeeksJobRequest | null> {
+  const current = await getMeeksJob(id, explicitOrgId);
   if (!current) return null;
   const next = normalizeMeeksJob({
     ...current,
@@ -316,14 +359,15 @@ export async function updateMeeksJob(id: string, updates: Partial<MeeksJobReques
     id,
     updatedAt: new Date().toISOString(),
   });
-  return writeJob(next);
+  return writeJob(next, explicitOrgId);
 }
 
-export async function deleteMeeksJob(id: string): Promise<MeeksJobRequest | null> {
-  const current = await getMeeksJob(id);
+export async function deleteMeeksJob(id: string, explicitOrgId?: string): Promise<MeeksJobRequest | null> {
+  const current = await getMeeksJob(id, explicitOrgId);
   if (!current) return null;
 
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const jobs = loadFileJobs();
     const next = jobs.filter((job) => job.id !== id);
@@ -332,12 +376,14 @@ export async function deleteMeeksJob(id: string): Promise<MeeksJobRequest | null
   }
 
   await ensureTable();
-  await sql`delete from hearth_meeks_jobs_store where id = ${id}`;
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) await sql`delete from hearth_meeks_jobs_store where id = ${id} and org_id = ${orgId}`;
+  else await sql`delete from hearth_meeks_jobs_store where id = ${id}`;
   return current;
 }
 
-export async function getLinkedJobForMeeksRequest(id: string) {
-  const request = await getMeeksJob(id);
+export async function getLinkedJobForMeeksRequest(id: string, explicitOrgId?: string) {
+  const request = await getMeeksJob(id, explicitOrgId);
   if (!request?.linkedJobId) return null;
-  return getJob(request.linkedJobId);
+  return getJob(request.linkedJobId, explicitOrgId);
 }

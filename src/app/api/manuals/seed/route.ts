@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 const MANUAL_LIBRARY = [
   { brand: "Lopi", model: "Answer Wood Stove", type: "Owners Manual", category: "Wood Stove", url: "https://www.travisindustries.com/Docs/93508034.pdf", pages: 20 },
@@ -228,6 +229,7 @@ export async function POST() {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
+    await requirePermission("gabe:manage");
     // Ensure organizations table and default org exist
     await sql`
       CREATE TABLE IF NOT EXISTS organizations (
@@ -321,6 +323,8 @@ export async function POST() {
     return NextResponse.json({ created, skipped, total: MANUAL_LIBRARY.length, orgId });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Seed failed" },
       { status: 500 }

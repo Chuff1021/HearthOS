@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, organizations } from "@/db";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { disconnectIntegration } from "@/lib/integrations/store";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 async function clearQuickBooksConnection() {
   const org = await getOrCreateDefaultOrg();
+  await disconnectIntegration(org.id, "quickbooks");
 
   await db
     .update(organizations)
@@ -52,11 +55,14 @@ function applyCookieClears(response: NextResponse) {
 
 export async function POST() {
   try {
+    await requirePermission("integrations:manage");
     await clearQuickBooksConnection();
     const response = NextResponse.json({ success: true, disconnected: true });
     applyCookieClears(response);
     return response;
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to disconnect QuickBooks:", err);
     return NextResponse.json({ error: "Failed to disconnect QuickBooks" }, { status: 500 });
   }
@@ -64,6 +70,7 @@ export async function POST() {
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("integrations:manage");
     await clearQuickBooksConnection();
     const response = NextResponse.redirect(new URL("/integrations/quickbooks?disconnected=true", request.url));
     applyCookieClears(response);

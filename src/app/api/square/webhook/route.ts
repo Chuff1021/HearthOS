@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { recordInvoicePayment } from '@/lib/invoices/record-payment';
 import { upsertSquarePayment, upsertSquarePaymentByOrderId } from '@/lib/square-payment-store';
+import { getIntegrationConnectionByExternalAccount, isTenantIntegrationsEnabled } from '@/lib/integrations/store';
+import { db, organizations } from '@/db';
+import { eq } from 'drizzle-orm';
 
 const SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 const WEBHOOK_URL = process.env.SQUARE_WEBHOOK_URL;
 
 function verifySignature(body: string, signatureHeader: string | null) {
-  if (!SIGNATURE_KEY || !WEBHOOK_URL) return true;
+  if (!SIGNATURE_KEY || !WEBHOOK_URL) return false;
   if (!signatureHeader) return false;
 
   const digest = crypto
@@ -38,6 +41,16 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = JSON.parse(body);
+    const merchantId = String(payload?.merchant_id || payload?.data?.object?.payment?.merchant_id || '');
+    const orgId = isTenantIntegrationsEnabled()
+      ? (merchantId
+          ? (await getIntegrationConnectionByExternalAccount('square', merchantId))?.orgId
+          : undefined)
+      : (await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, 'default')).limit(1))[0]?.id;
+    if (!orgId) {
+      return NextResponse.json({ error: 'Square merchant is not connected to an organization' }, { status: 404 });
+    }
+    const storageScope = { orgId, trustedSystem: true as const };
     const eventType = payload?.type as string | undefined;
     const payment = payload?.data?.object?.payment;
 
@@ -72,13 +85,14 @@ export async function POST(request: NextRequest) {
       };
 
       if (payment?.order_id) {
-        upsertSquarePaymentByOrderId(payment.order_id, patch);
+        await upsertSquarePaymentByOrderId(payment.order_id, patch, storageScope);
       } else {
-        upsertSquarePayment(patch);
+        await upsertSquarePayment(patch, storageScope);
       }
 
       if (invoiceNumber && status.toUpperCase() === 'COMPLETED') {
         await recordInvoicePayment({
+          orgId,
           invoiceNumber,
           amount,
           paymentMethod: paymentMethodFromSquare(sourceType),

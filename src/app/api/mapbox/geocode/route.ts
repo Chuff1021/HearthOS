@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 type Point = [number, number];
 
@@ -26,6 +27,11 @@ async function fallbackGeocode(query: string): Promise<{ center: Point; label: s
 }
 
 export async function GET(req: NextRequest) {
+  try {
+    await requirePermission("schedule:read");
+  } catch (error) {
+    return tenantErrorResponse(error) || NextResponse.json({ error: "Authorization failed" }, { status: 500 });
+  }
   const query = req.nextUrl.searchParams.get("q")?.trim();
   if (!query) {
     return NextResponse.json({ error: "Missing q" }, { status: 400 });

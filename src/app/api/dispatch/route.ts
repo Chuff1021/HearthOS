@@ -6,6 +6,7 @@ import { getJobs } from "@/app/api/jobs/route";
 import { updateJobRecord } from "@/lib/job-store";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 function firstName(name: string) {
   return String(name || '').trim().toLowerCase().split(/\s+/)[0] || '';
@@ -13,6 +14,7 @@ function firstName(name: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("schedule:read");
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
 
@@ -150,6 +152,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get dispatch data:", err);
     return NextResponse.json({ error: "Failed to get dispatch data" }, { status: 500 });
   }
@@ -157,6 +161,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("schedule:write");
     const body = await request.json();
     const { action, techId, jobId } = body;
 
@@ -180,6 +185,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, job: updated });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update dispatch assignment:", err);
     return NextResponse.json({ error: "Failed to update dispatch assignment" }, { status: 500 });
   }

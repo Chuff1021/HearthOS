@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncAllFromQuickBooks, getSyncStatus, getClientFromTokens } from '@/lib/quickbooks/sync';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('integrations:manage');
+  if (denied) return denied;
   try {
     // Get tokens from cookies
     let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -40,6 +43,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi('integrations:read');
+  if (denied) return denied;
   try {
     const status = getSyncStatus();
     return NextResponse.json({ status });

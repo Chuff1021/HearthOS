@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, inventoryItems, bills, billLineItems } from '@/db';
 import { and, eq, ilike, or, sql, desc, asc, inArray, isNull, isNotNull } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // Master list endpoint for the inventory workbench.
 // Returns paginated items with computed cost intel:
@@ -19,6 +20,8 @@ const SORTS = {
 } as const;
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi('inventory:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();

@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 import { db, organizations } from "@/db";
 import { createQuickBooksClient } from "@/lib/quickbooks/client";
-import { getOrCreateDefaultOrg } from "@/lib/org";
+import {
+  getQuickBooksCredentials,
+  saveQuickBooksRefresh,
+} from "@/lib/integrations/store";
 import {
   persistCustomersToDb,
   persistEstimatesToDb,
@@ -24,19 +26,22 @@ type SyncResult = {
   error?: string;
 };
 
-async function persistTokensIfChanged(client: ReturnType<typeof createQuickBooksClient>, orgId: string, originalAccessToken: string) {
+async function persistTokensIfChanged(
+  client: ReturnType<typeof createQuickBooksClient>,
+  orgId: string,
+  realmId: string,
+  originalAccessToken: string,
+) {
   const tokens = client.getTokens();
   if (!tokens || tokens.access_token === originalAccessToken) return;
 
-  await db
-    .update(organizations)
-    .set({
-      qbAccessToken: tokens.access_token,
-      qbRefreshToken: tokens.refresh_token,
-      qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      updatedAt: new Date(),
-    })
-    .where(eq(organizations.id, orgId));
+  await saveQuickBooksRefresh({
+    orgId,
+    realmId,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+    expiresIn: tokens.expires_in,
+  });
 }
 
 async function runStep<T>(
@@ -61,23 +66,30 @@ async function runStep<T>(
   }
 }
 
-export async function GET() {
+async function syncOrganization(org: typeof organizations.$inferSelect) {
   const started = Date.now();
-  const org = await getOrCreateDefaultOrg();
+  const credentials = await getQuickBooksCredentials(org);
 
-  if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
-    return NextResponse.json({ success: false, error: "Not connected to QuickBooks" }, { status: 401 });
+  if (!credentials) {
+    return {
+      orgId: org.id,
+      success: true,
+      skipped: true,
+      totalMs: Date.now() - started,
+      results: [] as SyncResult[],
+    };
   }
+  const qbCredentials = credentials;
 
   const client = createQuickBooksClient();
   client.setTokens({
-    access_token: org.qbAccessToken,
-    refresh_token: org.qbRefreshToken,
+    access_token: qbCredentials.accessToken,
+    refresh_token: qbCredentials.refreshToken,
     expires_in: 3600,
     x_refresh_token_expires_in: 8726400,
     token_type: "bearer",
   });
-  client.setRealmId(org.qbRealmId);
+  client.setRealmId(qbCredentials.realmId);
 
   const results: SyncResult[] = [];
 
@@ -86,7 +98,7 @@ export async function GET() {
       return await fn();
     } catch {
       await client.refreshAccessToken();
-      await persistTokensIfChanged(client, org.id, org.qbAccessToken!);
+      await persistTokensIfChanged(client, org.id, qbCredentials.realmId, qbCredentials.accessToken);
       return fn();
     }
   }
@@ -128,12 +140,49 @@ export async function GET() {
 
   results.push(await runStep("payments", () => refreshAndRetry(() => client.getAllPayments()), (rows) => persistPaymentsToDb(org.id, rows)));
 
-  await persistTokensIfChanged(client, org.id, org.qbAccessToken);
+  await persistTokensIfChanged(client, org.id, qbCredentials.realmId, qbCredentials.accessToken);
 
   const success = results.every((result) => result.success);
+  return {
+    orgId: org.id,
+    success,
+    skipped: false,
+    totalMs: Date.now() - started,
+    results,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const started = Date.now();
+  const allOrganizations = await db.select().from(organizations);
+  const organizationsResults = [];
+
+  for (const organization of allOrganizations) {
+    try {
+      organizationsResults.push(await syncOrganization(organization));
+    } catch (error) {
+      organizationsResults.push({
+        orgId: organization.id,
+        success: false,
+        skipped: false,
+        totalMs: 0,
+        results: [] as SyncResult[],
+        error: error instanceof Error ? error.message : "QuickBooks sync failed",
+      });
+    }
+  }
+
+  const activeResults = organizationsResults.filter((result) => !result.skipped);
+  const success = activeResults.every((result) => result.success);
   return NextResponse.json({
     success,
     totalMs: Date.now() - started,
-    results,
+    organizationsScanned: allOrganizations.length,
+    organizationsSynced: activeResults.length,
+    organizations: organizationsResults,
   }, { status: success ? 200 : 207 });
 }

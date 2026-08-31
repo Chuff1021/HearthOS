@@ -1,7 +1,33 @@
 import { db, organizations } from "@/db";
 import { eq } from "drizzle-orm";
+import {
+  isTenantEnforcementEnabled,
+  requireTenantContext,
+} from "@/lib/tenant/context";
+import {
+  getQuickBooksCredentials,
+  isTenantIntegrationsEnabled,
+} from "@/lib/integrations/store";
+
+async function hydrateTenantIntegrationCredentials(organization: typeof organizations.$inferSelect) {
+  if (!isTenantIntegrationsEnabled()) return organization;
+  const credentials = await getQuickBooksCredentials(organization);
+  if (!credentials) return organization;
+  return {
+    ...organization,
+    qbRealmId: credentials.realmId,
+    qbAccessToken: credentials.accessToken,
+    qbRefreshToken: credentials.refreshToken,
+    qbTokenExpiresAt: credentials.tokenExpiresAt,
+    qbConnected: true,
+  };
+}
 
 export async function getOrCreateDefaultOrg() {
+  if (isTenantEnforcementEnabled()) {
+    return hydrateTenantIntegrationCredentials((await requireTenantContext()).organization);
+  }
+
   const slug = "default";
   const existing = await db
     .select()
@@ -9,7 +35,7 @@ export async function getOrCreateDefaultOrg() {
     .where(eq(organizations.slug, slug))
     .limit(1);
 
-  if (existing.length > 0) return existing[0];
+  if (existing.length > 0) return hydrateTenantIntegrationCredentials(existing[0]);
 
   const created = await db
     .insert(organizations)

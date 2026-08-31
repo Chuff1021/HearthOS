@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export const maxDuration = 300; // 5 min timeout for large PDFs
 
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
+    await requirePermission("gabe:manage");
     // Get manual info
     const manuals = await sql`SELECT id, brand, model, type, url FROM manuals WHERE id = ${manualId} AND is_active = true LIMIT 1`;
     if (manuals.length === 0) {
@@ -105,6 +107,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("[INGEST-BULK] Error:", err);
     return NextResponse.json({
       error: err instanceof Error ? err.message : "Ingestion failed",

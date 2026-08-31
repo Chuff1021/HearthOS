@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, customers, invoices, payments } from '@/db';
 import { and, eq, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // GET /api/customers/[id]
 // Customer detail + unified invoice + payment timeline.
@@ -19,6 +20,8 @@ type Txn = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('customers:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);

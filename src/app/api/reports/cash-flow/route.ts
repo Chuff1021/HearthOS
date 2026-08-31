@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import { db, payments, bills } from '@/db';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -9,6 +10,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // Bucketed monthly; default window is last 12 months.
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('reports:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const monthsBack = Math.min(60, Math.max(1, parseInt(searchParams.get('monthsBack') || '12', 10)));

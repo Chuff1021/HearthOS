@@ -8,10 +8,12 @@ import {
   getTodoStats,
   type Todo 
 } from "@/lib/todos";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 // GET - Get todos with optional filters
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("jobs:read");
     const { searchParams } = new URL(request.url);
     
     const filters = {
@@ -43,6 +45,8 @@ export async function GET(request: NextRequest) {
     const todos = await getTodos(filters);
     return NextResponse.json({ todos });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get todos:", err);
     return NextResponse.json({ error: "Failed to get todos" }, { status: 500 });
   }
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new todo
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("jobs:write");
     const body = await request.json();
     
     const newTodo = await createTodo({
@@ -74,6 +79,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ todo: newTodo }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create todo:", err);
     return NextResponse.json({ error: "Failed to create todo" }, { status: 500 });
   }
@@ -82,6 +89,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update a todo
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("jobs:write");
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -96,6 +104,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ todo: updated });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update todo:", err);
     return NextResponse.json({ error: "Failed to update todo" }, { status: 500 });
   }
@@ -104,6 +114,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a todo
 export async function DELETE(request: NextRequest) {
   try {
+    await requirePermission("jobs:write");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -118,6 +129,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete todo:", err);
     return NextResponse.json({ error: "Failed to delete todo" }, { status: 500 });
   }

@@ -3,8 +3,10 @@ import { db, customers, invoices, organizations, payments } from '@/db';
 import { getJob, updateJobRecord } from '@/lib/job-store';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { getClientFromTokens } from '@/lib/quickbooks/sync';
+import { getQuickBooksCredentials, saveQuickBooksRefresh } from '@/lib/integrations/store';
 
 type RecordInvoicePaymentInput = {
+  orgId?: string;
   invoiceNumber?: string;
   amount: number;
   paymentMethod: string;
@@ -59,7 +61,7 @@ async function findInvoice(
   if (directRows[0]) return directRows[0];
 
   if (!isUuid(reference)) return null;
-  const job = await getJob(reference);
+  const job = await getJob(reference, orgId);
   if (!job) return null;
 
   const linkedReferences = [job.linkedInvoiceId, job.linkedDocumentNumber]
@@ -94,7 +96,7 @@ async function findInvoice(
     linkedInvoiceId: match.invoice.id,
     linkedDocumentNumber: match.invoice.invoiceNumber,
     totalAmount: moneyNumber(match.invoice.totalAmount),
-  });
+  }, orgId);
   return match;
 }
 
@@ -106,10 +108,11 @@ async function createQuickBooksPayment(input: {
   paidAt: Date;
   note: string;
 }) {
-  if (!input.org.qbAccessToken || !input.org.qbRefreshToken || !input.org.qbRealmId) return null;
+  const credentials = await getQuickBooksCredentials(input.org);
+  if (!credentials) return null;
   if (!input.invoice.qbInvoiceId || !input.qbCustomerId) return null;
 
-  const client = getClientFromTokens(input.org.qbAccessToken, input.org.qbRefreshToken, input.org.qbRealmId);
+  const client = getClientFromTokens(credentials.accessToken, credentials.refreshToken, credentials.realmId);
   const payload = {
     CustomerRef: { value: input.qbCustomerId },
     TotalAmt: input.amount,
@@ -137,12 +140,13 @@ async function createQuickBooksPayment(input: {
     }
 
     const refreshed = await client.refreshAccessToken();
-    await db.update(organizations).set({
-      qbAccessToken: refreshed.access_token,
-      qbRefreshToken: refreshed.refresh_token || input.org.qbRefreshToken,
-      qbTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, input.org.id));
+    await saveQuickBooksRefresh({
+      orgId: input.org.id,
+      realmId: credentials.realmId,
+      accessToken: refreshed.access_token,
+      refreshToken: refreshed.refresh_token || credentials.refreshToken,
+      expiresIn: refreshed.expires_in,
+    });
 
     return await client.createPayment(payload as any);
   }
@@ -155,7 +159,10 @@ export async function recordInvoicePayment(input: RecordInvoicePaymentInput) {
   const amount = moneyNumber(input.amount);
   if (amount <= 0) return { recorded: false, reason: 'invalid_amount' as const };
 
-  const org = await getOrCreateDefaultOrg();
+  const org = input.orgId
+    ? (await db.select().from(organizations).where(eq(organizations.id, input.orgId)).limit(1))[0]
+    : await getOrCreateDefaultOrg();
+  if (!org) return { recorded: false, reason: 'organization_not_found' as const };
   const row = await findInvoice(org.id, invoiceNumber, amount);
 
   if (!row) return { recorded: false, reason: 'invoice_not_found' as const };

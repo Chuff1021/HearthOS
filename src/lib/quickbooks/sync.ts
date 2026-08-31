@@ -173,7 +173,7 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
   for (const part of chunk(rows, 500)) {
     try {
       const ret = await db.insert(customers).values(part).onConflictDoUpdate({
-        target: customers.qbCustomerId,
+        target: [customers.orgId, customers.qbCustomerId],
         set: {
           firstName: sql`excluded.first_name`,
           lastName: sql`excluded.last_name`,
@@ -228,7 +228,7 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
   for (const part of chunk(rows, 500)) {
     try {
       const ret = await db.insert(inventoryItems).values(part).onConflictDoUpdate({
-        target: inventoryItems.qbItemId,
+        target: [inventoryItems.orgId, inventoryItems.qbItemId],
         set: {
           name: sql`excluded.name`,
           sku: sql`excluded.sku`,
@@ -288,7 +288,7 @@ export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): 
   for (const part of chunk(rows, 500)) {
     try {
       const ret = await db.insert(vendors).values(part).onConflictDoUpdate({
-        target: vendors.qbVendorId,
+        target: [vendors.orgId, vendors.qbVendorId],
         set: {
           displayName: sql`excluded.display_name`,
           companyName: sql`excluded.company_name`,
@@ -430,7 +430,7 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
   const idByQb = new Map<string, string>();
   for (const part of chunk(parents, 500)) {
     const ret = await db.insert(invoices).values(part).onConflictDoUpdate({
-      target: invoices.qbInvoiceId,
+      target: [invoices.orgId, invoices.qbInvoiceId],
       set: {
         customerId: sql`excluded.customer_id`,
         invoiceNumber: sql`excluded.invoice_number`,
@@ -589,7 +589,7 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
   const idByQb = new Map<string, string>();
   for (const part of chunk(parents, 500)) {
     const ret = await db.insert(estimates).values(part).onConflictDoUpdate({
-      target: estimates.qbEstimateId,
+      target: [estimates.orgId, estimates.qbEstimateId],
       set: {
         customerId: sql`excluded.customer_id`,
         estimateNumber: sql`excluded.estimate_number`,
@@ -685,7 +685,7 @@ export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchase
   const idByQb = new Map<string, string>();
   for (const part of chunk(parents, 500)) {
     const ret = await db.insert(purchaseOrders).values(part).onConflictDoUpdate({
-      target: purchaseOrders.qbPurchaseOrderId,
+      target: [purchaseOrders.orgId, purchaseOrders.qbPurchaseOrderId],
       set: {
         vendorId: sql`excluded.vendor_id`,
         poNumber: sql`excluded.po_number`,
@@ -793,7 +793,7 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
   const idByQb = new Map<string, string>();
   for (const part of chunk(parents, 500)) {
     const ret = await db.insert(bills).values(part).onConflictDoUpdate({
-      target: bills.qbBillId,
+      target: [bills.orgId, bills.qbBillId],
       set: {
         vendorId: sql`excluded.vendor_id`,
         billNumber: sql`excluded.bill_number`,

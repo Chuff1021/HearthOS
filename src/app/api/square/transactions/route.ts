@@ -4,6 +4,8 @@ import { customers, db, invoices } from '@/db';
 import { listJobs } from '@/lib/job-store';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { listSquarePayments } from '@/lib/square-payment-store';
+import { getSquareCredentials } from '@/lib/integrations/store';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 type UiPayment = {
   id: string;
@@ -20,12 +22,8 @@ type UiPayment = {
   notes?: string;
 };
 
-const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || 'production';
-const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
-const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
-
-function baseUrl() {
-  return SQUARE_ENV === 'sandbox'
+function baseUrl(environment: string) {
+  return environment === 'sandbox'
     ? 'https://connect.squareupsandbox.com'
     : 'https://connect.squareup.com';
 }
@@ -144,10 +142,15 @@ async function resolvePaymentContexts(squarePayments: any[]): Promise<Map<string
 }
 
 export async function GET(request: NextRequest) {
-  const fallback = listSquarePayments()
-    .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
-    .slice(0, 100)
-    .map<UiPayment>((p) => ({
+  let fallback: UiPayment[] = [];
+  try {
+    await requirePermission('financials:read');
+    const org = await getOrCreateDefaultOrg();
+    const square = await getSquareCredentials(org);
+    fallback = (await listSquarePayments(org.id))
+      .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
+      .slice(0, 100)
+      .map<UiPayment>((p) => ({
       id: p.id,
       invoiceId: p.orderId || p.id,
       invoiceNumber: p.invoiceNumber || p.orderId || 'Square Order',
@@ -160,10 +163,9 @@ export async function GET(request: NextRequest) {
       transactionId: p.id,
       receiptUrl: p.receiptUrl,
       notes: 'From Square webhook cache',
-    }));
+      }));
 
-  try {
-    if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
+    if (!square?.accessToken || !square.locationId) {
       return NextResponse.json({ payments: fallback, source: 'cache', total: fallback.length });
     }
 
@@ -171,14 +173,14 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 50)));
 
     const query = new URLSearchParams({
-      location_id: SQUARE_LOCATION_ID,
+      location_id: square.locationId,
       sort_order: 'DESC',
       limit: String(limit),
     });
-    const res = await fetch(`${baseUrl()}/v2/payments?${query.toString()}`, {
+    const res = await fetch(`${baseUrl(square.environment)}/v2/payments?${query.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${square.accessToken}`,
         'Square-Version': '2024-12-18',
       },
       cache: 'no-store',
@@ -221,6 +223,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ payments, source: 'square', total: payments.length });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ payments: fallback, source: 'cache', total: fallback.length });
   }
 }

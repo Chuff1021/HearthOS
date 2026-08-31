@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, eq, sql } from 'drizzle-orm';
 import { db, bills, vendors } from '@/db';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 function money(value: unknown) {
   const number = Number(value || 0);
@@ -21,6 +22,8 @@ async function nextBillNumber(orgId: string, requested?: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     const org = await getOrCreateDefaultOrg();
     const body = await request.json();

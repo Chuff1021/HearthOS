@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { isClerkConfigured } from "@/lib/auth";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import {
   createJobFromProject,
   deleteProject,
@@ -32,6 +33,8 @@ function cleanSourceType(value: unknown): ProjectSourceType | null {
 }
 
 export async function GET() {
+  const denied = await authorizeApi("jobs:read");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;
@@ -55,6 +58,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi("jobs:write");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;
@@ -92,6 +97,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await authorizeApi("jobs:write");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;
@@ -112,6 +119,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await authorizeApi("jobs:write");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;

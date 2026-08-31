@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getJobs } from '@/app/api/jobs/route';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 type EstimateLine = {
   description: string;
@@ -15,6 +16,7 @@ function line(description: string, qty: number, unitPrice: number, source: 'rule
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('inventory:read');
     const { prompt } = await request.json();
     const q = String(prompt || '').toLowerCase();
 
@@ -87,6 +89,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to generate AI draft estimate:', err);
     return NextResponse.json({ error: 'Failed to generate draft estimate' }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
 import postgres from 'postgres';
+import { isTenantStorageEnabled, requireTenantDatabase, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export interface Customer {
   id: string;
@@ -134,6 +135,18 @@ async function ensureTable() {
           updated_at timestamptz not null default now()
         );
       `;
+      if (isTenantStorageEnabled()) {
+        await sql`
+          create table if not exists hearth_core_data_store_tenant (
+            org_id uuid not null references organizations(id) on delete cascade,
+            key text not null,
+            payload jsonb not null,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now(),
+            primary key (org_id, key)
+          );
+        `;
+      }
     })();
   }
 
@@ -198,6 +211,7 @@ function saveFileStore(store: Store) {
 
 async function loadStore(): Promise<Store> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     if (process.env.VERCEL === '1') {
       throw new Error('DATABASE_URL is required for durable customer/invoice storage on Vercel');
@@ -206,6 +220,23 @@ async function loadStore(): Promise<Store> {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
+  if (orgId) {
+    const rows = await sql<{ payload: Store }[]>`
+      select payload from hearth_core_data_store_tenant
+      where org_id = ${orgId} and key = ${STORE_KEY}
+      limit 1
+    `;
+    if (rows[0]?.payload) return normalizeStore(rows[0].payload);
+
+    const empty = emptyStore();
+    await sql`
+      insert into hearth_core_data_store_tenant (org_id, key, payload)
+      values (${orgId}, ${STORE_KEY}, ${JSON.stringify(empty)}::jsonb)
+      on conflict (org_id, key) do nothing
+    `;
+    return empty;
+  }
   const rows = await sql<{ payload: Store }[]>`
     select payload
     from hearth_core_data_store
@@ -227,6 +258,7 @@ async function loadStore(): Promise<Store> {
 async function saveStore(store: Store) {
   const normalized = normalizeStore(store);
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     if (process.env.VERCEL === '1') {
       throw new Error('DATABASE_URL is required for durable customer/invoice storage on Vercel');
@@ -236,6 +268,17 @@ async function saveStore(store: Store) {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
+  if (orgId) {
+    await sql`
+      insert into hearth_core_data_store_tenant (org_id, key, payload, updated_at)
+      values (${orgId}, ${STORE_KEY}, ${JSON.stringify(normalized)}::jsonb, now())
+      on conflict (org_id, key) do update set
+        payload = excluded.payload,
+        updated_at = now()
+    `;
+    return;
+  }
   await sql`
     insert into hearth_core_data_store (key, payload, updated_at)
     values (${STORE_KEY}, ${JSON.stringify(normalized)}::jsonb, now())

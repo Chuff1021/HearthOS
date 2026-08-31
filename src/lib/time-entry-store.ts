@@ -1,5 +1,7 @@
 import postgres from "postgres";
 import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
+import { randomUUID } from "node:crypto";
+import { isTenantStorageEnabled, requireTenantDatabase, resolveStorageOrgId } from "@/lib/tenant/storage";
 
 export interface TimeEntry {
   id: string;
@@ -60,6 +62,7 @@ async function ensureTable() {
       await sql`
         create table if not exists hearth_time_entries (
           id text primary key,
+          org_id uuid references organizations(id) on delete cascade,
           tech_id text not null,
           tech_name text,
           clock_in_at timestamptz not null,
@@ -78,7 +81,7 @@ async function ensureTable() {
 
       const countRows = await sql<{ count: number }[]>`select count(*)::int as count from hearth_time_entries`;
       const count = countRows[0]?.count || 0;
-      if (count === 0) {
+      if (count === 0 && !isTenantStorageEnabled()) {
         const fileEntries = loadFileEntries();
         for (const entry of fileEntries) {
           await sql`
@@ -136,6 +139,7 @@ function normalizeEntry(raw: any): TimeEntry {
 
 export async function listTimeEntries(filters?: { techId?: string; openOnly?: boolean; date?: string }) {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     let entries = loadFileEntries();
     if (filters?.techId) entries = entries.filter((entry) => entry.techId === filters.techId);
@@ -145,7 +149,26 @@ export async function listTimeEntries(filters?: { techId?: string; openOnly?: bo
   }
 
   await ensureTable();
-  const rows = await sql<{
+  const orgId = await resolveStorageOrgId();
+  const rows = isTenantStorageEnabled() ? await sql<{
+    id: string;
+    tech_id: string;
+    tech_name: string | null;
+    clock_in_at: string;
+    clock_out_at: string | null;
+    total_minutes: number | null;
+    status: string;
+    edited: boolean;
+    edit_note: string | null;
+    payload: any;
+    created_at: string;
+    updated_at: string;
+  }[]>`
+    select id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
+    from hearth_time_entries
+    where org_id = ${orgId!}
+    order by clock_in_at desc, updated_at desc
+  ` : await sql<{
     id: string;
     tech_id: string;
     tech_name: string | null;
@@ -180,7 +203,7 @@ export async function getOpenTimeEntry(techIds: string[]) {
 export async function createTimeEntry(input: { techId: string; techName?: string }) {
   const now = new Date().toISOString();
   const entry: TimeEntry = {
-    id: `te-${Date.now()}`,
+    id: `te-${randomUUID()}`,
     techId: input.techId,
     techName: input.techName,
     clockInAt: now,
@@ -190,6 +213,7 @@ export async function createTimeEntry(input: { techId: string; techName?: string
   };
 
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const entries = loadFileEntries();
     const open = entries.find((existing) => existing.techId === input.techId && existing.status === "open");
@@ -200,7 +224,16 @@ export async function createTimeEntry(input: { techId: string; techName?: string
   }
 
   await ensureTable();
-  const openRows = await sql<{ id: string; payload: any }[]>`
+  const orgId = await resolveStorageOrgId();
+  const openRows = isTenantStorageEnabled() ? await sql<{ id: string; payload: any }[]>`
+    select id, payload
+    from hearth_time_entries
+    where org_id = ${orgId!}
+      and tech_id = ${input.techId}
+      and status = 'open'
+    order by clock_in_at desc
+    limit 1
+  ` : await sql<{ id: string; payload: any }[]>`
     select id, payload
     from hearth_time_entries
     where tech_id = ${input.techId}
@@ -214,9 +247,10 @@ export async function createTimeEntry(input: { techId: string; techName?: string
 
   await sql`
     insert into hearth_time_entries (
-      id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
+      id, org_id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
     ) values (
       ${entry.id},
+      ${orgId},
       ${entry.techId},
       ${entry.techName || null},
       ${entry.clockInAt},
@@ -236,6 +270,7 @@ export async function createTimeEntry(input: { techId: string; techName?: string
 
 export async function closeOpenTimeEntry(techId: string) {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const entries = loadFileEntries();
     const index = entries.findIndex((entry) => entry.techId === techId && entry.status === "open");
@@ -254,7 +289,22 @@ export async function closeOpenTimeEntry(techId: string) {
   }
 
   await ensureTable();
-  const rows = await sql<{
+  const orgId = await resolveStorageOrgId();
+  const rows = isTenantStorageEnabled() ? await sql<{
+    id: string;
+    tech_id: string;
+    tech_name: string | null;
+    clock_in_at: string;
+    payload: any;
+  }[]>`
+    select id, tech_id, tech_name, clock_in_at, payload
+    from hearth_time_entries
+    where org_id = ${orgId!}
+      and tech_id = ${techId}
+      and status = 'open'
+    order by clock_in_at desc
+    limit 1
+  ` : await sql<{
     id: string;
     tech_id: string;
     tech_name: string | null;
@@ -293,6 +343,7 @@ export async function closeOpenTimeEntry(techId: string) {
       payload = ${JSON.stringify(updated)}::jsonb,
       updated_at = ${updated.updatedAt}
     where id = ${updated.id}
+      ${isTenantStorageEnabled() ? sql`and org_id = ${orgId!}` : sql``}
   `;
 
   return updated;
@@ -308,7 +359,7 @@ export async function createManualTimeEntry(input: {
   const now = new Date().toISOString();
   const totalMinutes = Math.max(0, Math.round((new Date(input.clockOutAt).getTime() - new Date(input.clockInAt).getTime()) / 60000));
   const entry: TimeEntry = {
-    id: `te-${Date.now()}-manual`,
+    id: `te-${randomUUID()}-manual`,
     techId: input.techId,
     techName: input.techName,
     clockInAt: input.clockInAt,
@@ -322,6 +373,7 @@ export async function createManualTimeEntry(input: {
   };
 
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const entries = loadFileEntries();
     saveFileEntries([entry, ...entries]);
@@ -329,11 +381,12 @@ export async function createManualTimeEntry(input: {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
   await sql`
     INSERT INTO hearth_time_entries (
-      id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
+      id, org_id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
     ) VALUES (
-      ${entry.id}, ${entry.techId}, ${entry.techName || null},
+      ${entry.id}, ${orgId}, ${entry.techId}, ${entry.techName || null},
       ${entry.clockInAt}, ${entry.clockOutAt || null}, ${entry.totalMinutes ?? null},
       ${entry.status}, ${true}, ${entry.editNote || null},
       ${JSON.stringify(entry)}::jsonb, ${entry.createdAt}, ${entry.updatedAt}
@@ -350,6 +403,7 @@ export async function updateTimeEntry(input: {
   editNote?: string;
 }) {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const entries = loadFileEntries();
     const index = entries.findIndex((entry) => entry.id === input.id);
@@ -375,7 +429,26 @@ export async function updateTimeEntry(input: {
   }
 
   await ensureTable();
-  const rows = await sql<{
+  const orgId = await resolveStorageOrgId();
+  const rows = isTenantStorageEnabled() ? await sql<{
+    id: string;
+    tech_id: string;
+    tech_name: string | null;
+    clock_in_at: string;
+    clock_out_at: string | null;
+    total_minutes: number | null;
+    status: string;
+    edited: boolean;
+    edit_note: string | null;
+    payload: any;
+    created_at: string;
+    updated_at: string;
+  }[]>`
+    select id, tech_id, tech_name, clock_in_at, clock_out_at, total_minutes, status, edited, edit_note, payload, created_at, updated_at
+    from hearth_time_entries
+    where id = ${input.id} and org_id = ${orgId!}
+    limit 1
+  ` : await sql<{
     id: string;
     tech_id: string;
     tech_name: string | null;
@@ -426,6 +499,7 @@ export async function updateTimeEntry(input: {
       payload = ${JSON.stringify(updated)}::jsonb,
       updated_at = ${updated.updatedAt}
     where id = ${updated.id}
+      ${isTenantStorageEnabled() ? sql`and org_id = ${orgId!}` : sql``}
   `;
 
   // Don't re-snapshot all entries after every edit — it causes race conditions

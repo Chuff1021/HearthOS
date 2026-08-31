@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import {
   db,
   invoices,
@@ -35,6 +36,8 @@ type Activity = {
 const PER_TABLE = 50;
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const limit = Math.min(100, Math.max(5, parseInt(searchParams.get('limit') || '30', 10)));

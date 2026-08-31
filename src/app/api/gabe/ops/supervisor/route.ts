@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDefaultRecurringJobs, listJobs, runSupervisorTick } from '@/lib/gabe-ops';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('gabe:manage');
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
     await ensureDefaultRecurringJobs();
     const ran = await runSupervisorTick(baseUrl);
     return NextResponse.json({ ok: true, ran });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'Supervisor run failed' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission('gabe:manage');
     await ensureDefaultRecurringJobs();
     const jobs = await listJobs(200);
     const active = jobs.filter((j) => j.status === 'active').length;
@@ -48,6 +53,8 @@ export async function GET(request: NextRequest) {
       jobs,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'Failed to get supervisor status' }, { status: 500 });
   }
 }

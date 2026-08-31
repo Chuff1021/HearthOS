@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, listManualSections } from "@/lib/manuals";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 function getEngineUrl() {
   return process.env.GABE_ENGINE_URL || "http://localhost:4100";
@@ -13,6 +14,7 @@ function readTag(tags: unknown, prefix: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const body = await req.json().catch(() => ({}));
     const model = String(body?.model || "").trim();
     if (!model) return NextResponse.json({ error: "model required" }, { status: 400 });
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, model, engineUrl, count: results.length, results });
   } catch (e: any) {
+    const tenantResponse = tenantErrorResponse(e);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: e?.message || "reingest failed" }, { status: 500 });
   }
 }

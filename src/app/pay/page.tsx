@@ -21,6 +21,7 @@ function formAmount(value: string) {
 
 export default function CustomerPayPage() {
   const searchParams = useSearchParams();
+  const paymentToken = searchParams.get("token") || "";
   const cardContainerRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<any>(null);
   const achRef = useRef<any>(null);
@@ -47,9 +48,14 @@ export default function CustomerPayPage() {
   const [processingAch, setProcessingAch] = useState(false);
   const [status, setStatus] = useState<PaymentStatus | null>(null);
 
-  const squareAppId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "";
-  const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
-  const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
+  const [squareConfig, setSquareConfig] = useState(() => ({
+    applicationId: paymentToken ? "" : process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || "",
+    locationId: paymentToken ? "" : process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "",
+    environment: paymentToken ? "production" : process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production",
+  }));
+  const squareAppId = squareConfig.applicationId;
+  const squareLocationId = squareConfig.locationId;
+  const squareEnv = squareConfig.environment;
   const amount = formAmount(form.amount);
   const cardFee = amount * CARD_FEE_RATE;
   const cardTotal = amount + cardFee;
@@ -57,6 +63,32 @@ export default function CustomerPayPage() {
   useEffect(() => {
     paymentContextRef.current = form;
   }, [form]);
+
+  useEffect(() => {
+    if (!paymentToken) return;
+    let cancelled = false;
+    void fetch(`/api/payment-intents/${encodeURIComponent(paymentToken)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Payment link is unavailable.");
+        if (cancelled) return;
+        setForm((current) => ({
+          ...current,
+          amount: String(data.amount || ""),
+          customerName: data.customerName || "",
+          invoiceNumber: data.invoiceNumber || "",
+          buyerEmail: data.buyerEmail || "",
+          accountHolderName: data.customerName || "",
+        }));
+        setSquareConfig(data.square);
+      })
+      .catch((error) => {
+        if (!cancelled) setStatus({ type: "error", message: error instanceof Error ? error.message : "Payment link is unavailable." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentToken]);
 
   useEffect(() => {
     if (!squareAppId || !squareLocationId || !cardContainerRef.current) {
@@ -89,6 +121,7 @@ export default function CustomerPayPage() {
           note: context.invoiceNumber
             ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
             : `${methodLabel} payment`,
+          paymentToken: paymentToken || undefined,
         }),
       });
       const data = await res.json();
@@ -165,7 +198,7 @@ export default function CustomerPayPage() {
     return () => {
       cancelled = true;
     };
-  }, [squareAppId, squareLocationId, squareEnv]);
+  }, [paymentToken, squareAppId, squareLocationId, squareEnv]);
 
   async function payByCard() {
     setStatus(null);
@@ -190,6 +223,7 @@ export default function CustomerPayPage() {
           note: form.invoiceNumber
             ? `Card payment for invoice ${form.invoiceNumber}. Invoice amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`
             : `Card payment. Amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`,
+          paymentToken: paymentToken || undefined,
         }),
       });
       const data = await res.json();

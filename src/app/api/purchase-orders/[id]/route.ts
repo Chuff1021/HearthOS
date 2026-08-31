@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, purchaseOrders, purchaseOrderLineItems, vendors } from '@/db';
 import { and, eq, asc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();
@@ -46,6 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

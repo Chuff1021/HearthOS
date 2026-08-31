@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, createManual, updateManual, deleteManual } from "@/lib/manuals";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q");
     const category = searchParams.get("category");
@@ -11,6 +13,8 @@ export async function GET(request: NextRequest) {
     const results = await listManuals({ query: q, category, includeInactive });
     return NextResponse.json({ manuals: results, total: results.length });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to list manuals:", err);
     return NextResponse.json({ error: "Failed to list manuals" }, { status: 500 });
   }
@@ -18,6 +22,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const body = await request.json();
 
     if (!body.brand || !body.model || !body.url) {
@@ -39,6 +44,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ manual: created }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create manual:", err);
     return NextResponse.json({ error: "Failed to create manual" }, { status: 500 });
   }
@@ -46,6 +53,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const body = await request.json();
 
     if (!body.id) {
@@ -68,6 +76,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ manual: updated });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update manual:", err);
     return NextResponse.json({ error: "Failed to update manual" }, { status: 500 });
   }
@@ -75,6 +85,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -89,6 +100,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete manual:", err);
     return NextResponse.json({ error: "Failed to delete manual" }, { status: 500 });
   }

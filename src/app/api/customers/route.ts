@@ -8,9 +8,11 @@ import {
   deleteCustomer,
 } from "@/lib/data-store";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("customers:read");
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
     const id = searchParams.get("id");
@@ -31,6 +33,8 @@ export async function GET(request: NextRequest) {
     const customers = await getCustomers();
     return NextResponse.json({ customers, total: customers.length });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get customers:", err);
     return NextResponse.json({ error: "Failed to get customers" }, { status: 500 });
   }
@@ -38,6 +42,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("customers:write");
     const body = await request.json();
     
     if (!body.displayName || !body.firstName || !body.lastName) {
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     });
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "customer",
       action: "create",
       entityId: customer.id,
@@ -70,6 +75,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ customer }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create customer:", err);
     return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
   }
@@ -77,6 +84,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("customers:write");
     const body = await request.json();
     
     if (!body.id) {
@@ -88,7 +96,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "customer",
       action: "update",
       entityId: customer.id,
@@ -98,6 +106,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ customer });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update customer:", err);
     return NextResponse.json({ error: "Failed to update customer" }, { status: 500 });
   }
@@ -105,6 +115,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    await requirePermission("customers:write");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -117,7 +128,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "customer",
       action: "delete",
       entityId: id,
@@ -126,6 +137,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete customer:", err);
     return NextResponse.json({ error: "Failed to delete customer" }, { status: 500 });
   }

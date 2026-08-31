@@ -4,6 +4,7 @@ import { db, invoices as dbInvoices, payments } from "@/db";
 import { getJob } from "@/lib/job-store";
 import { getInvoices as getLocalInvoices } from "@/lib/data-store";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import { getClientFromTokens } from "@/lib/quickbooks/sync";
 
 function normalize(value: string | undefined | null) {
@@ -18,6 +19,8 @@ function matchesTitle(jobTitle: string, candidate: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("jobs:read");
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

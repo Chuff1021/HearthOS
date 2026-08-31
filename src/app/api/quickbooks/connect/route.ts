@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
+import { requirePermission } from '@/lib/tenant/context';
+import { createOAuthState, isTenantIntegrationsEnabled } from '@/lib/integrations/store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,18 +16,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const context = await requirePermission('integrations:manage');
     const client = createQuickBooksClient();
-    
-    // Generate a random state for CSRF protection
-    const state = crypto.randomUUID();
+    if (isTenantIntegrationsEnabled() && !context.identityId) {
+      return NextResponse.json(
+        { error: 'Tenant integration storage requires an organization membership.' },
+        { status: 409 },
+      );
+    }
+    const state = isTenantIntegrationsEnabled()
+      ? await createOAuthState({
+          provider: 'quickbooks',
+          orgId: context.orgId,
+          identityId: context.identityId as string,
+          redirectPath: '/integrations/quickbooks',
+        })
+      : crypto.randomUUID();
     
     // Get the authorization URL
     const authUrl = client.getAuthorizationUrl(state);
     
-    // In production, you'd store the state in a session/cookie to verify later
     const response = NextResponse.redirect(authUrl);
-    
-    // Store state in cookie for verification
+
     response.cookies.set('qb_oauth_state', state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

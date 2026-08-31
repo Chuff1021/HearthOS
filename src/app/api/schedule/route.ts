@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getJobs } from '@/app/api/jobs/route';
 import { getTechs } from '@/app/api/techs/route';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export interface ScheduleJob {
   id: string;
@@ -61,6 +62,7 @@ async function toScheduleJobs(): Promise<ScheduleJob[]> {
 
 export async function GET(request: Request) {
   try {
+    await requirePermission('schedule:read');
     const { searchParams } = new URL(request.url);
     const techId = searchParams.get('techId');
 
@@ -77,6 +79,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ jobs, technicians });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to get schedule:', err);
     return NextResponse.json({ error: 'Failed to get schedule' }, { status: 500 });
   }

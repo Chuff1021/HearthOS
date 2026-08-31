@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { customers, db } from "@/db";
 import { isClerkConfigured } from "@/lib/auth";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import {
   createServiceOutreach,
   listServiceOutreachForCustomer,
@@ -31,6 +32,8 @@ function cleanDate(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("customers:read");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;
@@ -51,6 +54,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi("customers:write");
+  if (denied) return denied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;

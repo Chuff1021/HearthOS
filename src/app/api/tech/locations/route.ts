@@ -3,9 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import { addLocationPoint, getLatestLocationsByTech, getLocationHistory, getMileageSummary } from '@/lib/tech-location-store';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+  try {
+    await requirePermission('schedule:read');
+    const { searchParams } = new URL(request.url);
   const techId = searchParams.get('techId');
   const limit = Number(searchParams.get('limit') || 100);
   const includeSummary = searchParams.get('summary') === 'true';
@@ -16,12 +19,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ history, total: history.length, mileage });
   }
 
-  const latest = await getLatestLocationsByTech();
-  return NextResponse.json({ locations: latest, total: latest.length });
+    const latest = await getLatestLocationsByTech();
+    return NextResponse.json({ locations: latest, total: latest.length });
+  } catch (error) {
+    return tenantErrorResponse(error) || NextResponse.json({ error: 'Failed to load locations' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('schedule:write');
     const body = await request.json();
     const { techId, techName, techEmail, lat, lng, accuracy, speed, heading, timestamp } = body;
 
@@ -42,7 +49,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ point }, { status: 201 });
-  } catch {
+  } catch (error) {
+    const tenantResponse = tenantErrorResponse(error);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'Failed to save location' }, { status: 500 });
   }
 }

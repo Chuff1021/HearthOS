@@ -3,6 +3,8 @@ import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
 import { saveGabeMessage } from "@/lib/gabe-messages";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { isTenantStorageEnabled, resolveStorageOrgId } from "@/lib/tenant/storage";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -115,6 +117,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const body = await request.json() as {
       messages: ChatMessage[];
       jobContext?: {
@@ -206,7 +209,7 @@ export async function POST(request: NextRequest) {
       const assistantMessage = data.answer ?? "";
 
       try {
-        saveConversationLog({
+        await saveConversationLog({
           techId,
           techName,
           jobId,
@@ -257,7 +260,7 @@ export async function POST(request: NextRequest) {
       const assistantMessage = data?.answer ?? data?.message ?? "";
 
       try {
-        saveConversationLog({
+        await saveConversationLog({
           techId,
           techName,
           jobId,
@@ -344,7 +347,7 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
 **To enable full AI responses:** Add NVIDIA_API_KEY to your Vercel environment variables and redeploy.`;
 
       try {
-        saveConversationLog({
+        await saveConversationLog({
           techId,
           techName,
           jobId,
@@ -457,7 +460,7 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
     }
 
     try {
-      saveConversationLog({
+      await saveConversationLog({
         techId,
         techName,
         jobId,
@@ -476,6 +479,8 @@ ${allManuals.length > 30 ? `\n...and ${allManuals.length - 30} more manuals` : "
       manualsCount: allManuals.length,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("GABE API error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
@@ -571,7 +576,7 @@ async function buildManualFallback(question: string, preferredManualId?: string)
   };
 }
 
-function saveConversationLog(params: {
+async function saveConversationLog(params: {
   techId?: string;
   techName?: string;
   jobId?: string;
@@ -580,7 +585,7 @@ function saveConversationLog(params: {
   messages: ChatMessage[];
   assistantMessage: string;
 }) {
-  saveGabeMessage({
+  await saveGabeMessage({
     techId: params.techId,
     techName: params.techName,
     jobId: params.jobId,
@@ -606,8 +611,9 @@ async function persistRunMetadata(params: {
 }) {
   if (!process.env.DATABASE_URL) return;
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
-  await sql`create table if not exists gabe_run_metadata (id bigserial primary key, ts timestamptz not null default now(), payload jsonb not null)`;
-  await sql`insert into gabe_run_metadata (payload) values (${JSON.stringify({
+  const orgId = await resolveStorageOrgId();
+  await sql`create table if not exists gabe_run_metadata (id bigserial primary key, org_id uuid references organizations(id) on delete cascade, ts timestamptz not null default now(), payload jsonb not null)`;
+  const payload = JSON.stringify({
     conversationId: params.jobId ?? params.techId ?? null,
     jobId: params.jobId ?? null,
     technicianId: params.techId ?? null,
@@ -622,5 +628,10 @@ async function persistRunMetadata(params: {
     diagnostics: params.response.run.diagnostics,
     sourceType: params.response.source_type,
     answer: params.response.answer,
-  })}::jsonb)`;
+  });
+  if (isTenantStorageEnabled()) {
+    await sql`insert into gabe_run_metadata (org_id, payload) values (${orgId!}, ${payload}::jsonb)`;
+  } else {
+    await sql`insert into gabe_run_metadata (payload) values (${payload}::jsonb)`;
+  }
 }

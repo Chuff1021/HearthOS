@@ -1,122 +1,103 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
-/**
- * Time reminder cron — runs at 8:31 AM and 5:01 PM CT
- *
- * 8:31 AM: Checks if any active techs haven't clocked in yet
- * 5:01 PM: Checks if any techs are still clocked in (reminder, not forced clock-out)
- *
- * Results are stored in a table for the admin dashboard to display.
- * Future: can integrate with SMS/push notifications.
- */
-export async function GET() {
-  if (!process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "No database" }, { status: 500 });
+function localClock(timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    weekday: "short",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    hour: Number(value("hour")),
+    minute: Number(value("minute")),
+    weekday: value("weekday"),
+  };
+}
+
+export async function GET(request: NextRequest) {
+  if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!process.env.DATABASE_URL) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
-
   try {
-    // Ensure reminders table
     await sql`
-      CREATE TABLE IF NOT EXISTS hearth_time_reminders (
-        id TEXT PRIMARY KEY,
-        tech_id TEXT NOT NULL,
-        tech_name TEXT,
-        type TEXT NOT NULL,
-        message TEXT NOT NULL,
-        acknowledged BOOLEAN DEFAULT false,
-        created_at TIMESTAMPTZ DEFAULT now()
+      create table if not exists hearth_time_reminders (
+        id text primary key,
+        org_id uuid not null references organizations(id) on delete cascade,
+        tech_id text not null,
+        tech_name text,
+        type text not null,
+        message text not null,
+        acknowledged boolean default false,
+        created_at timestamptz default now()
       )
     `;
-
-    // Get current time in Central Time (approximate — offset from UTC)
-    const now = new Date();
-    const ctOffset = -5; // CDT (use -6 for CST)
-    const ctHour = (now.getUTCHours() + ctOffset + 24) % 24;
-    const ctMinute = now.getUTCMinutes();
-    const today = now.toISOString().split("T")[0];
-
-    // Get all active techs
-    const techs = await sql`
-      SELECT id, COALESCE(first_name || ' ' || last_name, email) as name
-      FROM users
-      WHERE is_active = true AND role IN ('technician', 'tech', 'admin')
+    const organizations = await sql<{ id: string; timezone: string | null }[]>`
+      select id, timezone from organizations order by created_at
     `;
+    const reminders: Array<{ orgId: string; type: string; tech: string }> = [];
 
-    // Get today's open time entries
-    const openEntries = await sql`
-      SELECT tech_id FROM hearth_time_entries
-      WHERE status = 'open'
-    `;
-    const clockedInIds = new Set(openEntries.map((e: any) => e.tech_id));
+    for (const organization of organizations) {
+      const clock = localClock(organization.timezone || "America/Chicago");
+      const morningWindow = clock.weekday !== "Sat" && clock.weekday !== "Sun" && clock.hour === 8 && clock.minute >= 30 && clock.minute <= 35;
+      const eveningWindow = clock.hour === 17 && clock.minute >= 0 && clock.minute <= 5;
+      if (!morningWindow && !eveningWindow) continue;
 
-    // Get today's closed entries (techs who worked today)
-    const todayEntries = await sql`
-      SELECT DISTINCT tech_id FROM hearth_time_entries
-      WHERE clock_in_at::date = ${today}::date
-    `;
-    const workedTodayIds = new Set(todayEntries.map((e: any) => e.tech_id));
+      const [techs, openEntries, todayEntries] = await Promise.all([
+        sql<{ id: string; name: string }[]>`
+          select id, coalesce(nullif(trim(concat_ws(' ', first_name, last_name)), ''), email) as name
+          from users
+          where org_id = ${organization.id} and is_active = true and role in ('technician', 'tech', 'admin')
+        `,
+        sql<{ tech_id: string }[]>`
+          select tech_id from hearth_time_entries where org_id = ${organization.id} and status = 'open'
+        `,
+        sql<{ tech_id: string }[]>`
+          select distinct tech_id from hearth_time_entries
+          where org_id = ${organization.id}
+            and (clock_in_at at time zone ${organization.timezone || "America/Chicago"})::date = ${clock.date}::date
+        `,
+      ]);
+      const clockedIn = new Set(openEntries.map((entry) => entry.tech_id));
+      const workedToday = new Set(todayEntries.map((entry) => entry.tech_id));
 
-    const reminders: any[] = [];
-
-    // Morning check (8:31 AM) — who hasn't clocked in?
-    if (ctHour === 8 && ctMinute >= 30 && ctMinute <= 35) {
-      // Only on weekdays
-      const dayOfWeek = now.getDay();
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        for (const tech of techs) {
-          if (!clockedInIds.has(tech.id) && !workedTodayIds.has(tech.id)) {
-            const id = `rem-${Date.now()}-${tech.id}`;
-            reminders.push({
-              id,
-              techId: tech.id,
-              techName: tech.name,
-              type: "clock_in_reminder",
-              message: `${tech.name} has not clocked in yet today (shift starts at 8:30 AM)`,
-            });
-          }
-        }
-      }
-    }
-
-    // Evening check (5:01 PM) — who is still clocked in?
-    if (ctHour === 17 && ctMinute >= 0 && ctMinute <= 5) {
       for (const tech of techs) {
-        if (clockedInIds.has(tech.id)) {
-          const id = `rem-${Date.now()}-${tech.id}`;
-          reminders.push({
-            id,
-            techId: tech.id,
-            techName: tech.name,
-            type: "clock_out_reminder",
-            message: `${tech.name} is still clocked in past 5:00 PM`,
-          });
+        let type = "";
+        let message = "";
+        if (morningWindow && !clockedIn.has(tech.id) && !workedToday.has(tech.id)) {
+          type = "clock_in_reminder";
+          message = `${tech.name} has not clocked in yet today (shift starts at 8:30 AM)`;
+        } else if (eveningWindow && clockedIn.has(tech.id)) {
+          type = "clock_out_reminder";
+          message = `${tech.name} is still clocked in past 5:00 PM`;
         }
+        if (!type) continue;
+
+        const id = `rem-${organization.id}-${clock.date}-${type}-${tech.id}`;
+        const inserted = await sql`
+          insert into hearth_time_reminders (id, org_id, tech_id, tech_name, type, message)
+          values (${id}, ${organization.id}, ${tech.id}, ${tech.name}, ${type}, ${message})
+          on conflict (id) do nothing
+          returning id
+        `;
+        if (inserted.length) reminders.push({ orgId: organization.id, type, tech: tech.name });
       }
     }
 
-    // Store reminders
-    for (const rem of reminders) {
-      await sql`
-        INSERT INTO hearth_time_reminders (id, tech_id, tech_name, type, message)
-        VALUES (${rem.id}, ${rem.techId}, ${rem.techName}, ${rem.type}, ${rem.message})
-        ON CONFLICT (id) DO NOTHING
-      `;
-    }
-
+    return NextResponse.json({ checked: true, organizationsChecked: organizations.length, remindersCreated: reminders.length });
+  } catch (error) {
+    console.error("Time reminder cron failed:", error);
+    return NextResponse.json({ error: "Time reminder check failed" }, { status: 500 });
+  } finally {
     await sql.end();
-
-    return NextResponse.json({
-      checked: true,
-      hour: ctHour,
-      minute: ctMinute,
-      remindersCreated: reminders.length,
-      reminders: reminders.map((r) => ({ type: r.type, tech: r.techName })),
-    });
-  } catch (err) {
-    try { await sql.end(); } catch {}
-    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

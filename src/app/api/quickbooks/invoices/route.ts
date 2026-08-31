@@ -17,6 +17,7 @@ import type { QBInvoice } from '@/lib/quickbooks/types';
 import { addAuditLog } from '@/lib/audit-log-store';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 import { renderInvoicePdf } from '@/lib/invoices/pdf';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 function escapeHtml(value: unknown) {
   return String(value ?? '')
@@ -177,6 +178,8 @@ function invoiceEmailHtml(invoice: QBInvoice, payUrl: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -273,6 +276,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     let accessToken = request.cookies.get('qb_access_token')?.value;
     let refreshToken = request.cookies.get('qb_refresh_token')?.value;
@@ -350,7 +355,7 @@ export async function POST(request: NextRequest) {
           }],
         });
 
-        addAuditLog({
+        await addAuditLog({
           entityType: 'invoice',
           entityId: (body as any).id,
           action: 'update',
@@ -363,7 +368,7 @@ export async function POST(request: NextRequest) {
       }
 
       const sent = await client.sendInvoice((body as any).id, (body as any).email);
-      addAuditLog({
+      await addAuditLog({
         entityType: 'invoice',
         entityId: (body as any).id,
         action: 'update',
@@ -382,7 +387,7 @@ export async function POST(request: NextRequest) {
       const client = getClientFromTokens(accessToken, refreshToken, realmId);
       const updated = await client.updateInvoice((body as any).id, (body as any).updates || {});
       await syncInvoices(client);
-      addAuditLog({
+      await addAuditLog({
         entityType: 'invoice',
         entityId: (body as any).id,
         action: 'update',
@@ -447,7 +452,7 @@ export async function POST(request: NextRequest) {
     const client = getClientFromTokens(accessToken, refreshToken, realmId);
     const invoice = await createInvoiceInQuickBooks(client, qbInvoice);
 
-    addAuditLog({
+    await addAuditLog({
       entityType: 'invoice',
       entityId: invoice.Id,
       action: 'create',

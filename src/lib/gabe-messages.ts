@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { isTenantStorageEnabled, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export interface GabeConversationTurn {
   role: 'user' | 'assistant';
@@ -44,6 +45,7 @@ async function ensureTables() {
       await sql`
         create table if not exists gabe_chat_sessions (
           id text primary key,
+          org_id uuid references organizations(id) on delete cascade,
           session_id text not null,
           ts timestamptz not null default now(),
           last_activity_at timestamptz not null default now(),
@@ -115,6 +117,7 @@ function newSessionId(techId?: string) {
 }
 
 export async function getGabeMessages(filters?: {
+  orgId?: string;
   techId?: string;
   jobId?: string;
   startDate?: string;
@@ -123,7 +126,10 @@ export async function getGabeMessages(filters?: {
 }): Promise<GabeMessage[]> {
   const sql = getSql();
   await ensureTables();
-  const rows: any[] = await sql`select * from gabe_chat_sessions order by last_activity_at desc limit 1000`;
+  const orgId = await resolveStorageOrgId(filters?.orgId);
+  const rows: any[] = isTenantStorageEnabled()
+    ? await sql`select * from gabe_chat_sessions where org_id = ${orgId!} order by last_activity_at desc limit 1000`
+    : await sql`select * from gabe_chat_sessions order by last_activity_at desc limit 1000`;
   let msgs = rows.map(mapRow);
   if (filters?.techId) msgs = msgs.filter((m) => m.techId === filters.techId);
   if (filters?.jobId) msgs = msgs.filter((m) => m.jobId === filters.jobId);
@@ -133,16 +139,23 @@ export async function getGabeMessages(filters?: {
   return msgs;
 }
 
-export async function getGabeMessageById(id: string): Promise<GabeMessage | undefined> {
+export async function getGabeMessageById(id: string, explicitOrgId?: string): Promise<GabeMessage | undefined> {
   const sql = getSql();
   await ensureTables();
-  const rows: any[] = await sql`select * from gabe_chat_sessions where id = ${id} limit 1`;
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  const rows: any[] = isTenantStorageEnabled()
+    ? await sql`select * from gabe_chat_sessions where id = ${id} and org_id = ${orgId!} limit 1`
+    : await sql`select * from gabe_chat_sessions where id = ${id} limit 1`;
   return rows[0] ? mapRow(rows[0]) : undefined;
 }
 
-export async function saveGabeMessage(message: Omit<GabeMessage, 'id' | 'timestamp' | 'lastActivityAt' | 'status' | 'sessionId'>): Promise<GabeMessage> {
+export async function saveGabeMessage(
+  message: Omit<GabeMessage, 'id' | 'timestamp' | 'lastActivityAt' | 'status' | 'sessionId'>,
+  explicitOrgId?: string,
+): Promise<GabeMessage> {
   const sql = getSql();
   await ensureTables();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
 
   const nowIso = new Date().toISOString();
   const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -150,16 +163,28 @@ export async function saveGabeMessage(message: Omit<GabeMessage, 'id' | 'timesta
   const identityField = message.techId ? 'tech_id' : (message.techEmail ? 'tech_email' : null);
   let openRows: any[] = [];
   if (identityField === 'tech_id') {
-    openRows = await sql`select * from gabe_chat_sessions where tech_id = ${message.techId!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`;
+    openRows = isTenantStorageEnabled()
+      ? await sql`select * from gabe_chat_sessions where org_id = ${orgId!} and tech_id = ${message.techId!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`
+      : await sql`select * from gabe_chat_sessions where tech_id = ${message.techId!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`;
   } else if (identityField === 'tech_email') {
-    openRows = await sql`select * from gabe_chat_sessions where tech_email = ${message.techEmail!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`;
+    openRows = isTenantStorageEnabled()
+      ? await sql`select * from gabe_chat_sessions where org_id = ${orgId!} and tech_email = ${message.techEmail!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`
+      : await sql`select * from gabe_chat_sessions where tech_email = ${message.techEmail!} and status='open' and last_activity_at >= ${cutoff} order by last_activity_at desc limit 1`;
   }
 
   // Close stale open sessions for this tech/email
   if (identityField === 'tech_id') {
-    await sql`update gabe_chat_sessions set status='closed' where tech_id = ${message.techId!} and status='open' and last_activity_at < ${cutoff}`;
+    if (isTenantStorageEnabled()) {
+      await sql`update gabe_chat_sessions set status='closed' where org_id = ${orgId!} and tech_id = ${message.techId!} and status='open' and last_activity_at < ${cutoff}`;
+    } else {
+      await sql`update gabe_chat_sessions set status='closed' where tech_id = ${message.techId!} and status='open' and last_activity_at < ${cutoff}`;
+    }
   } else if (identityField === 'tech_email') {
-    await sql`update gabe_chat_sessions set status='closed' where tech_email = ${message.techEmail!} and status='open' and last_activity_at < ${cutoff}`;
+    if (isTenantStorageEnabled()) {
+      await sql`update gabe_chat_sessions set status='closed' where org_id = ${orgId!} and tech_email = ${message.techEmail!} and status='open' and last_activity_at < ${cutoff}`;
+    } else {
+      await sql`update gabe_chat_sessions set status='closed' where tech_email = ${message.techEmail!} and status='open' and last_activity_at < ${cutoff}`;
+    }
   }
 
   const incoming = (message.messages || []).slice(-4);
@@ -180,31 +205,33 @@ export async function saveGabeMessage(message: Omit<GabeMessage, 'id' | 'timesta
           messages = ${JSON.stringify(mergedMessages)}::jsonb,
           duration = ${message.duration ?? existing.duration ?? null}
       where id = ${existing.id}
+        ${isTenantStorageEnabled() ? sql`and org_id = ${orgId!}` : sql``}
     `;
-    return (await getGabeMessageById(existing.id))!;
+    return (await getGabeMessageById(existing.id, orgId || undefined))!;
   }
 
   const id = newId();
   const sessionId = newSessionId(message.techId);
   await sql`
     insert into gabe_chat_sessions (
-      id, session_id, ts, last_activity_at, status,
+      id, org_id, session_id, ts, last_activity_at, status,
       tech_id, tech_name, tech_email, job_id, job_number, customer_name, fireplace,
       messages, duration, rating, flagged, flag_reason
     ) values (
-      ${id}, ${sessionId}, ${nowIso}, ${nowIso}, 'open',
+      ${id}, ${orgId}, ${sessionId}, ${nowIso}, ${nowIso}, 'open',
       ${message.techId || null}, ${message.techName || null}, ${message.techEmail || null}, ${message.jobId || null}, ${message.jobNumber || null}, ${message.customerName || null}, ${message.fireplace || null},
       ${JSON.stringify(incoming)}::jsonb, ${message.duration ?? null}, null, false, null
     )
   `;
 
-  return (await getGabeMessageById(id))!;
+  return (await getGabeMessageById(id, orgId || undefined))!;
 }
 
-export async function updateGabeMessage(id: string, updates: Partial<GabeMessage>): Promise<GabeMessage | null> {
+export async function updateGabeMessage(id: string, updates: Partial<GabeMessage>, explicitOrgId?: string): Promise<GabeMessage | null> {
   const sql = getSql();
   await ensureTables();
-  const existing = await getGabeMessageById(id);
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  const existing = await getGabeMessageById(id, orgId || undefined);
   if (!existing) return null;
 
   const merged = {
@@ -229,19 +256,23 @@ export async function updateGabeMessage(id: string, updates: Partial<GabeMessage
       flagged = ${!!merged.flagged},
       flag_reason = ${merged.flagReason || null}
     where id = ${id}
+      ${isTenantStorageEnabled() ? sql`and org_id = ${orgId!}` : sql``}
   `;
 
-  return await getGabeMessageById(id) || null;
+  return await getGabeMessageById(id, orgId || undefined) || null;
 }
 
-export async function flagGabeMessage(id: string, reason: string): Promise<GabeMessage | null> {
-  return updateGabeMessage(id, { flagged: true, flagReason: reason });
+export async function flagGabeMessage(id: string, reason: string, explicitOrgId?: string): Promise<GabeMessage | null> {
+  return updateGabeMessage(id, { flagged: true, flagReason: reason }, explicitOrgId);
 }
 
-export async function deleteGabeMessage(id: string): Promise<boolean> {
+export async function deleteGabeMessage(id: string, explicitOrgId?: string): Promise<boolean> {
   const sql = getSql();
   await ensureTables();
-  const res = await sql`delete from gabe_chat_sessions where id = ${id}`;
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  const res = isTenantStorageEnabled()
+    ? await sql`delete from gabe_chat_sessions where id = ${id} and org_id = ${orgId!}`
+    : await sql`delete from gabe_chat_sessions where id = ${id}`;
   return (res.count || 0) > 0;
 }
 

@@ -3,6 +3,7 @@ import { getJobs as getJobsFromApi } from "../jobs/route";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 import { customers, db, invoices } from "@/db";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 function normalizeSearchValue(value: string | undefined) {
   return (value || "")
@@ -21,6 +22,8 @@ function matchesSearchQuery(query: string, field: string | undefined) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("organization:read");
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") || "";
   const query = normalizeSearchValue(rawQuery);

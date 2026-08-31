@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 type PlaidAccount = {
   account_id: string;
@@ -82,6 +83,9 @@ function money(value: unknown) {
 }
 
 export async function GET() {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
+
   const org = await getOrCreateDefaultOrg();
   const settings = (org.settings || {}) as OrgSettings;
   const storedAccessToken = settings.banking?.plaidAccessToken;

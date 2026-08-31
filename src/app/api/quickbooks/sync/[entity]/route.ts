@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, organizations } from '@/db';
-import { eq } from 'drizzle-orm';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import {
   persistCustomersToDb,
   persistItemsToDb,
@@ -26,6 +26,8 @@ function boundedInt(value: string | null, fallback: number, min: number, max: nu
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
+  const denied = await authorizeApi('integrations:manage');
+  if (denied) return denied;
   const { entity } = await params;
   const { searchParams } = new URL(request.url);
   const allowed: Entity[] = ['customers', 'items', 'vendors', 'invoices', 'payments', 'estimates', 'purchase-orders', 'bills'];
@@ -141,12 +143,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // If QB refreshed the access token mid-flight, persist the new tokens
     const newTokens = client.getTokens();
     if (newTokens && newTokens.access_token !== accessToken) {
-      await db.update(organizations).set({
-        qbAccessToken: newTokens.access_token,
-        qbRefreshToken: newTokens.refresh_token,
-        qbTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
-        updatedAt: new Date(),
-      }).where(eq(organizations.id, org.id));
+      await saveQuickBooksRefresh({
+        orgId: org.id,
+        realmId: realmId!,
+        accessToken: newTokens.access_token,
+        refreshToken: newTokens.refresh_token,
+        expiresIn: newTokens.expires_in,
+      });
     }
 
     return NextResponse.json({

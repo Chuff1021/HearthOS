@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createManualSection } from "@/lib/manuals";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 const NEMO_MODEL = "nvidia/nemoretriever-parse";
 const VISION_MODEL = "moonshotai/kimi-k2.5";
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await requirePermission("gabe:manage");
     const { manualId, pageNumber, imageBase64 } = await request.json();
 
     if (!manualId || !pageNumber || !imageBase64) {
@@ -178,6 +180,8 @@ export async function POST(request: NextRequest) {
       contentTypes,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("[INGEST] Error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Ingestion failed" },

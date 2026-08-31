@@ -10,6 +10,8 @@ import {
 } from "@/lib/meeks-job-store";
 import { getMeeksApiAccess, getMeeksInternalAccess } from "@/lib/meeks-auth";
 import { getTechs } from "@/app/api/techs/route";
+import { storeTenantFileFromDataUrl } from '@/lib/tenant/files';
+import { isTenantStorageEnabled } from '@/lib/tenant/storage';
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -88,11 +90,31 @@ function cleanPoAttachment(value: unknown): MeeksAttachment | undefined {
 
   return {
     id: cleanText(raw.id) || crypto.randomUUID(),
+    storageId: cleanText(raw.storageId) || undefined,
     fileName,
     contentType,
     size,
     dataUrl,
     uploadedAt: cleanText(raw.uploadedAt) || new Date().toISOString(),
+  };
+}
+
+async function storePoAttachment(attachment: MeeksAttachment | undefined, orgId: string) {
+  if (!attachment || !isTenantStorageEnabled() || attachment.storageId) return attachment;
+  const file = await storeTenantFileFromDataUrl({
+    orgId,
+    dataUrl: attachment.dataUrl,
+    fileName: attachment.fileName,
+    sourceType: 'meeks-po',
+    sourceRecordId: attachment.id,
+    allowedContentTypes: ALLOWED_PO_ATTACHMENT_TYPES,
+  });
+  if (!file) return attachment;
+  return {
+    ...attachment,
+    id: String(file.id),
+    storageId: String(file.id),
+    dataUrl: '',
   };
 }
 
@@ -119,7 +141,7 @@ export async function GET(request: NextRequest) {
     }
 
     const status = request.nextUrl.searchParams.get("status");
-    const jobs = await listEnrichedMeeksJobs();
+    const jobs = await listEnrichedMeeksJobs(access.orgId);
     const filtered = status && status !== "all"
       ? jobs.filter((job) => job.status === status)
       : jobs;
@@ -149,7 +171,7 @@ export async function POST(request: NextRequest) {
       const id = cleanText(body.id);
       if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-      const jobs = await listEnrichedMeeksJobs();
+      const jobs = await listEnrichedMeeksJobs(access.orgId);
       const requestJob = jobs.find((job) => job.id === id);
       if (!requestJob) return NextResponse.json({ error: "Meeks request not found" }, { status: 404 });
 
@@ -191,7 +213,7 @@ export async function POST(request: NextRequest) {
           requestJob.notes ? `Meeks notes: ${requestJob.notes}` : "",
         ].filter(Boolean).join("\n"),
         linkedDocumentNumber: requestJob.poNumber || undefined,
-      });
+      }, access.orgId);
 
       const updated = await updateMeeksJob(requestJob.id, {
         status: "scheduled",
@@ -201,7 +223,7 @@ export async function POST(request: NextRequest) {
         scheduledTimeStart,
         scheduledTimeEnd,
         assignedTechs,
-      });
+      }, access.orgId);
 
       return NextResponse.json({ request: updated, job: hearthJob }, { status: 201 });
     }
@@ -219,6 +241,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "customerName, address, and requestedDate are required" }, { status: 400 });
     }
 
+    const poAttachment = await storePoAttachment(cleanPoAttachment(body.poAttachment), access.orgId);
     const requestJob = await createMeeksJob({
       customerName,
       customerPhone: cleanText(body.customerPhone) || undefined,
@@ -236,9 +259,9 @@ export async function POST(request: NextRequest) {
       priority: priorityForMeeks(body.priority),
       notes: cleanText(body.notes) || undefined,
       accessNotes: cleanText(body.accessNotes) || undefined,
-      poAttachment: cleanPoAttachment(body.poAttachment),
+      poAttachment,
       status: "requested",
-    });
+    }, access.orgId);
 
     return NextResponse.json({ request: requestJob }, { status: 201 });
   } catch (err) {
@@ -256,7 +279,7 @@ export async function PUT(request: NextRequest) {
     const id = cleanText(body.id);
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-    const requestJob = await updateMeeksJob(id, body);
+    const requestJob = await updateMeeksJob(id, body, access.orgId);
     if (!requestJob) return NextResponse.json({ error: "Meeks request not found" }, { status: 404 });
     return NextResponse.json({ request: requestJob });
   } catch (err) {
@@ -278,7 +301,7 @@ export async function DELETE(request: NextRequest) {
     const id = cleanText(request.nextUrl.searchParams.get("id"));
     if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-    const deleted = await deleteMeeksJob(id);
+    const deleted = await deleteMeeksJob(id, access.orgId);
     if (!deleted) return NextResponse.json({ error: "Meeks request not found" }, { status: 404 });
 
     return NextResponse.json({

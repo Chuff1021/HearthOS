@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import {
   db,
   invoices,
@@ -198,6 +199,8 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('reports:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 const token =
   process.env.MAPBOX_SECRET_ACCESS_TOKEN ||
@@ -16,6 +17,11 @@ function parsePoint(value: string | null) {
 }
 
 export async function GET(req: NextRequest) {
+  try {
+    await requirePermission("schedule:read");
+  } catch (error) {
+    return tenantErrorResponse(error) || NextResponse.json({ error: "Authorization failed" }, { status: 500 });
+  }
   if (!token) {
     return NextResponse.json({ error: "Mapbox token is not configured" }, { status: 503 });
   }

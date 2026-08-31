@@ -1,4 +1,5 @@
 import { readJsonFile } from '@/lib/persist-json';
+import { isTenantStorageEnabled } from '@/lib/tenant/storage';
 
 export interface DirectoryTech {
   id: string;
@@ -53,7 +54,8 @@ export async function getTechDirectory(): Promise<DirectoryTech[]> {
     return (rows as any[])
       .map((u) => fromDbUser(u))
       .filter((t) => ['tech', 'dispatcher', 'admin'].includes(t.role));
-  } catch {
+  } catch (error) {
+    if (isTenantStorageEnabled()) throw error;
     const store = readJsonFile<{ techs: DirectoryTech[] }>('techs.json', { techs: [] });
     return Array.isArray(store.techs) ? store.techs : [];
   }

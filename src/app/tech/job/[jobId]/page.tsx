@@ -101,6 +101,17 @@ async function compressImage(file: File, maxDimension = 1600, quality = 0.8): Pr
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+async function privateJobPhotoUri(dataUrl: string, fileName: string, jobId: string) {
+  const response = await fetch('/api/files', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataUrl, fileName, sourceType: 'job-photo', sourceRecordId: jobId }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Photo upload failed');
+  return result.enabled && result.file?.url ? String(result.file.url) : dataUrl;
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
@@ -345,13 +356,14 @@ export default function JobDetailPage() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const compressedUri = await compressImage(file);
+        const photoUri = await privateJobPhotoUri(compressedUri, file.name || `job-photo-${i + 1}.jpg`, jobId);
         newPhotos.push({
           id: `photo-${Date.now()}-${i}`,
           type: pendingChecklistPhoto ? "checklist" : "progress",
           label: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
           caption: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
           timestamp: new Date().toISOString(),
-          uri: compressedUri,
+          uri: photoUri,
           checklistItemId: pendingChecklistPhoto ? String(pendingChecklistPhoto.id) : undefined,
         });
       }
@@ -1184,7 +1196,7 @@ export default function JobDetailPage() {
               {(job.photos || []).map((photo: any, index: number) => (
                 <button key={photo.id} onClick={() => setLightboxIndex(index)} className="aspect-square bg-[var(--color-surface-1)] rounded-lg overflow-hidden relative">
                   {photo.uri ? (
-                    // Use the saved data URI directly so the uploaded field photo renders immediately.
+                    // Private file URLs and legacy embedded images render through the same gallery.
                     <img src={photo.uri} alt={photo.label || photo.caption || "Job photo"} className="absolute inset-0 h-full w-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-600">

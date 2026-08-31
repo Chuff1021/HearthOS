@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, inventoryItems, invoiceLineItems, invoices } from "@/db";
 import { and, eq, gte, sql, isNotNull, inArray } from "drizzle-orm";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 // Fireplace catalog — every distinct unit sold in the last 24 months that the
 // estimator will recognize. Used to give the secretary a transparent list of
@@ -60,6 +61,9 @@ function buildTokens(text: string): string[] {
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi("inventory:read");
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(req.url);
     const monthsBack = Math.max(1, Math.min(60, parseInt(searchParams.get("monthsBack") || "24", 10)));

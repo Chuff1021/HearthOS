@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 import { updateTimeEntry } from "@/lib/time-entry-store";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 let initDone = false;
 
@@ -15,6 +16,7 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
   await sql`
     CREATE TABLE IF NOT EXISTS hearth_time_edit_requests (
       id TEXT PRIMARY KEY,
+      org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
       tech_id TEXT NOT NULL,
       tech_name TEXT,
       entry_id TEXT NOT NULL,
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ requests: [] });
 
   try {
+    const context = await requirePermission("time:read");
     await ensureTable(sql);
     const { searchParams } = new URL(request.url);
     const techId = searchParams.get("techId");
@@ -45,19 +48,21 @@ export async function GET(request: NextRequest) {
 
     let rows;
     if (techId && status) {
-      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE tech_id = ${techId} AND status = ${status} ORDER BY created_at DESC`;
+      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE org_id = ${context.orgId} AND tech_id = ${techId} AND status = ${status} ORDER BY created_at DESC`;
     } else if (techId) {
-      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE tech_id = ${techId} ORDER BY created_at DESC`;
+      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE org_id = ${context.orgId} AND tech_id = ${techId} ORDER BY created_at DESC`;
     } else if (status) {
-      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE status = ${status} ORDER BY created_at DESC`;
+      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE org_id = ${context.orgId} AND status = ${status} ORDER BY created_at DESC`;
     } else {
-      rows = await sql`SELECT * FROM hearth_time_edit_requests ORDER BY created_at DESC`;
+      rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE org_id = ${context.orgId} ORDER BY created_at DESC`;
     }
 
     await sql.end();
     return NextResponse.json({ requests: rows });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: "Failed to load edit requests" }, { status: 500 });
   }
 }
@@ -67,6 +72,7 @@ export async function POST(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
+    const context = await requirePermission("time:write");
     await ensureTable(sql);
     const body = await request.json();
     const { techId, techName, entryId, requestedClockIn, requestedClockOut, reason } = body;
@@ -78,14 +84,16 @@ export async function POST(request: NextRequest) {
 
     const id = `ter-${Date.now()}`;
     await sql`
-      INSERT INTO hearth_time_edit_requests (id, tech_id, tech_name, entry_id, requested_clock_in, requested_clock_out, reason, status)
-      VALUES (${id}, ${techId}, ${techName || null}, ${entryId}, ${requestedClockIn || null}, ${requestedClockOut || null}, ${reason}, 'pending')
+      INSERT INTO hearth_time_edit_requests (id, org_id, tech_id, tech_name, entry_id, requested_clock_in, requested_clock_out, reason, status)
+      VALUES (${id}, ${context.orgId}, ${techId}, ${techName || null}, ${entryId}, ${requestedClockIn || null}, ${requestedClockOut || null}, ${reason}, 'pending')
     `;
 
     await sql.end();
     return NextResponse.json({ id, status: "pending" }, { status: 201 });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: "Failed to create edit request" }, { status: 500 });
   }
 }
@@ -95,6 +103,7 @@ export async function PUT(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
+    const context = await requirePermission("time:write");
     await ensureTable(sql);
     const body = await request.json();
     const { id, status, reviewedBy } = body;
@@ -105,7 +114,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get the request
-    const rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE id = ${id} LIMIT 1`;
+    const rows = await sql`SELECT * FROM hearth_time_edit_requests WHERE id = ${id} AND org_id = ${context.orgId} LIMIT 1`;
     if (rows.length === 0) {
       await sql.end();
       return NextResponse.json({ error: "Edit request not found" }, { status: 404 });
@@ -127,13 +136,15 @@ export async function PUT(request: NextRequest) {
     await sql`
       UPDATE hearth_time_edit_requests
       SET status = ${status}, reviewed_at = now(), reviewed_by = ${reviewedBy || null}, updated_at = now()
-      WHERE id = ${id}
+      WHERE id = ${id} AND org_id = ${context.orgId}
     `;
 
     await sql.end();
     return NextResponse.json({ id, status });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: "Failed to update edit request" }, { status: 500 });
   }
 }

@@ -9,10 +9,12 @@ import {
   getGabeMessageStats 
 } from "@/lib/gabe-messages";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 // GET - Get messages with optional filters
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const { searchParams } = new URL(request.url);
     
     const filters = {
@@ -43,6 +45,8 @@ export async function GET(request: NextRequest) {
     const messages = await getGabeMessages(filters);
     return NextResponse.json({ messages });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get GABE messages:", err);
     return NextResponse.json({ error: "Failed to get messages" }, { status: 500 });
   }
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
 // POST - Save a new message conversation
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const body = await request.json();
     
     const newMessage = await saveGabeMessage({
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
       duration: body.duration,
     });
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "gabe_message",
       action: "create",
       entityId: newMessage.id,
@@ -75,6 +80,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to save GABE message:", err);
     return NextResponse.json({ error: "Failed to save message" }, { status: 500 });
   }
@@ -83,6 +90,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update a message (rating, flagging)
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -112,7 +120,10 @@ export async function PUT(request: NextRequest) {
         const lastAssistant = (updated.messages || []).filter((m) => m.role === 'assistant').slice(-1)[0]?.content || '';
         await fetch(`${base.replace(/\/$/, '')}/api/gabe/qa-memory`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: {
+            'content-type': 'application/json',
+            cookie: request.headers.get('cookie') || '',
+          },
           body: JSON.stringify({
             question: lastUser,
             normalizedQuestion: lastUser,
@@ -131,6 +142,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ message: updated });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update GABE message:", err);
     return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
   }
@@ -139,6 +152,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a message
 export async function DELETE(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -153,6 +167,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete GABE message:", err);
     return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
   }

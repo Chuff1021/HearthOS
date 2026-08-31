@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, invoices, invoiceLineItems, customers, payments } from '@/db';
 import { and, eq, asc, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

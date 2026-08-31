@@ -20,6 +20,7 @@ type AcceptEstimate = {
   totalAmount: number;
   customerName: string;
   customerEmail: string;
+  organizationName: string;
   contractText: string;
   lines: EstimateLine[];
 };
@@ -30,6 +31,7 @@ const fmtMoney = (value: number) =>
 export default function AcceptEstimatePage() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") || "";
+  const token = searchParams.get("token") || "";
   const [estimate, setEstimate] = useState<AcceptEstimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,13 +43,14 @@ export default function AcceptEstimatePage() {
   useEffect(() => {
     let cancelled = false;
     async function loadEstimate() {
-      if (!id) {
+      if (!id && !token) {
         setStatus({ type: "error", message: "Missing estimate link." });
         setLoading(false);
         return;
       }
       try {
-        const res = await fetch(`/api/estimates/accept?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+        const query = token ? `token=${encodeURIComponent(token)}` : `id=${encodeURIComponent(id)}`;
+        const res = await fetch(`/api/estimates/accept?${query}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load estimate");
         if (cancelled) return;
@@ -64,7 +67,7 @@ export default function AcceptEstimatePage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, token]);
 
   async function acceptEstimate() {
     if (!estimate) return;
@@ -76,6 +79,7 @@ export default function AcceptEstimatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: estimate.id,
+          token: token || undefined,
           signerName,
           signerEmail,
           agreed,
@@ -96,7 +100,7 @@ export default function AcceptEstimatePage() {
     <main className="min-h-screen px-4 py-8" style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
       <div className="mx-auto max-w-4xl">
         <div className="mb-6">
-          <div className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>AARON&apos;S FIREPLACE CO, LLC</div>
+          <div className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>{estimate?.organizationName || "HearthOS"}</div>
           <h1 className="mt-1 text-3xl font-bold">Accept Estimate</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
             Review the estimate and service agreement before accepting.

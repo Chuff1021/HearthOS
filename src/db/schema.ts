@@ -23,6 +23,9 @@ export const organizations = pgTable('organizations', {
   timezone: varchar('timezone', { length: 50 }).default('America/New_York'),
   settings: jsonb('settings').default({}),
   subscriptionTier: varchar('subscription_tier', { length: 50 }).default('starter'),
+  clerkOrganizationId: varchar('clerk_organization_id', { length: 100 }).unique(),
+  onboardingStatus: varchar('onboarding_status', { length: 30 }).default('legacy_active').notNull(),
+  dataVersion: integer('data_version').default(1).notNull(),
   // QuickBooks integration
   qbRealmId: varchar('qb_realm_id', { length: 50 }),
   qbAccessToken: text('qb_access_token'),
@@ -33,11 +36,139 @@ export const organizations = pgTable('organizations', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Global sign-in identities. Organization-specific access belongs in
+// organization_memberships so one person can work in more than one dealer.
+export const authIdentities = pgTable('auth_identities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  clerkUserId: varchar('clerk_user_id', { length: 100 }).notNull().unique(),
+  primaryEmail: varchar('primary_email', { length: 255 }).notNull(),
+  firstName: varchar('first_name', { length: 100 }),
+  lastName: varchar('last_name', { length: 100 }),
+  avatarUrl: text('avatar_url'),
+  platformRole: varchar('platform_role', { length: 30 }).default('none').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  emailIdx: index('idx_auth_identities_email').on(table.primaryEmail),
+  platformRoleIdx: index('idx_auth_identities_platform_role').on(table.platformRole),
+}));
+
+export const organizationMemberships = pgTable('organization_memberships', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  identityId: uuid('identity_id').references(() => authIdentities.id, { onDelete: 'cascade' }).notNull(),
+  employeeUserId: uuid('employee_user_id').references(() => users.id, { onDelete: 'set null' }),
+  role: varchar('role', { length: 30 }).notNull(),
+  status: varchar('status', { length: 30 }).default('active').notNull(),
+  permissions: jsonb('permissions').default([]).notNull(),
+  invitedByIdentityId: uuid('invited_by_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgIdentityUnique: uniqueIndex('organization_memberships_org_identity_unique').on(table.orgId, table.identityId),
+  orgIdx: index('idx_organization_memberships_org').on(table.orgId),
+  identityIdx: index('idx_organization_memberships_identity').on(table.identityId),
+  statusIdx: index('idx_organization_memberships_status').on(table.status),
+}));
+
+export const organizationInvitations = pgTable('organization_invitations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 200 }),
+  role: varchar('role', { length: 30 }).notNull(),
+  status: varchar('status', { length: 30 }).default('pending').notNull(),
+  clerkInvitationId: varchar('clerk_invitation_id', { length: 100 }).unique(),
+  invitedByIdentityId: uuid('invited_by_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgIdx: index('idx_organization_invitations_org').on(table.orgId),
+  orgEmailIdx: index('idx_organization_invitations_org_email').on(table.orgId, table.email),
+  statusIdx: index('idx_organization_invitations_status').on(table.status),
+}));
+
+export const integrationConnections = pgTable('integration_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar('provider', { length: 40 }).notNull(),
+  externalAccountId: varchar('external_account_id', { length: 255 }).notNull(),
+  externalAccountName: varchar('external_account_name', { length: 255 }),
+  status: varchar('status', { length: 30 }).default('connected').notNull(),
+  scopes: jsonb('scopes').default([]).notNull(),
+  accessTokenEncrypted: text('access_token_encrypted'),
+  refreshTokenEncrypted: text('refresh_token_encrypted'),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+  connectedByIdentityId: uuid('connected_by_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountUnique: uniqueIndex('integration_connections_org_provider_account_unique').on(table.orgId, table.provider, table.externalAccountId),
+  orgProviderIdx: index('idx_integration_connections_org_provider').on(table.orgId, table.provider),
+  statusIdx: index('idx_integration_connections_status').on(table.status),
+}));
+
+export const oauthStates = pgTable('oauth_states', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  stateHash: varchar('state_hash', { length: 64 }).notNull().unique(),
+  provider: varchar('provider', { length: 40 }).notNull(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  identityId: uuid('identity_id').references(() => authIdentities.id, { onDelete: 'cascade' }).notNull(),
+  redirectPath: text('redirect_path'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgProviderIdx: index('idx_oauth_states_org_provider').on(table.orgId, table.provider),
+  expiresIdx: index('idx_oauth_states_expires').on(table.expiresAt),
+}));
+
+export const onboardingProgress = pgTable('onboarding_progress', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull().unique(),
+  status: varchar('status', { length: 30 }).default('not_started').notNull(),
+  currentStep: varchar('current_step', { length: 50 }).default('company').notNull(),
+  completedSteps: jsonb('completed_steps').default([]).notNull(),
+  checklist: jsonb('checklist').default({}).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const supportAccessSessions = pgTable('support_access_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  actorIdentityId: uuid('actor_identity_id').references(() => authIdentities.id, { onDelete: 'cascade' }).notNull(),
+  subjectIdentityId: uuid('subject_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  approvedByIdentityId: uuid('approved_by_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  reason: text('reason').notNull(),
+  accessMode: varchar('access_mode', { length: 30 }).default('read_only').notNull(),
+  status: varchar('status', { length: 30 }).default('pending').notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgIdx: index('idx_support_access_sessions_org').on(table.orgId),
+  actorIdx: index('idx_support_access_sessions_actor').on(table.actorIdentityId),
+  statusExpiryIdx: index('idx_support_access_sessions_status_expiry').on(table.status, table.expiresAt),
+}));
+
 // Users
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 20 }),
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
@@ -56,6 +187,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgEmailUnique: uniqueIndex('users_org_email_unique').on(table.orgId, table.email),
   orgIdx: index('idx_users_org_id').on(table.orgId),
   roleIdx: index('idx_users_role').on(table.role),
 }));
@@ -64,7 +196,7 @@ export const users = pgTable('users', {
 export const customers = pgTable('customers', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  qbCustomerId: varchar('qb_customer_id', { length: 50 }).unique(), // QuickBooks Customer.Id
+  qbCustomerId: varchar('qb_customer_id', { length: 50 }), // QuickBooks Customer.Id
   userId: uuid('user_id').references(() => users.id), // Linked portal account (optional)
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
@@ -88,6 +220,7 @@ export const customers = pgTable('customers', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('customers_org_qb_customer_id_unique').on(table.orgId, table.qbCustomerId),
   orgIdx: index('idx_customers_org_id').on(table.orgId),
   qbIdx: index('idx_customers_qb_id').on(table.qbCustomerId),
 }));
@@ -330,7 +463,7 @@ export const invoices = pgTable('invoices', {
   jobId: uuid('job_id').references(() => jobs.id),
   customerId: uuid('customer_id').references(() => customers.id).notNull(),
   invoiceNumber: varchar('invoice_number', { length: 20 }).notNull(), // INV-2024-0001
-  qbInvoiceId: varchar('qb_invoice_id', { length: 50 }).unique(), // QuickBooks Invoice.Id
+  qbInvoiceId: varchar('qb_invoice_id', { length: 50 }), // QuickBooks Invoice.Id
   status: invoiceStatusEnum('status').default('draft'),
   issueDate: date('issue_date').notNull(),
   dueDate: date('due_date'),
@@ -344,6 +477,7 @@ export const invoices = pgTable('invoices', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('invoices_org_qb_invoice_id_unique').on(table.orgId, table.qbInvoiceId),
   orgIdx: index('idx_invoices_org_id').on(table.orgId),
   customerIdx: index('idx_invoices_customer_id').on(table.customerId),
   jobIdx: index('idx_invoices_job_id').on(table.jobId),
@@ -407,7 +541,7 @@ export const servicePlans = pgTable('service_plans', {
 export const inventoryItems = pgTable('inventory_items', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  qbItemId: varchar('qb_item_id', { length: 50 }).unique(), // QuickBooks Item.Id
+  qbItemId: varchar('qb_item_id', { length: 50 }), // QuickBooks Item.Id
   name: varchar('name', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 100 }),
   description: text('description'),
@@ -427,6 +561,7 @@ export const inventoryItems = pgTable('inventory_items', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('inventory_items_org_qb_item_id_unique').on(table.orgId, table.qbItemId),
   orgIdx: index('idx_inventory_items_org_id').on(table.orgId),
   qbIdx: index('idx_inventory_items_qb_id').on(table.qbItemId),
   trackedIdx: index('idx_inventory_items_tracked').on(table.isTracked),
@@ -436,7 +571,7 @@ export const inventoryItems = pgTable('inventory_items', {
 export const vendors = pgTable('vendors', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  qbVendorId: varchar('qb_vendor_id', { length: 50 }).unique(), // QuickBooks Vendor.Id
+  qbVendorId: varchar('qb_vendor_id', { length: 50 }), // QuickBooks Vendor.Id
   displayName: varchar('display_name', { length: 255 }).notNull(),
   companyName: varchar('company_name', { length: 255 }),
   firstName: varchar('first_name', { length: 100 }),
@@ -462,6 +597,7 @@ export const vendors = pgTable('vendors', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('vendors_org_qb_vendor_id_unique').on(table.orgId, table.qbVendorId),
   orgIdx: index('idx_vendors_org_id').on(table.orgId),
   qbIdx: index('idx_vendors_qb_id').on(table.qbVendorId),
   nameIdx: index('idx_vendors_display_name').on(table.displayName),
@@ -473,7 +609,7 @@ export const estimates = pgTable('estimates', {
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   customerId: uuid('customer_id').references(() => customers.id),
   jobId: uuid('job_id').references(() => jobs.id),
-  qbEstimateId: varchar('qb_estimate_id', { length: 50 }).unique(),
+  qbEstimateId: varchar('qb_estimate_id', { length: 50 }),
   estimateNumber: varchar('estimate_number', { length: 30 }),
   status: estimateStatusEnum('status').default('pending'),
   issueDate: date('issue_date'),
@@ -491,6 +627,7 @@ export const estimates = pgTable('estimates', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('estimates_org_qb_estimate_id_unique').on(table.orgId, table.qbEstimateId),
   orgIdx: index('idx_estimates_org_id').on(table.orgId),
   customerIdx: index('idx_estimates_customer_id').on(table.customerId),
   qbIdx: index('idx_estimates_qb_id').on(table.qbEstimateId),
@@ -515,7 +652,7 @@ export const purchaseOrders = pgTable('purchase_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   vendorId: uuid('vendor_id').references(() => vendors.id),
-  qbPurchaseOrderId: varchar('qb_purchase_order_id', { length: 50 }).unique(),
+  qbPurchaseOrderId: varchar('qb_purchase_order_id', { length: 50 }),
   poNumber: varchar('po_number', { length: 30 }),
   status: purchaseOrderStatusEnum('status').default('open'),
   issueDate: date('issue_date'),
@@ -532,6 +669,7 @@ export const purchaseOrders = pgTable('purchase_orders', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('purchase_orders_org_qb_purchase_order_id_unique').on(table.orgId, table.qbPurchaseOrderId),
   orgIdx: index('idx_purchase_orders_org_id').on(table.orgId),
   vendorIdx: index('idx_purchase_orders_vendor_id').on(table.vendorId),
   qbIdx: index('idx_purchase_orders_qb_id').on(table.qbPurchaseOrderId),
@@ -558,7 +696,7 @@ export const bills = pgTable('bills', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   vendorId: uuid('vendor_id').references(() => vendors.id),
-  qbBillId: varchar('qb_bill_id', { length: 50 }).unique(),
+  qbBillId: varchar('qb_bill_id', { length: 50 }),
   billNumber: varchar('bill_number', { length: 30 }),
   status: billStatusEnum('status').default('open'),
   issueDate: date('issue_date'),
@@ -573,6 +711,7 @@ export const bills = pgTable('bills', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgQbUnique: uniqueIndex('bills_org_qb_bill_id_unique').on(table.orgId, table.qbBillId),
   orgIdx: index('idx_bills_org_id').on(table.orgId),
   vendorIdx: index('idx_bills_vendor_id').on(table.vendorId),
   qbIdx: index('idx_bills_qb_id').on(table.qbBillId),
@@ -600,6 +739,8 @@ export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   userId: uuid('user_id').references(() => users.id),
+  actorIdentityId: uuid('actor_identity_id').references(() => authIdentities.id, { onDelete: 'set null' }),
+  supportSessionId: uuid('support_session_id').references(() => supportAccessSessions.id, { onDelete: 'set null' }),
   action: varchar('action', { length: 100 }).notNull(), // create, update, delete
   entityType: varchar('entity_type', { length: 100 }).notNull(), // job, invoice, customer
   entityId: uuid('entity_id'),
@@ -607,6 +748,8 @@ export const auditLogs = pgTable('audit_logs', {
   newValue: jsonb('new_value'),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
+  requestId: varchar('request_id', { length: 100 }),
+  metadata: jsonb('metadata').default({}).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   orgIdx: index('idx_audit_logs_org_id').on(table.orgId),
@@ -690,6 +833,14 @@ export const fireplaceExplodedPartsGraph = pgTable('fireplace_exploded_parts_gra
 // Type exports for TypeScript
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
+export type AuthIdentity = typeof authIdentities.$inferSelect;
+export type NewAuthIdentity = typeof authIdentities.$inferInsert;
+export type OrganizationMembership = typeof organizationMemberships.$inferSelect;
+export type NewOrganizationMembership = typeof organizationMemberships.$inferInsert;
+export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+export type NewOrganizationInvitation = typeof organizationInvitations.$inferInsert;
+export type IntegrationConnection = typeof integrationConnections.$inferSelect;
+export type NewIntegrationConnection = typeof integrationConnections.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Customer = typeof customers.$inferSelect;
@@ -986,6 +1137,7 @@ export type NewGabeEvalCaseResult = typeof gabeEvalCaseResults.$inferInsert;
 // Vercel lambda invocations — tech submissions never reached the admin view).
 export const timeOffRequests = pgTable('time_off_requests', {
   id: text('id').primaryKey(),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   techId: text('tech_id').notNull(),
   techName: text('tech_name'),
   type: varchar('type', { length: 50 }).notNull(),
@@ -996,6 +1148,7 @@ export const timeOffRequests = pgTable('time_off_requests', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
+  orgIdx: index('idx_time_off_requests_org').on(table.orgId),
   statusIdx: index('idx_time_off_requests_status').on(table.status),
   techIdx: index('idx_time_off_requests_tech_id').on(table.techId),
   createdIdx: index('idx_time_off_requests_created').on(table.createdAt),

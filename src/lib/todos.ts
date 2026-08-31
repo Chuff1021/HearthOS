@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { isTenantStorageEnabled, resolveStorageOrgId } from '@/lib/tenant/storage';
 
 export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -74,6 +75,10 @@ async function ensureTable() {
       await sql`create index if not exists idx_todos_live_assigned_email on todos_live (assigned_to_email);`;
       await sql`create index if not exists idx_todos_live_status on todos_live (status);`;
       await sql`create index if not exists idx_todos_live_due_date on todos_live (due_date);`;
+      if (isTenantStorageEnabled()) {
+        await sql`alter table todos_live add column if not exists org_id uuid;`;
+        await sql`create index if not exists idx_todos_live_org_id on todos_live (org_id);`;
+      }
     })();
   }
   await initPromise;
@@ -114,8 +119,11 @@ export async function getTodos(filters?: {
 }): Promise<Todo[]> {
   const sql = getSql();
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  const rows: any[] = await sql`select * from todos_live order by updated_at desc`;
+  const rows: any[] = orgId
+    ? await sql`select * from todos_live where org_id = ${orgId} order by updated_at desc`
+    : await sql`select * from todos_live order by updated_at desc`;
   let todos = rows.map(mapRow);
 
   if (filters?.status) todos = todos.filter((t) => t.status === filters.status);
@@ -134,30 +142,50 @@ export async function getTodos(filters?: {
 export async function getTodoById(id: string): Promise<Todo | undefined> {
   const sql = getSql();
   await ensureTable();
-  const rows = await sql`select * from todos_live where id = ${id} limit 1`;
+  const orgId = await resolveStorageOrgId();
+  const rows = orgId
+    ? await sql`select * from todos_live where id = ${id} and org_id = ${orgId} limit 1`
+    : await sql`select * from todos_live where id = ${id} limit 1`;
   return rows[0] ? mapRow(rows[0]) : undefined;
 }
 
 export async function createTodo(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>): Promise<Todo> {
   const sql = getSql();
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
   const id = `todo-${Math.random().toString(36).slice(2, 10)}`;
   const now = new Date().toISOString();
 
-  await sql`
-    insert into todos_live (
-      id, title, description, priority, status, due_date,
-      related_job_id, related_job_number, related_customer_id, related_customer_name, related_customer_phone,
-      assigned_to, assigned_to_name, assigned_to_email,
-      created_by, created_by_name, created_at, updated_at, completed_at, tags
-    ) values (
-      ${id}, ${todo.title}, ${todo.description || null}, ${todo.priority}, ${todo.status}, ${todo.dueDate || null},
-      ${todo.relatedJobId || null}, ${todo.relatedJobNumber || null}, ${todo.relatedCustomerId || null}, ${todo.relatedCustomerName || null}, ${todo.relatedCustomerPhone || null},
-      ${todo.assignedTo || null}, ${todo.assignedToName || null}, ${todo.assignedToEmail || null},
-      ${todo.createdBy}, ${todo.createdByName}, ${now}, ${now}, ${todo.status === 'completed' ? now : null}, ${JSON.stringify(todo.tags || [])}::jsonb
-    )
-  `;
+  if (orgId) {
+    await sql`
+      insert into todos_live (
+        id, org_id, title, description, priority, status, due_date,
+        related_job_id, related_job_number, related_customer_id, related_customer_name, related_customer_phone,
+        assigned_to, assigned_to_name, assigned_to_email,
+        created_by, created_by_name, created_at, updated_at, completed_at, tags
+      ) values (
+        ${id}, ${orgId}, ${todo.title}, ${todo.description || null}, ${todo.priority}, ${todo.status}, ${todo.dueDate || null},
+        ${todo.relatedJobId || null}, ${todo.relatedJobNumber || null}, ${todo.relatedCustomerId || null}, ${todo.relatedCustomerName || null}, ${todo.relatedCustomerPhone || null},
+        ${todo.assignedTo || null}, ${todo.assignedToName || null}, ${todo.assignedToEmail || null},
+        ${todo.createdBy}, ${todo.createdByName}, ${now}, ${now}, ${todo.status === 'completed' ? now : null}, ${JSON.stringify(todo.tags || [])}::jsonb
+      )
+    `;
+  } else {
+    await sql`
+      insert into todos_live (
+        id, title, description, priority, status, due_date,
+        related_job_id, related_job_number, related_customer_id, related_customer_name, related_customer_phone,
+        assigned_to, assigned_to_name, assigned_to_email,
+        created_by, created_by_name, created_at, updated_at, completed_at, tags
+      ) values (
+        ${id}, ${todo.title}, ${todo.description || null}, ${todo.priority}, ${todo.status}, ${todo.dueDate || null},
+        ${todo.relatedJobId || null}, ${todo.relatedJobNumber || null}, ${todo.relatedCustomerId || null}, ${todo.relatedCustomerName || null}, ${todo.relatedCustomerPhone || null},
+        ${todo.assignedTo || null}, ${todo.assignedToName || null}, ${todo.assignedToEmail || null},
+        ${todo.createdBy}, ${todo.createdByName}, ${now}, ${now}, ${todo.status === 'completed' ? now : null}, ${JSON.stringify(todo.tags || [])}::jsonb
+      )
+    `;
+  }
 
   const created = await getTodoById(id);
   if (!created) throw new Error('Failed to create todo');
@@ -167,6 +195,7 @@ export async function createTodo(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedA
 export async function updateTodo(id: string, updates: Partial<Todo>): Promise<Todo | null> {
   const sql = getSql();
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
   const existing = await getTodoById(id);
   if (!existing) return null;
@@ -178,7 +207,7 @@ export async function updateTodo(id: string, updates: Partial<Todo>): Promise<To
     completedAt: updates.status === 'completed' ? new Date().toISOString() : existing.completedAt,
   };
 
-  await sql`
+  if (orgId) await sql`
     update todos_live set
       title = ${merged.title},
       description = ${merged.description || null},
@@ -196,6 +225,17 @@ export async function updateTodo(id: string, updates: Partial<Todo>): Promise<To
       completed_at = ${merged.completedAt || null},
       tags = ${JSON.stringify(merged.tags || [])}::jsonb,
       updated_at = ${merged.updatedAt}
+    where id = ${id} and org_id = ${orgId}
+  `;
+  else await sql`
+    update todos_live set
+      title = ${merged.title}, description = ${merged.description || null}, priority = ${merged.priority},
+      status = ${merged.status}, due_date = ${merged.dueDate || null}, related_job_id = ${merged.relatedJobId || null},
+      related_job_number = ${merged.relatedJobNumber || null}, related_customer_id = ${merged.relatedCustomerId || null},
+      related_customer_name = ${merged.relatedCustomerName || null}, related_customer_phone = ${merged.relatedCustomerPhone || null},
+      assigned_to = ${merged.assignedTo || null}, assigned_to_name = ${merged.assignedToName || null},
+      assigned_to_email = ${merged.assignedToEmail || null}, completed_at = ${merged.completedAt || null},
+      tags = ${JSON.stringify(merged.tags || [])}::jsonb, updated_at = ${merged.updatedAt}
     where id = ${id}
   `;
 
@@ -205,15 +245,35 @@ export async function updateTodo(id: string, updates: Partial<Todo>): Promise<To
 export async function deleteTodo(id: string): Promise<boolean> {
   const sql = getSql();
   await ensureTable();
-  const res = await sql`delete from todos_live where id = ${id}`;
+  const orgId = await resolveStorageOrgId();
+  const res = orgId
+    ? await sql`delete from todos_live where id = ${id} and org_id = ${orgId}`
+    : await sql`delete from todos_live where id = ${id}`;
   return (res.count || 0) > 0;
 }
 
 export async function getTodoStats() {
   const sql = getSql();
   await ensureTable();
+  const orgId = await resolveStorageOrgId();
 
-  const rows = await sql<{
+  const rows = orgId ? await sql<{
+    total: number;
+    pending: number;
+    in_progress: number;
+    completed: number;
+    overdue: number;
+    due_today: number;
+  }[]>`
+    select
+      count(*)::int as total,
+      count(*) filter (where status = 'pending')::int as pending,
+      count(*) filter (where status = 'in_progress')::int as in_progress,
+      count(*) filter (where status = 'completed')::int as completed,
+      count(*) filter (where due_date < current_date and status not in ('completed','cancelled'))::int as overdue,
+      count(*) filter (where due_date = current_date and status not in ('completed','cancelled'))::int as due_today
+    from todos_live where org_id = ${orgId}
+  ` : await sql<{
     total: number;
     pending: number;
     in_progress: number;

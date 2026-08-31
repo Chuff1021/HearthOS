@@ -13,10 +13,13 @@ import {
 } from '@/db';
 import { and, eq, sql, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // Detail endpoint: full item + every signal a secretary might need to make a decision.
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('inventory:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();
@@ -185,6 +188,8 @@ const ALLOWED_FIELDS = [
 type AllowedField = typeof ALLOWED_FIELDS[number];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('inventory:write');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

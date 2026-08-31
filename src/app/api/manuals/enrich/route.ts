@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export const maxDuration = 300;
 
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
+    await requirePermission("gabe:manage");
     // Get manual info
     const manuals = await sql`SELECT id, brand, model, type FROM manuals WHERE id = ${manualId} LIMIT 1`;
     if (manuals.length === 0) {
@@ -172,6 +174,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({
       error: err instanceof Error ? err.message : "Failed",
     }, { status: 500 });

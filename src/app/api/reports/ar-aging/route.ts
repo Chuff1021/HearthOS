@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import { db, invoices, customers } from '@/db';
 import { and, eq, sql, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -21,6 +22,8 @@ function bucketize(daysOverdue: number): Bucket {
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('reports:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const onlyOverdue = searchParams.get('onlyOverdue') === 'true';

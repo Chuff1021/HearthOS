@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, organizations, vendors } from '@/db';
+import { db, vendors, type Organization } from '@/db';
 import { and, eq, ilike, or } from 'drizzle-orm';
 import { getClientFromTokens, syncVendors } from '@/lib/quickbooks/sync';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
-async function getQBAuth(request: NextRequest, orgId: string) {
+async function getQBAuth(request: NextRequest, org: Organization) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
   let refreshToken = request.cookies.get('qb_refresh_token')?.value;
   let realmId = request.cookies.get('qb_realm_id')?.value;
 
   if (!accessToken || !refreshToken || !realmId) {
-    const org = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
-    const orgRow = org[0];
-    if (orgRow?.qbAccessToken && orgRow?.qbRefreshToken && orgRow?.qbRealmId) {
-      accessToken = orgRow.qbAccessToken;
-      refreshToken = orgRow.qbRefreshToken;
-      realmId = orgRow.qbRealmId;
+    if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
+      accessToken = org.qbAccessToken;
+      refreshToken = org.qbRefreshToken;
+      realmId = org.qbRealmId;
     }
   }
 
@@ -58,6 +58,8 @@ function shapeVendor(v: typeof vendors.$inferSelect) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi(request.nextUrl.searchParams.get('sync') === 'true' || request.nextUrl.searchParams.get('live') === 'true' ? 'integrations:manage' : 'inventory:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     // ?sync=true → pull fresh from QB and persist, then return
     if (sync) {
-      const auth = await getQBAuth(request, org.id);
+      const auth = await getQBAuth(request, org);
       if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
       let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
@@ -76,12 +78,13 @@ export async function GET(request: NextRequest) {
         await syncVendors(client, org.id);
       } catch {
         const tokens = await client.refreshAccessToken();
-        await db.update(organizations).set({
-          qbAccessToken: tokens.access_token,
-          qbRefreshToken: tokens.refresh_token,
-          qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-          updatedAt: new Date(),
-        }).where(eq(organizations.id, org.id));
+        await saveQuickBooksRefresh({
+          orgId: org.id,
+          realmId: auth.realmId,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+        });
         client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
         await syncVendors(client, org.id);
       }
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     // ?live=true → bypass DB, query QB directly (legacy behavior)
     if (live) {
-      const auth = await getQBAuth(request, org.id);
+      const auth = await getQBAuth(request, org);
       if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
       let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
@@ -98,12 +101,13 @@ export async function GET(request: NextRequest) {
         liveVendors = await client.getVendors(1000);
       } catch {
         const tokens = await client.refreshAccessToken();
-        await db.update(organizations).set({
-          qbAccessToken: tokens.access_token,
-          qbRefreshToken: tokens.refresh_token,
-          qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-          updatedAt: new Date(),
-        }).where(eq(organizations.id, org.id));
+        await saveQuickBooksRefresh({
+          orgId: org.id,
+          realmId: auth.realmId,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+        });
         client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
         liveVendors = await client.getVendors(1000);
       }

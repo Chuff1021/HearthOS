@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, inventoryItems } from '@/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // POST /api/inventory/price-audit/apply
 // Body: { corrections: Array<{ id: string; newCost: number }> }
 // Updates inventory_items.cost for each. Returns counts.
 
 export async function POST(req: NextRequest) {
+  const denied = await authorizeApi('inventory:write');
+  if (denied) return denied;
+
   try {
     const body = await req.json().catch(() => ({}));
     const corrections: Array<{ id: string; newCost: number }> = Array.isArray(body.corrections) ? body.corrections : [];

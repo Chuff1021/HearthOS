@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, estimates, estimateLineItems, customers, inventoryItems } from "@/db";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 // Reads estimates from the local DB (synced from QuickBooks) and returns them
 // in the QB shape the existing estimate builder UI consumes. Avoids hitting
@@ -42,6 +43,8 @@ const cleanDocumentNumber = (value: string | null | undefined) =>
   value?.replace(/^QB-/i, "") || undefined;
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi("financials:read");
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

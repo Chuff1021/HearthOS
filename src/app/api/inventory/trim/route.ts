@@ -11,6 +11,7 @@ import {
 } from '@/db';
 import { and, eq, sql, isNotNull, isNull, inArray, notInArray, or } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // POST /api/inventory/trim
 // Mark inventory items as untracked if they have no recent activity.
@@ -27,6 +28,9 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // (Both directions: re-running with a wider window can re-track items.)
 
 export async function POST(req: NextRequest) {
+  const denied = await authorizeApi('inventory:write');
+  if (denied) return denied;
+
   try {
     const body = await req.json().catch(() => ({}));
     const monthsBack = Math.max(1, Math.min(120, Number(body.monthsBack) || 24));

@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 export async function GET() {
+  const denied = await authorizeApi('integrations:read');
+  if (denied) return denied;
   try {
     // Check for tokens in cookies first
     const cookieStore = await cookies();
@@ -61,18 +65,13 @@ export async function GET() {
         
         // Update tokens in database
         const org = await getOrCreateDefaultOrg();
-        const { db, organizations } = await import('@/db');
-        const { eq } = await import('drizzle-orm');
-        
-        await db
-          .update(organizations)
-          .set({
-            qbAccessToken: newTokens.access_token,
-            qbRefreshToken: newTokens.refresh_token,
-            qbTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
-            updatedAt: new Date(),
-          })
-          .where(eq(organizations.id, org.id));
+        await saveQuickBooksRefresh({
+          orgId: org.id,
+          realmId: realmId!,
+          accessToken: newTokens.access_token,
+          refreshToken: newTokens.refresh_token,
+          expiresIn: newTokens.expires_in,
+        });
 
         // Try company info again
         const companyInfo = await client.getCompanyInfo();

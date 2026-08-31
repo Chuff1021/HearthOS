@@ -9,8 +9,11 @@ import {
   getClientFromTokens 
 } from '@/lib/quickbooks/sync';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi(request.nextUrl.searchParams.get('sync') === 'true' ? 'integrations:manage' : 'inventory:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');

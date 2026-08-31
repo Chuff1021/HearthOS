@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import {
   db,
   invoices,
@@ -27,6 +28,8 @@ function isTaxPassthrough(...texts: Array<string | null | undefined>): boolean {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await authorizeApi('reports:read');
+  if (denied) return denied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

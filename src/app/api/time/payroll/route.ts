@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
-
-const PAYROLL_EMAIL = "aaronsfireplace.shelly@gmail.com";
+import { getOrCreateDefaultOrg } from "@/lib/org";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 let initDone = false;
 
@@ -16,6 +16,7 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
   await sql`
     CREATE TABLE IF NOT EXISTS hearth_timesheet_approvals (
       id TEXT PRIMARY KEY,
+      org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
       tech_id TEXT NOT NULL,
       tech_name TEXT,
       week_start TEXT NOT NULL,
@@ -25,12 +26,13 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
       overtime_hours NUMERIC(6,2),
       approved_by TEXT,
       approved_at TIMESTAMPTZ DEFAULT now(),
-      UNIQUE(tech_id, week_start)
+      UNIQUE(org_id, tech_id, week_start)
     )
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS hearth_payroll_reports (
       id TEXT PRIMARY KEY,
+      org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
       week_start TEXT NOT NULL,
       sent_to TEXT,
       sent_at TIMESTAMPTZ DEFAULT now(),
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ approvals: [], reports: [] });
 
   try {
+    const context = await requirePermission("time:read");
     await ensureTable(sql);
     const { searchParams } = new URL(request.url);
     const weekStart = searchParams.get("weekStart");
@@ -58,16 +61,18 @@ export async function GET(request: NextRequest) {
     }
 
     const approvals = await sql`
-      SELECT * FROM hearth_timesheet_approvals WHERE week_start = ${weekStart} ORDER BY tech_name
+      SELECT * FROM hearth_timesheet_approvals WHERE org_id = ${context.orgId} AND week_start = ${weekStart} ORDER BY tech_name
     `;
     const reports = await sql`
-      SELECT id, week_start, sent_to, sent_at, tech_count, total_hours FROM hearth_payroll_reports WHERE week_start = ${weekStart} ORDER BY sent_at DESC
+      SELECT id, week_start, sent_to, sent_at, tech_count, total_hours FROM hearth_payroll_reports WHERE org_id = ${context.orgId} AND week_start = ${weekStart} ORDER BY sent_at DESC
     `;
 
     await sql.end();
     return NextResponse.json({ approvals, reports });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
@@ -78,6 +83,10 @@ export async function POST(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
+    const context = await requirePermission("time:write");
+    const org = await getOrCreateDefaultOrg();
+    const settings = org.settings && typeof org.settings === "object" ? org.settings as Record<string, unknown> : {};
+    const payrollEmail = String(settings.payrollEmail || (org.slug === "default" ? "aaronsfireplace.shelly@gmail.com" : org.email || ""));
     await ensureTable(sql);
     const body = await request.json();
     const { action } = body;
@@ -95,10 +104,10 @@ export async function POST(request: NextRequest) {
       const id = `ta-${Date.now()}-${techId.slice(0, 8)}`;
 
       await sql`
-        INSERT INTO hearth_timesheet_approvals (id, tech_id, tech_name, week_start, total_minutes, overtime_minutes, regular_hours, overtime_hours, approved_by)
-        VALUES (${id}, ${techId}, ${techName || null}, ${weekStart}, ${totalMinutes}, ${overtimeMin},
+        INSERT INTO hearth_timesheet_approvals (id, org_id, tech_id, tech_name, week_start, total_minutes, overtime_minutes, regular_hours, overtime_hours, approved_by)
+        VALUES (${id}, ${context.orgId}, ${techId}, ${techName || null}, ${weekStart}, ${totalMinutes}, ${overtimeMin},
           ${(regularMin / 60).toFixed(2)}, ${(overtimeMin / 60).toFixed(2)}, ${"admin"})
-        ON CONFLICT (tech_id, week_start) DO UPDATE SET
+        ON CONFLICT (org_id, tech_id, week_start) DO UPDATE SET
           total_minutes = ${totalMinutes},
           overtime_minutes = ${overtimeMin},
           regular_hours = ${(regularMin / 60).toFixed(2)},
@@ -144,7 +153,7 @@ export async function POST(request: NextRequest) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            to: PAYROLL_EMAIL,
+            to: payrollEmail,
             subject: `Aaron's Fireplace - Payroll Report Week of ${weekStart}`,
             body: `Please find the weekly payroll report attached.\n\nWeek: ${weekStart}\nEmployees: ${approvalData.length}\nTotal Hours: ${totalHours.toFixed(2)}\n\n${csv}`,
             csv,
@@ -158,15 +167,15 @@ export async function POST(request: NextRequest) {
       // Store the report
       const reportId = `pr-${Date.now()}`;
       await sql`
-        INSERT INTO hearth_payroll_reports (id, week_start, sent_to, report_csv, tech_count, total_hours)
-        VALUES (${reportId}, ${weekStart}, ${emailSent ? PAYROLL_EMAIL : "not_sent"}, ${csv}, ${approvalData.length}, ${totalHours.toFixed(2)})
+        INSERT INTO hearth_payroll_reports (id, org_id, week_start, sent_to, report_csv, tech_count, total_hours)
+        VALUES (${reportId}, ${context.orgId}, ${weekStart}, ${emailSent ? payrollEmail : "not_sent"}, ${csv}, ${approvalData.length}, ${totalHours.toFixed(2)})
       `;
 
       await sql.end();
       return NextResponse.json({
         reportId,
         emailSent,
-        sentTo: emailSent ? PAYROLL_EMAIL : null,
+        sentTo: emailSent ? payrollEmail : null,
         csv,
         techCount: approvalData.length,
         totalHours: totalHours.toFixed(2),
@@ -177,6 +186,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

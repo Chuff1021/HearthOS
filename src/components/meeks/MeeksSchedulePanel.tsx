@@ -59,6 +59,7 @@ type MeeksJob = {
 
 type MeeksAttachment = {
   id: string;
+  storageId?: string;
   fileName: string;
   contentType: string;
   size: number;
@@ -1132,7 +1133,9 @@ function JobDetails({ job, techNames, photos }: { job: MeeksJob; techNames: stri
 
       {job.poAttachment && (
         <a
-          href={job.poAttachment.dataUrl}
+          href={job.poAttachment.storageId
+            ? `/api/meeks/attachments/${job.poAttachment.storageId}`
+            : job.poAttachment.dataUrl}
           download={job.poAttachment.fileName}
           target="_blank"
           rel="noopener noreferrer"

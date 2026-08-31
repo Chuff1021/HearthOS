@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('gabe:manage');
     const body = await request.json();
     const engine = process.env.GABE_ENGINE_URL;
     if (!engine) return NextResponse.json({ error: 'GABE_ENGINE_URL is required' }, { status: 500 });
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, data });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'Failed to process QA memory write' }, { status: 500 });
   }
 }

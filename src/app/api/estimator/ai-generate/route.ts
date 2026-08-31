@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, inventoryItems, invoices, invoiceLineItems, customers } from "@/db";
 import { and, eq, inArray, sql, desc, ilike, or, isNotNull } from "drizzle-orm";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 export const maxDuration = 60;
 
@@ -257,10 +258,15 @@ type Candidate = {
 };
 
 export async function GET() {
+  const denied = await authorizeApi("inventory:read");
+  if (denied) return denied;
   return NextResponse.json({ ok: true, route: "estimator/ai-generate", info: "POST {prompt, customerName} to generate" });
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi("financials:write");
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const prompt: string = (body.prompt || "").toString();

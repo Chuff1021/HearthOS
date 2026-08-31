@@ -1,5 +1,10 @@
 import postgres from "postgres";
 import { readJsonFile, writeJsonFileWithBackup } from "@/lib/persist-json";
+import {
+  isTenantStorageEnabled,
+  requireTenantDatabase,
+  resolveStorageOrgId,
+} from "@/lib/tenant/storage";
 
 export type JobStatus = "scheduled" | "in_progress" | "completed" | "cancelled" | "on_hold";
 export type JobPriority = "low" | "normal" | "high" | "urgent";
@@ -115,9 +120,14 @@ async function ensureTable() {
       await sql`create index if not exists idx_hearth_jobs_store_sched on hearth_jobs_store (scheduled_date, scheduled_time_start);`;
       await sql`create index if not exists idx_hearth_jobs_store_status on hearth_jobs_store (status);`;
 
+      if (isTenantStorageEnabled()) {
+        await sql`alter table hearth_jobs_store add column if not exists org_id uuid;`;
+        await sql`create index if not exists idx_hearth_jobs_store_org_id on hearth_jobs_store (org_id);`;
+      }
+
       const countRows = await sql<{ count: number }[]>`select count(*)::int as count from hearth_jobs_store`;
       const count = countRows[0]?.count || 0;
-      if (count === 0) {
+      if (count === 0 && !isTenantStorageEnabled()) {
         const fileJobs = loadFileJobs();
         for (const job of fileJobs) {
           await sql`
@@ -225,13 +235,24 @@ function isValidJob(job: Job) {
   );
 }
 
-export async function listJobs(): Promise<Job[]> {
+export async function listJobs(explicitOrgId?: string): Promise<Job[]> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     return loadFileJobs().map((job) => normalizeJob(job)).filter(isValidJob);
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
+      select id, job_number, scheduled_date, scheduled_time_start, status, payload
+      from hearth_jobs_store
+      where org_id = ${orgId}
+      order by scheduled_date asc nulls last, scheduled_time_start asc nulls last, updated_at desc
+    `;
+    return rows.map((row) => normalizeJob(row)).filter(isValidJob);
+  }
   const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
     select id, job_number, scheduled_date, scheduled_time_start, status, payload
     from hearth_jobs_store
@@ -249,13 +270,24 @@ export async function listJobs(): Promise<Job[]> {
     .filter(isValidJob);
 }
 
-export async function getJob(id: string): Promise<Job | null> {
+export async function getJob(id: string, explicitOrgId?: string): Promise<Job | null> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     return loadFileJobs().find((job) => job.id === id) || null;
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
+      select id, job_number, scheduled_date, scheduled_time_start, status, payload
+      from hearth_jobs_store
+      where id = ${id} and org_id = ${orgId}
+      limit 1
+    `;
+    return rows[0] ? normalizeJob(rows[0]) : null;
+  }
   const rows = await sql<Array<{ id: string; job_number: string; scheduled_date: string | null; scheduled_time_start: string | null; status: string; payload: Job }>>`
     select id, job_number, scheduled_date, scheduled_time_start, status, payload
     from hearth_jobs_store
@@ -282,8 +314,8 @@ function nextJobNumberFrom(jobs: Job[]) {
   return `JOB-${new Date().getFullYear()}-${String(max + 1).padStart(4, "0")}`;
 }
 
-export async function createJobRecord(data: Partial<Job>): Promise<Job> {
-  const existing = await listJobs();
+export async function createJobRecord(data: Partial<Job>, explicitOrgId?: string): Promise<Job> {
+  const existing = await listJobs(explicitOrgId);
   const now = new Date().toISOString();
   const job = normalizeJob({
     id: data.id || crypto.randomUUID(),
@@ -312,6 +344,7 @@ export async function createJobRecord(data: Partial<Job>): Promise<Job> {
   });
 
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const next = [job, ...existing];
     saveFileJobs(next);
@@ -319,6 +352,18 @@ export async function createJobRecord(data: Partial<Job>): Promise<Job> {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    await sql`
+      insert into hearth_jobs_store (id, org_id, job_number, scheduled_date, scheduled_time_start, status, payload, created_at, updated_at)
+      values (
+        ${job.id}, ${orgId}, ${job.jobNumber}, ${job.scheduledDate || null},
+        ${job.scheduledTimeStart || null}, ${job.status}, ${JSON.stringify(job)}::jsonb,
+        ${job.createdAt}, ${job.updatedAt}
+      )
+    `;
+    return job;
+  }
   await sql`
     insert into hearth_jobs_store (id, job_number, scheduled_date, scheduled_time_start, status, payload, created_at, updated_at)
     values (
@@ -335,8 +380,8 @@ export async function createJobRecord(data: Partial<Job>): Promise<Job> {
   return job;
 }
 
-export async function updateJobRecord(id: string, updates: Partial<Job>): Promise<Job | null> {
-  const current = await getJob(id);
+export async function updateJobRecord(id: string, updates: Partial<Job>, explicitOrgId?: string): Promise<Job | null> {
+  const current = await getJob(id, explicitOrgId);
   if (!current) return null;
 
   const next = normalizeJob({
@@ -347,6 +392,7 @@ export async function updateJobRecord(id: string, updates: Partial<Job>): Promis
   });
 
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const jobs = loadFileJobs();
     const idx = jobs.findIndex((job) => job.id === id);
@@ -357,6 +403,17 @@ export async function updateJobRecord(id: string, updates: Partial<Job>): Promis
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    await sql`
+      update hearth_jobs_store
+      set job_number = ${next.jobNumber}, scheduled_date = ${next.scheduledDate || null},
+        scheduled_time_start = ${next.scheduledTimeStart || null}, status = ${next.status},
+        payload = ${JSON.stringify(next)}::jsonb, updated_at = ${next.updatedAt}
+      where id = ${id} and org_id = ${orgId}
+    `;
+    return next;
+  }
   await sql`
     update hearth_jobs_store
     set
@@ -371,8 +428,9 @@ export async function updateJobRecord(id: string, updates: Partial<Job>): Promis
   return next;
 }
 
-export async function deleteJobRecord(id: string): Promise<boolean> {
+export async function deleteJobRecord(id: string, explicitOrgId?: string): Promise<boolean> {
   const sql = getSql();
+  requireTenantDatabase(Boolean(sql));
   if (!sql) {
     const jobs = loadFileJobs();
     const idx = jobs.findIndex((job) => job.id === id);
@@ -383,6 +441,13 @@ export async function deleteJobRecord(id: string): Promise<boolean> {
   }
 
   await ensureTable();
+  const orgId = await resolveStorageOrgId(explicitOrgId);
+  if (orgId) {
+    const rows = await sql<{ id: string }[]>`
+      delete from hearth_jobs_store where id = ${id} and org_id = ${orgId} returning id
+    `;
+    return rows.length > 0;
+  }
   const rows = await sql<{ id: string }[]>`delete from hearth_jobs_store where id = ${id} returning id`;
   return rows.length > 0;
 }

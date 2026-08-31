@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 const PLAID_ENV = process.env.PLAID_ENV || 'production';
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID;
@@ -18,6 +19,9 @@ function plaidBaseUrl() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('integrations:manage');
+  if (denied) return denied;
+
   try {
     if (!PLAID_CLIENT_ID || !PLAID_SECRET) {
       return NextResponse.json(

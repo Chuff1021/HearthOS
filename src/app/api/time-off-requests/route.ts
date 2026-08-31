@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, timeOffRequests } from '@/db';
 import { and, eq, desc } from 'drizzle-orm';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 // Postgres-backed time-off requests. Tech app POSTs from /tech/profile;
 // /admin/time reads them and PUTs to approve/deny. Was a JSON file before —
@@ -26,11 +27,12 @@ function shape(r: typeof timeOffRequests.$inferSelect) {
 
 export async function GET(request: NextRequest) {
   try {
+    const context = await requirePermission('time:read');
     const { searchParams } = new URL(request.url);
     const techId = searchParams.get('techId');
     const status = searchParams.get('status');
 
-    const where = [] as any[];
+    const where = [eq(timeOffRequests.orgId, context.orgId)] as any[];
     if (techId) where.push(eq(timeOffRequests.techId, techId));
     if (status && ALLOWED_STATUSES.has(status)) where.push(eq(timeOffRequests.status, status));
 
@@ -43,6 +45,8 @@ export async function GET(request: NextRequest) {
     const requests = rows.map(shape);
     return NextResponse.json({ requests, total: requests.length });
   } catch (err: any) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to read time-off requests:', err);
     return NextResponse.json({ error: err?.message || 'Failed to load' }, { status: 500 });
   }
@@ -50,6 +54,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const context = await requirePermission('time:write');
     const body = await request.json();
     const { techId, techName, type, startDate, endDate, reason } = body || {};
 
@@ -65,6 +70,7 @@ export async function POST(request: NextRequest) {
       .insert(timeOffRequests)
       .values({
         id,
+        orgId: context.orgId,
         techId,
         techName: techName ?? null,
         type,
@@ -77,6 +83,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ request: shape(row) }, { status: 201 });
   } catch (err: any) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to create time-off request:', err);
     return NextResponse.json({ error: err?.message || 'Failed to save' }, { status: 500 });
   }
@@ -84,6 +92,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const context = await requirePermission('time:write');
     const body = await request.json();
     const { id, status } = body || {};
     if (!id || !status) return NextResponse.json({ error: 'id and status are required' }, { status: 400 });
@@ -94,12 +103,14 @@ export async function PUT(request: NextRequest) {
     const [row] = await db
       .update(timeOffRequests)
       .set({ status, updatedAt: new Date() })
-      .where(eq(timeOffRequests.id, id))
+      .where(and(eq(timeOffRequests.id, id), eq(timeOffRequests.orgId, context.orgId)))
       .returning();
 
     if (!row) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     return NextResponse.json({ request: shape(row) });
   } catch (err: any) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error('Failed to update time-off request:', err);
     return NextResponse.json({ error: err?.message || 'Failed to update' }, { status: 500 });
   }

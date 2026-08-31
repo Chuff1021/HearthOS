@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertSupportConversation } from '@/lib/gabe-support';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('gabe:use');
     const body = await request.json();
     const conversationId = String(body?.conversationId || body?.conversation_id || '');
     const reason = String(body?.reason || 'manual_handoff');
@@ -66,6 +68,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, handoff: true, event_id: id, upstream });
   } catch (e) {
+    const tenantResponse = tenantErrorResponse(e);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: 'chatwoot_handoff_failed', message: String((e as Error)?.message || e) }, { status: 500 });
   }
 }

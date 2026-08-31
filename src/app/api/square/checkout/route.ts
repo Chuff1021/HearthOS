@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
+import { getOrCreateDefaultOrg } from "@/lib/org";
+import { getSquareCredentials } from "@/lib/integrations/store";
 
-const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || "production";
-const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
-const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
-
-function baseUrl() {
-  return SQUARE_ENV === "sandbox"
+function baseUrl(environment: string) {
+  return environment === "sandbox"
     ? "https://connect.squareupsandbox.com"
     : "https://connect.squareup.com";
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
+    await requirePermission("financials:write");
+    const org = await getOrCreateDefaultOrg();
+    const square = await getSquareCredentials(org);
+    if (!square?.accessToken || !square.locationId) {
       return NextResponse.json(
         {
           error:
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
           amount: amountMoney,
           currency: "USD",
         },
-        location_id: SQUARE_LOCATION_ID,
+          location_id: square.locationId,
       },
       checkout_options: {
         ask_for_shipping_address: false,
@@ -57,11 +59,11 @@ export async function POST(request: NextRequest) {
       description: note || `Payment for ${customerName}`,
     };
 
-    const res = await fetch(`${baseUrl()}/v2/online-checkout/payment-links`, {
+    const res = await fetch(`${baseUrl(square.environment)}/v2/online-checkout/payment-links`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${square.accessToken}`,
         "Square-Version": "2024-12-18",
       },
       body: JSON.stringify(payload),
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const orderId = data?.payment_link?.order_id as string | undefined;
 
-    upsertSquarePayment({
+    await upsertSquarePayment({
       id: String(data?.payment_link?.id || crypto.randomUUID()),
       status: 'PENDING',
       amount,
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       raw: data,
-    });
+    }, org.id);
 
     return NextResponse.json({
       ok: true,
@@ -103,6 +105,8 @@ export async function POST(request: NextRequest) {
       orderId,
     });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Unexpected Square checkout error",

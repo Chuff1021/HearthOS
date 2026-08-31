@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, organizations } from '@/db';
-import { eq } from 'drizzle-orm';
 import { getClientFromTokens, persistPurchaseOrdersToDb } from '@/lib/quickbooks/sync';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 import { renderPurchaseOrderPdf } from '@/lib/purchase-orders/pdf';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 async function getQBAuth(request: NextRequest) {
   let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -33,12 +33,13 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
     return await fn(client);
   } catch {
     const tokens = await client.refreshAccessToken();
-    await db.update(organizations).set({
-      qbAccessToken: tokens.access_token,
-      qbRefreshToken: tokens.refresh_token,
-      qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, auth.orgId));
+    await saveQuickBooksRefresh({
+      orgId: auth.orgId,
+      realmId: auth.realmId,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+    });
     client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
     return fn(client);
   }
@@ -253,6 +254,8 @@ function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -274,6 +277,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });

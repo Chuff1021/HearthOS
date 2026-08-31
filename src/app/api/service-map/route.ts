@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import {
@@ -179,6 +180,8 @@ async function requireInternalUser() {
 }
 
 export async function GET() {
+  const denied = await authorizeApi("customers:read");
+  if (denied) return denied;
   try {
     const authError = await requireInternalUser();
     if (authError) return authError;

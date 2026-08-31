@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 import { getClientFromTokens } from "@/lib/quickbooks/sync";
 import postgres from "postgres";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 export const maxDuration = 300;
 
@@ -17,6 +18,9 @@ export const maxDuration = 300;
  * - Which venting components go with which fireplace models
  */
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi("inventory:write");
+  if (denied) return denied;
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database" }, { status: 500 });
   }
@@ -24,9 +28,15 @@ export async function POST(request: NextRequest) {
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 2 });
 
   try {
+    const org = await getOrCreateDefaultOrg();
+
     // Skip if pricing already has sku data (means QB Items were fetched)
     try {
-      const existing = await sql`SELECT data FROM estimator_knowledge WHERE id = ${"pricing"} LIMIT 1`;
+      const existing = await sql`
+        SELECT data FROM estimator_knowledge
+        WHERE org_id = ${org.id} AND id = ${"pricing"}
+        LIMIT 1
+      `;
       if (existing.length > 0) {
         const items = Object.values(existing[0].data as Record<string, any>);
         if (items.length > 0 && "sku" in (items[0] as any)) {
@@ -37,7 +47,6 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     // Get QB client
-    const org = await getOrCreateDefaultOrg();
     if (!org.qbAccessToken || !org.qbRefreshToken || !org.qbRealmId) {
       await sql.end();
       return NextResponse.json({ error: "QuickBooks not connected" }, { status: 401 });
@@ -233,28 +242,18 @@ export async function POST(request: NextRequest) {
         .map(([name, count]) => `${name} (used ${count} times)`);
     }
 
-    // 6. Store in database
+    // 6. Store organization-owned estimator knowledge.
     await sql`
-      CREATE TABLE IF NOT EXISTS estimator_knowledge (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        data JSONB NOT NULL,
-        updated_at TIMESTAMPTZ DEFAULT now()
-      )
-    `;
-
-    // Store pricing
-    await sql`
-      INSERT INTO estimator_knowledge (id, type, data)
-      VALUES (${"pricing"}, ${"pricing"}, ${JSON.stringify(pricingSummary)}::jsonb)
-      ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(pricingSummary)}::jsonb, updated_at = now()
+      INSERT INTO estimator_knowledge (org_id, id, type, data)
+      VALUES (${org.id}, ${"pricing"}, ${"pricing"}, ${JSON.stringify(pricingSummary)}::jsonb)
+      ON CONFLICT (org_id, id) DO UPDATE SET data = ${JSON.stringify(pricingSummary)}::jsonb, updated_at = now()
     `;
 
     // Store install type guide
     await sql`
-      INSERT INTO estimator_knowledge (id, type, data)
-      VALUES (${"install-types"}, ${"install-types"}, ${JSON.stringify(installTypeGuide)}::jsonb)
-      ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(installTypeGuide)}::jsonb, updated_at = now()
+      INSERT INTO estimator_knowledge (org_id, id, type, data)
+      VALUES (${org.id}, ${"install-types"}, ${"install-types"}, ${JSON.stringify(installTypeGuide)}::jsonb)
+      ON CONFLICT (org_id, id) DO UPDATE SET data = ${JSON.stringify(installTypeGuide)}::jsonb, updated_at = now()
     `;
 
     // Store transaction patterns (sample for context)
@@ -269,9 +268,9 @@ export async function POST(request: NextRequest) {
     }));
 
     await sql`
-      INSERT INTO estimator_knowledge (id, type, data)
-      VALUES (${"patterns"}, ${"patterns"}, ${JSON.stringify(samplePatterns)}::jsonb)
-      ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(samplePatterns)}::jsonb, updated_at = now()
+      INSERT INTO estimator_knowledge (org_id, id, type, data)
+      VALUES (${org.id}, ${"patterns"}, ${"patterns"}, ${JSON.stringify(samplePatterns)}::jsonb)
+      ON CONFLICT (org_id, id) DO UPDATE SET data = ${JSON.stringify(samplePatterns)}::jsonb, updated_at = now()
     `;
 
     // 7. Build PRODUCT CATALOG from RAW QB data (not analyzed patterns)
@@ -413,9 +412,9 @@ export async function POST(request: NextRequest) {
     }
 
     await sql`
-      INSERT INTO estimator_knowledge (id, type, data)
-      VALUES (${"product-catalog"}, ${"product-catalog"}, ${JSON.stringify(productCatalog)}::jsonb)
-      ON CONFLICT (id) DO UPDATE SET data = ${JSON.stringify(productCatalog)}::jsonb, updated_at = now()
+      INSERT INTO estimator_knowledge (org_id, id, type, data)
+      VALUES (${org.id}, ${"product-catalog"}, ${"product-catalog"}, ${JSON.stringify(productCatalog)}::jsonb)
+      ON CONFLICT (org_id, id) DO UPDATE SET data = ${JSON.stringify(productCatalog)}::jsonb, updated_at = now()
     `;
 
     await sql.end();

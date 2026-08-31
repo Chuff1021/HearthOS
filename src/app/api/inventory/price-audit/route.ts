@@ -10,6 +10,7 @@ import {
 } from '@/db';
 import { and, eq, sql, isNotNull, desc } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // GET /api/inventory/price-audit
 // Compare every tracked inventory item's cost against the most recent
@@ -38,6 +39,9 @@ type LatestSource = {
 };
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('inventory:read');
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(req.url);
     const sourceParam = (searchParams.get('source') || 'bills').toLowerCase();

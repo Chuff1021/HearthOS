@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
-import { db, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
+import { db, estimateLineItems, estimates, inventoryItems } from '@/db';
 import { and, asc, eq, or } from 'drizzle-orm';
 import { getClientFromTokens, persistEstimatesToDb } from '@/lib/quickbooks/sync';
 import { addAuditLog } from '@/lib/audit-log-store';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 import { renderEstimatePdf } from '@/lib/estimates/pdf';
+import { saveQuickBooksRefresh } from '@/lib/integrations/store';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
+import { createEstimateAcceptanceIntent } from '@/lib/integrations/estimate-acceptance-intents';
+import { isTenantEnforcementEnabled, requireTenantContext } from '@/lib/tenant/context';
 
 function escapeHtml(value: unknown) {
   return String(value ?? '')
@@ -31,10 +35,20 @@ function publicOrigin(request: NextRequest) {
   return new URL(request.url).origin;
 }
 
-function estimateAcceptanceUrl(request: NextRequest, estimate: any) {
+async function estimateAcceptanceUrl(request: NextRequest, estimate: any, orgId: string) {
   const origin = publicOrigin(request);
+  const estimateReference = String(estimate.Id || estimate.DocNumber || '');
+  if (isTenantEnforcementEnabled()) {
+    const tenant = await requireTenantContext();
+    const intent = await createEstimateAcceptanceIntent({
+      orgId,
+      estimateReference,
+      identityId: tenant.identityId,
+    });
+    return `${origin}/accept-estimate?token=${encodeURIComponent(intent.token)}`;
+  }
   const params = new URLSearchParams({
-    id: String(estimate.Id || estimate.DocNumber || ''),
+    id: estimateReference,
   });
   return `${origin}/accept-estimate?${params.toString()}`;
 }
@@ -299,12 +313,13 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
     return await fn(client);
   } catch {
     const tokens = await client.refreshAccessToken();
-    await db.update(organizations).set({
-      qbAccessToken: tokens.access_token,
-      qbRefreshToken: tokens.refresh_token,
-      qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, auth.orgId));
+    await saveQuickBooksRefresh({
+      orgId: auth.orgId,
+      realmId: auth.realmId,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+    });
 
     client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
     return fn(client);
@@ -312,6 +327,8 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await authorizeApi('financials:read');
+  if (denied) return denied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -334,6 +351,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi('financials:write');
+  if (denied) return denied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -361,7 +380,7 @@ export async function POST(request: NextRequest) {
           }
         }
         const pdf = await renderEstimatePdf({ estimate: estimateForPdf, customer });
-        const acceptUrl = estimateAcceptanceUrl(request, estimate);
+        const acceptUrl = await estimateAcceptanceUrl(request, estimate, auth.orgId);
         await sendSmtpEmail({
           to: recipient,
           cc: parseEmailList(body.ccBcc),
@@ -381,7 +400,7 @@ export async function POST(request: NextRequest) {
         });
 
         try { await persistEstimatesToDb(auth.orgId, [estimate]); } catch (e) { console.error('persist after send failed', e); }
-        addAuditLog({
+        await addAuditLog({
           entityType: 'estimate',
           entityId: body.id,
           action: 'update',
@@ -395,7 +414,7 @@ export async function POST(request: NextRequest) {
 
       const sentEstimate = (await withRefresh(auth, (client) => client.sendEstimate(body.id, body.email))) as any;
       try { await persistEstimatesToDb(auth.orgId, [sentEstimate]); } catch (e) { console.error('persist after send failed', e); }
-      addAuditLog({
+      await addAuditLog({
         entityType: 'estimate',
         entityId: body.id,
         action: 'update',
@@ -411,7 +430,7 @@ export async function POST(request: NextRequest) {
       if (!body.id) return NextResponse.json({ error: 'id is required for update' }, { status: 400 });
       const updatedEstimate = (await withRefresh(auth, (client) => client.updateEstimate(body.id, body.updates || {}))) as any;
       try { await persistEstimatesToDb(auth.orgId, [updatedEstimate]); } catch (e) { console.error('persist after update failed', e); }
-      addAuditLog({
+      await addAuditLog({
         entityType: 'estimate',
         entityId: body.id,
         action: 'update',
@@ -437,7 +456,7 @@ export async function POST(request: NextRequest) {
 
       const deletedLocal = await deleteLocalEstimate(auth.orgId, body.id);
 
-      addAuditLog({
+      await addAuditLog({
         entityType: 'estimate',
         entityId: body.id,
         action: 'delete',
@@ -481,7 +500,7 @@ export async function POST(request: NextRequest) {
     const estimate = (await withRefresh(auth, (client) => client.createEstimate(payload))) as any;
     try { await persistEstimatesToDb(auth.orgId, [estimate]); } catch (e) { console.error('persist after create failed', e); }
 
-    addAuditLog({
+    await addAuditLog({
       entityType: 'estimate',
       entityId: estimate.Id,
       action: 'create',

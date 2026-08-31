@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 import { db, invoices, invoiceLineItems, inventoryItems } from '@/db';
 import { and, eq, gte, lte, sql, inArray } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -9,6 +10,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // invoice count.
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('reports:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const since = searchParams.get('since') || '';

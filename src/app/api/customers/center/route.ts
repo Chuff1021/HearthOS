@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, customers, invoices, payments, properties } from '@/db';
 import { and, desc, eq, sql, ilike, inArray, or } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { authorizeApi } from '@/lib/tenant/api-authorization';
 
 // GET /api/customers/center
 // Customer center list with rolled-up A/R + revenue stats per customer
@@ -11,6 +12,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // by older surfaces (data-store backed search/CRUD).
 
 export async function GET(req: NextRequest) {
+  const denied = await authorizeApi('customers:read');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();

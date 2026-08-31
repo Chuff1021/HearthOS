@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertSupportConversation } from '@/lib/gabe-support';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission('gabe:use');
     const body = await request.json();
     const conversationId = String(body?.conversationId || body?.conversation_id || '');
     const message = String(body?.message || '').trim();
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, sent: true, upstream });
   } catch (e) {
+    const tenantResponse = tenantErrorResponse(e);
+    if (tenantResponse) return tenantResponse;
     await insertSupportConversation({
       chatwoot_conversation_id: 'unknown',
       run_outcome: 'source_evidence_missing',

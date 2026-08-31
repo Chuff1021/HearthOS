@@ -11,9 +11,11 @@ import {
 } from "@/lib/data-store";
 import { addAuditLog } from "@/lib/audit-log-store";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("financials:read");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const customerId = searchParams.get("customerId");
@@ -119,6 +121,8 @@ export async function GET(request: NextRequest) {
     if (customerId) return NextResponse.json({ invoices: shaped, total: shaped.length });
     return NextResponse.json({ invoices: shaped, total: shaped.length });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to get invoices:", err);
     return NextResponse.json({ error: "Failed to get invoices" }, { status: 500 });
   }
@@ -126,6 +130,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("financials:write");
     const body = await request.json();
 
     if (!body.customerName || !body.jobTitle || !body.lineItems?.length) {
@@ -163,7 +168,7 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     });
 
-    addAuditLog({
+    await addAuditLog({
       entityType: "invoice",
       entityId: invoice.id,
       action: "create",
@@ -172,7 +177,7 @@ export async function POST(request: NextRequest) {
       after: invoice,
     });
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "invoice",
       action: "create",
       entityId: invoice.id,
@@ -182,6 +187,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create invoice:", err);
     return NextResponse.json({ error: "Failed to create invoice" }, { status: 500 });
   }
@@ -189,6 +196,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await requirePermission("financials:write");
     const body = await request.json();
 
     if (!body.id) {
@@ -201,7 +209,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    addAuditLog({
+    await addAuditLog({
       entityType: "invoice",
       entityId: invoice.id,
       action: "update",
@@ -211,7 +219,7 @@ export async function PUT(request: NextRequest) {
       after: invoice,
     });
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "invoice",
       action: "update",
       entityId: invoice.id,
@@ -221,6 +229,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ invoice });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to update invoice:", err);
     return NextResponse.json({ error: "Failed to update invoice" }, { status: 500 });
   }
@@ -228,6 +238,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    await requirePermission("financials:write");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -241,7 +252,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    addAuditLog({
+    await addAuditLog({
       entityType: "invoice",
       entityId: id,
       action: "delete",
@@ -250,7 +261,7 @@ export async function DELETE(request: NextRequest) {
       before,
     });
 
-    appendMemoryEvent({
+    await appendMemoryEvent({
       entity: "invoice",
       action: "delete",
       entityId: id,
@@ -259,6 +270,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to delete invoice:", err);
     return NextResponse.json({ error: "Failed to delete invoice" }, { status: 500 });
   }

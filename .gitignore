@@ -25,6 +25,10 @@
 *.pem
 
 data/
+backups/
+*.dump
+*.dump.enc
+production-baseline-*.json
 
 
 # debug

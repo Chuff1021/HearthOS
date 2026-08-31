@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listManualSections, createManualSection } from "@/lib/manuals";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission("gabe:use");
     const { searchParams } = new URL(request.url);
     const manualId = searchParams.get("manualId") || undefined;
 
     const sections = await listManualSections(manualId);
     return NextResponse.json({ sections, total: sections.length });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to list manual sections:", err);
     return NextResponse.json({ error: "Failed to list manual sections" }, { status: 500 });
   }
@@ -16,6 +20,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission("gabe:manage");
     const body = await request.json();
 
     if (!body.manualId || !body.pageStart || !body.snippet) {
@@ -36,6 +41,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ section: created }, { status: 201 });
   } catch (err) {
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     console.error("Failed to create manual section:", err);
     return NextResponse.json({ error: "Failed to create manual section" }, { status: 500 });
   }

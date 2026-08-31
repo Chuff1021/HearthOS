@@ -11,6 +11,7 @@ export type MeeksAccess =
   | {
       ok: true;
       email: string;
+      orgId: string;
       isInternal: boolean;
       isMeeksPartner: boolean;
     }
@@ -97,12 +98,36 @@ async function accessFromUser(user: any): Promise<MeeksAccess> {
     return { ok: false, status: 403, message: "This login is not allowed to access the Meeks portal." };
   }
 
-  return { ok: true, email, isInternal, isMeeksPartner };
+  const [{ db, organizations }, { eq }] = await Promise.all([
+    import("@/db"),
+    import("drizzle-orm"),
+  ]);
+  const orgSlug = String(process.env.MEEKS_ORGANIZATION_SLUG || "default");
+  const [organization] = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.slug, orgSlug))
+    .limit(1);
+  if (!organization) {
+    return { ok: false, status: 403, message: "The Meeks portal company is not configured." };
+  }
+
+  return { ok: true, email, orgId: organization.id, isInternal, isMeeksPartner };
 }
 
 export async function getMeeksPortalAccess(): Promise<MeeksAccess> {
   if (!isClerkConfigured()) {
-    return { ok: true, email: "local", isInternal: true, isMeeksPartner: true };
+    const [{ db, organizations }, { eq }] = await Promise.all([
+      import("@/db"),
+      import("drizzle-orm"),
+    ]);
+    const [organization] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.slug, String(process.env.MEEKS_ORGANIZATION_SLUG || "default")))
+      .limit(1);
+    if (!organization) return { ok: false, status: 403, message: "The Meeks portal company is not configured." };
+    return { ok: true, email: "local", orgId: organization.id, isInternal: true, isMeeksPartner: true };
   }
 
   const user = await currentUser();
@@ -112,7 +137,7 @@ export async function getMeeksPortalAccess(): Promise<MeeksAccess> {
 
 export async function getMeeksApiAccess(): Promise<MeeksAccess> {
   if (!isClerkConfigured()) {
-    return { ok: true, email: "local", isInternal: true, isMeeksPartner: true };
+    return getMeeksPortalAccess();
   }
 
   const { userId } = await auth();

@@ -3,6 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { customers, db, properties, users } from "@/db";
 import { getOrCreateDefaultOrg } from "@/lib/org";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -134,6 +135,8 @@ async function requireAdmin() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorizeApi("customers:write");
+  if (denied) return denied;
   try {
     const admin = await requireAdmin();
     if (!admin.ok) return admin.response;

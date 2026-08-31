@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createTimeEntry, closeOpenTimeEntry, listTimeEntries, updateTimeEntry } from '@/lib/time-entry-store';
+import { requirePermission, tenantErrorResponse } from '@/lib/tenant/context';
+
+async function authorize(permission: 'time:read' | 'time:write') {
+  try {
+    await requirePermission(permission);
+    return null;
+  } catch (error) {
+    return tenantErrorResponse(error) || NextResponse.json({ error: 'Authorization failed' }, { status: 500 });
+  }
+}
 
 export async function GET(request: NextRequest) {
+  const denied = await authorize('time:read');
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const techId = searchParams.get('techId');
   const openOnly = searchParams.get('openOnly') === 'true';
@@ -34,6 +46,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorize('time:write');
+  if (denied) return denied;
   const body = await request.json();
   const action = body.action as 'clock_in' | 'clock_out' | 'manual_entry';
   const techId = body.techId as string;
@@ -72,6 +86,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await authorize('time:write');
+  if (denied) return denied;
   const body = await request.json();
   const { id, clockInAt, clockOutAt, editNote } = body;
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
@@ -82,6 +98,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await authorize('time:write');
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });

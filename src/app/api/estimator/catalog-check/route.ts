@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
+import { requirePermission, tenantErrorResponse } from "@/lib/tenant/context";
 
 export async function GET(request: NextRequest) {
   if (!process.env.DATABASE_URL) return NextResponse.json({ error: "No database" }, { status: 500 });
   const sql = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
   try {
-    const rows = await sql`SELECT id, updated_at, data FROM estimator_knowledge`;
+    const tenant = await requirePermission("inventory:read");
+    const rows = await sql`
+      SELECT id, updated_at, data
+      FROM estimator_knowledge
+      WHERE org_id = ${tenant.orgId}
+    `;
     const out: any = {};
     for (const row of rows) {
       if (row.id === "product-catalog") {
@@ -38,6 +44,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(out);
   } catch (err) {
     try { await sql.end(); } catch {}
+    const tenantResponse = tenantErrorResponse(err);
+    if (tenantResponse) return tenantResponse;
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

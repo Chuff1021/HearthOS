@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeApi } from "@/lib/tenant/api-authorization";
 import {
   db,
   invoices,
@@ -35,6 +36,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ type: string; id: string }> },
 ) {
+  const denied = await authorizeApi("reports:read");
+  if (denied) return denied;
   try {
     const { type, id } = await params;
     if (type !== "invoice" && type !== "estimate") {
