@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  await client.instance.updateOrganizationSettings({
+    enabled: true,
+    maxAllowedMemberships: 20,
+    adminDeleteEnabled: false,
+  });
+
   const existingOrganizations = await client.organizations.getOrganizationList({
     query: PILOT.organizationName,
     limit: 20,
