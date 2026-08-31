@@ -4,6 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 const protectedRoutesEnabled = process.env.MULTITENANT_ROUTE_PROTECTION_ENABLED === "true";
 
+const publicExactPaths = ["/"];
+
 const publicPrefixes = [
   "/sign-in",
   "/sign-up",
@@ -20,7 +22,8 @@ const publicPrefixes = [
 ];
 
 function isPublicPath(pathname: string) {
-  return publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  return publicExactPaths.includes(pathname)
+    || publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
 
 export default hasClerk

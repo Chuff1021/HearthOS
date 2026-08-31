@@ -120,7 +120,7 @@ export default function DemoLanding() {
         </nav>
 
         <div className="launch-nav-actions">
-          <Link href="/" className="launch-login">Log in</Link>
+          <Link href="/sign-in?redirect_url=/account" className="launch-login">Sign in</Link>
           <a href="#demo-form" className="launch-button launch-button-small">
             Book a demo <ArrowRight size={14} />
           </a>
@@ -141,7 +141,7 @@ export default function DemoLanding() {
             <a href="#platform" onClick={() => setMobileOpen(false)}>Platform</a>
             <a href="#difference" onClick={() => setMobileOpen(false)}>Why HearthOS</a>
             <a href="#intelligence" onClick={() => setMobileOpen(false)}>GABE</a>
-            <Link href="/" onClick={() => setMobileOpen(false)}>Log in</Link>
+            <Link href="/sign-in?redirect_url=/account" onClick={() => setMobileOpen(false)}>Sign in</Link>
             <a href="#demo-form" className="launch-button" onClick={() => setMobileOpen(false)}>Book a demo</a>
           </div>
         )}
@@ -301,7 +301,7 @@ export default function DemoLanding() {
       <footer className="launch-footer">
         <div className="launch-brand"><FlameLogo size={32} /><strong>HearthOS</strong></div>
         <p>The operating system for fireplace dealers.</p>
-        <div><Link href="/">Log in</Link><a href="#demo-form">Book a demo</a></div>
+        <div><Link href="/sign-in?redirect_url=/account">Sign in</Link><a href="#demo-form">Book a demo</a></div>
       </footer>
     </main>
   );

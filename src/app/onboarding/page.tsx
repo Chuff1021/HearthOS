@@ -68,7 +68,7 @@ export default function OnboardingPage() {
     if (!response.ok) return setMessage(data.error || "Unable to save this step");
     setCompleted(data.completedSteps || [...completed, current]);
     if (next) setStep(next);
-    else router.push("/");
+    else router.push("/account");
   }
 
   async function sendInvite() {

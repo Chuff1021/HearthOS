@@ -11,6 +11,7 @@
     "safety:backup": "node scripts/create-production-backup.mjs",
     "safety:baseline": "node scripts/capture-production-baseline.mjs",
     "safety:rehearse-tenancy": "node scripts/rehearse-multitenant-migrations.mjs",
+    "seed:pilot": "node scripts/seed-pilot-tenant.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
