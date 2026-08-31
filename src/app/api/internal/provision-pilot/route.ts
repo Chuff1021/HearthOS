@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
   const existingUsers = await client.users.getUserList({ emailAddress: [PILOT.email], limit: 2 });
   const clerkUser = existingUsers.data[0] || await client.users.createUser({
     emailAddress: [PILOT.email],
+    phoneNumber: ["+12025550195"],
     password: body.password,
     firstName: "LT Rush",
     lastName: "Demo",
