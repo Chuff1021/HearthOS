@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  syncAllQuickBooksEntities,
+  type QuickBooksSyncProgress,
+} from "@/lib/quickbooks/browser-sync";
 
 interface QuickBooksActionsProps {
   connected?: boolean;
@@ -19,6 +23,7 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
   const [status, setStatus] = useState<QBStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [progress, setProgress] = useState<QuickBooksSyncProgress | null>(null);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Check real connection status
@@ -42,26 +47,18 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
+    setProgress(null);
     try {
-      const res = await fetch("/api/quickbooks/sync-all", { method: "POST" });
-      const data = await res.json();
-      
-      if (data.success) {
-        const { recordsSynced } = data.status;
-        setSyncResult({
-          success: true,
-          message: `Synced ${recordsSynced.customers} customers, ${recordsSynced.items} items, ${recordsSynced.invoices} invoices, ${recordsSynced.payments} payments`,
-        });
-      } else {
-        setSyncResult({
-          success: false,
-          message: data.error || "Sync failed",
-        });
-      }
+      const results = await syncAllQuickBooksEntities(setProgress);
+      const total = results.reduce((sum, result) => sum + result.persisted, 0);
+      setSyncResult({
+        success: true,
+        message: `QuickBooks is current. ${total.toLocaleString()} records verified.`,
+      });
     } catch (err) {
       setSyncResult({
         success: false,
-        message: "Failed to sync with QuickBooks",
+        message: err instanceof Error ? err.message : "Failed to sync with QuickBooks",
       });
     } finally {
       setSyncing(false);
@@ -112,6 +109,7 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
       )}
       {syncResult && (
         <span
+          role={syncResult.success ? "status" : "alert"}
           className="text-xs px-2 py-1 rounded"
           style={{
             background: syncResult.success ? "rgba(152,205,0,0.12)" : "rgba(255,32,78,0.12)",
@@ -124,7 +122,7 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
       <button
         onClick={handleSync}
         disabled={syncing}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+        className="flex min-w-[190px] items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
         style={{
           background: "var(--color-surface-2)",
           color: "var(--color-text-secondary)",
@@ -137,7 +135,9 @@ export default function QuickBooksActions({ connected: initialConnected }: Quick
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Syncing...
+            {progress
+              ? `${progress.label}: ${progress.fetched.toLocaleString()}`
+              : "Starting sync..."}
           </>
         ) : (
           <>

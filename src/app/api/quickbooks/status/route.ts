@@ -5,32 +5,19 @@ import { createQuickBooksClient } from '@/lib/quickbooks/client';
 
 export async function GET() {
   try {
-    // Check for tokens in cookies first
+    // Neon is the durable source of truth. Browser OAuth cookies may contain
+    // an older token pair after a server-side refresh.
     const cookieStore = await cookies();
-    let accessToken = cookieStore.get('qb_access_token')?.value;
-    let refreshToken = cookieStore.get('qb_refresh_token')?.value;
-    let realmId = cookieStore.get('qb_realm_id')?.value;
+    const org = await getOrCreateDefaultOrg();
+    const accessToken = org.qbAccessToken || cookieStore.get('qb_access_token')?.value;
+    const refreshToken = org.qbRefreshToken || cookieStore.get('qb_refresh_token')?.value;
+    const realmId = org.qbRealmId || cookieStore.get('qb_realm_id')?.value;
 
-    // If not in cookies, check database
     if (!accessToken || !refreshToken || !realmId) {
-      try {
-        const org = await getOrCreateDefaultOrg();
-        if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-          accessToken = org.qbAccessToken;
-          refreshToken = org.qbRefreshToken;
-          realmId = org.qbRealmId;
-        } else {
-          return NextResponse.json({
-            connected: false,
-            error: 'Not connected to QuickBooks',
-          });
-        }
-      } catch {
-        return NextResponse.json({
-          connected: false,
-          error: 'QuickBooks status unavailable',
-        });
-      }
+      return NextResponse.json({
+        connected: false,
+        error: 'Not connected to QuickBooks',
+      });
     }
 
     // Try to make a real API call to verify the connection
@@ -47,6 +34,20 @@ export async function GET() {
     // Try to get company info to verify connection
     try {
       const companyInfo = await client.getCompanyInfo();
+      const currentTokens = client.getTokens();
+      if (currentTokens && currentTokens.access_token !== accessToken) {
+        const { db, organizations } = await import('@/db');
+        const { eq } = await import('drizzle-orm');
+        await db
+          .update(organizations)
+          .set({
+            qbAccessToken: currentTokens.access_token,
+            qbRefreshToken: currentTokens.refresh_token,
+            qbTokenExpiresAt: new Date(Date.now() + currentTokens.expires_in * 1000),
+            updatedAt: new Date(),
+          })
+          .where(eq(organizations.id, org.id));
+      }
       return NextResponse.json({
         connected: true,
         companyName: companyInfo.CompanyName,
@@ -60,7 +61,6 @@ export async function GET() {
         const newTokens = await client.refreshAccessToken();
         
         // Update tokens in database
-        const org = await getOrCreateDefaultOrg();
         const { db, organizations } = await import('@/db');
         const { eq } = await import('drizzle-orm');
         

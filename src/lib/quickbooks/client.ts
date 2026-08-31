@@ -120,15 +120,24 @@ export class QuickBooksClient {
     const baseUrl = QB_BASE_URL[this.config.environment];
     const url = `${baseUrl}/v3/company/${this.realmId}${path}`;
 
-    const response = await fetch(url, {
+    const send = () => fetch(url, {
       method,
       headers: {
-        'Authorization': `Bearer ${this.tokens.access_token}`,
+        'Authorization': `Bearer ${this.tokens?.access_token || ''}`,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
     });
+
+    let response = await send();
+
+    // Access tokens last about an hour. Refresh and retry once so a sync does
+    // not fail simply because the token expired between page loads.
+    if (response.status === 401 && this.tokens.refresh_token) {
+      await this.refreshAccessToken();
+      response = await send();
+    }
 
     if (!response.ok) {
       const error = await response.text();

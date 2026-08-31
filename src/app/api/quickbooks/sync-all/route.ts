@@ -10,25 +10,19 @@ export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
-    // Check for tokens in cookies first
     const cookieStore = await cookies();
-    let accessToken = cookieStore.get('qb_access_token')?.value;
-    let refreshToken = cookieStore.get('qb_refresh_token')?.value;
-    let realmId = cookieStore.get('qb_realm_id')?.value;
+    const org = await getOrCreateDefaultOrg();
 
-    // If not in cookies, check database
+    // Prefer durable DB credentials. Cookies may be stale after a token refresh.
+    const accessToken = org.qbAccessToken || cookieStore.get('qb_access_token')?.value;
+    const refreshToken = org.qbRefreshToken || cookieStore.get('qb_refresh_token')?.value;
+    const realmId = org.qbRealmId || cookieStore.get('qb_realm_id')?.value;
+
     if (!accessToken || !refreshToken || !realmId) {
-      const org = await getOrCreateDefaultOrg();
-      if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
-        accessToken = org.qbAccessToken;
-        refreshToken = org.qbRefreshToken;
-        realmId = org.qbRealmId;
-      } else {
-        return NextResponse.json(
-          { error: 'Not connected to QuickBooks. Please connect first.' },
-          { status: 401 }
-        );
-      }
+      return NextResponse.json(
+        { error: 'Not connected to QuickBooks. Please connect first.' },
+        { status: 401 }
+      );
     }
 
     // Create client and set tokens
@@ -48,7 +42,6 @@ export async function POST(request: NextRequest) {
     // If tokens were refreshed, update in database
     const newTokens = client.getTokens();
     if (newTokens && newTokens.access_token !== accessToken) {
-      const org = await getOrCreateDefaultOrg();
       const { db, organizations } = await import('@/db');
       const { eq } = await import('drizzle-orm');
       

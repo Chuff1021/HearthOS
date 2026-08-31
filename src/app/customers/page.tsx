@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
+import { syncQuickBooksEntity } from "@/lib/quickbooks/browser-sync";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Types
@@ -106,6 +107,9 @@ function CustomersListInner() {
   const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState(false);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -119,6 +123,24 @@ function CustomersListInner() {
   }, [debounced, filter, sort, dir]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  const syncCustomers = async () => {
+    setSyncing(true);
+    setSyncError(false);
+    setSyncMessage("Starting customer sync...");
+    try {
+      const result = await syncQuickBooksEntity("customers", (progress) => {
+        setSyncMessage(`Importing customers: ${progress.fetched.toLocaleString()}`);
+      });
+      setSyncMessage(`${result.persisted.toLocaleString()} customers synced`);
+      await fetchList();
+    } catch (error) {
+      setSyncError(true);
+      setSyncMessage(error instanceof Error ? error.message : "Customer sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const sortFor = (col: SortKey) => () => {
     if (sort === col) setDir(dir === "asc" ? "desc" : "asc");
@@ -142,14 +164,12 @@ function CustomersListInner() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={async () => {
-                    await fetch("/api/quickbooks/sync/customers", { method: "POST" });
-                    fetchList();
-                  }}
-                  className="px-3 py-2 rounded-lg text-sm font-medium"
+                  onClick={syncCustomers}
+                  disabled={syncing}
+                  className="min-w-[220px] px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
                   style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}
                 >
-                  Sync from QuickBooks
+                  {syncing ? syncMessage : "Sync from QuickBooks"}
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-white"
@@ -161,6 +181,20 @@ function CustomersListInner() {
                 </button>
               </div>
             </div>
+
+            {syncMessage && !syncing && (
+              <div
+                role={syncError ? "alert" : "status"}
+                className="rounded-lg px-3 py-2 text-sm"
+                style={{
+                  color: syncError ? "#B42318" : "#067647",
+                  background: syncError ? "#FEF3F2" : "#ECFDF3",
+                  border: `1px solid ${syncError ? "#FECDCA" : "#ABEFC6"}`,
+                }}
+              >
+                {syncMessage}
+              </div>
+            )}
 
             {/* Money bar */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
