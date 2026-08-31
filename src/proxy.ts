@@ -13,6 +13,7 @@ const publicPrefixes = [
   "/accept-estimate",
   "/pay",
   "/api/demo-requests",
+  "/api/internal/provision-pilot",
   "/api/estimates/accept",
   "/api/quickbooks/callback",
   "/api/square/callback",
