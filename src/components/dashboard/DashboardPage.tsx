@@ -168,8 +168,7 @@ function greetingFor(date: Date, timeZone?: string) {
     ? Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone }).format(date))
     : date.getHours();
   if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  return "Good afternoon";
 }
 
 function relativeDate(value: string | null | undefined) {
