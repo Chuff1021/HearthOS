@@ -28,12 +28,12 @@ function secretMatches(candidate: string, expected: string) {
 
 export async function POST(request: NextRequest) {
   const expectedSecret = (process.env.PILOT_TENANT_PROVISIONING_SECRET || "").trim();
-  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
+  const provisionSecret = request.headers.get("x-hearthos-provision-secret") || "";
   if (
     process.env.VERCEL_ENV !== "preview"
     || process.env.PILOT_TENANT_PROVISIONING_ENABLED !== "true"
     || !expectedSecret
-    || !secretMatches(bearer, expectedSecret)
+    || !secretMatches(provisionSecret, expectedSecret)
   ) {
     return unavailable();
   }
