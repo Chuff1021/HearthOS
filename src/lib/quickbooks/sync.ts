@@ -133,6 +133,20 @@ function splitName(displayName: string | undefined): [string, string] {
   return [parts[0], parts.slice(1).join(' ')];
 }
 
+function fitVarchar(value: string | null | undefined, maxLength: number): string | undefined {
+  if (!value) return undefined;
+  return value.trim().slice(0, maxLength) || undefined;
+}
+
+function databaseErrorSummary(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = error.cause;
+    if (cause instanceof Error && cause.message) return cause.message;
+    return error.message.split('\n')[0];
+  }
+  return String(error);
+}
+
 export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustomer[]): Promise<number> {
   const now = new Date();
   qbCustomers = dedupeBy(qbCustomers, (c) => c.Id);
@@ -144,17 +158,17 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
     const addr: any = (c as any).BillAddr || (c as any).ShipAddr || {};
     return [{
       orgId,
-      qbCustomerId: c.Id,
-      firstName: c.GivenName || fallbackFirst || c.DisplayName || 'Unknown',
-      lastName: c.FamilyName || fallbackLast || '',
-      companyName: c.CompanyName,
-      email: c.PrimaryEmailAddr?.Address,
-      phone: c.PrimaryPhone?.FreeFormNumber,
+      qbCustomerId: fitVarchar(c.Id, 50) as string,
+      firstName: fitVarchar(c.GivenName || fallbackFirst || c.DisplayName || 'Unknown', 100) as string,
+      lastName: fitVarchar(c.FamilyName || fallbackLast || '', 100) || '',
+      companyName: fitVarchar(c.CompanyName, 255),
+      email: fitVarchar(c.PrimaryEmailAddr?.Address, 255),
+      phone: fitVarchar(c.PrimaryPhone?.FreeFormNumber, 50),
       addressLine1: addr.Line1 || null,
       addressLine2: addr.Line2 || null,
-      city: addr.City || null,
-      state: addr.CountrySubDivisionCode || null,
-      zip: addr.PostalCode || null,
+      city: fitVarchar(addr.City, 100) || null,
+      state: fitVarchar(addr.CountrySubDivisionCode, 50) || null,
+      zip: fitVarchar(addr.PostalCode, 20) || null,
       source: 'quickbooks',
       isActive: c.Active !== false,
       lastSyncedAt: now,
@@ -185,7 +199,14 @@ export async function persistCustomersToDb(orgId: string, qbCustomers: QBCustome
       }).returning({ id: customers.id });
       written += ret.length;
     } catch (err) {
-      console.error(`Failed bulk-persist customers (chunk ${part.length}):`, err);
+      const summary = databaseErrorSummary(err);
+      console.error('[quickbooks-sync] customer batch failed', {
+        count: part.length,
+        firstQbId: part[0]?.qbCustomerId,
+        lastQbId: part.at(-1)?.qbCustomerId,
+        error: summary,
+      });
+      throw new Error(`Could not save a QuickBooks customer batch: ${summary}`);
     }
   }
   return written;
@@ -198,11 +219,11 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
     if (!i.Id) return [];
     return [{
       orgId,
-      qbItemId: i.Id,
-      name: i.Name || i.FullyQualifiedName || `QB Item ${i.Id}`,
-      sku: i.Sku,
+      qbItemId: fitVarchar(i.Id, 50) as string,
+      name: fitVarchar(i.Name || i.FullyQualifiedName || `QB Item ${i.Id}`, 255) as string,
+      sku: fitVarchar(i.Sku, 100),
       description: i.Description,
-      category: i.Type === 'Service' ? 'service' : i.Type?.toLowerCase(),
+      category: fitVarchar(i.Type === 'Service' ? 'service' : i.Type?.toLowerCase(), 100),
       unitPrice: typeof i.UnitPrice === 'number' ? String(i.UnitPrice) : null,
       cost: typeof i.PurchaseCost === 'number' ? String(i.PurchaseCost) : null,
       quantityOnHand: typeof i.QtyOnHand === 'number' ? Math.floor(i.QtyOnHand) : 0,
@@ -234,7 +255,14 @@ export async function persistItemsToDb(orgId: string, qbItems: QBItem[]): Promis
       }).returning({ id: inventoryItems.id });
       written += ret.length;
     } catch (err) {
-      console.error(`Failed bulk-persist items (chunk ${part.length}):`, err);
+      const summary = databaseErrorSummary(err);
+      console.error('[quickbooks-sync] item batch failed', {
+        count: part.length,
+        firstQbId: part[0]?.qbItemId,
+        lastQbId: part.at(-1)?.qbItemId,
+        error: summary,
+      });
+      throw new Error(`Could not save a QuickBooks item batch: ${summary}`);
     }
   }
   return written;
@@ -247,24 +275,24 @@ export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): 
     if (!v.Id) return [];
     return [{
       orgId,
-      qbVendorId: v.Id,
-      displayName: v.DisplayName || v.CompanyName || `Vendor ${v.Id}`,
-      companyName: v.CompanyName,
-      firstName: v.GivenName,
-      lastName: v.FamilyName,
-      email: v.PrimaryEmailAddr?.Address,
-      phone: v.PrimaryPhone?.FreeFormNumber,
-      phoneAlt: v.AlternatePhone?.FreeFormNumber,
-      website: v.WebAddr?.URI,
+      qbVendorId: fitVarchar(v.Id, 50) as string,
+      displayName: fitVarchar(v.DisplayName || v.CompanyName || `Vendor ${v.Id}`, 255) as string,
+      companyName: fitVarchar(v.CompanyName, 255),
+      firstName: fitVarchar(v.GivenName, 100),
+      lastName: fitVarchar(v.FamilyName, 100),
+      email: fitVarchar(v.PrimaryEmailAddr?.Address, 255),
+      phone: fitVarchar(v.PrimaryPhone?.FreeFormNumber, 50),
+      phoneAlt: fitVarchar(v.AlternatePhone?.FreeFormNumber, 50),
+      website: fitVarchar(v.WebAddr?.URI, 255),
       addressLine1: v.BillAddr?.Line1,
       addressLine2: v.BillAddr?.Line2,
-      city: v.BillAddr?.City,
-      state: v.BillAddr?.CountrySubDivisionCode,
-      zip: v.BillAddr?.PostalCode,
-      accountNumber: v.AcctNum,
-      taxId: v.TaxIdentifier,
+      city: fitVarchar(v.BillAddr?.City, 100),
+      state: fitVarchar(v.BillAddr?.CountrySubDivisionCode, 50),
+      zip: fitVarchar(v.BillAddr?.PostalCode, 20),
+      accountNumber: fitVarchar(v.AcctNum, 255),
+      taxId: fitVarchar(v.TaxIdentifier, 100),
       is1099: v.Vendor1099 === true,
-      paymentTerms: v.TermRef?.name,
+      paymentTerms: fitVarchar(v.TermRef?.name, 255),
       balance: typeof v.Balance === 'number' ? String(v.Balance) : '0',
       isActive: v.Active !== false,
       lastSyncedAt: now,
@@ -303,7 +331,14 @@ export async function persistVendorsToDb(orgId: string, qbVendors: QBVendor[]): 
       }).returning({ id: vendors.id });
       written += ret.length;
     } catch (err) {
-      console.error(`Failed bulk-persist vendors (chunk ${part.length}):`, err);
+      const summary = databaseErrorSummary(err);
+      console.error('[quickbooks-sync] vendor batch failed', {
+        count: part.length,
+        firstQbId: part[0]?.qbVendorId,
+        lastQbId: part.at(-1)?.qbVendorId,
+        error: summary,
+      });
+      throw new Error(`Could not save a QuickBooks vendor batch: ${summary}`);
     }
   }
   return written;
@@ -398,8 +433,8 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
     return [{
       orgId,
       customerId: localCustomerId,
-      qbInvoiceId: inv.Id,
-      invoiceNumber: inv.DocNumber || inv.Id,
+      qbInvoiceId: fitVarchar(inv.Id, 50) as string,
+      invoiceNumber: fitVarchar(inv.DocNumber || inv.Id, 20) as string,
       status: deriveInvoiceStatus(inv),
       issueDate: inv.TxnDate,
       dueDate: inv.DueDate,
@@ -449,7 +484,7 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
     );
     return lineRows.map((l, idx) => ({
       invoiceId: localId,
-      qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
+      qbItemId: fitVarchar(l.SalesItemLineDetail?.ItemRef?.value, 50),
       description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
       quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
       unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
@@ -489,9 +524,9 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
         out.push({
           orgId,
           invoiceId: localInvoiceId,
-          qbPaymentId: pmt.Id,
+          qbPaymentId: fitVarchar(pmt.Id, 50) as string,
           amount: String(ln.Amount ?? 0),
-          paymentMethod: pmt.PaymentMethodRef?.name?.toLowerCase(),
+          paymentMethod: fitVarchar(pmt.PaymentMethodRef?.name?.toLowerCase(), 50),
           paidAt: pmt.TxnDate ? new Date(pmt.TxnDate) : now,
         });
       }
@@ -517,7 +552,14 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
       }).returning({ id: payments.id });
       written += ret.length;
     } catch (err) {
-      console.error(`Failed to bulk-persist ${part.length} payments:`, err);
+      const summary = databaseErrorSummary(err);
+      console.error('[quickbooks-sync] payment batch failed', {
+        count: part.length,
+        firstQbId: part[0]?.qbPaymentId,
+        lastQbId: part.at(-1)?.qbPaymentId,
+        error: summary,
+      });
+      throw new Error(`Could not save a QuickBooks payment batch: ${summary}`);
     }
   }
   return written;
@@ -554,8 +596,8 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
     return [{
       orgId,
       customerId: localCustomerId,
-      qbEstimateId: est.Id,
-      estimateNumber: est.DocNumber || est.Id,
+      qbEstimateId: fitVarchar(est.Id, 50) as string,
+      estimateNumber: fitVarchar(est.DocNumber || est.Id, 30),
       status: deriveEstimateStatus(est),
       issueDate: est.TxnDate,
       expirationDate: est.ExpirationDate,
@@ -565,8 +607,8 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
       totalAmount: String(totalAmount),
       customerMemo: est.CustomerMemo?.value,
       privateNote: est.PrivateNote,
-      emailStatus: est.EmailStatus,
-      billEmail: est.BillEmail?.Address,
+      emailStatus: fitVarchar(est.EmailStatus, 50),
+      billEmail: fitVarchar(est.BillEmail?.Address, 255),
       lastSyncedAt: now,
       updatedAt: now,
     }];
@@ -612,7 +654,7 @@ export async function persistEstimatesToDb(orgId: string, qbEstimates: QBEstimat
     );
     return lineRows.map((l, idx) => ({
       estimateId: localId,
-      qbItemId: l.SalesItemLineDetail?.ItemRef?.value,
+      qbItemId: fitVarchar(l.SalesItemLineDetail?.ItemRef?.value, 50),
       description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
       quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
       unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
@@ -651,8 +693,8 @@ export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchase
     return [{
       orgId,
       vendorId: localVendorId,
-      qbPurchaseOrderId: po.Id,
-      poNumber: po.DocNumber || po.Id,
+      qbPurchaseOrderId: fitVarchar(po.Id, 50) as string,
+      poNumber: fitVarchar(po.DocNumber || po.Id, 30),
       status: (po.POStatus === 'Closed' ? 'closed' : 'open') as 'open' | 'closed',
       issueDate: po.TxnDate,
       expectedDate: po.DueDate,
@@ -662,7 +704,7 @@ export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchase
       shipAddress: shipAddr,
       vendorMessage: po.Memo,
       privateNote: po.PrivateNote,
-      emailStatus: po.EmailStatus,
+      emailStatus: fitVarchar(po.EmailStatus, 50),
       lastSyncedAt: now,
       updatedAt: now,
     }];
@@ -710,8 +752,8 @@ export async function persistPurchaseOrdersToDb(orgId: string, qbPOs: QBPurchase
       const acctDetail = l.AccountBasedExpenseLineDetail;
       return {
         purchaseOrderId: localId,
-        qbItemId: itemDetail?.ItemRef?.value,
-        qbAccountId: acctDetail?.AccountRef?.value,
+        qbItemId: fitVarchar(itemDetail?.ItemRef?.value, 50),
+        qbAccountId: fitVarchar(acctDetail?.AccountRef?.value, 50),
         description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
         quantity: String(itemDetail?.Qty ?? 1),
         unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
@@ -760,8 +802,8 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
     return [{
       orgId,
       vendorId: localVendorId,
-      qbBillId: bill.Id,
-      billNumber: bill.DocNumber || `QB-${bill.Id}`,
+      qbBillId: fitVarchar(bill.Id, 50) as string,
+      billNumber: fitVarchar(bill.DocNumber || `QB-${bill.Id}`, 30),
       status: deriveBillStatus(bill),
       issueDate: bill.TxnDate,
       dueDate: bill.DueDate,
@@ -770,7 +812,7 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
       totalAmount: String(totalAmount),
       balance: String(balance),
       privateNote: bill.PrivateNote,
-      paymentTerms: bill.SalesTermRef?.name,
+      paymentTerms: fitVarchar(bill.SalesTermRef?.name, 100),
       lastSyncedAt: now,
       updatedAt: now,
     }];
@@ -819,8 +861,8 @@ export async function persistBillsToDb(orgId: string, qbBills: QBBill[]): Promis
       const customerRef = itemDetail?.CustomerRef?.value || acctDetail?.CustomerRef?.value;
       return {
         billId: localId,
-        qbItemId: itemDetail?.ItemRef?.value,
-        qbAccountId: acctDetail?.AccountRef?.value,
+        qbItemId: fitVarchar(itemDetail?.ItemRef?.value, 50),
+        qbAccountId: fitVarchar(acctDetail?.AccountRef?.value, 50),
         description: l.Description || itemDetail?.ItemRef?.name || acctDetail?.AccountRef?.name || 'Item',
         quantity: String(itemDetail?.Qty ?? 1),
         unitCost: String(itemDetail?.UnitPrice ?? l.Amount ?? 0),
