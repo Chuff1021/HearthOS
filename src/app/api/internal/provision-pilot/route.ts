@@ -76,15 +76,15 @@ export async function POST(request: NextRequest) {
     externalId: "hearthos-demo-ltrush",
     privateMetadata: { hearthosDemoUsername: PILOT.username },
   });
-  if (existingUsers.data[0]) {
-    await client.users.updateUser(clerkUser.id, {
-      password: body.password,
-      firstName: "LT Rush",
-      lastName: "Demo",
-      privateMetadata: { hearthosDemoUsername: PILOT.username },
-      signOutOfOtherSessions: true,
-    });
-  }
+  await client.users.updateUser(clerkUser.id, {
+    password: body.password,
+    firstName: "LT Rush",
+    lastName: "Demo",
+    privateMetadata: { hearthosDemoUsername: PILOT.username },
+    signOutOfOtherSessions: true,
+    createOrganizationEnabled: false,
+    createOrganizationsLimit: 0,
+  });
 
   await client.instance.updateOrganizationSettings({
     enabled: true,
