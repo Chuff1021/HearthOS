@@ -108,7 +108,7 @@ export default function DemoLanding() {
   return (
     <main className="launch-site">
       <header className="launch-nav">
-        <Link href="/demo" className="launch-brand" aria-label="HearthOS home">
+        <Link href="/" className="launch-brand" aria-label="HearthOS home">
           <FlameLogo size={36} />
           <strong>HearthOS</strong>
         </Link>
