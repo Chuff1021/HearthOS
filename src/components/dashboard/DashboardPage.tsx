@@ -1,5 +1,6 @@
 "use client";
 
+import { useOrganization } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
@@ -162,8 +163,10 @@ const fmtMoneyShort = (n: number) => {
 
 const todayIso = () => new Date().toISOString().split("T")[0];
 
-function greetingFor(date: Date) {
-  const hour = date.getHours();
+function greetingFor(date: Date, timeZone?: string) {
+  const hour = timeZone
+    ? Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone }).format(date))
+    : date.getHours();
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
@@ -179,6 +182,7 @@ function relativeDate(value: string | null | undefined) {
 }
 
 export default function DashboardPage() {
+  const { isLoaded: isOrganizationLoaded, organization } = useOrganization();
   const features = useOrganizationFeatures();
   const [now, setNow] = useState(() => new Date());
   const [profit, setProfit] = useState<ProfitResp | null>(null);
@@ -261,6 +265,9 @@ export default function DashboardPage() {
   const customerItems = cust?.items || [];
   const atRisk = customerItems.filter((item) => item.balance > 0).slice(0, 3);
   const topRevenue = [...customerItems].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 4);
+  const isLtRushDemo = organization?.name === "L.T. Rush Stone Inc";
+  const greetingName = !isOrganizationLoaded ? "" : isLtRushDemo ? "LT Rush" : "Colton";
+  const greetingTimeZone = isLtRushDemo ? "America/New_York" : undefined;
 
   return (
     <div className="app-chrome flex h-screen overflow-hidden">
@@ -272,10 +279,16 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div className="min-w-0 flex-1 basis-[220px]">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-text-muted)" }}>
-                  {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                  {now.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    timeZone: greetingTimeZone,
+                  })}
                 </p>
                 <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight md:text-[2.35rem]">
-                  {greetingFor(now)}, Colton.
+                  {greetingFor(now, greetingTimeZone)}{greetingName ? `, ${greetingName}` : ""}.
                 </h1>
               </div>
               <Link href="/jobs/new" className="ui-btn-primary hidden shrink-0 items-center gap-2 px-4 py-3 text-sm sm:inline-flex">
