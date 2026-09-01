@@ -14,6 +14,7 @@ const PILOT_ORGANIZATION_SLUG = "lt-rush-stone";
 const PILOT_ACCOUNTS = {
   LTRUSH: {
     email: "ltrush@demo.hearthos.app",
+    phone: "+12025550195",
     firstName: "LT Rush",
     lastName: "Demo",
     externalId: "hearthos-demo-ltrush",
@@ -24,6 +25,7 @@ const PILOT_ACCOUNTS = {
   },
   LTTECH: {
     email: "lttech@demo.hearthos.app",
+    phone: "+12025550196",
     firstName: "Caleb",
     lastName: "Demo",
     externalId: "hearthos-demo-lttech",
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
   const existingUsers = await client.users.getUserList({ emailAddress: [pilot.email], limit: 2 });
   const user = existingUsers.data[0] || await client.users.createUser({
     emailAddress: [pilot.email],
+    phoneNumber: [pilot.phone],
     password: expectedPassword,
     firstName: pilot.firstName,
     lastName: pilot.lastName,
