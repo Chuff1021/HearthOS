@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  try {
   const client = await clerkClient();
   const [organization] = await db
     .select()
@@ -184,4 +185,22 @@ export async function POST(request: NextRequest) {
     { ticket: signInToken.token, destination: pilot.destination },
     { headers: { "Cache-Control": "no-store" } },
   );
+  } catch (error) {
+    const clerkError = error as {
+      status?: number;
+      errors?: Array<{ code?: string; message?: string; longMessage?: string }>;
+    };
+    const details = (clerkError.errors || []).map((item) => ({
+      code: item.code || "unknown",
+      message: item.longMessage || item.message || "Demo account preparation failed",
+    }));
+    console.error("Demo account preparation failed", {
+      status: clerkError.status,
+      details,
+    });
+    return NextResponse.json(
+      { error: "The demo workspace is temporarily unavailable", code: details[0]?.code || "preparation_failed" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 }
