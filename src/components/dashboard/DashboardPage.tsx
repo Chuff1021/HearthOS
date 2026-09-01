@@ -91,7 +91,7 @@ type DispatchTech = {
   color?: string;
   jobsToday: number;
   jobsDone: number;
-  location?: { lat: number; lng: number; timestamp: string; accuracy?: number } | null;
+  location?: { lat: number; lng: number; timestamp: string; accuracy?: number; demo?: boolean } | null;
   currentJob?: { id: string; title: string; customer: string; address?: string } | null;
   nextJob?: { id: string; title: string; customer: string; scheduledTime: string; address?: string } | null;
 };
@@ -558,11 +558,11 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
       </div>
 
       <div className="grid gap-4">
-        <div className="liquid-map-stage relative min-h-[430px] overflow-hidden rounded-[1.55rem] border border-white/80">
+        <div className="premium-tracking-map liquid-map-stage relative min-h-[430px] overflow-hidden rounded-[1.55rem] border border-white/80">
           <OperationsLeafletMap techs={techs} jobs={jobs} />
           <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-[450] flex flex-wrap items-center gap-2">
             <span className="map-glass-chip"><Navigation size={14} /> {jobs.length} jobs today</span>
-            <span className="map-glass-chip"><Radio size={14} /> {techs.filter((tech) => tech.location).length} live GPS</span>
+            <span className="map-glass-chip"><Radio size={14} /> {techs.filter((tech) => tech.location && !tech.location.demo).length} live GPS</span>
             <span className="map-glass-chip"><Route size={14} /> Route load synced</span>
           </div>
         </div>

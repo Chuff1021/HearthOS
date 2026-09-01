@@ -12,9 +12,16 @@ function firstName(name: string) {
   return String(name || '').trim().toLowerCase().split(/\s+/)[0] || '';
 }
 
+const LT_RUSH_DEMO_LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  "72000000-0000-4000-8000-000000000001": { lat: 39.75592, lng: -77.57777 },
+  "72000000-0000-4000-8000-000000000002": { lat: 39.74905, lng: -77.58942 },
+  "72000000-0000-4000-8000-000000000003": { lat: 39.79046, lng: -77.72777 },
+  "72000000-0000-4000-8000-000000000004": { lat: 39.84148, lng: -77.55943 },
+};
+
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission("schedule:read");
+    const tenant = await requirePermission("schedule:read");
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
 
@@ -31,13 +38,16 @@ export async function GET(request: NextRequest) {
       );
       const isGenericName = /\bservice\s*tech(?:nician)?\b/i.test(t.name || '');
       const resolvedName = (isGenericName && loc?.techName) ? loc.techName : t.name;
+      const demoLocation = tenant.organization.slug === "lt-rush-stone"
+        ? LT_RUSH_DEMO_LOCATIONS[t.id]
+        : undefined;
       return {
         id: t.id,
         name: resolvedName,
         color: t.color,
         initials: t.initials,
         status: t.active ? "available" : "offline",
-        lastUpdate: loc?.timestamp || "No location yet",
+        lastUpdate: loc?.timestamp || (demoLocation ? "Demo position" : "No location yet"),
         location: loc
           ? {
               lat: loc.lat,
@@ -45,8 +55,17 @@ export async function GET(request: NextRequest) {
               accuracy: loc.accuracy,
               timestamp: loc.timestamp,
               techName: loc.techName,
+              demo: false,
             }
-          : null,
+          : demoLocation
+            ? {
+                ...demoLocation,
+                accuracy: 0,
+                timestamp: new Date().toISOString(),
+                techName: resolvedName,
+                demo: true,
+              }
+            : null,
       };
     });
 
@@ -84,6 +103,7 @@ export async function GET(request: NextRequest) {
           accuracy: l.accuracy,
           timestamp: l.timestamp,
           techName: l.techName,
+          demo: false,
         },
       }));
 

@@ -67,6 +67,7 @@ export default function DemoCredentialSignIn() {
       <div className="mb-5">
         <p className="text-[11px] font-semibold uppercase text-[#e95519]">Demo workspace</p>
         <h2 className="mt-1.5 text-lg font-semibold text-slate-950">Sign in with your demo username</h2>
+        <p className="mt-2 text-xs text-slate-500">Office: LTRUSH <span className="mx-1 text-slate-300">|</span> Technician: LTTECH</p>
       </div>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">

@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import FlameLogo from "@/components/FlameLogo";
 
-const DEMO_EMAIL = "ltrush@demo.hearthos.app";
 const DEMO_ORGANIZATION_NAME = "L.T. Rush Stone Inc";
+const DEMO_DESTINATIONS: Record<string, string> = {
+  "ltrush@demo.hearthos.app": "/",
+  "lttech@demo.hearthos.app": "/tech",
+};
 
 export default function DemoWorkspaceRedirect() {
   const { isLoaded: isUserLoaded, user } = useUser();
@@ -24,6 +27,7 @@ export default function DemoWorkspaceRedirect() {
   const activationStarted = useRef(false);
   const [error, setError] = useState("");
   const email = user?.primaryEmailAddress?.emailAddress.toLowerCase();
+  const destination = email ? DEMO_DESTINATIONS[email] : undefined;
   const organizationId = memberships?.find(
     (item) => item.organization.name === DEMO_ORGANIZATION_NAME,
   )?.organization.id;
@@ -33,7 +37,7 @@ export default function DemoWorkspaceRedirect() {
     && !membershipsLoading
     && !membershipsFetching
     && (
-      email !== DEMO_EMAIL
+      !destination
         ? "This sign-in is not connected to the LT Rush demo workspace."
         : !organizationId && !hasNextPage
           ? "The LT Rush demo organization is not attached to this login yet."
@@ -43,13 +47,13 @@ export default function DemoWorkspaceRedirect() {
 
   useEffect(() => {
     if (!isLoaded || !isUserLoaded || membershipsLoading || activationStarted.current) return;
-    if (email !== DEMO_EMAIL) return;
+    if (!destination) return;
 
     if (organizationId) {
       activationStarted.current = true;
       void setActive({
         organization: organizationId,
-        redirectUrl: "/",
+        redirectUrl: destination,
       }).catch(() => {
         activationStarted.current = false;
         setError("We could not open the LT Rush workspace. Please try signing in again.");
@@ -62,7 +66,7 @@ export default function DemoWorkspaceRedirect() {
       return;
     }
 
-  }, [email, fetchNext, hasNextPage, isLoaded, isUserLoaded, membershipsFetching, membershipsLoading, organizationId, setActive]);
+  }, [destination, fetchNext, hasNextPage, isLoaded, isUserLoaded, membershipsFetching, membershipsLoading, organizationId, setActive]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f5f6f8] px-4 text-slate-950">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useOrganization } from "@clerk/nextjs";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -18,7 +19,7 @@ type Tech = {
   nextJob: { id: string; title: string; customer: string; address?: string; scheduledTime: string } | null;
   jobsToday: number;
   jobsDone: number;
-  location?: { lat: number; lng: number; accuracy?: number; timestamp: string; techName?: string } | null;
+  location?: { lat: number; lng: number; accuracy?: number; timestamp: string; techName?: string; demo?: boolean } | null;
 };
 
 type UnassignedJob = {
@@ -36,7 +37,13 @@ type MileageSummary = {
   monthMiles: number;
 };
 
+const DEFAULT_MAP_CENTER: [number, number] = [37.2089, -93.2923];
+const LT_RUSH_MAP_CENTER: [number, number] = [39.75592, -77.57777];
+
 export default function DispatchPage() {
+  const { isLoaded: isOrganizationLoaded, organization } = useOrganization();
+  const isLtRush = organization?.name === "L.T. Rush Stone Inc";
+  const mapCenter = isLtRush ? LT_RUSH_MAP_CENTER : DEFAULT_MAP_CENTER;
   const [techs, setTechs] = useState<Tech[]>([]);
   const [unassignedJobs, setUnassignedJobs] = useState<UnassignedJob[]>([]);
   const [selectedTechId, setSelectedTechId] = useState<string>("");
@@ -55,8 +62,9 @@ export default function DispatchPage() {
   const [loadingMileage, setLoadingMileage] = useState(false);
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
-  const liveTechs = techs.filter((t) => t.location);
-  const selectedLocation = selectedTech?.location || liveTechs[0]?.location || null;
+  const plottedTechs = techs.filter((t) => t.location);
+  const liveTechs = plottedTechs.filter((t) => !t.location?.demo);
+  const selectedLocation = selectedTech?.location || plottedTechs[0]?.location || null;
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -191,23 +199,22 @@ export default function DispatchPage() {
     loadDispatch();
     const t = setInterval(loadDispatch, 5000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initMap() {
-      if (!mapContainerRef.current || mapRef.current) return;
+      if (!isOrganizationLoaded || !mapContainerRef.current || mapRef.current) return;
       const L = await import('leaflet');
       await import('leaflet.markercluster');
       if (cancelled || !mapContainerRef.current) return;
 
       const map = L.map(mapContainerRef.current, {
         zoomControl: true,
-      }).setView([37.2089, -93.2923], 11);
+      }).setView(mapCenter, isLtRush ? 10 : 11);
 
-      const initialTile = createTrackingTileLayer(L, mapStyle).addTo(map);
+      const initialTile = createTrackingTileLayer(L, 'street').addTo(map);
 
       tileLayerRef.current = initialTile;
       const clusterFactory = (L as any).markerClusterGroup;
@@ -244,7 +251,7 @@ export default function DispatchPage() {
         routeLineRef.current = null;
       }
     };
-  }, []);
+  }, [isLtRush, isOrganizationLoaded, mapCenter]);
 
   useEffect(() => {
     const ctx = mapRef.current;
@@ -273,7 +280,7 @@ export default function DispatchPage() {
       else map.removeLayer(marker);
     };
 
-    const ids = new Set(liveTechs.map((t) => t.id));
+    const ids = new Set(plottedTechs.map((t) => t.id));
 
     for (const [id, marker] of markersRef.current.entries()) {
       if (!ids.has(id)) {
@@ -282,7 +289,7 @@ export default function DispatchPage() {
       }
     }
 
-    for (const t of liveTechs) {
+    for (const t of plottedTechs) {
       const active = t.id === selectedTechId;
       const color = active ? '#f8971f' : '#2563EB';
       const initials = deriveInitials(displayTechName(t), t.initials);
@@ -295,23 +302,25 @@ export default function DispatchPage() {
         existing.setIcon(icon);
       } else {
         const marker = L.marker(latlng, { icon })
-          .bindTooltip(`${displayTechName(t)} · ${formatAge(t.location!.timestamp)} · ±${Math.round(t.location!.accuracy || 0)}m`);
+          .bindTooltip(t.location!.demo
+            ? `${displayTechName(t)} · demo position`
+            : `${displayTechName(t)} · ${formatAge(t.location!.timestamp)} · ±${Math.round(t.location!.accuracy || 0)}m`);
         addLayer(marker);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
       }
     }
 
-    if (!hasAutoFitRef.current && liveTechs.length > 0) {
-      if (liveTechs.length === 1) {
-        map.setView([liveTechs[0].location!.lat, liveTechs[0].location!.lng], 13);
+    if (!hasAutoFitRef.current && plottedTechs.length > 0) {
+      if (plottedTechs.length === 1) {
+        map.setView([plottedTechs[0].location!.lat, plottedTechs[0].location!.lng], 13);
       } else {
-        const bounds = L.latLngBounds(liveTechs.map((t) => [t.location!.lat, t.location!.lng] as [number, number]));
+        const bounds = L.latLngBounds(plottedTechs.map((t) => [t.location!.lat, t.location!.lng] as [number, number]));
         map.fitBounds(bounds, { padding: [40, 40] });
       }
       hasAutoFitRef.current = true;
     }
-  }, [liveTechs, selectedTechId, mapReadyTick]);
+  }, [plottedTechs, selectedTechId, mapReadyTick]);
 
   useEffect(() => {
     if (!selectedTechId) return;
@@ -443,9 +452,9 @@ export default function DispatchPage() {
           <div className="xl:col-span-2 rounded-3xl p-5 glass-panel" style={{ border: '1px solid rgba(255,255,255,0.72)' }}>
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
+                <h2 className="font-semibold">Dispatch Map</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                  {mapboxProviderLabel()} · {hasMapboxTiles() ? 'high-detail employee tracking map' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
+                  {mapboxProviderLabel()} · {isLtRush ? 'Waynesboro, PA service area' : hasMapboxTiles() ? 'high-detail employee tracking map' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -465,16 +474,21 @@ export default function DispatchPage() {
             <div className="premium-tracking-map liquid-map-stage h-[480px] overflow-hidden rounded-[1.7rem] relative">
               <div ref={mapContainerRef} className="absolute inset-0 ops-map-canvas" />
               <div className="ops-map-glass" />
-              {liveTechs.length === 0 && (
+              {plottedTechs.length === 0 && (
                 <div className="absolute inset-0 z-[430] flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
                   No live GPS pings yet. Techs need to clock in on their phone app to start GPS tracking.
+                </div>
+              )}
+              {plottedTechs.length > 0 && liveTechs.length === 0 && (
+                <div className="map-glass-chip absolute bottom-4 left-4 z-[450] rounded-2xl px-3 py-2 text-xs font-semibold">
+                  Demo team positions · live GPS starts when a tech clocks in
                 </div>
               )}
             </div>
             {selectedLocation && (
               <div className="mt-2 text-xs space-y-1" style={{ color: 'var(--color-text-muted)' }}>
                 <div>
-                  Tracking: {selectedTech ? displayTechName(selectedTech) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                  {selectedLocation.demo ? 'Demo position' : 'Tracking'}: {selectedTech ? displayTechName(selectedTech) : 'Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
                 </div>
                 <div>
                   {selectedTech?.nextJob?.address ? `Route line to next job: ${selectedTech.nextJob.address}` : 'No next-job route available'}
@@ -510,8 +524,8 @@ export default function DispatchPage() {
                     <div key={t.id} className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                       <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>{displayTechName(t)}:</span>{' '}
                       {t.location
-                        ? <span style={{ color: stale ? '#F59E0B' : 'inherit' }}>
-                            {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)} · {formatAge(t.location.timestamp)}
+                        ? <span style={{ color: t.location.demo ? '#C2410C' : stale ? '#F59E0B' : 'inherit' }}>
+                            {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)} · {t.location.demo ? 'Demo position' : formatAge(t.location.timestamp)}
                           </span>
                         : 'No GPS ping'}
                     </div>

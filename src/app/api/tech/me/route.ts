@@ -4,6 +4,7 @@ import { getJobs } from "@/app/api/jobs/route";
 import { getLatestLocationsByTech, getMileageSummary } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
 import { getOpenTimeEntry } from "@/lib/time-entry-store";
+import { getTodos } from "@/lib/todos";
 
 function normalize(value: string | undefined | null) {
   return String(value || "").trim().toLowerCase();
@@ -147,7 +148,11 @@ export async function GET(request: NextRequest) {
       });
 
     const todaysJobs = jobs.filter((job) => job.scheduledDate === today);
-    const openEntry = await getOpenTimeEntry([effectiveTech.id, user.id]);
+    const [openEntry, assignedTodos] = await Promise.all([
+      getOpenTimeEntry([effectiveTech.id, user.id]),
+      getTodos({ assignedTo: effectiveTech.id }),
+    ]);
+    const openTodos = assignedTodos.filter((todo) => !["completed", "cancelled"].includes(todo.status));
 
     const latestLocation =
       latestLocations.find((entry) => entry.techId === effectiveTech.id) ||
@@ -180,6 +185,7 @@ export async function GET(request: NextRequest) {
       isOwner,
       jobs,
       todaysJobs,
+      todos: openTodos,
       activeJob,
       clockEntry: openEntry,
       latestLocation,
@@ -187,6 +193,7 @@ export async function GET(request: NextRequest) {
         jobsToday: todaysJobs.length,
         jobsCompletedToday: completedToday,
         upcomingJobs: jobs.filter((job) => job.status === "scheduled").length,
+        openTodos: openTodos.length,
         milesToday: mileage.dayMiles,
         milesWeek: mileage.weekMiles,
         milesMonth: mileage.monthMiles,

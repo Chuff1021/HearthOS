@@ -23,6 +23,17 @@ type TechJob = {
   };
 };
 
+type TechTodo = {
+  id: string;
+  title: string;
+  description?: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  dueDate?: string;
+  relatedCustomerName?: string;
+  relatedJobNumber?: string;
+};
+
 type TechSession = {
   tech: {
     id: string;
@@ -30,6 +41,7 @@ type TechSession = {
     email: string;
   };
   jobs: TechJob[];
+  todos: TechTodo[];
   activeJob: TechJob | null;
   clockEntry: {
     id: string;
@@ -43,6 +55,7 @@ type TechSession = {
     jobsToday: number;
     jobsCompletedToday: number;
     upcomingJobs: number;
+    openTodos: number;
     milesToday?: number;
   };
 };
@@ -177,6 +190,26 @@ export default function TechApp() {
     }
   };
 
+  const handleTodoStatus = async (todo: TechTodo) => {
+    setBusyAction(`todo-${todo.id}`);
+    try {
+      const res = await fetch("/api/todos", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: todo.id,
+          status: todo.status === "in_progress" ? "completed" : "in_progress",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      await loadSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update task");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const isClockedIn = !!session?.clockEntry;
 
   // Re-fetch session when app returns from background (tab switch, phone lock, etc.)
@@ -188,7 +221,7 @@ export default function TechApp() {
     }
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen pb-32">
@@ -295,6 +328,48 @@ export default function TechApp() {
             </div>
           </div>
         </div>
+
+        <section className="rounded-2xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-subtle)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Assigned Tasks</h2>
+              <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Office to-dos assigned to your technician record.</p>
+            </div>
+            <span className="inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-semibold" style={{ background: "rgba(255,106,0,0.10)", color: "#C2410C" }}>
+              {session?.stats.openTodos ?? 0}
+            </span>
+          </div>
+          {(session?.todos || []).length ? (
+            <div className="mt-3 space-y-2">
+              {session!.todos.map((todo) => (
+                <div key={todo.id} className="rounded-xl p-3" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{todo.title}</p>
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        {[todo.relatedCustomerName, todo.relatedJobNumber, todo.dueDate ? `Due ${todo.dueDate}` : ""].filter(Boolean).join(" | ") || "General field task"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTodoStatus(todo)}
+                      disabled={busyAction === `todo-${todo.id}`}
+                      className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                      style={{
+                        background: todo.status === "in_progress" ? "rgba(22,163,74,0.14)" : "rgba(255,106,0,0.12)",
+                        color: todo.status === "in_progress" ? "#15803D" : "#C2410C",
+                      }}
+                    >
+                      {busyAction === `todo-${todo.id}` ? "Saving..." : todo.status === "in_progress" ? "Complete" : "Start"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 rounded-xl px-3 py-4 text-center text-xs" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>No tasks assigned right now.</p>
+          )}
+        </section>
 
         <div>
           <div className="flex items-center justify-between mb-3">

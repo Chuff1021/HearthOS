@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { useOrganization } from "@clerk/nextjs";
 import "leaflet/dist/leaflet.css";
 import { createTrackingTileLayer, mapboxProviderLabel } from "@/lib/mapbox";
 
@@ -12,7 +13,7 @@ type DispatchTech = {
   color?: string;
   jobsToday: number;
   jobsDone: number;
-  location?: { lat: number; lng: number; timestamp: string; accuracy?: number } | null;
+  location?: { lat: number; lng: number; timestamp: string; accuracy?: number; demo?: boolean } | null;
   currentJob?: { id: string; title: string; customer: string; address?: string } | null;
   nextJob?: { id: string; title: string; customer: string; scheduledTime: string; address?: string } | null;
 };
@@ -30,6 +31,9 @@ type Props = {
   techs: DispatchTech[];
   jobs: Job[];
 };
+
+const DEFAULT_CENTER = { lat: 37.2089, lng: -93.2923 };
+const LT_RUSH_CENTER = { lat: 39.75592, lng: -77.57777 };
 
 function cleanInitials(name: string, fallback?: string) {
   const parts = String(name || "")
@@ -71,8 +75,7 @@ function markerHtml(tech: DispatchTech, active: boolean) {
   `;
 }
 
-function fallbackPositions(techs: DispatchTech[]) {
-  const center = { lat: 37.2089, lng: -93.2923 };
+function fallbackPositions(techs: DispatchTech[], center: { lat: number; lng: number }) {
   const offsets = [
     [0.035, -0.07],
     [0.06, -0.01],
@@ -93,6 +96,9 @@ function fallbackPositions(techs: DispatchTech[]) {
 }
 
 export default function OperationsLeafletMap({ techs, jobs }: Props) {
+  const { isLoaded: isOrganizationLoaded, organization } = useOrganization();
+  const isLtRush = organization?.name === "L.T. Rush Stone Inc";
+  const center = isLtRush ? LT_RUSH_CENTER : DEFAULT_CENTER;
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -102,15 +108,20 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
     const live = techs
       .filter((tech) => tech.location)
       .slice(0, 8)
-      .map((tech) => ({ tech, lat: tech.location!.lat, lng: tech.location!.lng, live: true }));
-    return live.length ? live : fallbackPositions(techs);
-  }, [techs]);
+      .map((tech) => ({
+        tech,
+        lat: tech.location!.lat,
+        lng: tech.location!.lng,
+        live: !tech.location!.demo,
+      }));
+    return live.length ? live : fallbackPositions(techs, center);
+  }, [center, techs]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initMap() {
-      if (!mapEl.current || mapRef.current) return;
+      if (!isOrganizationLoaded || !mapEl.current || mapRef.current) return;
       const L = await import("leaflet");
       if (cancelled || !mapEl.current) return;
 
@@ -122,7 +133,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
         doubleClickZoom: false,
         boxZoom: false,
         keyboard: false,
-      }).setView([37.2089, -93.2923], 11);
+      }).setView([center.lat, center.lng], isLtRush ? 10 : 11);
 
       createTrackingTileLayer(L, "street").addTo(map);
 
@@ -138,7 +149,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [center, isLtRush, isOrganizationLoaded]);
 
   useEffect(() => {
     const ctx = mapRef.current;
@@ -154,7 +165,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
 
     const points = markerData.map((item) => [item.lat, item.lng] as [number, number]);
     if (!points.length) {
-      map.setView([37.2089, -93.2923], 11);
+      map.setView([center.lat, center.lng], isLtRush ? 10 : 11);
       return;
     }
 
@@ -167,7 +178,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
         iconAnchor: [47, 34],
       });
       const marker = L.marker(point, { icon }).addTo(map);
-      marker.bindTooltip(escapeHtml(`${item.tech.name}${item.live ? " - live GPS" : " - dispatch view"}`));
+      marker.bindTooltip(escapeHtml(`${item.tech.name}${item.live ? " - live GPS" : " - demo position"}`));
       markersRef.current.push(marker);
     });
 
@@ -186,7 +197,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [52, 52], maxZoom: 12 });
     }
-  }, [markerData]);
+  }, [center, isLtRush, markerData]);
 
   return (
     <div className="ops-map-wrap">
@@ -194,6 +205,7 @@ export default function OperationsLeafletMap({ techs, jobs }: Props) {
       <div className="ops-map-glass" />
       <div className="ops-map-topbar">
         <span>Today</span>
+        {isLtRush ? <span>Waynesboro, PA</span> : null}
         <span>{mapboxProviderLabel()}</span>
         <span>{markerData.filter((item) => item.live).length} live GPS</span>
         <span>{jobs.length} jobs</span>
