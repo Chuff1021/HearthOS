@@ -96,12 +96,15 @@ export async function POST(request: NextRequest) {
     firstName: pilot.firstName,
     lastName: pilot.lastName,
     externalId: pilot.externalId,
+    skipPasswordChecks: true,
+    skipLegalChecks: true,
     privateMetadata: { hearthosDemoUsername: username },
     unsafeMetadata: pilot.membershipRole === "technician" ? { techId: pilot.employeeUserId } : {},
   });
 
   await client.users.updateUser(user.id, {
     password: expectedPassword,
+    skipPasswordChecks: true,
     firstName: pilot.firstName,
     lastName: pilot.lastName,
     privateMetadata: { ...user.privateMetadata, hearthosDemoUsername: username },
