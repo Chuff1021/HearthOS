@@ -11,6 +11,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  CircleDollarSign,
   ClipboardCheck,
   CreditCard,
   FileText,
@@ -55,6 +56,7 @@ const navGroups = [
     items: [
       { label: "Invoices", href: "/invoices", icon: Receipt },
       { label: "Payments", href: "/payments", icon: CreditCard },
+      { label: "Expenses", href: "/expenses", icon: CircleDollarSign },
       { label: "Estimates", href: "/estimates", icon: FileText },
       { label: "Purchase Orders", href: "/purchase-orders", icon: PackageCheck },
     ],

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { ReceiptText } from "lucide-react";
 
-type Tab = "jobs" | "inbox" | "manuals" | "payments" | "gabe" | "profile";
+type Tab = "jobs" | "inbox" | "manuals" | "payments" | "expenses" | "gabe" | "profile";
 
 export default function TechBottomNav({ active }: { active: Tab }) {
   const base = "flex flex-1 flex-col items-center justify-center transition-colors";
@@ -19,7 +20,7 @@ export default function TechBottomNav({ active }: { active: Tab }) {
         boxShadow: "0 -10px 30px rgba(15,23,42,0.08)",
       }}
     >
-      <div className="max-w-md mx-auto flex items-stretch px-2 pt-2">
+      <div className="mx-auto flex max-w-lg items-stretch px-1 pt-2">
         <Link href="/tech" className={`${base} min-h-[60px] rounded-2xl`} style={active === "jobs" ? activeStyle : inactiveStyle}>
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" /></svg>
           <span className="text-xs mt-1">Jobs</span>
@@ -38,6 +39,11 @@ export default function TechBottomNav({ active }: { active: Tab }) {
         <Link href="/tech/payments" className={`${base} min-h-[60px] rounded-2xl`} style={active === "payments" ? activeStyle : inactiveStyle}>
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a5 5 0 00-10 0v2m-2 0h14a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2zm7 4h.01" /></svg>
           <span className="text-xs mt-1">Pay</span>
+        </Link>
+
+        <Link href="/tech/expenses" className={`${base} min-h-[60px] rounded-2xl`} style={active === "expenses" ? activeStyle : inactiveStyle}>
+          <ReceiptText className="h-6 w-6" strokeWidth={2} />
+          <span className="mt-1 text-[10px]">Expenses</span>
         </Link>
 
         <Link href="/tech/profile" className={`${base} min-h-[60px] rounded-2xl`} style={active === "profile" ? activeStyle : inactiveStyle}>
