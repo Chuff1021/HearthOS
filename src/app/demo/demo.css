@@ -897,41 +897,36 @@
 }
 
 .launch-chapters article {
-  min-height: 440px;
-  padding: 31px 34px 36px 0;
+  min-height: 390px;
+  padding: 38px 40px 38px 0;
   border-right: 1px solid var(--launch-line);
 }
 
 .launch-chapters article:nth-child(2) {
-  padding-left: 34px;
+  padding-left: 40px;
 }
 
 .launch-chapters article:last-child {
   padding-right: 0;
-  padding-left: 34px;
+  padding-left: 40px;
   border-right: 0;
 }
 
 .launch-chapter-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.launch-chapter-top > span {
-  color: #95959b;
-  font-family: var(--font-geist-mono);
-  font-size: 11px;
 }
 
 .launch-chapter-top > i {
   display: flex;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: #f5f5f7;
+  border: 1px solid rgba(245, 99, 35, 0.12);
+  border-radius: 8px;
+  background: #f7f7f8;
+  box-shadow: inset 0 1px 0 #ffffff;
   color: var(--launch-orange-dark);
   font-style: normal;
 }
@@ -942,7 +937,7 @@
 
 .launch-chapters h3 {
   max-width: 300px;
-  margin-top: 80px;
+  margin-top: 46px;
   font-size: 31px;
   font-weight: 620;
   line-height: 1.1;
@@ -958,7 +953,7 @@
 
 .launch-chapters small {
   display: block;
-  margin-top: 42px;
+  margin-top: 34px;
   color: #8c8c92;
   font-size: 10px;
 }
@@ -1628,15 +1623,20 @@
 
 .launch-lifecycle {
   display: grid;
-  grid-template-columns: 0.82fr 1.18fr;
+  grid-template-columns: minmax(470px, 0.92fr) minmax(0, 1.08fr);
   align-items: center;
-  gap: 8vw;
-  min-height: 900px;
-  padding: 130px max(5vw, calc((100vw - 1220px) / 2));
+  gap: 72px;
+  min-height: 920px;
+  padding: 140px max(5vw, calc((100vw - 1220px) / 2));
   background:
-    radial-gradient(circle at 80% 10%, rgba(245, 99, 35, 0.1), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(245, 99, 35, 0.12), transparent 30%),
+    linear-gradient(90deg, transparent 0, transparent calc(50% - 1px), rgba(255, 255, 255, 0.025) 50%, transparent calc(50% + 1px)),
     #111315;
   color: white;
+}
+
+.launch-lifecycle-copy {
+  max-width: 520px;
 }
 
 .launch-eyebrow-dark {
@@ -1644,12 +1644,16 @@
 }
 
 .launch-lifecycle-copy h2 {
+  max-width: 520px;
+  margin-top: 20px;
   color: white;
+  font-size: 58px;
+  line-height: 1.02;
 }
 
 .launch-lifecycle-copy > p {
-  max-width: 470px;
-  margin-top: 24px;
+  max-width: 500px;
+  margin-top: 28px;
   color: #aeb2b9;
   font-size: 17px;
   line-height: 1.62;
@@ -1657,14 +1661,17 @@
 
 .launch-lifecycle-proof {
   display: grid;
-  gap: 13px;
-  margin-top: 31px;
+  gap: 0;
+  margin-top: 38px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .launch-lifecycle-proof span {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 11px;
+  min-height: 48px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: #d8dbe1;
   font-size: 13px;
 }

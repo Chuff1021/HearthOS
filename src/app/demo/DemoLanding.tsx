@@ -34,21 +34,18 @@ import {
 
 const operatingChapters = [
   {
-    number: "01",
     icon: <FileCheck2 />,
     title: "Sell the complete system.",
     copy: "Build accurate fireplace packages from the real catalog, then move an approved estimate straight into the work.",
     detail: "Estimates · products · options · approvals",
   },
   {
-    number: "02",
     icon: <PackageCheck />,
     title: "Know the project is ready.",
     copy: "See required parts, purchase orders, site readiness, and scheduling in one continuous operating record.",
     detail: "Projects · purchasing · schedule · dispatch",
   },
   {
-    number: "03",
     icon: <Wrench />,
     title: "Own the service relationship.",
     copy: "Keep the exact unit, history, manuals, photos, notes, payments, and next service moment connected to the home.",
@@ -224,9 +221,8 @@ export default function DemoLanding() {
         </div>
         <div className="launch-chapters">
           {operatingChapters.map((chapter) => (
-            <article key={chapter.number} data-reveal>
+            <article key={chapter.title} data-reveal>
               <div className="launch-chapter-top">
-                <span>{chapter.number}</span>
                 <i>{chapter.icon}</i>
               </div>
               <h3>{chapter.title}</h3>
@@ -274,7 +270,7 @@ export default function DemoLanding() {
       <section className="launch-lifecycle" id="lifecycle">
         <div className="launch-lifecycle-copy" data-reveal>
           <div className="launch-eyebrow launch-eyebrow-dark"><History size={14} /> The installed unit becomes a living record</div>
-          <h2>Know every fire<br />you put into the world.</h2>
+          <h2>Know every fire you put into the world.</h2>
           <p>
             Model, serial number, fuel type, venting, warranty, photos, service notes, and customer history stay connected long after installation day.
           </p>
