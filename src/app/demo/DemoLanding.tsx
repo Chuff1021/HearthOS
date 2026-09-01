@@ -4,26 +4,33 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Camera,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  Clock3,
   ClipboardCheck,
+  FileText,
   FileCheck2,
   Flame,
   Gauge,
   History,
+  LogIn,
   MapPin,
   Menu,
+  Navigation,
   PackageCheck,
+  ReceiptText,
+  Route,
   Search,
   ShieldCheck,
   Smartphone,
+  UserRound,
   Wrench,
   X,
 } from "lucide-react";
-import FlameLogo from "@/components/FlameLogo";
 
 const operatingChapters = [
   {
@@ -113,18 +120,19 @@ export default function DemoLanding() {
     <main className="launch-site">
       <header className="launch-nav">
         <Link href="/" className="launch-brand" aria-label="HearthOS home">
-          <FlameLogo size={36} />
+          <LaunchBrandMark />
           <strong>HearthOS</strong>
         </Link>
 
         <nav className="launch-links" aria-label="Marketing navigation">
           <a href="#platform">Platform</a>
           <a href="#difference">Built for hearth</a>
+          <a href="#field-app">Field app</a>
           <a href="#lifecycle">Customer lifecycle</a>
         </nav>
 
         <div className="launch-nav-actions">
-          <Link href="/sign-in?redirect_url=/account" className="launch-login">Sign in</Link>
+          <Link href="/sign-in?redirect_url=/account" className="launch-login"><LogIn size={14} /> Sign in</Link>
           <a href="#demo-form" className="launch-button launch-button-small">
             Book a demo <ArrowRight size={14} />
           </a>
@@ -144,8 +152,9 @@ export default function DemoLanding() {
           <div className="launch-mobile-nav">
             <a href="#platform" onClick={() => setMobileOpen(false)}>Platform</a>
             <a href="#difference" onClick={() => setMobileOpen(false)}>Built for hearth</a>
+            <a href="#field-app" onClick={() => setMobileOpen(false)}>Field app</a>
             <a href="#lifecycle" onClick={() => setMobileOpen(false)}>Customer lifecycle</a>
-            <Link href="/sign-in?redirect_url=/account" onClick={() => setMobileOpen(false)}>Sign in</Link>
+            <Link className="launch-mobile-signin" href="/sign-in?redirect_url=/account" onClick={() => setMobileOpen(false)}><LogIn size={15} /> Sign in to your account</Link>
             <a href="#demo-form" className="launch-button" onClick={() => setMobileOpen(false)}>Book a demo</a>
           </div>
         )}
@@ -169,6 +178,9 @@ export default function DemoLanding() {
               See HearthOS <ChevronRight size={16} />
             </a>
           </div>
+          <Link href="/sign-in?redirect_url=/account" className="launch-member-link">
+            Already using HearthOS? <strong>Sign in to your account</strong> <ChevronRight size={14} />
+          </Link>
         </div>
 
         <div className="launch-hero-signal" aria-label="HearthOS platform summary">
@@ -189,7 +201,7 @@ export default function DemoLanding() {
 
       <section className="launch-product" id="platform">
         <div className="launch-heading" data-reveal>
-          <span>THE HEARTH OPERATING SYSTEM</span>
+          <span>The hearth operating system</span>
           <h2>Your entire operation.<br />One source of truth.</h2>
           <p>HearthOS connects sales, projects, products, people, money, and lifetime customer history without forcing your business into a generic service workflow.</p>
         </div>
@@ -206,7 +218,7 @@ export default function DemoLanding() {
 
       <section className="launch-difference" id="difference">
         <div className="launch-difference-heading" data-reveal>
-          <span>BUILT FROM THE HEARTH TRADE OUTWARD</span>
+          <span>Built from the hearth trade outward</span>
           <h2>Generic software starts with a job.<br />HearthOS starts with the hearth.</h2>
           <p>Every workflow follows the way a hearth company actually works: configure the system, secure the parts, prepare the site, install it right, and care for it for years.</p>
         </div>
@@ -222,6 +234,40 @@ export default function DemoLanding() {
               <small>{chapter.detail}</small>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="launch-field" id="field-app">
+        <div className="launch-field-heading" data-reveal>
+          <span>The HearthOS field app</span>
+          <h2>Give every technician<br />a better day in the field.</h2>
+          <p>Complete job information arrives before the technician does. Time, location, notes, photos, equipment, and closeout stay in one guided mobile workflow.</p>
+        </div>
+
+        <div className="launch-field-layout">
+          <div className="launch-field-outcomes" data-reveal>
+            <article>
+              <i><Route size={18} /></i>
+              <div><strong>Less back-and-forth</strong><p>Technicians see the customer, unit, job scope, schedule, and special instructions without calling the office for context.</p></div>
+            </article>
+            <article>
+              <i><Clock3 size={18} /></i>
+              <div><strong>Cleaner time and job tracking</strong><p>Clock-in, GPS status, job progress, assigned tasks, and completed work stay visible to the team as the day moves.</p></div>
+            </article>
+            <article>
+              <i><Camera size={18} /></i>
+              <div><strong>Faster, more complete closeout</strong><p>Photos, notes, checklists, equipment details, and payment steps stay attached to the right job from the start.</p></div>
+            </article>
+          </div>
+          <div data-reveal>
+            <TechFieldStage />
+          </div>
+        </div>
+
+        <div className="launch-field-results" data-reveal>
+          <span><b>Fewer office interruptions</b><small>Complete job context travels with the technician.</small></span>
+          <span><b>Stronger field accountability</b><small>Status, time, notes, and photos stay connected.</small></span>
+          <span><b>Quicker billing readiness</b><small>Completed work returns to the office in one record.</small></span>
         </div>
       </section>
 
@@ -245,7 +291,7 @@ export default function DemoLanding() {
 
       <section className="launch-conversion" id="demo-form">
         <div className="launch-conversion-copy" data-reveal>
-          <span>PRIVATE WALKTHROUGH</span>
+          <span>Private walkthrough</span>
           <h2>See your hearth business<br />inside HearthOS.</h2>
           <p>A focused conversation with people who understand the work, the products, and the details that make this industry different.</p>
           <div className="launch-demo-points">
@@ -313,9 +359,9 @@ export default function DemoLanding() {
       </section>
 
       <footer className="launch-footer">
-        <div className="launch-brand"><FlameLogo size={32} /><strong>HearthOS</strong></div>
+        <div className="launch-brand"><LaunchBrandMark compact /><strong>HearthOS</strong></div>
         <p>Designed by hearth professionals, for hearth professionals.</p>
-        <div><Link href="/sign-in?redirect_url=/account">Sign in</Link><a href="#demo-form">Book a demo</a></div>
+        <div><Link href="/sign-in?redirect_url=/account"><LogIn size={13} /> Sign in</Link><a href="#demo-form">Book a demo</a></div>
       </footer>
     </main>
   );
@@ -325,7 +371,7 @@ function ProductConsole() {
   return (
     <div className="launch-console" aria-label="HearthOS operating dashboard preview">
       <aside className="launch-console-rail">
-        <div className="launch-console-logo"><FlameLogo size={29} /><b>HearthOS</b></div>
+        <div className="launch-console-logo"><LaunchBrandMark compact /><b>HearthOS</b></div>
         {["Overview", "Schedule", "Projects", "Customers", "Inventory"].map((item, index) => (
           <span className={index === 0 ? "active" : ""} key={item}>{item}</span>
         ))}
@@ -383,6 +429,89 @@ function ProductConsole() {
           <b>100%</b>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LaunchBrandMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={`launch-brand-mark ${compact ? "compact" : ""}`} aria-hidden="true">
+      <Flame size={compact ? 16 : 19} strokeWidth={2.25} />
+    </span>
+  );
+}
+
+function TechFieldStage() {
+  const jobs = [
+    { time: "8:00 AM", title: "42 Apex installation", customer: "Morgan Residence", status: "Ready", tone: "orange" },
+    { time: "11:30 AM", title: "Annual gas service", customer: "Cedar Ridge Home", status: "Scheduled", tone: "blue" },
+    { time: "2:00 PM", title: "Pellet stove diagnostic", customer: "Taylor Residence", status: "Scheduled", tone: "green" },
+  ];
+
+  return (
+    <div className="launch-tech-stage" aria-label="HearthOS technician app previews with fictional demo data">
+      <div className="launch-tech-glow" />
+      <div className="launch-phone launch-phone-primary">
+        <div className="launch-phone-island" />
+        <div className="launch-tech-screen">
+          <div className="launch-tech-header">
+            <div><LaunchBrandMark compact /><span><strong>HearthOS</strong><small>Alex Demo · Field technician</small></span></div>
+            <em><i /> GPS live</em>
+          </div>
+          <div className="launch-shift-card">
+            <span><i><Clock3 size={14} /></i><b>Shift in progress</b><small>Clocked in at 7:42 AM</small></span>
+            <em>6h 18m</em>
+          </div>
+          <div className="launch-tech-metrics">
+            <span><b>3</b><small>Jobs today</small></span>
+            <span><b>1</b><small>Completed</small></span>
+            <span><b>2</b><small>Open</small></span>
+          </div>
+          <div className="launch-tech-section-head"><strong>Today&apos;s route</strong><span>September 1</span></div>
+          <div className="launch-tech-jobs">
+            {jobs.map((job) => (
+              <div className="launch-tech-job" key={job.time}>
+                <i className={job.tone} />
+                <span><small>{job.time}</small><strong>{job.title}</strong><em>{job.customer}</em></span>
+                <b>{job.status}</b>
+              </div>
+            ))}
+          </div>
+          <TechMockNav active="Jobs" />
+        </div>
+      </div>
+
+      <div className="launch-phone launch-phone-secondary">
+        <div className="launch-phone-island" />
+        <div className="launch-tech-screen launch-job-screen">
+          <div className="launch-job-screen-top"><ChevronRight size={16} /><span>Job details</span><em>In progress</em></div>
+          <div className="launch-job-hero">
+            <small>Installation · Job 10482</small>
+            <strong>42 Apex installation</strong>
+            <span><MapPin size={12} /> Waynesboro, Pennsylvania</span>
+          </div>
+          <div className="launch-job-customer">
+            <i><UserRound size={16} /></i><span><small>Customer</small><strong>Morgan Residence</strong></span><b>Call</b>
+          </div>
+          <div className="launch-job-unit">
+            <small>Installed unit</small><strong>42 Apex NexGen-Hybrid</strong><span>Wood fireplace · Living room</span>
+          </div>
+          <div className="launch-job-progress"><span><i className="done"><Check size={11} /></i><b>Arrival and safety</b></span><span><i className="done"><Check size={11} /></i><b>Installation checklist</b></span><span><i><Camera size={11} /></i><b>Job photos</b><em>8 added</em></span></div>
+          <div className="launch-photo-strip"><i /><i /><i /><span><Camera size={15} /> Add</span></div>
+          <div className="launch-job-actions"><span><FileText size={13} /> Notes</span><span><ReceiptText size={13} /> Invoice</span></div>
+          <div className="launch-complete-job"><CheckCircle2 size={14} /> Complete job</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TechMockNav({ active }: { active: string }) {
+  return (
+    <div className="launch-tech-nav">
+      {[{ label: "Jobs", icon: Navigation }, { label: "Inbox", icon: FileText }, { label: "Photos", icon: Camera }, { label: "Profile", icon: UserRound }].map(({ label, icon: Icon }) => (
+        <span className={label === active ? "active" : ""} key={label}><Icon size={13} /><small>{label}</small></span>
+      ))}
     </div>
   );
 }
