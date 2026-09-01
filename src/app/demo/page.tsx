@@ -3,9 +3,9 @@ import DemoLanding from "./DemoLanding";
 import "./demo.css";
 
 export const metadata: Metadata = {
-  title: "HearthOS | The Operating System for Fireplace Dealers",
+  title: "HearthOS | Software Designed for Hearth Professionals",
   description:
-    "Run your fireplace dealership from one connected system for sales, service, dispatch, inventory, projects, payments, and field teams.",
+    "The purpose-built operating system for hearth businesses, connecting showroom sales, projects, inventory, installation, service, and the field.",
 };
 
 export default function DemoPage() {

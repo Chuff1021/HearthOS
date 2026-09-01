@@ -4,20 +4,22 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Bot,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  ClipboardCheck,
   FileCheck2,
   Flame,
+  Gauge,
+  History,
   MapPin,
   Menu,
   PackageCheck,
   Search,
   ShieldCheck,
-  Sparkles,
+  Smartphone,
   Wrench,
   X,
 } from "lucide-react";
@@ -46,6 +48,8 @@ const operatingChapters = [
     detail: "Field service · unit history · lifetime value",
   },
 ];
+
+const hearthDisciplines = ["Gas", "Wood", "Pellet", "Electric", "Outdoor", "Chimney"];
 
 export default function DemoLanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -115,8 +119,8 @@ export default function DemoLanding() {
 
         <nav className="launch-links" aria-label="Marketing navigation">
           <a href="#platform">Platform</a>
-          <a href="#difference">Why HearthOS</a>
-          <a href="#intelligence">GABE</a>
+          <a href="#difference">Built for hearth</a>
+          <a href="#lifecycle">Customer lifecycle</a>
         </nav>
 
         <div className="launch-nav-actions">
@@ -139,8 +143,8 @@ export default function DemoLanding() {
         {mobileOpen && (
           <div className="launch-mobile-nav">
             <a href="#platform" onClick={() => setMobileOpen(false)}>Platform</a>
-            <a href="#difference" onClick={() => setMobileOpen(false)}>Why HearthOS</a>
-            <a href="#intelligence" onClick={() => setMobileOpen(false)}>GABE</a>
+            <a href="#difference" onClick={() => setMobileOpen(false)}>Built for hearth</a>
+            <a href="#lifecycle" onClick={() => setMobileOpen(false)}>Customer lifecycle</a>
             <Link href="/sign-in?redirect_url=/account" onClick={() => setMobileOpen(false)}>Sign in</Link>
             <a href="#demo-form" className="launch-button" onClick={() => setMobileOpen(false)}>Book a demo</a>
           </div>
@@ -150,12 +154,12 @@ export default function DemoLanding() {
       <section className="launch-hero">
         <div className="launch-hero-wash" />
         <div className="launch-hero-copy">
-          <div className="launch-eyebrow"><Flame size={14} /> Built exclusively for fireplace dealers</div>
+          <div className="launch-eyebrow"><Flame size={14} /> The operating system for the hearth industry</div>
           <h1>HearthOS.</h1>
-          <p className="launch-hero-line">The whole business, beautifully connected.</p>
+          <p className="launch-hero-line">Designed by hearth professionals.<br />For hearth professionals.</p>
           <p className="launch-hero-support">
-            Every sale. Every part. Every project. Every service call.
-            One operating system from showroom to field.
+            One purpose-built system for the showroom, the warehouse, the office,
+            the installation crew, and every service call after.
           </p>
           <div className="launch-hero-actions">
             <a href="#demo-form" className="launch-button">
@@ -168,17 +172,26 @@ export default function DemoLanding() {
         </div>
 
         <div className="launch-hero-signal" aria-label="HearthOS platform summary">
-          <span><i /> Live operations</span>
-          <span>QuickBooks connected</span>
-          <span>Office + field</span>
+          <span><i /> Purpose-built for hearth</span>
+          <span>Showroom to service</span>
+          <span>Office + field, connected</span>
+        </div>
+      </section>
+
+      <section className="launch-industry-band" aria-label="Hearth industry specialties">
+        <div>
+          <span>One industry. Every part of the operation.</span>
+          <div className="launch-disciplines">
+            {hearthDisciplines.map((discipline) => <b key={discipline}>{discipline}</b>)}
+          </div>
         </div>
       </section>
 
       <section className="launch-product" id="platform">
         <div className="launch-heading" data-reveal>
-          <span>One calm operating view</span>
-          <h2>Nothing to assemble.<br />Nothing to chase.</h2>
-          <p>HearthOS turns the work, money, people, projects, and customer history into one shared source of truth.</p>
+          <span>THE HEARTH OPERATING SYSTEM</span>
+          <h2>Your entire operation.<br />One source of truth.</h2>
+          <p>HearthOS connects sales, projects, products, people, money, and lifetime customer history without forcing your business into a generic service workflow.</p>
         </div>
         <div data-reveal>
           <ProductConsole />
@@ -193,8 +206,9 @@ export default function DemoLanding() {
 
       <section className="launch-difference" id="difference">
         <div className="launch-difference-heading" data-reveal>
-          <span>Designed around the life of the fireplace</span>
-          <h2>From first conversation<br />to every fire after.</h2>
+          <span>BUILT FROM THE HEARTH TRADE OUTWARD</span>
+          <h2>Generic software starts with a job.<br />HearthOS starts with the hearth.</h2>
+          <p>Every workflow follows the way a hearth company actually works: configure the system, secure the parts, prepare the site, install it right, and care for it for years.</p>
         </div>
         <div className="launch-chapters">
           {operatingChapters.map((chapter) => (
@@ -211,33 +225,33 @@ export default function DemoLanding() {
         </div>
       </section>
 
-      <section className="launch-intelligence" id="intelligence">
-        <div className="launch-ai-copy" data-reveal>
-          <div className="launch-eyebrow launch-eyebrow-dark"><Sparkles size={14} /> GABE · Gas Appliance and Burner Expert</div>
-          <h2>Ask the business.<br />Ask the fireplace.</h2>
+      <section className="launch-lifecycle" id="lifecycle">
+        <div className="launch-lifecycle-copy" data-reveal>
+          <div className="launch-eyebrow launch-eyebrow-dark"><History size={14} /> The installed unit becomes a living record</div>
+          <h2>Know every fire<br />you put into the world.</h2>
           <p>
-            GABE connects live operating context with product manuals, diagrams, service history,
-            and the records behind the work.
+            Model, serial number, fuel type, venting, warranty, photos, service notes, and customer history stay connected long after installation day.
           </p>
-          <div className="launch-ai-proof">
-            <span><ShieldCheck /> Grounded in your business</span>
-            <span><Flame /> Built for hearth products</span>
+          <div className="launch-lifecycle-proof">
+            <span><ShieldCheck /> Complete equipment history</span>
+            <span><Smartphone /> Available to office and field</span>
+            <span><Gauge /> Built for recurring service</span>
           </div>
         </div>
         <div data-reveal>
-          <GabeStage />
+          <UnitRecordStage />
         </div>
       </section>
 
       <section className="launch-conversion" id="demo-form">
         <div className="launch-conversion-copy" data-reveal>
-          <span>Private walkthrough</span>
-          <h2>See your dealership<br />inside HearthOS.</h2>
-          <p>A focused conversation about the workflows that matter most to your team.</p>
+          <span>PRIVATE WALKTHROUGH</span>
+          <h2>See your hearth business<br />inside HearthOS.</h2>
+          <p>A focused conversation with people who understand the work, the products, and the details that make this industry different.</p>
           <div className="launch-demo-points">
             <span><Check /> Built around your operation</span>
             <span><Check /> Clear setup and data answers</span>
-            <span><Check /> No generic software tour</span>
+            <span><Check /> Built around hearth workflows</span>
           </div>
         </div>
 
@@ -300,7 +314,7 @@ export default function DemoLanding() {
 
       <footer className="launch-footer">
         <div className="launch-brand"><FlameLogo size={32} /><strong>HearthOS</strong></div>
-        <p>The operating system for fireplace dealers.</p>
+        <p>Designed by hearth professionals, for hearth professionals.</p>
         <div><Link href="/sign-in?redirect_url=/account">Sign in</Link><a href="#demo-form">Book a demo</a></div>
       </footer>
     </main>
@@ -315,12 +329,12 @@ function ProductConsole() {
         {["Overview", "Schedule", "Projects", "Customers", "Inventory"].map((item, index) => (
           <span className={index === 0 ? "active" : ""} key={item}>{item}</span>
         ))}
-        <div className="launch-console-user"><i>CH</i><span><b>Colton</b><small>Owner</small></span></div>
+        <div className="launch-console-user"><i>SH</i><span><b>Summit Hearth</b><small>Owner view</small></span></div>
       </aside>
 
       <div className="launch-console-main">
         <div className="launch-console-topbar">
-          <div><small>Tuesday, July 21</small><strong>Good morning, Colton.</strong></div>
+          <div><small>Tuesday, September 1</small><strong>Good morning, Summit Hearth.</strong></div>
           <div className="launch-console-actions">
             <span><Search size={14} /> Search</span>
             <span className="synced"><i /> Books synced</span>
@@ -382,31 +396,36 @@ function ConsoleMetric({ icon, label, value, note, tone }: { icon: ReactNode; la
   );
 }
 
-function GabeStage() {
+function UnitRecordStage() {
   return (
-    <div className="launch-gabe">
-      <div className="launch-gabe-top">
-        <span><Bot size={17} /> GABE</span>
-        <small>Gas Appliance and Burner Expert</small>
-      </div>
-      <div className="launch-gabe-thread">
-        <div className="launch-gabe-question">
-          Which projects need attention before we build next week’s schedule?
-        </div>
-        <div className="launch-gabe-answer">
-          <span><Sparkles size={15} /></span>
-          <p>
-            Two projects need action. The Hughes install is waiting on venting confirmation from PO 1048.
-            The Nelson project is fully received and ready to schedule.
-          </p>
-        </div>
-        <div className="launch-gabe-sources">
-          <span>Projects</span><span>Purchase orders</span><span>Schedule</span>
+    <div className="launch-unit-record" aria-label="Installed fireplace record preview">
+      <div className="launch-unit-image">
+        <div className="launch-unit-status"><i /> Installed system · Active</div>
+        <div className="launch-unit-overlay">
+          <small>Living room</small>
+          <strong>42 Apex NexGen-Hybrid</strong>
+          <span>Wood fireplace · Installed Nov 14, 2025</span>
         </div>
       </div>
-      <div className="launch-gabe-prompt">
-        <span>Ask about the business, a manual, diagram, or part.</span>
-        <button type="button" aria-label="Send example question"><ArrowRight size={16} /></button>
+      <div className="launch-unit-data">
+        <div className="launch-unit-data-head">
+          <div><small>Customer record</small><strong>The Reynolds Residence</strong></div>
+          <span>Unit ID · HS-20481</span>
+        </div>
+        <div className="launch-unit-specs">
+          <div><small>Serial number</small><strong>TRV-42A-02164</strong></div>
+          <div><small>Warranty</small><strong>Registered</strong></div>
+          <div><small>Next service</small><strong>Nov 2026</strong></div>
+        </div>
+        <div className="launch-unit-timeline">
+          <span><i><ClipboardCheck size={14} /></i><b>Installation completed</b><small>18 photos · crew checklist</small></span>
+          <span><i><FileCheck2 size={14} /></i><b>Warranty registered</b><small>Documents attached</small></span>
+          <span><i><CalendarDays size={14} /></i><b>Annual service planned</b><small>Customer reminder ready</small></span>
+        </div>
+        <div className="launch-unit-actions">
+          <span>Photos</span><span>Documents</span><span>Service history</span>
+          <button type="button" aria-label="Open unit record"><ArrowRight size={15} /></button>
+        </div>
       </div>
     </div>
   );
