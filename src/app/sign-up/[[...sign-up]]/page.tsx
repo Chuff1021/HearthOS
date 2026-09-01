@@ -8,6 +8,8 @@ export default function SignUpPage() {
       eyebrow="Create your HearthOS account"
       title="Your company starts with a clean workspace."
       description="Create your secure identity, then configure your company, invite the right people, and connect the systems you already use."
+      formTitle="Create your HearthOS account"
+      formDescription="Start with your secure identity, then set up your company workspace."
       footer={<>Already have an account? <Link href="/sign-in?redirect_url=/account" className="font-semibold text-[#e95519] hover:underline">Sign in</Link></>}
     >
       <SignUp

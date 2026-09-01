@@ -69,11 +69,11 @@ export default function DemoCredentialSignIn() {
   }
 
   return (
-    <div className="border-b border-slate-200 bg-[#fbfbfc] p-6 sm:p-7">
+    <div>
       <div className="mb-5">
-        <p className="text-[11px] font-semibold uppercase text-[#e95519]">Demo workspace</p>
-        <h2 className="mt-1.5 text-lg font-semibold text-slate-950">Sign in with your demo username</h2>
-        <p className="mt-2 text-xs text-slate-500">Office: LTRUSH <span className="mx-1 text-slate-300">|</span> Technician: LTTECH</p>
+        <p className="text-[12px] font-semibold text-[#d94d12]">Demo workspace</p>
+        <h2 className="mt-1.5 text-lg font-semibold text-slate-950">Enter your demo credentials</h2>
+        <p className="mt-2 text-xs leading-5 text-slate-500">Use the private username and password provided with your demo invitation.</p>
       </div>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
