@@ -5,6 +5,11 @@ import { getLatestLocationsByTech, getMileageSummary } from "@/lib/tech-location
 import { getTechDirectory } from "@/lib/tech-directory";
 import { getOpenTimeEntry } from "@/lib/time-entry-store";
 import { getTodos } from "@/lib/todos";
+import { requireTenantContext } from "@/lib/tenant/context";
+
+const LT_RUSH_ORGANIZATION_SLUG = "lt-rush-stone";
+const LT_RUSH_OFFICE_EMAIL = "ltrush@demo.hearthos.app";
+const LT_RUSH_DEMO_TECH_ID = "72000000-0000-4000-8000-000000000003";
 
 function normalize(value: string | undefined | null) {
   return String(value || "").trim().toLowerCase();
@@ -47,6 +52,9 @@ export async function GET(request: NextRequest) {
     const authEmail = user.primaryEmailAddress?.emailAddress || "";
     const authName = user.fullName || user.firstName || user.username || "";
     const linkedTechId = user.unsafeMetadata?.techId as string | undefined;
+    const tenant = await requireTenantContext();
+    const isLtRushOfficePreview = tenant.organization.slug === LT_RUSH_ORGANIZATION_SLUG
+      && normalize(authEmail) === LT_RUSH_OFFICE_EMAIL;
 
     const [directory, latestLocations] = await Promise.all([
       getTechDirectory(),
@@ -54,13 +62,14 @@ export async function GET(request: NextRequest) {
     ]);
 
     let tech =
+      (isLtRushOfficePreview ? directory.find((entry) => entry.id === LT_RUSH_DEMO_TECH_ID) : undefined) ||
       (linkedTechId ? directory.find((entry) => entry.id === linkedTechId) : undefined) ||
       directory.find((entry) => normalize(entry.email) === normalize(authEmail)) ||
       directory.find((entry) => samePerson(entry.name, authName)) ||
       null;
 
     // Server-side auto-link: persist techId to Clerk metadata if found but not yet linked
-    if (tech && (!linkedTechId || linkedTechId !== tech.id)) {
+    if (!isLtRushOfficePreview && tech && (!linkedTechId || linkedTechId !== tech.id)) {
       try {
         await client.users.updateUser(userId, {
           unsafeMetadata: { ...(user.unsafeMetadata || {}), techId: tech.id },
@@ -71,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Server-side auto-create: if no tech record exists, create one automatically
-    if (!tech && authEmail) {
+    if (!isLtRushOfficePreview && !tech && authEmail) {
       try {
         const createRes = await fetch(
           `${request.nextUrl.origin}/api/techs`,

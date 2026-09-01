@@ -16,6 +16,8 @@ import {
 import { StatusPill } from "@/components/ui/liquid";
 import { OrganizationSwitcher } from "@clerk/nextjs";
 import { isClerkConfiguredClient } from "@/lib/auth";
+import { DemoAccountMenu } from "@/components/auth/DemoAccountControls";
+import { useTenantSummary } from "@/lib/tenant/use-tenant-summary";
 
 interface SearchResult {
   id: string;
@@ -50,6 +52,7 @@ export default function Header() {
   const [qb, setQb] = useState<QuickBooksStatus | null>(null);
   const [dispatch, setDispatch] = useState<DispatchStatus | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const tenant = useTenantSummary();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -138,6 +141,10 @@ export default function Header() {
   const activeTechs = dispatch?.stats?.activeTechs ?? 0;
   const onJob = dispatch?.stats?.onJob ?? 0;
   const qbConnected = qb?.connected ?? false;
+  const isLtRushDemo = tenant?.organization.slug === "lt-rush-stone";
+  const accountName = isLtRushDemo ? "LT Rush" : "Colton";
+  const accountInitials = isLtRushDemo ? "LR" : "CH";
+  const accountRole = isLtRushDemo ? "Demo Office" : "Owner";
 
   return (
     <header className="shrink-0 px-3 pb-2 pt-3 lg:px-5 lg:pt-4">
@@ -257,27 +264,14 @@ export default function Header() {
 
           <div className="mx-1 hidden h-8 w-px bg-slate-200/80 sm:block" />
 
-          <Link
-            href="/settings"
-            className="flex h-10 items-center gap-2 rounded-2xl py-1 pl-1 pr-3"
-	            style={{
-	              color: "var(--color-text-primary)",
-	              background: "rgba(255,255,255,0.84)",
-	              border: "1px solid rgba(15,23,42,0.06)",
-	              boxShadow: "0 10px 26px rgba(39,55,82,0.06), inset 0 1px 0 rgba(255,255,255,0.94)",
-	            }}
-          >
-            <span
-	              className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white"
-	              style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}
-	            >
-	              CH
-	            </span>
-	            <span className="hidden leading-tight md:block">
-	              <span className="block text-xs font-semibold">Colton</span>
-	              <span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>Owner</span>
-	            </span>
-          </Link>
+          {isLtRushDemo && isClerkConfiguredClient() ? (
+            <DemoAccountMenu initials={accountInitials} name={accountName} role={accountRole} />
+          ) : (
+            <Link href="/settings" className="flex h-10 items-center gap-2 rounded-2xl py-1 pl-1 pr-3" style={{ color: "var(--color-text-primary)", background: "rgba(255,255,255,0.84)", border: "1px solid rgba(15,23,42,0.06)", boxShadow: "0 10px 26px rgba(39,55,82,0.06), inset 0 1px 0 rgba(255,255,255,0.94)" }}>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-[11px] font-bold text-white">{accountInitials}</span>
+              <span className="hidden leading-tight md:block"><span className="block text-xs font-semibold">{accountName}</span><span className="block text-[10px]" style={{ color: "var(--color-text-muted)" }}>{accountRole}</span></span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

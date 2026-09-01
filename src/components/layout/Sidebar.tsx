@@ -29,6 +29,9 @@ import type { LucideIcon } from "lucide-react";
 import FlameLogo from "@/components/FlameLogo";
 import type { OrganizationFeature } from "@/lib/tenant/features";
 import { useOrganizationFeatures } from "@/lib/tenant/use-organization-features";
+import { useTenantSummary } from "@/lib/tenant/use-tenant-summary";
+import { DemoSidebarControls } from "@/components/auth/DemoAccountControls";
+import { isClerkConfiguredClient } from "@/lib/auth";
 
 const emptySubscribe = () => () => {};
 
@@ -103,6 +106,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const hydrated = useHydrated();
   const features = useOrganizationFeatures();
+  const tenant = useTenantSummary();
+  const isLtRushDemo = tenant?.organization.slug === "lt-rush-stone";
 
   return (
     <>
@@ -245,19 +250,20 @@ export default function Sidebar() {
 	          }}
         >
 	          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white">
-	            CH
+	            {isLtRushDemo ? "LR" : "CH"}
 	          </div>
 	          {!collapsed && (
 	            <div className="min-w-0 flex-1">
 	              <div className="truncate text-[13px] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-	                Colton
+	                {isLtRushDemo ? "LT Rush" : "Colton"}
 	              </div>
               <div className="truncate text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-                Owner
+                {isLtRushDemo ? "Demo Office" : "Owner"}
               </div>
             </div>
           )}
         </Link>
+        {isLtRushDemo && isClerkConfiguredClient() && !collapsed ? <DemoSidebarControls /> : null}
       </div>
     </aside>
     <MobileDock pathname={hydrated ? pathname : null} />

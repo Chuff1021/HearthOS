@@ -2,7 +2,7 @@
 
 import { useSignIn } from "@clerk/nextjs";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 function clerkErrorMessage(error: unknown) {
   if (!error || typeof error !== "object") return "Sign in failed. Check the username and password.";
@@ -23,6 +23,12 @@ export default function DemoCredentialSignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "lttech") {
+      setUsername("LTTECH");
+    }
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
