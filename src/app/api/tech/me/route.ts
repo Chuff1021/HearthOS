@@ -52,9 +52,22 @@ export async function GET(request: NextRequest) {
       getLatestLocationsByTech(),
     ]);
 
+    const techByEmail = authEmail
+      ? directory.find((entry) => normalize(entry.email) === normalize(authEmail))
+      : undefined;
+    const techByMetadata = linkedTechId
+      ? directory.find((entry) => entry.id === linkedTechId)
+      : undefined;
+    const metadataMatchesLogin = Boolean(
+      techByMetadata &&
+      (!authEmail || !techByMetadata.email || normalize(techByMetadata.email) === normalize(authEmail))
+    );
+
+    // The verified Clerk email is authoritative. A stale techId must never
+    // override a different employee's email, especially the owner's record.
     let tech =
-      (linkedTechId ? directory.find((entry) => entry.id === linkedTechId) : undefined) ||
-      directory.find((entry) => normalize(entry.email) === normalize(authEmail)) ||
+      techByEmail ||
+      (metadataMatchesLogin ? techByMetadata : undefined) ||
       directory.find((entry) => samePerson(entry.name, authName)) ||
       null;
 
