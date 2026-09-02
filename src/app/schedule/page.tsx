@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
+import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
 
 type ViewMode = "master" | "tech";
 type CalendarView = "week" | "month";
@@ -1080,6 +1081,7 @@ export default function SchedulePage() {
               ))}
             </div>
           )}
+          <MeeksSchedulePanel internal />
         </div>
       </div>
 
