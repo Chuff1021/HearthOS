@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -27,6 +28,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // (Both directions: re-running with a wider window can re-track items.)
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/inventory/trim", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await req.json().catch(() => ({}));
     const monthsBack = Math.max(1, Math.min(120, Number(body.monthsBack) || 24));

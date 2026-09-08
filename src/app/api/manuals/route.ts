@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, createManual, updateManual, deleteManual } from "@/lib/manuals";
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q");
@@ -17,6 +20,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
 
@@ -45,6 +50,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
 
@@ -74,6 +81,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

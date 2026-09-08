@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { db, purchaseOrderLineItems, purchaseOrders, vendors } from '@/db';
@@ -210,6 +211,8 @@ async function sendPurchaseOrderEmail(poNumber: string, body: any, lines: CleanP
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/purchase-orders", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const org = await getOrCreateDefaultOrg();
     const rows = await db
@@ -229,6 +232,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/purchase-orders", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const org = await getOrCreateDefaultOrg();
     const body = await request.json();

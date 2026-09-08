@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
@@ -44,6 +45,8 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
 
 // GET: check approval status for a week
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/payroll", "GET");
+  if (accessDenied) return accessDenied;
   const sql = getSql();
   if (!sql) return NextResponse.json({ approvals: [], reports: [] });
 
@@ -74,6 +77,8 @@ export async function GET(request: NextRequest) {
 
 // POST: approve a tech's timesheet OR send payroll report
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/payroll", "POST");
+  if (accessDenied) return accessDenied;
   const sql = getSql();
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 

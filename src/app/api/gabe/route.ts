@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { buildGabeSystemPrompt } from "@/lib/gabe/prompts";
 import { listManuals, listManualSections } from "@/lib/manuals";
@@ -76,6 +77,8 @@ interface OrchestratorResponse {
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/gabe", "GET");
+  if (accessDenied) return accessDenied;
   const orchestratorUrl = process.env.GABE_ORCHESTRATOR_URL;
   const engineUrl = process.env.GABE_ENGINE_URL;
   const engineRequired = (process.env.GABE_ENGINE_REQUIRED ?? "false").toLowerCase() === "true";
@@ -114,6 +117,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json() as {
       messages: ChatMessage[];

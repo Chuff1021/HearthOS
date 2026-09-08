@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { listManuals, listManualSections } from "@/lib/manuals";
 
@@ -12,6 +13,8 @@ function readTag(tags: unknown, prefix: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/ops/reingest-model", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await req.json().catch(() => ({}));
     const model = String(body?.model || "").trim();

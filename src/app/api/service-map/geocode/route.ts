@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
@@ -134,6 +135,8 @@ async function requireAdmin() {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/service-map/geocode", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const admin = await requireAdmin();
     if (!admin.ok) return admin.response;

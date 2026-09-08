@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { listSquarePayments } from '@/lib/square-payment-store';
 
@@ -57,6 +58,8 @@ function mapStatus(status: string, refundedAmount?: number): UiPayment['status']
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/square/transactions", "GET");
+  if (accessDenied) return accessDenied;
   const fallback = listSquarePayments()
     .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
     .slice(0, 100)

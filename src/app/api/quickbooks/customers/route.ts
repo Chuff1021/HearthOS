@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getCachedCustomers,
@@ -57,6 +58,8 @@ async function refreshTokensAndPersist(client: ReturnType<typeof getClientFromTo
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/customers", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -66,6 +69,8 @@ export async function GET(request: NextRequest) {
 
     // If sync/live requested, pull fresh data from QuickBooks
     if (sync === 'true' || live === 'true' || query) {
+      const syncDenied = await authorizeCrmApi("/api/quickbooks/sync", "POST");
+      if (syncDenied) return syncDenied;
       const auth = await getQBAuthFromRequest(request);
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -118,6 +123,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/customers", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const sync = searchParams.get('sync');

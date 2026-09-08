@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { verifyCustomerLink } from "@/lib/security/public-links";
 import { recordInvoicePayment } from "@/lib/invoices/record-payment";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
 
@@ -35,6 +38,13 @@ export async function POST(request: NextRequest) {
     const invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
     const buyerEmail = body?.buyerEmail ? String(body.buyerEmail) : undefined;
     const note = body?.note ? String(body.note) : undefined;
+    const claims = verifyCustomerLink(String(body.token || ""), "payment", invoiceNumber || "");
+    if (!claims) {
+      const denied = await authorizeCrmApi("/api/square/payments", "POST");
+      if (denied) return NextResponse.json({ error: "This payment link is invalid or expired. Ask the office for a new link." }, { status: 403 });
+    } else if (Math.round(amount * 100) > claims.maxCents!) {
+      return NextResponse.json({ error: "Payment exceeds the amount authorized by this link." }, { status: 400 });
+    }
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: "amount must be greater than 0" }, { status: 400 });
@@ -45,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = {
-      idempotency_key: crypto.randomUUID(),
+      idempotency_key: createHash("sha256").update(`${SQUARE_LOCATION_ID}:${sourceId}`).digest("hex").slice(0, 40),
       source_id: sourceId,
       autocomplete: true,
       location_id: SQUARE_LOCATION_ID,

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from "next/server";
 import postgres from "postgres";
 
@@ -221,6 +222,8 @@ const MANUAL_LIBRARY = [
 ];
 
 export async function POST() {
+  const accessDenied = await authorizeCrmApi("/api/manuals/seed", "POST");
+  if (accessDenied) return accessDenied;
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No DATABASE_URL" }, { status: 500 });
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRecordQuery } from "@/lib/use-record-query";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -457,17 +458,9 @@ function Th({ children, onClick, active, dir, className = "" }: { children: Reac
 // Detail drawer — full P&L for one job/invoice
 // ───────────────────────────────────────────────────────────────────────────
 function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => void }) {
-  const [data, setData] = useState<DetailResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error } = useRecordQuery<DetailResponse>(`/api/reports/profit-by-job/${encodeURIComponent(jobId)}`);
   const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
 
-  useEffect(() => {
-    setData(null); setError(null);
-    fetch(`/api/reports/profit-by-job/${jobId}`)
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => ok ? setData(j) : setError(j.error || "Failed"))
-      .catch((e) => setError(e?.message || "Failed"));
-  }, [jobId]);
 
   if (error) {
     return (

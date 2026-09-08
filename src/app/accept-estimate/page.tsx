@@ -30,6 +30,7 @@ const fmtMoney = (value: number) =>
 export default function AcceptEstimatePage() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") || "";
+  const token = searchParams.get("token") || "";
   const [estimate, setEstimate] = useState<AcceptEstimate | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +48,7 @@ export default function AcceptEstimatePage() {
         return;
       }
       try {
-        const res = await fetch(`/api/estimates/accept?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+        const res = await fetch(`/api/estimates/accept?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load estimate");
         if (cancelled) return;
@@ -64,7 +65,7 @@ export default function AcceptEstimatePage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, token]);
 
   async function acceptEstimate() {
     if (!estimate) return;
@@ -75,7 +76,8 @@ export default function AcceptEstimatePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: estimate.id,
+          id,
+          token,
           signerName,
           signerEmail,
           agreed,

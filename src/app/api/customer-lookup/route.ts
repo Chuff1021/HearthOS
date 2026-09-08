@@ -1,67 +1,30 @@
+import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
-
-function mapCustomer(customer: any) {
-  return {
-    id: customer.id,
-    displayName: customer.displayName || customer.name || customer.companyName || "",
-    phone: customer.phone || customer.primaryPhone || customer?.PrimaryPhone?.FreeFormNumber,
-    email: customer.email,
-    address: customer.address,
-  };
-}
+import { db, customers } from "@/db";
+import { and, asc, eq } from "drizzle-orm";
+import { customerAddress, customerSearchPredicate } from "@/lib/customer-search";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
-  const q = searchParams.get("q")?.trim() || "";
-
-  if (q.length < 2) {
-    return NextResponse.json({ customers: [], total: 0, source: "none" });
+  const accessDenied = await authorizeCrmApi("/api/customer-lookup", "GET");
+  if (accessDenied) return accessDenied;
+  const query = request.nextUrl.searchParams.get("q")?.trim() || "";
+  if (query.length < 2) return NextResponse.json({ customers: [], total: 0, source: "database" });
+  try {
+    const actor = await requireCrmActor();
+    const rows = await db.select().from(customers)
+      .where(and(eq(customers.orgId, actor.orgId), eq(customers.isActive, true), customerSearchPredicate(query)))
+      .orderBy(asc(customers.lastName), asc(customers.firstName), asc(customers.id)).limit(30);
+    const results = rows.map((customer) => ({
+      id: customer.qbCustomerId || customer.id,
+      localId: customer.id,
+      qbCustomerId: customer.qbCustomerId,
+      displayName: customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || customer.email || "Unnamed",
+      phone: customer.phone || customer.phoneAlt || "",
+      email: customer.email || "",
+      address: customerAddress(customer),
+    }));
+    return NextResponse.json({ customers: results, total: results.length, source: "database" }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Customer search is temporarily unavailable. Please try again." }, { status: 503 });
   }
-
-  try {
-    const qbRes = await fetch(`${origin}/api/quickbooks/customers?q=${encodeURIComponent(q)}`, {
-      headers: { cookie: request.headers.get("cookie") || "" },
-      cache: "no-store",
-    });
-    const qbData = await qbRes.json().catch(() => ({}));
-    if (qbRes.ok && Array.isArray(qbData.customers) && qbData.customers.length > 0) {
-      return NextResponse.json({
-        customers: qbData.customers.map(mapCustomer),
-        total: qbData.customers.length,
-        source: "quickbooks-cache",
-      });
-    }
-  } catch {}
-
-  try {
-    const localRes = await fetch(`${origin}/api/customers?q=${encodeURIComponent(q)}`, {
-      headers: { cookie: request.headers.get("cookie") || "" },
-      cache: "no-store",
-    });
-    const localData = await localRes.json().catch(() => ({}));
-    if (localRes.ok && Array.isArray(localData.customers) && localData.customers.length > 0) {
-      return NextResponse.json({
-        customers: localData.customers.map(mapCustomer),
-        total: localData.customers.length,
-        source: "local",
-      });
-    }
-  } catch {}
-
-  try {
-    const liveRes = await fetch(`${origin}/api/quickbooks/customers?q=${encodeURIComponent(q)}&live=true`, {
-      headers: { cookie: request.headers.get("cookie") || "" },
-      cache: "no-store",
-    });
-    const liveData = await liveRes.json().catch(() => ({}));
-    if (liveRes.ok && Array.isArray(liveData.customers)) {
-      return NextResponse.json({
-        customers: liveData.customers.map(mapCustomer),
-        total: liveData.customers.length,
-        source: "quickbooks-live",
-      });
-    }
-  } catch {}
-
-  return NextResponse.json({ customers: [], total: 0, source: "none" });
 }

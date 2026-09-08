@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRecordQuery } from "@/lib/use-record-query";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Reusable doc drawer for drilling into a bill / invoice / purchase order
@@ -46,16 +47,7 @@ const fmtDate = (s: string | null | undefined) => {
 const Z = 60;
 
 export default function DocumentDrawer({ type, id, onClose }: Props) {
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData(null); setError(null);
-    fetch(apiFor(type, id))
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => ok ? setData(j) : setError(j.error || "Failed to load"))
-      .catch((e) => setError(e?.message || "Failed"));
-  }, [type, id]);
+  const { data, error } = useRecordQuery<any>(apiFor(type, encodeURIComponent(id)));
 
   // Esc key closes the drawer (handy when stacked)
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { db, organizations } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getOrCreateDefaultOrg } from "@/lib/org";
+import { requireCrmAdmin } from "@/lib/security/crm-access";
 
 function envSet(value?: string) {
   return value ? "Configured" : "Missing";
@@ -9,8 +9,7 @@ function envSet(value?: string) {
 
 async function updateIntegrationSettings(formData: FormData) {
   "use server";
-  const orgId = formData.get("orgId")?.toString();
-  if (!orgId) return;
+  const { orgId } = await requireCrmAdmin();
 
   const settings = {
     qbAutoSync: formData.get("qbAutoSync") === "on",
@@ -19,19 +18,10 @@ async function updateIntegrationSettings(formData: FormData) {
     gabeModel: formData.get("gabeModel")?.toString() || "llama-3.1-8b-instant",
   };
 
-  const org = await getOrCreateDefaultOrg();
-  const baseSettings =
-    typeof org.settings === "object" && org.settings !== null
-      ? (org.settings as Record<string, unknown>)
-      : {};
-
   await db
     .update(organizations)
     .set({
-      settings: {
-        ...baseSettings,
-        integrations: settings,
-      },
+      settings: sql`coalesce(${organizations.settings}, '{}'::jsonb) || ${JSON.stringify({ integrations: settings })}::jsonb`,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, orgId));
@@ -40,7 +30,9 @@ async function updateIntegrationSettings(formData: FormData) {
 }
 
 export default async function AdminIntegrationsPage() {
-  const org = await getOrCreateDefaultOrg();
+  const { orgId } = await requireCrmAdmin();
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  if (!org) throw new Error("Organization not found.");
   const qbConfigured =
     Boolean(process.env.QUICKBOOKS_CLIENT_ID) &&
     Boolean(process.env.QUICKBOOKS_CLIENT_SECRET) &&

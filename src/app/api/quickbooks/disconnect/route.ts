@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, organizations } from "@/db";
@@ -51,6 +52,8 @@ function applyCookieClears(response: NextResponse) {
 }
 
 export async function POST() {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/disconnect", "POST");
+  if (accessDenied) return accessDenied;
   try {
     await clearQuickBooksConnection();
     const response = NextResponse.json({ success: true, disconnected: true });
@@ -63,6 +66,8 @@ export async function POST() {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/disconnect", "GET");
+  if (accessDenied) return accessDenied;
   try {
     await clearQuickBooksConnection();
     const response = NextResponse.redirect(new URL("/integrations/quickbooks?disconnected=true", request.url));

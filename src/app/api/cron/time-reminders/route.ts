@@ -1,3 +1,4 @@
+import { authorizeCron } from "@/lib/security/cron-access";
 import { NextResponse } from "next/server";
 import postgres from "postgres";
 
@@ -11,6 +12,8 @@ import postgres from "postgres";
  * Future: can integrate with SMS/push notifications.
  */
 export async function GET() {
+  const accessDenied = await authorizeCron();
+  if (accessDenied) return accessDenied;
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database" }, { status: 500 });
   }

@@ -1,9 +1,12 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals/ingest-all", "POST");
+  if (accessDenied) return accessDenied;
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database configured" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, customers, invoices, payments } from '@/db';
 import { and, eq, desc } from 'drizzle-orm';
@@ -19,6 +20,8 @@ type Txn = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/customers/[id]", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);

@@ -1,7 +1,9 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, customers, invoices, payments } from '@/db';
 import { and, eq, sql, ilike, or } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { customerAddress, customerSearchPredicate } from '@/lib/customer-search';
 
 // GET /api/customers/center
 // Customer center list with rolled-up A/R + revenue stats per customer
@@ -11,6 +13,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // by older surfaces (data-store backed search/CRUD).
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers/center", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();
@@ -22,13 +26,7 @@ export async function GET(req: NextRequest) {
 
     const where: any[] = [eq(customers.orgId, org.id)];
     if (q) {
-      const like = `%${q}%`;
-      where.push(or(
-        ilike(customers.firstName, like),
-        ilike(customers.lastName, like),
-        ilike(customers.companyName, like),
-        ilike(customers.email, like),
-      ));
+      where.push(customerSearchPredicate(q));
     }
     if (filter === 'active') where.push(eq(customers.isActive, true));
     if (filter === 'inactive') where.push(eq(customers.isActive, false));
@@ -85,6 +83,7 @@ export async function GET(req: NextRequest) {
         email: c.email,
         phone: c.phone,
         phoneAlt: c.phoneAlt,
+        address: customerAddress(c),
         source: c.source,
         isActive: c.isActive ?? true,
         balance,

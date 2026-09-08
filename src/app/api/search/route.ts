@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { getJobs as getJobsFromApi } from "../jobs/route";
 import { getOrCreateDefaultOrg } from "@/lib/org";
@@ -21,6 +22,8 @@ function matchesSearchQuery(query: string, field: string | undefined) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/search", "GET");
+  if (accessDenied) return accessDenied;
   const { searchParams } = new URL(request.url);
   const rawQuery = searchParams.get("q") || "";
   const query = normalizeSearchValue(rawQuery);

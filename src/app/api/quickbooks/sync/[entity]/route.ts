@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -37,6 +38,8 @@ function boundedInt(value: string | null, fallback: number, min: number, max: nu
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ entity: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/sync/[entity]", "POST");
+  if (accessDenied) return accessDenied;
   const { entity } = await params;
   const { searchParams } = new URL(request.url);
   const allowed: Entity[] = ['customers', 'items', 'vendors', 'invoices', 'payments', 'estimates', 'purchase-orders', 'bills'];

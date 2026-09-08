@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
 
@@ -51,6 +52,8 @@ FIREBOX DIMENSIONS: [width x height x depth if present]
 IMPORTANT: Only include data you can find in the text. Do not guess or make up values. If a measurement appears in the text, include it exactly as written.`;
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals/enrich", "POST");
+  if (accessDenied) return accessDenied;
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });

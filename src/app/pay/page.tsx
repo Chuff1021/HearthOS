@@ -21,6 +21,7 @@ function formAmount(value: string) {
 
 export default function CustomerPayPage() {
   const searchParams = useSearchParams();
+  const linkToken = searchParams.get("token") || "";
   const cardContainerRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<any>(null);
   const achRef = useRef<any>(null);
@@ -81,6 +82,7 @@ export default function CustomerPayPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: nextAmount,
+          token: linkToken,
           sourceId,
           customerName: context.customerName || "Customer",
           invoiceNumber: context.invoiceNumber || undefined,
@@ -164,7 +166,7 @@ export default function CustomerPayPage() {
     return () => {
       cancelled = true;
     };
-  }, [squareAppId, squareLocationId, squareEnv]);
+  }, [squareAppId, squareLocationId, squareEnv, linkToken]);
 
   async function payByCard() {
     setStatus(null);
@@ -182,6 +184,7 @@ export default function CustomerPayPage() {
         body: JSON.stringify({
           amount: cardTotal,
           sourceId: tokenResult.token,
+          token: linkToken,
           customerName: form.customerName || "Customer",
           invoiceNumber: form.invoiceNumber || undefined,
           buyerEmail: form.buyerEmail || undefined,

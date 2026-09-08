@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { createJob, ensureDefaultRecurringJobs, listJobs } from '@/lib/gabe-ops';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/ops/jobs", "GET");
+  if (accessDenied) return accessDenied;
   try {
     await ensureDefaultRecurringJobs();
     const { searchParams } = new URL(request.url);
@@ -14,6 +17,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/ops/jobs", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const job = await createJob({

@@ -1,8 +1,11 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { syncAllFromQuickBooks, getSyncStatus, getClientFromTokens } from '@/lib/quickbooks/sync';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/sync", "POST");
+  if (accessDenied) return accessDenied;
   try {
     // Get tokens from cookies
     let accessToken = request.cookies.get('qb_access_token')?.value;
@@ -40,6 +43,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/sync", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const status = getSyncStatus();
     return NextResponse.json({ status });

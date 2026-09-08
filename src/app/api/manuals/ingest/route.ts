@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { createManualSection } from "@/lib/manuals";
 import postgres from "postgres";
@@ -8,6 +9,8 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MIN_TEXT_FOR_DIAGRAM = 100; // chars — below this, page is likely a diagram
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/manuals/ingest", "POST");
+  if (accessDenied) return accessDenied;
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "NVIDIA_API_KEY not configured" }, { status: 500 });

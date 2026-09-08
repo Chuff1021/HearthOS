@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 
 const token =
@@ -16,6 +17,8 @@ function parsePoint(value: string | null) {
 }
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/mapbox/directions", "GET");
+  if (accessDenied) return accessDenied;
   if (!token) {
     return NextResponse.json({ error: "Mapbox token is not configured" }, { status: 503 });
   }

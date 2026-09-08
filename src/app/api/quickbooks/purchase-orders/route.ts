@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations } from '@/db';
@@ -253,6 +254,8 @@ function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/purchase-orders", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -274,6 +277,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/purchase-orders", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });

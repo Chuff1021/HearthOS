@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, organizations } from "@/db";
@@ -218,6 +219,8 @@ function transformPayment(payment: QBPayment) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers/profile", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, vendors, bills, purchaseOrders } from '@/db';
 import { and, eq, sql, desc } from 'drizzle-orm';
@@ -19,6 +20,8 @@ type Txn = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/vendors/[id]", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);
@@ -131,6 +134,8 @@ function cleanString(value: unknown) {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/vendors/[id]", "PATCH");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const body = await req.json();

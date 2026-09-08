@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { 
   getGabeMessages, 
@@ -12,6 +13,8 @@ import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 // GET - Get messages with optional filters
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/messages", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     
@@ -50,6 +53,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Save a new message conversation
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/messages", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     
@@ -82,6 +87,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update a message (rating, flagging)
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/messages", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -138,6 +145,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete a message
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/messages", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

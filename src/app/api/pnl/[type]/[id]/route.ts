@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import {
   db,
@@ -35,6 +36,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ type: string; id: string }> },
 ) {
+  const accessDenied = await authorizeCrmApi("/api/pnl/[type]/[id]", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { type, id } = await params;
     if (type !== "invoice" && type !== "estimate") {

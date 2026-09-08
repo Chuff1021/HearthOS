@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/connect", "GET");
+  if (accessDenied) return accessDenied;
   try {
     if (
       !process.env.QUICKBOOKS_CLIENT_ID ||

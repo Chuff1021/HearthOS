@@ -1,3 +1,5 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { signCustomerLink } from "@/lib/security/public-links";
 import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, eq, or } from 'drizzle-orm';
 import { db, inventoryItems, invoiceLineItems, invoices as dbInvoices } from '@/db';
@@ -101,21 +103,21 @@ async function localInvoiceLinesForPdf(orgId: string, invoiceId: string) {
 }
 
 function publicOrigin(request: NextRequest) {
-  const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(':', '');
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  if (host) return `${proto}://${host}`;
-  return new URL(request.url).origin;
+  const origin = process.env.HEARTHOS_PUBLIC_ORIGIN;
+  if (!origin || new URL(origin).protocol !== "https:") throw new Error("Customer link origin is not configured.");
+  return new URL(origin).origin;
 }
 
 function paymentUrl(request: NextRequest, invoice: QBInvoice) {
   const origin = publicOrigin(request);
-  const balance = Number(invoice.Balance || invoice.TotalAmt || 0);
+  const balance = Number(invoice.Balance ?? invoice.TotalAmt ?? 0);
   const params = new URLSearchParams({
     amount: balance.toFixed(2),
     customer: invoice.CustomerRef?.name || 'Customer',
     invoice: invoice.DocNumber || invoice.Id,
   });
   if (invoice.BillEmail?.Address) params.set('email', invoice.BillEmail.Address);
+  params.set("token", signCustomerLink({ purpose: "payment", document: invoice.DocNumber || invoice.Id, maxCents: Math.round(balance * 1.035 * 100) }));
   return `${origin}/pay?${params.toString()}`;
 }
 
@@ -142,7 +144,7 @@ function paymentInstructionsHtml(payUrl: string) {
 
 function invoiceEmailText(invoice: QBInvoice, payUrl: string) {
   const invoiceNumber = invoice.DocNumber || invoice.Id;
-  const balance = Number(invoice.Balance || invoice.TotalAmt || 0);
+  const balance = Number(invoice.Balance ?? invoice.TotalAmt ?? 0);
   return [
     `Invoice ${invoiceNumber} from AARON'S FIREPLACE CO, LLC`,
     '',
@@ -158,7 +160,7 @@ function invoiceEmailText(invoice: QBInvoice, payUrl: string) {
 
 function invoiceEmailHtml(invoice: QBInvoice, payUrl: string) {
   const invoiceNumber = invoice.DocNumber || invoice.Id;
-  const balance = Number(invoice.Balance || invoice.TotalAmt || 0);
+  const balance = Number(invoice.Balance ?? invoice.TotalAmt ?? 0);
   const payButton = balance > 0
     ? paymentInstructionsHtml(payUrl)
     : '';
@@ -177,6 +179,8 @@ function invoiceEmailHtml(invoice: QBInvoice, payUrl: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/invoices", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -188,6 +192,8 @@ export async function GET(request: NextRequest) {
 
     // If sync requested, pull fresh data from QuickBooks
     if (sync === 'true' || live === 'true') {
+      const syncDenied = await authorizeCrmApi("/api/quickbooks/sync", "POST");
+      if (syncDenied) return syncDenied;
       let accessToken = request.cookies.get('qb_access_token')?.value;
       let refreshToken = request.cookies.get('qb_refresh_token')?.value;
       let realmId = request.cookies.get('qb_realm_id')?.value;
@@ -273,6 +279,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/invoices", "POST");
+  if (accessDenied) return accessDenied;
   try {
     let accessToken = request.cookies.get('qb_access_token')?.value;
     let refreshToken = request.cookies.get('qb_refresh_token')?.value;

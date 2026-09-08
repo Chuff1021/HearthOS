@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -17,6 +18,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // Detail endpoint: full item + every signal a secretary might need to make a decision.
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/inventory/[id]", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();
@@ -185,6 +188,8 @@ const ALLOWED_FIELDS = [
 type AllowedField = typeof ALLOWED_FIELDS[number];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/inventory/[id]", "PATCH");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

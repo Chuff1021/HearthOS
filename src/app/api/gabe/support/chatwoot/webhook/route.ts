@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertSupportConversation } from '@/lib/gabe-support';
+import { timingSafeEqual } from 'node:crypto';
 
 export async function POST(request: NextRequest) {
+  const secret = process.env.CHATWOOT_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ error: 'Webhook authentication is not configured' }, { status: 503 });
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const actual = Buffer.from(request.headers.get('authorization') || '');
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await request.json();
     const conversationId = String(body?.conversation?.id || body?.conversation_id || '');

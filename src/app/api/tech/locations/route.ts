@@ -1,3 +1,5 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -5,8 +7,11 @@ export const revalidate = 0;
 import { addLocationPoint, getLatestLocationsByTech, getLocationHistory, getMileageSummary } from '@/lib/tech-location-store';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/tech/locations", "GET");
+  if (accessDenied) return accessDenied;
   const { searchParams } = new URL(request.url);
-  const techId = searchParams.get('techId');
+  const actor = await requireCrmActor();
+  const techId = actor.role === "technician" ? actor.employeeId : searchParams.get('techId');
   const limit = Number(searchParams.get('limit') || 100);
   const includeSummary = searchParams.get('summary') === 'true';
 
@@ -21,11 +26,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/tech/locations", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
-    const { techId, techName, techEmail, lat, lng, accuracy, speed, heading, timestamp } = body;
+    const actor = await requireCrmActor();
+    const { lat, lng, accuracy, speed, heading, timestamp } = body;
+    const techId = actor.employeeId;
+    const techName = actor.name;
+    const techEmail = actor.email;
 
-    if (!techId || typeof lat !== 'number' || typeof lng !== 'number') {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
       return NextResponse.json({ error: 'techId, lat, lng are required' }, { status: 400 });
     }
 

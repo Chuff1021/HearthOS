@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, inventoryItems } from '@/db';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -8,6 +9,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // Updates inventory_items.cost for each. Returns counts.
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/inventory/price-audit/apply", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await req.json().catch(() => ({}));
     const corrections: Array<{ id: string; newCost: number }> = Array.isArray(body.corrections) ? body.corrections : [];

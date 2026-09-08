@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations, vendors } from '@/db';
@@ -58,6 +59,8 @@ function shapeVendor(v: typeof vendors.$inferSelect) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/vendors", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();
@@ -68,6 +71,8 @@ export async function GET(request: NextRequest) {
 
     // ?sync=true → pull fresh from QB and persist, then return
     if (sync) {
+      const syncDenied = await authorizeCrmApi("/api/quickbooks/sync", "POST");
+      if (syncDenied) return syncDenied;
       const auth = await getQBAuth(request, org.id);
       if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 

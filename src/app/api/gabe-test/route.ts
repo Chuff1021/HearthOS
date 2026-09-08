@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { searchManualSections, type ManualSearchResult } from "@/lib/manual-search";
 
@@ -71,6 +72,8 @@ function buildSourceLinks(results: ManualSearchResult[]): string {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe-test", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const { messages } = await request.json();
 

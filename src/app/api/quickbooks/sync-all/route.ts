@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -9,6 +10,8 @@ import { syncAllFromQuickBooks, getSyncStatus } from '@/lib/quickbooks/sync';
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/sync-all", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const cookieStore = await cookies();
     const org = await getOrCreateDefaultOrg();
@@ -70,6 +73,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/sync-all", "GET");
+  if (accessDenied) return accessDenied;
   const status = getSyncStatus();
   return NextResponse.json({ status });
 }

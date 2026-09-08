@@ -1,3 +1,4 @@
+import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, timeOffRequests } from '@/db';
 import { and, eq, desc } from 'drizzle-orm';
@@ -25,9 +26,12 @@ function shape(r: typeof timeOffRequests.$inferSelect) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time-off-requests", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
-    const techId = searchParams.get('techId');
+    const actor = await requireCrmActor();
+    const techId = actor.role === "technician" ? actor.employeeId : searchParams.get('techId');
     const status = searchParams.get('status');
 
     const where = [] as any[];
@@ -49,9 +53,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time-off-requests", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
-    const { techId, techName, type, startDate, endDate, reason } = body || {};
+    const actor = await requireCrmActor();
+    const { type, startDate, endDate, reason } = body || {};
+    const techId = actor.role === "technician" ? actor.employeeId : body.techId;
+    const techName = actor.role === "technician" ? actor.name : body.techName;
 
     if (!techId || !type || !startDate || !endDate) {
       return NextResponse.json({ error: 'techId, type, startDate, endDate are required' }, { status: 400 });
@@ -83,6 +92,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time-off-requests", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const { id, status } = body || {};

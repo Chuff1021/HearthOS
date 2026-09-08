@@ -210,7 +210,8 @@ export default function DashboardPage() {
       if (v) setVend(v);
       if (d) setDispatch(d);
       if (dash) setDashboard(dash);
-      if (Array.isArray(todayJobs)) setJobs(todayJobs);
+      if (Array.isArray(todayJobs?.jobs)) setJobs(todayJobs.jobs);
+      else if (Array.isArray(todayJobs)) setJobs(todayJobs);
       if (activityData?.activity) setActivity(activityData.activity);
     });
   }, []);

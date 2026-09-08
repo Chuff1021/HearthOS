@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from 'next/server';
 import { getJobs } from '@/app/api/jobs/route';
 import { getTechs } from '@/app/api/techs/route';
@@ -60,6 +61,8 @@ async function toScheduleJobs(): Promise<ScheduleJob[]> {
 }
 
 export async function GET(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/schedule", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const techId = searchParams.get('techId');
@@ -83,9 +86,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
+  const accessDenied = await authorizeCrmApi("/api/schedule", "POST");
+  if (accessDenied) return accessDenied;
   return NextResponse.json({ error: 'Create jobs via /api/jobs' }, { status: 405 });
 }
 
 export async function PUT() {
+  const accessDenied = await authorizeCrmApi("/api/schedule", "PUT");
+  if (accessDenied) return accessDenied;
   return NextResponse.json({ error: 'Update jobs via /api/jobs' }, { status: 405 });
 }

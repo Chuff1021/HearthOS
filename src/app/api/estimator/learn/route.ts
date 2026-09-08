@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 import { getClientFromTokens } from "@/lib/quickbooks/sync";
@@ -17,6 +18,8 @@ export const maxDuration = 300;
  * - Which venting components go with which fireplace models
  */
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/estimator/learn", "POST");
+  if (accessDenied) return accessDenied;
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ error: "No database" }, { status: 500 });
   }

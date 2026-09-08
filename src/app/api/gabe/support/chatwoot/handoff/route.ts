@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { insertSupportConversation } from '@/lib/gabe-support';
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/support/chatwoot/handoff", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const conversationId = String(body?.conversationId || body?.conversation_id || '');

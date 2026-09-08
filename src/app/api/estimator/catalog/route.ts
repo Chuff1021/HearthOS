@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, inventoryItems, invoiceLineItems, invoices } from "@/db";
 import { and, eq, gte, sql, isNotNull, inArray } from "drizzle-orm";
@@ -60,6 +61,8 @@ function buildTokens(text: string): string[] {
 }
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/estimator/catalog", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const monthsBack = Math.max(1, Math.min(60, parseInt(searchParams.get("monthsBack") || "24", 10)));

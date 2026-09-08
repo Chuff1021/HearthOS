@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/run-metadata", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.max(1, Math.min(500, Number(searchParams.get('limit') || 100)));

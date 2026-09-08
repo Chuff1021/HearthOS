@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -38,6 +39,8 @@ type LatestSource = {
 };
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/inventory/price-audit", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const sourceParam = (searchParams.get('source') || 'bills').toLowerCase();

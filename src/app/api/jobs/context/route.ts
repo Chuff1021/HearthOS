@@ -1,3 +1,6 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { requireCrmActor } from "@/lib/security/crm-access";
+import { canAccessJob } from "@/lib/security/access-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/lib/job-store";
 import { getInvoices as getLocalInvoices } from "@/lib/data-store";
@@ -16,6 +19,8 @@ function matchesTitle(jobTitle: string, candidate: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/jobs/context", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -24,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     const job = await getJob(id);
-    if (!job) {
+    if (!job || !canAccessJob(await requireCrmActor(), job)) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 

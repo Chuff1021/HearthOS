@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, invoices, invoiceLineItems, inventoryItems } from '@/db';
 import { and, eq, gte, lte, sql, inArray } from 'drizzle-orm';
@@ -9,6 +10,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // invoice count.
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/reports/sales-by-item", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const since = searchParams.get('since') || '';

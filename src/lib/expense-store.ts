@@ -1,6 +1,7 @@
 import "server-only";
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { requireCrmActor } from "@/lib/security/crm-access";
+import { isOfficeActor } from "@/lib/security/access-policy";
 import postgres from "postgres";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 
@@ -112,66 +113,10 @@ function isUuid(value: string | null | undefined) {
 }
 
 export async function requireExpenseActor(): Promise<ExpenseActor> {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-    return { clerkUserId: "local-admin", techId: null, name: "Local Admin", email: null, isOffice: true };
-  }
-
-  const session = await auth();
-  if (!session.userId) throw new Error("UNAUTHORIZED");
-
-  const client = await clerkClient();
-  const user = await client.users.getUser(session.userId);
-  const email = user.primaryEmailAddress?.emailAddress?.trim().toLowerCase() || null;
-  const metadataRole = String(
-    user.publicMetadata?.hearthRole ||
-    user.privateMetadata?.hearthRole ||
-    user.unsafeMetadata?.hearthRole ||
-    "",
-  ).toLowerCase();
-  const metadataTechId = String(user.unsafeMetadata?.techId || "").trim() || null;
-  const name = user.fullName || user.firstName || user.username || email || "HearthOS User";
-
-  let dbRole = "";
-  let isOwner = false;
-  let techId: string | null = null;
-  if (email) {
-    const sql = getSql();
-    const org = await getOrCreateDefaultOrg();
-    const rows = await sql<{ id: string; role: string; is_owner: boolean }[]>`
-      select id::text, role::text, coalesce(is_owner, false) as is_owner
-      from users
-      where org_id = ${org.id}
-        and lower(email) = ${email}
-      limit 1
-    `;
-    if (rows[0]) {
-      techId = rows[0].id;
-      dbRole = rows[0].role;
-      isOwner = rows[0].is_owner;
-    }
-  } else if (isUuid(metadataTechId)) {
-    const sql = getSql();
-    const org = await getOrCreateDefaultOrg();
-    const rows = await sql<{ id: string; role: string; is_owner: boolean }[]>`
-      select id::text, role::text, coalesce(is_owner, false) as is_owner
-      from users
-      where org_id = ${org.id}
-        and id::text = ${metadataTechId}
-      limit 1
-    `;
-    if (rows[0]) {
-      techId = rows[0].id;
-      dbRole = rows[0].role;
-      isOwner = rows[0].is_owner;
-    }
-  }
-
+  const actor = await requireCrmActor();
   return {
-    clerkUserId: session.userId,
-    techId,
-    name,
-    email,
-    isOffice: isOwner || ["admin", "dispatcher", "owner"].includes(metadataRole) || ["admin", "dispatcher"].includes(dbRole),
+    clerkUserId: actor.clerkUserId, techId: actor.employeeId, name: actor.name,
+    email: actor.email, isOffice: isOfficeActor(actor),
   };
 }
 

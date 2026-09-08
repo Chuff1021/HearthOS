@@ -556,7 +556,7 @@ export default function AdminTimePage() {
                     </div>
                   </div>
                   {selectedEntries.length === 0 ? (
-                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No entries for this day. Click "+ Add Entry" to create one.</p>
+                    <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No entries for this day. Click &quot;+ Add Entry&quot; to create one.</p>
                   ) : (
                     <div className="space-y-2">
                       {selectedEntries.map((entry) => (
@@ -585,7 +585,7 @@ export default function AdminTimePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Weekly Time Approval</h2>
-                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Review and approve each employee's hours for {weekLabel}</p>
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Review and approve each employee&apos;s hours for {weekLabel}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   {payrollResult && (
@@ -673,7 +673,7 @@ export default function AdminTimePage() {
               {Object.keys(approvals).length > 0 && Object.keys(approvals).length === gridData.filter(r => r.weekTotal > 0).length && (
                 <div className="rounded-xl p-4 text-center" style={{ background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)" }}>
                   <p className="text-sm font-semibold" style={{ color: "#16A34A" }}>All hours approved for {weekLabel}</p>
-                  <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Click "Send Payroll Report" to email the report to Shelly and download the CSV.</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>Click &quot;Send Payroll Report&quot; to email the report to Shelly and download the CSV.</p>
                 </div>
               )}
             </div>

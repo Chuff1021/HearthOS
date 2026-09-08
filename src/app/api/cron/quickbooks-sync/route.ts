@@ -1,3 +1,4 @@
+import { authorizeCron } from "@/lib/security/cron-access";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, organizations } from "@/db";
@@ -62,6 +63,8 @@ async function runStep<T>(
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCron();
+  if (accessDenied) return accessDenied;
   const started = Date.now();
   const org = await getOrCreateDefaultOrg();
 

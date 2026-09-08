@@ -1,10 +1,5 @@
-const CACHE_NAME = "hearth-tech-v1";
+const CACHE_NAME = "hearth-tech-public-v2";
 const APP_SHELL = [
-  "/tech",
-  "/tech/inbox",
-  "/tech/manuals",
-  "/tech/profile",
-  "/tech/gabe",
   "/tech/manifest.webmanifest",
   "/tech/icon-192.png",
   "/tech/icon-512.png",
@@ -21,7 +16,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      Promise.all(keys.filter((key) => key.startsWith("hearth-tech-") && key !== CACHE_NAME).map((key) => caches.delete(key))),
     ),
   );
   self.clients.claim();
@@ -37,21 +32,12 @@ self.addEventListener("fetch", (event) => {
   const isTechDocument = request.mode === "navigate" && url.pathname.startsWith("/tech");
   const isStaticAsset =
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname.endsWith(".png") ||
-    url.pathname.endsWith(".svg") ||
-    url.pathname.endsWith(".webmanifest") ||
-    url.pathname.endsWith(".css") ||
-    url.pathname.endsWith(".js");
+    APP_SHELL.includes(url.pathname);
 
   if (isTechDocument) {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => (await caches.match(request)) || caches.match("/tech")),
+        .catch(() => new Response("<!doctype html><html lang=\"en\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>HearthOS offline</title><body><h1>You are offline</h1><p>Reconnect to load your jobs securely. Unsent changes are not automatically delivered.</p></body></html>", { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } })),
     );
     return;
   }
@@ -61,6 +47,7 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cached) => {
         const fetchPromise = fetch(request)
           .then((response) => {
+            if (!response.ok || response.redirected) return response;
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
             return response;

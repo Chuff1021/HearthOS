@@ -366,12 +366,16 @@ export default function SchedulePage() {
       try {
         const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Customer search failed");
         if (!cancelled) {
           setCustomerResults((data.customers || []) as CustomerLookup[]);
           setCustomerLookupError(data.source === "local" ? "QuickBooks lookup unavailable, using local customers." : null);
         }
       } catch {
-        if (!cancelled) setCustomerLookupError("Customer lookup failed.");
+        if (!cancelled) {
+          setCustomerResults([]);
+          setCustomerLookupError("Customer lookup failed. Please try again.");
+        }
       } finally {
         if (!cancelled) setCustomerLoading(false);
       }

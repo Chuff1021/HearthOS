@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
@@ -18,6 +19,8 @@ function plaidBaseUrl() {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/banking/link-token", "POST");
+  if (accessDenied) return accessDenied;
   try {
     if (!PLAID_CLIENT_ID || !PLAID_SECRET) {
       return NextResponse.json(

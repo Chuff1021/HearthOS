@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
+import { useRecordQuery } from "@/lib/use-record-query";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -90,18 +91,10 @@ const isOverdue = (date: string | null, balance: number) => {
 // ───────────────────────────────────────────────────────────────────────────
 export default function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [data, setData] = useState<DetailResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error } = useRecordQuery<DetailResponse>(`/api/customers/${encodeURIComponent(id)}`);
   const [tab, setTab] = useState<Tab>("transactions");
   const [docDrill, setDocDrill] = useState<{ type: DocumentType; id: string } | null>(null);
 
-  useEffect(() => {
-    setData(null); setError(null);
-    fetch(`/api/customers/${id}`)
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => ok ? setData(j) : setError(j.error || "Failed"))
-      .catch((e) => setError(e?.message || "Failed"));
-  }, [id]);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>

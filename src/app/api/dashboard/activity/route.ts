@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -35,6 +36,8 @@ type Activity = {
 const PER_TABLE = 50;
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/dashboard/activity", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const limit = Math.min(100, Math.max(5, parseInt(searchParams.get('limit') || '30', 10)));

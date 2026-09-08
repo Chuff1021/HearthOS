@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, invoices, invoiceLineItems, inventoryItems, customers } from '@/db';
 import { and, eq, gte, lte, sql, inArray } from 'drizzle-orm';
@@ -8,6 +9,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // and rough margin (revenue minus inventory_items.cost × qty COGS).
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/reports/sales-by-customer", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const since = searchParams.get('since') || '';

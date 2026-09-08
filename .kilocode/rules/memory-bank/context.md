@@ -2,6 +2,14 @@
 
 ## Current State
 
+### September 8, 2026: Production Safety Override
+
+The older setup notes below are historical and are NOT instructions to seed data, create a replacement organization, or push a schema to the live database. Aaron's daily production source is the existing Neon database and `main` release lineage. Do not reconstruct it from demo fixtures.
+
+Current stabilization work is isolated in `/Users/fireplace/HearthOS-stabilization`, branch `codex/aarons-crm-stabilization`, based on verified live `4bd8ab6`. A fresh encrypted backup was restored successfully. No production deployment, migration, or record mutation occurred. Access-control, employee identity, Projects/dashboard, customer search, safe mobile feedback/cache, and dependency fixes are implemented locally with tests.
+
+See `docs/STABILIZATION_CHECKPOINT_2026-09-08.md` for exact verification and release blockers. This is NOT multi-tenant/audit-ready completion. Staff-role compatibility, existing unsigned customer-link transition, isolated preview, financial reconciliation, and complete tenant isolation remain mandatory gates. Do not merge the foundation wholesale over this live-main-based branch; it lacks some production features. Meeks remains Aaron-only. Do not touch Travis or LT Rush demo deployments as part of this checkpoint.
+
 **Project Status**: ✅ Foundation complete — HearthOS dashboard UI live
 
 HearthOS is a purpose-built field service management platform for fireplace installation, service, and retail companies. The foundation has been built: full product documentation suite + working Next.js dashboard UI.

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
@@ -31,6 +32,8 @@ function cleanDate(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/service-map/outreach", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;
@@ -51,6 +54,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/service-map/outreach", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const access = await requireInternalUser();
     if (!access.ok) return access.response;

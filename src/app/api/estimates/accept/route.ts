@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { verifyCustomerLink } from "@/lib/security/public-links";
 import { and, asc, eq, or } from 'drizzle-orm';
 import { db, customers, estimateLineItems, estimates, inventoryItems } from '@/db';
 import { getOrCreateDefaultOrg } from '@/lib/org';
@@ -56,6 +58,10 @@ export async function GET(request: NextRequest) {
   try {
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    if (!verifyCustomerLink(request.nextUrl.searchParams.get("token") || "", "estimate", id)) {
+      const denied = await authorizeCrmApi("/api/estimates", "GET");
+      if (denied) return NextResponse.json({ error: "This link is invalid or expired. Ask the office for a new estimate link." }, { status: 403 });
+    }
 
     const org = await getOrCreateDefaultOrg();
     const row = await findEstimate(org.id, id);
@@ -117,6 +123,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const estimateId = body?.id ? String(body.id) : '';
+    if (!verifyCustomerLink(String(body.token || ""), "estimate", estimateId)) {
+      const denied = await authorizeCrmApi("/api/estimates", "POST");
+      if (denied) return NextResponse.json({ error: "This link is invalid or expired. Ask the office for a new estimate link." }, { status: 403 });
+    }
     const signerName = body?.signerName ? String(body.signerName).trim() : '';
     const signerEmail = body?.signerEmail ? String(body.signerEmail).trim() : '';
     const agreed = Boolean(body?.agreed);

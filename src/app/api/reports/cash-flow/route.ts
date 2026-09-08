@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, payments, bills } from '@/db';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
@@ -9,6 +10,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // Bucketed monthly; default window is last 12 months.
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/reports/cash-flow", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const monthsBack = Math.min(60, Math.max(1, parseInt(searchParams.get('monthsBack') || '12', 10)));

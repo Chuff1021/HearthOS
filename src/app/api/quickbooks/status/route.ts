@@ -1,9 +1,12 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/status", "GET");
+  if (accessDenied) return accessDenied;
   try {
     // Neon is the durable source of truth. Browser OAuth cookies may contain
     // an older token pair after a server-side refresh.

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
 
@@ -12,6 +13,8 @@ function baseUrl() {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/square/checkout", "POST");
+  if (accessDenied) return accessDenied;
   try {
     if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
       return NextResponse.json(

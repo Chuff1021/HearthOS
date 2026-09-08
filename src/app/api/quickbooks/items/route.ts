@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   getCachedItems, 
@@ -11,6 +12,8 @@ import {
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/items", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -20,6 +23,8 @@ export async function GET(request: NextRequest) {
 
     // If sync requested, pull fresh data from QuickBooks
     if (sync === 'true') {
+      const syncDenied = await authorizeCrmApi("/api/quickbooks/sync", "POST");
+      if (syncDenied) return syncDenied;
       let accessToken = request.cookies.get('qb_access_token')?.value;
       let refreshToken = request.cookies.get('qb_refresh_token')?.value;
       let realmId = request.cookies.get('qb_realm_id')?.value;

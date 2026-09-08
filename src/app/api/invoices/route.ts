@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, customers, inventoryItems, invoiceLineItems, invoices as dbInvoices } from "@/db";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
@@ -13,6 +14,8 @@ import { addAuditLog } from "@/lib/audit-log-store";
 import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/invoices", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -125,6 +128,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/invoices", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
 
@@ -188,6 +193,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/invoices", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
 
@@ -227,6 +234,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/invoices", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

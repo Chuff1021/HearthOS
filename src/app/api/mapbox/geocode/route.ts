@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 
 type Point = [number, number];
@@ -26,6 +27,8 @@ async function fallbackGeocode(query: string): Promise<{ center: Point; label: s
 }
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/mapbox/geocode", "GET");
+  if (accessDenied) return accessDenied;
   const query = req.nextUrl.searchParams.get("q")?.trim();
   if (!query) {
     return NextResponse.json({ error: "Missing q" }, { status: 400 });

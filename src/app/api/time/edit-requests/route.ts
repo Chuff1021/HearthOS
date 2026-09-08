@@ -1,6 +1,8 @@
+import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import postgres from "postgres";
-import { updateTimeEntry } from "@/lib/time-entry-store";
+import { listTimeEntries, updateTimeEntry } from "@/lib/time-entry-store";
+import { randomUUID } from "node:crypto";
 
 let initDone = false;
 
@@ -34,13 +36,16 @@ async function ensureTable(sql: ReturnType<typeof postgres>) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/edit-requests", "GET");
+  if (accessDenied) return accessDenied;
   const sql = getSql();
   if (!sql) return NextResponse.json({ requests: [] });
 
   try {
     await ensureTable(sql);
     const { searchParams } = new URL(request.url);
-    const techId = searchParams.get("techId");
+    const actor = await requireCrmActor();
+    const techId = actor.role === "technician" ? actor.employeeId : searchParams.get("techId");
     const status = searchParams.get("status");
 
     let rows;
@@ -63,20 +68,30 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/edit-requests", "POST");
+  if (accessDenied) return accessDenied;
   const sql = getSql();
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
     await ensureTable(sql);
     const body = await request.json();
-    const { techId, techName, entryId, requestedClockIn, requestedClockOut, reason } = body;
+    const actor = await requireCrmActor();
+    const { entryId, requestedClockIn, requestedClockOut, reason } = body;
+    const techId = actor.role === "technician" ? actor.employeeId : body.techId;
+    const techName = actor.role === "technician" ? actor.name : body.techName;
 
     if (!techId || !entryId || !reason) {
       await sql.end();
       return NextResponse.json({ error: "techId, entryId, and reason are required" }, { status: 400 });
     }
 
-    const id = `ter-${Date.now()}`;
+    const entries = await listTimeEntries({ techId });
+    if (!entries.some((entry) => entry.id === entryId)) {
+      await sql.end();
+      return NextResponse.json({ error: "Time entry not found for this employee" }, { status: 404 });
+    }
+    const id = `ter-${randomUUID()}`;
     await sql`
       INSERT INTO hearth_time_edit_requests (id, tech_id, tech_name, entry_id, requested_clock_in, requested_clock_out, reason, status)
       VALUES (${id}, ${techId}, ${techName || null}, ${entryId}, ${requestedClockIn || null}, ${requestedClockOut || null}, ${reason}, 'pending')
@@ -91,15 +106,18 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/edit-requests", "PUT");
+  if (accessDenied) return accessDenied;
   const sql = getSql();
   if (!sql) return NextResponse.json({ error: "No database" }, { status: 500 });
 
   try {
     await ensureTable(sql);
     const body = await request.json();
-    const { id, status, reviewedBy } = body;
+    const { id, status } = body;
+    const reviewedBy = (await requireCrmActor()).employeeId;
 
-    if (!id || !status) {
+    if (!id || !["approved", "denied"].includes(status)) {
       await sql.end();
       return NextResponse.json({ error: "id and status required" }, { status: 400 });
     }

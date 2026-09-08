@@ -1,3 +1,5 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { signCustomerLink } from "@/lib/security/public-links";
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, estimateLineItems, estimates, inventoryItems, organizations } from '@/db';
@@ -25,10 +27,9 @@ function cleanDocumentNumber(value: string | undefined) {
 }
 
 function publicOrigin(request: NextRequest) {
-  const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(':', '');
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  if (host) return `${proto}://${host}`;
-  return new URL(request.url).origin;
+  const origin = process.env.HEARTHOS_PUBLIC_ORIGIN;
+  if (!origin || new URL(origin).protocol !== "https:") throw new Error("Customer link origin is not configured.");
+  return new URL(origin).origin;
 }
 
 function estimateAcceptanceUrl(request: NextRequest, estimate: any) {
@@ -36,6 +37,7 @@ function estimateAcceptanceUrl(request: NextRequest, estimate: any) {
   const params = new URLSearchParams({
     id: String(estimate.Id || estimate.DocNumber || ''),
   });
+  params.set("token", signCustomerLink({ purpose: "estimate", document: params.get("id")! }));
   return `${origin}/accept-estimate?${params.toString()}`;
 }
 
@@ -312,6 +314,8 @@ async function withRefresh<T>(auth: { accessToken: string; refreshToken: string;
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/estimates", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -334,6 +338,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/estimates", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });

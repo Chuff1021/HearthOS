@@ -1,3 +1,5 @@
+import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
+import { isAssignedTodo } from "@/lib/security/access-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { 
   getTodos, 
@@ -11,8 +13,11 @@ import {
 
 // GET - Get todos with optional filters
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/todos", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
+    const actor = await requireCrmActor();
     
     const filters = {
       status: searchParams.get("status") as Todo["status"] || undefined,
@@ -25,6 +30,7 @@ export async function GET(request: NextRequest) {
 
     // If requesting stats
     if (searchParams.get("stats") === "true") {
+      if (actor.role === "technician") return NextResponse.json({ error: "Office access required" }, { status: 403 });
       const stats = await getTodoStats();
       return NextResponse.json(stats);
     }
@@ -33,7 +39,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get("id");
     if (id) {
       const todo = await getTodoById(id);
-      if (!todo) {
+      if (!todo || (actor.role === "technician" && !isAssignedTodo(actor, todo))) {
         return NextResponse.json({ error: "Todo not found" }, { status: 404 });
       }
       return NextResponse.json(todo);
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     // Get filtered todos
     const todos = await getTodos(filters);
-    return NextResponse.json({ todos });
+    return NextResponse.json({ todos: actor.role === "technician" ? todos.filter((todo) => isAssignedTodo(actor, todo)) : todos });
   } catch (err) {
     console.error("Failed to get todos:", err);
     return NextResponse.json({ error: "Failed to get todos" }, { status: 500 });
@@ -50,6 +56,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new todo
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/todos", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     
@@ -81,14 +89,24 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update a todo
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/todos", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+    const actor = await requireCrmActor();
 
     if (!id) {
       return NextResponse.json({ error: "Todo ID required" }, { status: 400 });
     }
 
+    if (actor.role === "technician") {
+      const todo = await getTodoById(id);
+      if (!todo || !isAssignedTodo(actor, todo)) return NextResponse.json({ error: "Todo not found" }, { status: 404 });
+      if (Object.keys(updates).some((key) => key !== "status") || !["pending", "in_progress", "completed"].includes(updates.status)) {
+        return NextResponse.json({ error: "Only task status can be changed" }, { status: 400 });
+      }
+    }
     const updated = await updateTodo(id, updates);
     if (!updated) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });
@@ -103,6 +121,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete a todo
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/todos", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

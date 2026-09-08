@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,14 +17,22 @@ function isStandaloneDisplay() {
   return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
+function getDeviceMode() {
+  return isStandaloneDisplay() ? "installed" : isIosDevice() ? "ios" : "other";
+}
+
+function subscribeDisplay(onChange: () => void) {
+  const query = window.matchMedia("(display-mode: standalone)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 export default function TechPwaProvider() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
-  useEffect(() => {
-    setIsInstalled(isStandaloneDisplay());
-  }, []);
+  const deviceMode = useSyncExternalStore(subscribeDisplay, getDeviceMode, () => "other");
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
@@ -61,11 +69,11 @@ export default function TechPwaProvider() {
   }, []);
 
   const installMode = useMemo(() => {
-    if (isInstalled || dismissed) return "hidden" as const;
+    if (isInstalled || dismissed || deviceMode === "installed") return "hidden" as const;
     if (installEvent) return "android" as const;
-    if (isIosDevice() && !isStandaloneDisplay()) return "ios" as const;
+    if (deviceMode === "ios") return "ios" as const;
     return "hidden" as const;
-  }, [dismissed, installEvent, isInstalled]);
+  }, [dismissed, installEvent, isInstalled, deviceMode]);
 
   const handleInstall = async () => {
     if (!installEvent) return;

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCustomerById } from "@/lib/data-store";
@@ -22,6 +23,8 @@ function errorResponse(error: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/expenses", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const actor = await requireExpenseActor();
     const org = await getOrCreateDefaultOrg();
@@ -61,6 +64,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/expenses", "POST");
+  if (accessDenied) return accessDenied;
   let storedObjectKey: string | null = null;
   try {
     const actor = await requireExpenseActor();
@@ -114,6 +119,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/expenses", "PATCH");
+  if (accessDenied) return accessDenied;
   try {
     const actor = await requireExpenseActor();
     if (!actor.isOffice) return NextResponse.json({ error: "Office access is required" }, { status: 403 });

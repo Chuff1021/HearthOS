@@ -1,9 +1,14 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { createTimeEntry, closeOpenTimeEntry, listTimeEntries, updateTimeEntry } from '@/lib/time-entry-store';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/entries", "GET");
+  if (accessDenied) return accessDenied;
   const { searchParams } = new URL(request.url);
-  const techId = searchParams.get('techId');
+  const actor = await requireCrmActor();
+  const techId = actor.role === "technician" ? actor.employeeId : searchParams.get('techId');
   const openOnly = searchParams.get('openOnly') === 'true';
   const date = searchParams.get('date');
   const weekOf = searchParams.get('weekOf'); // YYYY-MM-DD, returns Mon-Sun of that week
@@ -34,10 +39,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/entries", "POST");
+  if (accessDenied) return accessDenied;
   const body = await request.json();
   const action = body.action as 'clock_in' | 'clock_out' | 'manual_entry';
-  const techId = body.techId as string;
-  const techName = body.techName as string | undefined;
+  const actor = await requireCrmActor();
+  const techId = actor.role === "technician" ? actor.employeeId : body.techId as string;
+  const techName = actor.role === "technician" ? actor.name : body.techName as string | undefined;
+  if (!["clock_in", "clock_out", "manual_entry"].includes(action)) return NextResponse.json({ error: "Invalid clock action" }, { status: 400 });
+  if (actor.role === "technician" && action === "manual_entry") return NextResponse.json({ error: "Office approval required for manual time entries." }, { status: 403 });
 
   if (!action || !techId) {
     return NextResponse.json({ error: 'action and techId are required' }, { status: 400 });
@@ -72,6 +82,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/entries", "PUT");
+  if (accessDenied) return accessDenied;
   const body = await request.json();
   const { id, clockInAt, clockOutAt, editNote } = body;
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
@@ -82,6 +94,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/time/entries", "DELETE");
+  if (accessDenied) return accessDenied;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });

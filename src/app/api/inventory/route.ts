@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, inventoryItems, bills, billLineItems } from '@/db';
 import { and, eq, ilike, or, sql, desc, asc, inArray, isNull, isNotNull } from 'drizzle-orm';
@@ -19,6 +20,8 @@ const SORTS = {
 } as const;
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/inventory", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();

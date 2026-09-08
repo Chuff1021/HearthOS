@@ -39,12 +39,17 @@ export default function TechInboxPage() {
   }
 
   async function markDone(id: string) {
-    await fetch('/api/todos', {
+    try {
+    const response = await fetch('/api/todos', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status: 'completed' }),
     });
-    loadInbox();
+    if (!response.ok) throw new Error("Task could not be completed. Please try again.");
+    await loadInbox();
+    } catch {
+      setNote("Task could not be completed. Please try again.");
+    }
   }
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from 'next/server';
 import { clerkClient } from '@clerk/nextjs/server';
 import { readJsonFile, writeJsonFileWithBackup } from '@/lib/persist-json';
@@ -112,6 +113,8 @@ export function getTechs(): Tech[] {
 }
 
 export async function GET(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/techs", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('activeOnly') === 'true';
@@ -144,6 +147,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/techs", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const store = loadStore();
     const body = await request.json();
@@ -237,6 +242,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/techs", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

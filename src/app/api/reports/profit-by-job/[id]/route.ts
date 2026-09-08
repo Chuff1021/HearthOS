@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -27,6 +28,8 @@ function isTaxPassthrough(...texts: Array<string | null | undefined>): boolean {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/reports/profit-by-job/[id]", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { id } = await params;
     const org = await getOrCreateDefaultOrg();

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
@@ -82,6 +83,8 @@ function money(value: unknown) {
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/banking/summary", "GET");
+  if (accessDenied) return accessDenied;
   const org = await getOrCreateDefaultOrg();
   const settings = (org.settings || {}) as OrgSettings;
   const storedAccessToken = settings.banking?.plaidAccessToken;

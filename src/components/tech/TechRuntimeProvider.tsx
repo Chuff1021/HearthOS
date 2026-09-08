@@ -31,11 +31,14 @@ const MAX_RETRIES_BEFORE_BACKOFF = 5;
 const KEEPALIVE_INTERVAL = 90_000; // restart dead watcher every 90s
 
 export default function TechRuntimeProvider() {
-  const { isLoaded } = useUser();
+  const { isLoaded, user } = useUser();
+  const userId = user?.id;
   const gps = useGpsStatus();
+  const updateGps = gps.update;
   const watchRef = useRef<number | null>(null);
   const [clockedIn, setClockedIn] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [clockUserId, setClockUserId] = useState<string | undefined>();
 
   // Refs for tracking state inside callbacks
   const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
@@ -44,9 +47,19 @@ export default function TechRuntimeProvider() {
   // Cache identity so visibility-change restarts don't need to re-fetch
   const identityRef = useRef<{ techId: string; techName?: string; techEmail?: string } | null>(null);
 
+  useEffect(() => {
+    identityRef.current = null;
+    lastSentRef.current = null;
+    if (watchRef.current !== null) {
+      navigator.geolocation.clearWatch(watchRef.current);
+      watchRef.current = null;
+    }
+    updateGps({ isTracking: false });
+  }, [userId, updateGps]);
+
   // Poll clock state
   useEffect(() => {
-    if (!CLERK_ENABLED || !isLoaded) return;
+    if (!CLERK_ENABLED || !isLoaded || !userId) return;
 
     let cancelled = false;
 
@@ -58,6 +71,7 @@ export default function TechRuntimeProvider() {
         if (!cancelled) {
           setClockedIn(Boolean(data?.clockEntry));
           setIsOwner(Boolean(data?.isOwner));
+          setClockUserId(userId);
         }
       } catch {
         // Don't change clock state on network errors — keep the last known state
@@ -74,11 +88,11 @@ export default function TechRuntimeProvider() {
       window.removeEventListener("hearth-tech-clock-changed", refresh as EventListener);
       window.clearInterval(intervalId);
     };
-  }, [isLoaded]);
+  }, [isLoaded, userId]);
 
   // GPS tracking — owners always track, techs only when clocked in
   useEffect(() => {
-    if (!CLERK_ENABLED || !isLoaded) return;
+    if (!CLERK_ENABLED || !isLoaded || !userId || clockUserId !== userId) return;
     if (!clockedIn && !isOwner) {
       gps.update({ isTracking: false });
       return;
@@ -101,6 +115,7 @@ export default function TechRuntimeProvider() {
 
       watchRef.current = navigator.geolocation.watchPosition(
         async (pos) => {
+          if (cancelled) return;
           const { latitude, longitude, accuracy, speed, heading } = pos.coords;
 
           // Update context with latest accuracy
@@ -120,7 +135,7 @@ export default function TechRuntimeProvider() {
 
           // Send the ping
           try {
-            await fetch("/api/tech/locations", {
+            const response = await fetch("/api/tech/locations", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -136,6 +151,8 @@ export default function TechRuntimeProvider() {
               }),
             });
 
+            if (!response.ok) throw new Error("Location update was rejected");
+            if (cancelled) return;
             lastSentRef.current = { lat: latitude, lng: longitude, time: now };
             retryCountRef.current = 0;
             gps.update({
@@ -281,7 +298,7 @@ export default function TechRuntimeProvider() {
       retryCountRef.current = 0;
       identityRef.current = null;
     };
-  }, [clockedIn, isLoaded, isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clockedIn, isLoaded, isOwner, userId, clockUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }

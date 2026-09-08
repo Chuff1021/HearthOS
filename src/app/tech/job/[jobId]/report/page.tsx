@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { getJob } from "@/lib/job-store";
+import { requireCrmActor } from "@/lib/security/crm-access";
+import { canAccessJob } from "@/lib/security/access-policy";
+import { notFound } from "next/navigation";
 import { buildInitialChecklistForm, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
 import AutoPrint from "./AutoPrint";
 import PrintButton from "./PrintButton";
@@ -42,8 +45,10 @@ export default async function TechJobReportPage({
   searchParams: Promise<{ print?: string }>;
 }) {
   const { jobId } = await params;
+  const actor = await requireCrmActor();
   const resolvedSearchParams = await searchParams;
   const job = await getJob(jobId);
+  if (job && !canAccessJob(actor, job)) notFound();
 
   if (!job) {
     return <div style={{ padding: 32 }}>Job not found.</div>;

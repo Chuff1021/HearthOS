@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, bills, vendors } from '@/db';
 import { and, eq, sql, desc } from 'drizzle-orm';
@@ -19,6 +20,8 @@ function bucketize(daysOverdue: number): Bucket {
 }
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/reports/ap-aging", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const onlyOverdue = searchParams.get('onlyOverdue') === 'true';

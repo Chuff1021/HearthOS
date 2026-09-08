@@ -175,6 +175,7 @@ export default function JobsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: string; name: string; address?: string }[]>([]);
+  const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [jobContext, setJobContext] = useState<{
@@ -237,16 +238,27 @@ export default function JobsPage() {
       setCustomerResults([]);
       return;
     }
+    const controller = new AbortController();
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`);
+      try {
+      const res = await fetch(`/api/customer-lookup?q=${encodeURIComponent(q)}`, { signal: controller.signal });
       const data = await res.json();
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error(data.error || "Customer search failed");
+      setCustomerSearchError(null);
       setCustomerResults((data.customers || []).map((c: any) => ({
         id: c.id,
         name: c.displayName,
         address: c.address ? [c.address.line1, [c.address.city, c.address.state].filter(Boolean).join(", "), c.address.zip].filter(Boolean).join(" ").trim() : "",
       })));
+      } catch {
+        if (!controller.signal.aborted) {
+          setCustomerResults([]);
+          setCustomerSearchError("Customer search failed. Please try again.");
+        }
+      }
     }, 250);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); controller.abort(); };
   }, [customerQuery, showCreateModal]);
 
   useEffect(() => {
@@ -586,7 +598,8 @@ export default function JobsPage() {
             <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}><h2 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>Create New Job</h2></div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <input placeholder="Search customers..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-              {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || prev.propertyAddress })); }} className="w-full text-left px-3 py-2 text-sm">{c.name}</button>)}</div>}
+              {customerSearchError && <p role="alert" className="text-sm text-red-600">{customerSearchError}</p>}
+              {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || prev.propertyAddress })); }} className="w-full text-left px-3 py-2 text-sm">{c.name}<span className="block text-xs" style={{ color: "var(--color-text-muted)" }}>{c.address}</span></button>)}</div>}
               <input placeholder="Job title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               <input placeholder="Property address" value={formData.propertyAddress} onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               <div className="grid grid-cols-2 gap-4">

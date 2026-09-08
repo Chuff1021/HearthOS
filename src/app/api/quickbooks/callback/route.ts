@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { createQuickBooksClient } from '@/lib/quickbooks/client';
 import { db, organizations } from '@/db';
@@ -5,11 +6,16 @@ import { eq } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/quickbooks/callback", "GET");
+  if (accessDenied) return accessDenied;
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   const realmId = searchParams.get('realmId');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
+  if (!state || state !== request.cookies.get("qb_oauth_state")?.value) {
+    return NextResponse.json({ error: "Invalid or expired QuickBooks connection state. Start the connection again." }, { status: 403 });
+  }
 
   // Handle OAuth errors
   if (error) {
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(
       new URL('/integrations/quickbooks?connected=true', request.url)
     );
+    response.cookies.delete("qb_oauth_state");
 
     // Store tokens in secure HTTP-only cookies (also persisted in DB above)
     response.cookies.set('qb_access_token', tokens.access_token, {

@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDefaultRecurringJobs, listJobs, runSupervisorTick } from '@/lib/gabe-ops';
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/ops/supervisor", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
     await ensureDefaultRecurringJobs();
@@ -13,6 +16,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/ops/supervisor", "GET");
+  if (accessDenied) return accessDenied;
   try {
     await ensureDefaultRecurringJobs();
     const jobs = await listJobs(200);

@@ -1,9 +1,12 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from "next/server";
 import { getDashboardStats, getCustomers } from "@/lib/data-store";
 import { getJobs } from "@/app/api/jobs/route";
 import { getTechs } from "@/app/api/techs/route";
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/dashboard", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const baseStats = await getDashboardStats();
     const customers = await getCustomers();

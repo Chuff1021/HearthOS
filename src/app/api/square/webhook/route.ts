@@ -7,7 +7,7 @@ const SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 const WEBHOOK_URL = process.env.SQUARE_WEBHOOK_URL;
 
 function verifySignature(body: string, signatureHeader: string | null) {
-  if (!SIGNATURE_KEY || !WEBHOOK_URL) return true;
+  if (!SIGNATURE_KEY || !WEBHOOK_URL) return false;
   if (!signatureHeader) return false;
 
   const digest = crypto

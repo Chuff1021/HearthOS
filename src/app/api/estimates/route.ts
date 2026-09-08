@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, estimates, estimateLineItems, customers, inventoryItems } from "@/db";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
@@ -42,6 +43,8 @@ const cleanDocumentNumber = (value: string | null | undefined) =>
   value?.replace(/^QB-/i, "") || undefined;
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/estimates", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

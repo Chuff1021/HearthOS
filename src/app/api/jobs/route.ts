@@ -1,3 +1,7 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { requireCrmActor } from "@/lib/security/crm-access";
+import { canAccessJob, TECH_JOB_FIELDS } from "@/lib/security/access-policy";
+import { getJob } from "@/lib/job-store";
 import { NextResponse } from "next/server";
 import {
   createJobRecord,
@@ -14,6 +18,8 @@ export async function getJobs(): Promise<Job[]> {
 }
 
 export async function GET(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/jobs", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -23,7 +29,8 @@ export async function GET(request: Request) {
     const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "1000", 10);
 
-    let filtered = await listJobs();
+    const actor = await requireCrmActor();
+    let filtered = (await listJobs()).filter((job) => canAccessJob(actor, job));
 
     if (id) {
       filtered = filtered.filter((job) => job.id === id);
@@ -68,6 +75,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/jobs", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const newJob = await createJobRecord({
@@ -98,9 +107,22 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/jobs", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+    const actor = await requireCrmActor();
+    if (!id || typeof id !== "string") return NextResponse.json({ error: "Job ID required" }, { status: 400 });
+    const existing = await getJob(id);
+    if (!existing || !canAccessJob(actor, existing)) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    if (actor.role === "technician" && Object.keys(updates).some((key) => !TECH_JOB_FIELDS.has(key))) {
+      return NextResponse.json({ error: "Technicians can only update their assigned job's field details." }, { status: 403 });
+    }
+    if (updates.status && !["scheduled", "in_progress", "completed", "cancelled", "on_hold"].includes(updates.status)) {
+      return NextResponse.json({ error: "Invalid job status" }, { status: 400 });
+    }
+    if (updates.status === "completed") updates.completedAt = new Date().toISOString();
 
     const job = await updateJobRecord(id, updates);
     if (!job) {
@@ -115,6 +137,8 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const accessDenied = await authorizeCrmApi("/api/jobs", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

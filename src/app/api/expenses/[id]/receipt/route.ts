@@ -1,9 +1,12 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { expenseReceiptResponse } from "@/lib/expense-receipts";
 import { getExpense, requireExpenseActor } from "@/lib/expense-store";
 import { getOrCreateDefaultOrg } from "@/lib/org";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const accessDenied = await authorizeCrmApi("/api/expenses/[id]/receipt", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const actor = await requireExpenseActor();
     const org = await getOrCreateDefaultOrg();

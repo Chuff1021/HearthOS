@@ -1,7 +1,10 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { runGabeReviewAgent } from '@/lib/gabe-review-agent';
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/gabe/review", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(500, Math.max(20, Number(searchParams.get('limit') || 100)));

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getCustomers,
@@ -10,6 +11,8 @@ import {
 import { appendMemoryEvent } from "@/lib/long-term-memory";
 
 export async function GET(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
@@ -37,6 +40,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     
@@ -76,6 +81,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers", "PUT");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     
@@ -104,6 +111,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/customers", "DELETE");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

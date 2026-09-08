@@ -1,11 +1,9 @@
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { isClerkConfigured } from "@/lib/auth";
+import { requireCrmActor } from "@/lib/security/crm-access";
+import { isOfficeActor, verifiedPrimaryEmail } from "@/lib/security/access-policy";
 
 const DEFAULT_MEEKS_EMAILS = ["shawn.garvey@meeks.com"];
-const DEFAULT_INTERNAL_EMAILS = [
-  "chuff182@gmail.com",
-  "aaronsfireplaceco.gabe@yahoo.com",
-];
 
 export type MeeksAccess =
   | {
@@ -32,63 +30,14 @@ function allowedMeeksEmails() {
   return new Set([...DEFAULT_MEEKS_EMAILS, ...configured]);
 }
 
-function allowedInternalEmails() {
-  const configured = String(process.env.HEARTHOS_INTERNAL_ALLOWED_EMAILS || "")
-    .split(",")
-    .map(normalizeEmail)
-    .filter(Boolean);
-  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
-  return new Set([...DEFAULT_INTERNAL_EMAILS, ...configured, adminEmail].filter(Boolean));
-}
-
-function metadataRole(user: any) {
-  return String(
-    user?.publicMetadata?.hearthRole ||
-    user?.publicMetadata?.role ||
-    user?.publicMetadata?.userRole ||
-    user?.privateMetadata?.hearthRole ||
-    user?.privateMetadata?.role ||
-    user?.privateMetadata?.userRole ||
-    user?.unsafeMetadata?.hearthRole ||
-    user?.unsafeMetadata?.role ||
-    user?.unsafeMetadata?.userRole ||
-    ""
-  ).toLowerCase();
-}
-
-function isInternalMetadataRole(role: string) {
-  return ["admin", "owner", "dispatcher", "technician", "tech", "lead"].includes(role);
-}
-
-async function isInternalDbUser(email: string) {
-  if (!email) return false;
-  try {
-    const [{ db, users }, { and, eq }, { getOrCreateDefaultOrg }] = await Promise.all([
-      import("@/db"),
-      import("drizzle-orm"),
-      import("@/lib/org"),
-    ]);
-    const org = await getOrCreateDefaultOrg();
-    const [row] = await db
-      .select({ role: users.role, isOwner: users.isOwner, isActive: users.isActive })
-      .from(users)
-      .where(and(eq(users.orgId, org.id), eq(users.email, email)))
-      .limit(1);
-
-    if (!row || row.isActive === false) return false;
-    return Boolean(row.isOwner) || ["admin", "dispatcher", "technician"].includes(String(row.role));
-  } catch {
-    return false;
-  }
-}
 
 async function accessFromUser(user: any): Promise<MeeksAccess> {
-  const email = normalizeEmail(user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress);
+  const email = user ? verifiedPrimaryEmail(user) : null;
   if (!email) return { ok: false, status: 403, message: "No email address is attached to this login." };
 
   const isMeeksPartner = allowedMeeksEmails().has(email);
-  const role = metadataRole(user);
-  const isInternal = allowedInternalEmails().has(email) || isInternalMetadataRole(role) || await isInternalDbUser(email);
+  const actor = await requireCrmActor().catch(() => null);
+  const isInternal = Boolean(actor && isOfficeActor(actor));
 
   if (!isMeeksPartner && !isInternal) {
     return { ok: false, status: 403, message: "This login is not allowed to access the Meeks portal." };
@@ -99,7 +48,7 @@ async function accessFromUser(user: any): Promise<MeeksAccess> {
 
 export async function getMeeksPortalAccess(): Promise<MeeksAccess> {
   if (!isClerkConfigured()) {
-    return { ok: true, email: "local", isInternal: true, isMeeksPartner: true };
+    return { ok: false, status: 403, message: "Portal authentication is not configured." };
   }
 
   const user = await currentUser();
@@ -109,7 +58,7 @@ export async function getMeeksPortalAccess(): Promise<MeeksAccess> {
 
 export async function getMeeksApiAccess(): Promise<MeeksAccess> {
   if (!isClerkConfigured()) {
-    return { ok: true, email: "local", isInternal: true, isMeeksPartner: true };
+    return { ok: false, status: 403, message: "Portal authentication is not configured." };
   }
 
   const { userId } = await auth();

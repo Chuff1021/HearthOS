@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
@@ -179,6 +180,8 @@ async function requireInternalUser() {
 }
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/service-map", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const authError = await requireInternalUser();
     if (authError) return authError;

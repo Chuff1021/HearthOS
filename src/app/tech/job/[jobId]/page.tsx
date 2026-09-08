@@ -256,8 +256,10 @@ export default function JobDetailPage() {
     setJob((prev: any) => ({ ...prev, checklistForm: nextForm }));
     try {
       await persistJobUpdates({ checklistForm: nextForm });
+      return true;
     } catch {
       setActionMsg("Checklist save failed. Try again.");
+      return false;
     }
   };
 
@@ -313,11 +315,11 @@ export default function JobDetailPage() {
     const canvas = signatureCanvasRef.current;
     if (!canvas) return;
     const signature = canvas.toDataURL("image/png");
-    await updateChecklistMeta({
+    const saved = await updateChecklistMeta({
       customerSignature: signature,
       signedAt: new Date().toISOString(),
     });
-    setActionMsg("Customer signature saved.");
+    if (saved) setActionMsg("Customer signature saved.");
   };
 
   const clearSignature = async () => {
@@ -526,20 +528,17 @@ export default function JobDetailPage() {
       setActionMsg("Invoice created and sent to office.");
       setShowInvoicePreview(false);
     } catch {
-      const queue = { jobId, customer: job.customer, amount: invoiceTotal * 1.07, sentAt: new Date().toISOString() };
-      localStorage.setItem(`tech-invoice-send-${jobId}`, JSON.stringify(queue));
-      setActionMsg("Invoice queued (offline fallback).");
-      setShowInvoicePreview(false);
+      setActionMsg("Invoice was not sent. Keep this form open and try again when connected, or contact the office. No automatic retry is scheduled.");
     }
   };
 
   const handleCompleteInspection = async () => {
-    await fetch('/api/jobs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: jobId, status: 'completed' }),
-    });
-    setActionMsg("Inspection completed and shared with office.");
+    try {
+      await persistJobUpdates({ status: "completed" });
+      setActionMsg("Inspection completed and shared with office.");
+    } catch {
+      setActionMsg("Inspection was not marked complete. Please try again.");
+    }
   };
 
   const categoryColors: Record<string, string> = {

@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import {
   db,
@@ -198,6 +199,8 @@ async function enrichWithPL(orgId: string, invs: InvoiceLite[]) {
 }
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/reports/profit-by-job", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();

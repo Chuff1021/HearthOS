@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { getJobs } from '@/app/api/jobs/route';
 
@@ -14,6 +15,8 @@ function line(description: string, qty: number, unitPrice: number, source: 'rule
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/estimator/ai-draft", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const { prompt } = await request.json();
     const q = String(prompt || '').toLowerCase();

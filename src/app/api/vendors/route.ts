@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, vendors, bills, purchaseOrders } from '@/db';
 import { and, eq, sql, ilike, or, desc, asc } from 'drizzle-orm';
@@ -15,6 +16,8 @@ import { getOrCreateDefaultOrg } from '@/lib/org';
 // All in one query bundle so the page loads fast even at 358 vendors.
 
 export async function GET(req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/vendors", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();

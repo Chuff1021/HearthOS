@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, inventoryItems } from "@/db";
 import { and, eq, isNotNull, asc } from "drizzle-orm";
@@ -16,6 +17,8 @@ type QBItem = {
 };
 
 export async function GET(_req: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/items/local", "GET");
+  if (accessDenied) return accessDenied;
   try {
     const org = await getOrCreateDefaultOrg();
 

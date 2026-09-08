@@ -1,3 +1,4 @@
+import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { db, inventoryItems, invoices, invoiceLineItems, customers } from "@/db";
 import { and, eq, inArray, sql, desc, ilike, or, isNotNull } from "drizzle-orm";
@@ -257,10 +258,14 @@ type Candidate = {
 };
 
 export async function GET() {
+  const accessDenied = await authorizeCrmApi("/api/estimator/ai-generate", "GET");
+  if (accessDenied) return accessDenied;
   return NextResponse.json({ ok: true, route: "estimator/ai-generate", info: "POST {prompt, customerName} to generate" });
 }
 
 export async function POST(request: NextRequest) {
+  const accessDenied = await authorizeCrmApi("/api/estimator/ai-generate", "POST");
+  if (accessDenied) return accessDenied;
   try {
     const body = await request.json();
     const prompt: string = (body.prompt || "").toString();

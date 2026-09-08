@@ -1,12 +1,11 @@
 import { db, organizations } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getOrCreateDefaultOrg } from "@/lib/org";
+import { requireCrmAdmin } from "@/lib/security/crm-access";
 
 async function updateOrg(formData: FormData) {
   "use server";
-  const orgId = formData.get("orgId")?.toString();
-  if (!orgId) return;
+  const { orgId } = await requireCrmAdmin();
 
   const settings = {
     brandPrimary: formData.get("brandPrimary")?.toString() || "",
@@ -25,7 +24,7 @@ async function updateOrg(formData: FormData) {
       phone: formData.get("phone")?.toString() || "",
       address: formData.get("address")?.toString() || "",
       logoUrl: formData.get("logoUrl")?.toString() || "",
-      settings,
+      settings: sql`coalesce(${organizations.settings}, '{}'::jsonb) || ${JSON.stringify(settings)}::jsonb`,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, orgId));
@@ -34,7 +33,9 @@ async function updateOrg(formData: FormData) {
 }
 
 export default async function AdminSettingsPage() {
-  const org = await getOrCreateDefaultOrg();
+  const { orgId } = await requireCrmAdmin();
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  if (!org) throw new Error("Organization not found.");
   const settings = (org.settings || {}) as Record<string, string>;
 
   return (
