@@ -2,6 +2,18 @@
 
 ## Current State
 
+### September 8, 2026: Access Incident Root Cause and Candidate Fix
+
+Authenticated browser verification on diagnostic deployment `dpl_7dX3utaMfhwg66S2we8qNRtpB4zD` showed MEMBERSHIP_NOT_FOUND: the user's verified business login email differs from the existing Colton employee contact email. Added deployment-controlled `HEARTHOS_EMPLOYEE_LOGIN_ALIASES` in production configuration, explicitly mapping that business login to the existing Colton employee UUID. No employee record, role, organization, or business record was changed. New guard permits only verified-email aliases scoped to the existing default organization, rejects ambiguous/inactive matches, and reads role from the existing employee record. Regression tests cover the actual differing-email scenario. Added `/api/access`, structured non-PII error classifications, and a client business access gate so denial cannot masquerade as empty business data. Candidate not yet promoted; working production remains rolled back until signed-in candidate verification passes.
+
+### September 8, 2026: Incident Rollback Supersedes Release
+
+User reported all business data blank after signing in to the stabilization release. Production logs confirmed 403 responses across customers, jobs, dashboard, dispatch, Meeks, and QuickBooks status. Rolled back code only using Vercel to `dpl_37QrQtVu7YLHBWvab1C43FVYbLSC` (`4bd8ab6`, hearth-q7skz1kl6). Canonical URL verified against the rollback target. Read-only database reconciliation still shows 4915 customers, 180 hearth_jobs_store jobs, 36 Meeks requests, 9 projects, unchanged invoice/payment totals. The normalized `jobs` table is empty by prior architecture; actual jobs remain in hearth_jobs_store. Restored browser dashboard loads financial data and QB Synced. Do not reconnect/reimport QB or restore any database. Git origin/main STILL contains `5ee9990`; do not promote/redeploy it until the authenticated account-mapping/authorization failure is diagnosed and tested. Code rollback reintroduces prior known security limitations; it is continuity mitigation, not a final security fix.
+
+### September 8, 2026: Production Release Follow-up
+
+After the checkpoint below, the user explicitly authorized deploying the full stabilization release to the existing production site. Commit `5ee9990` is pushed to `origin/main` and live at `https://hearth-os.vercel.app/`, deployment `dpl_9FovMDWz663DKxtcaiD16GXE8WAY` (Ready). No migrations or intentional business-record changes were performed. A fresh encrypted archive was restored successfully; post-release key counts and financial totals matched that snapshot. See `docs/PRODUCTION_RELEASE_2026-09-08.md` for evidence, rollback target, configuration changes, and remaining limitations. Authenticated workflow verification still requires fresh sign-in. This release is not certification of multi-tenant isolation or audit readiness. The no-deployment statement in the earlier checkpoint describes its historical state, not the current release.
+
 ### September 8, 2026: Production Safety Override
 
 The older setup notes below are historical and are NOT instructions to seed data, create a replacement organization, or push a schema to the live database. Aaron's daily production source is the existing Neon database and `main` release lineage. Do not reconstruct it from demo fixtures.

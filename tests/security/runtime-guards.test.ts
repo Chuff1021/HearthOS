@@ -23,9 +23,14 @@ async function harness(entry: string) {
     "@clerk/nextjs/server": "export const auth = async () => fixture.session; export const currentUser = async () => fixture.user; export const clerkClient = async () => ({users: {getUser: async () => fixture.user}});",
     "@/lib/auth": "export const isClerkConfigured = () => Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);",
     "next/headers": "export const headers = async () => new Headers({authorization: fixture.authorization});",
-    "drizzle-orm": "export const and = () => null; export const eq = () => null; export const sql = () => null;",
-    "@/db": `export const users = {}; export const organizations = {};
-      const query = { from: () => query, innerJoin: () => query, where: () => query, limit: async () => fixture.rows };
+    "drizzle-orm": `export const and = (...terms) => row => terms.every(term => term(row));
+      export const or = (...terms) => row => terms.some(term => term(row));
+      export const eq = (column, value) => row => column(row) === value;
+      export const sql = (_parts, column, value) => row => column(row).trim().toLowerCase() === value;`,
+    "@/db": `export const users = {id: row => row.employee.id, email: row => row.employee.email, orgId: row => row.orgId};
+      export const organizations = {id: row => row.orgId, slug: row => row.orgSlug || "default"};
+      let predicate = () => true;
+      const query = { from: () => query, innerJoin: () => query, where: value => {predicate=value; return query;}, limit: async n => fixture.rows.filter(predicate).slice(0,n) };
       export const db = { select: () => query };`,
     "next/server": "export const NextResponse = Response;",
     "@/lib/job-store": `
@@ -84,6 +89,63 @@ test("cron requires configured credentials and an exact bearer token", async () 
   assert.equal((await api.authorizeCron()).status, 401);
   fixture.authorization = "Bearer synthetic-test-secret";
   assert.equal(await api.authorizeCron(), null);
+});
+
+test("business access check identifies the exact employee and denies missing membership without data reads", async () => {
+  const { fixture, api } = await harness("src/app/api/access/route.ts");
+  fixture.rows[0].employee.isOwner = true;
+  const response = await api.GET();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    userId: "clerk-test", employeeId: "employee-test", role: "owner", name: "Test Tech",
+  });
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  fixture.rows = [];
+  const denied = await api.GET();
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json()).code, "MEMBERSHIP_NOT_FOUND");
+  assert.equal(fixture.reads, 0);
+  assert.equal(fixture.writes.length, 0);
+});
+
+test("business access check distinguishes sign-in, verification and membership errors", async () => {
+  const { fixture, api } = await harness("src/app/api/access/route.ts");
+  fixture.session.userId = null;
+  assert.equal((await (await api.GET()).json()).code, "SIGN_IN_REQUIRED");
+  fixture.session.userId = "clerk-test";
+  fixture.user.emailAddresses[0].verification.status = "unverified";
+  assert.equal((await (await api.GET()).json()).code, "EMAIL_NOT_VERIFIED");
+  assert.equal(fixture.reads, 0);
+});
+
+test("verified business login alias preserves existing owner identity and never grants access from metadata", async () => {
+  const { fixture, env, api } = await harness("src/app/api/access/route.ts");
+  const id = "11111111-1111-4111-8111-111111111111";
+  const member = fixture.rows[0];
+  member.employee.id = id;
+  member.employee.email = "legacy-contact@example.test";
+  member.employee.isOwner = true;
+  assert.equal((await api.GET()).status, 403);
+  env.HEARTHOS_EMPLOYEE_LOGIN_ALIASES = JSON.stringify({ "tech@example.test": id });
+  const linked = await (await api.GET()).json();
+  assert.equal(linked.employeeId, id);
+  assert.equal(linked.role, "owner");
+  member.employee.isActive = false;
+  assert.equal((await api.GET()).status, 403);
+  member.employee.isActive = true;
+  Object.assign(member, { orgSlug: "different-business" });
+  assert.equal((await api.GET()).status, 403);
+  Object.assign(member, { orgSlug: "default" });
+  fixture.user.emailAddresses[0].verification.status = "unverified";
+  assert.equal((await api.GET()).status, 403);
+  fixture.user.emailAddresses[0].verification.status = "verified";
+  fixture.rows.push({ ...member, employee: { ...member.employee, id: "employee-other", email: "tech@example.test" } });
+  assert.equal((await api.GET()).status, 403);
+  fixture.rows = [member];
+  delete env.HEARTHOS_EMPLOYEE_LOGIN_ALIASES;
+  Object.assign(fixture.user, { unsafeMetadata: { techId: id, role: "owner" } });
+  assert.equal((await api.GET()).status, 403);
+  assert.equal(fixture.writes.length, 0);
 });
 
 test("Meeks partner cannot gain office access through metadata or unverified email", async () => {

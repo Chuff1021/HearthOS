@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
+import BusinessAccessGate from "@/components/layout/BusinessAccessGate";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default function RootLayout({
             </filter>
           </defs>
         </svg>
-        {children}
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <BusinessAccessGate>{children}</BusinessAccessGate> : children}
       </body>
     </html>
   );
