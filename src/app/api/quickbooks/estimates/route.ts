@@ -296,20 +296,32 @@ async function getQBAuth(request: NextRequest) {
 }
 
 async function withRefresh<T>(auth: { accessToken: string; refreshToken: string; realmId: string; orgId: string }, fn: (client: any) => Promise<T>) {
-  let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+  const client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
   try {
+    // The client refreshes only after an explicit 401. Never replay an operation
+    // here: a lost response may mean the estimate was already created or sent.
     return await fn(client);
-  } catch {
-    const tokens = await client.refreshAccessToken();
-    await db.update(organizations).set({
-      qbAccessToken: tokens.access_token,
-      qbRefreshToken: tokens.refresh_token,
-      qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, auth.orgId));
-
-    client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
-    return fn(client);
+  } finally {
+    const tokens = client.getTokens();
+    if (tokens && (tokens.access_token !== auth.accessToken || tokens.refresh_token !== auth.refreshToken)) {
+      try {
+        const updated = await db.update(organizations).set({
+          qbAccessToken: tokens.access_token,
+          qbRefreshToken: tokens.refresh_token,
+          qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+          updatedAt: new Date(),
+        }).where(and(
+          eq(organizations.id, auth.orgId),
+          eq(organizations.qbRealmId, auth.realmId),
+          eq(organizations.qbRefreshToken, auth.refreshToken),
+        )).returning({ id: organizations.id });
+        if (updated.length !== 1) console.error('Estimate token persistence skipped: QuickBooks connection changed.');
+      } catch {
+        // A credential-storage failure must not disguise a successful provider
+        // write as a failed save, or replace the original uncertain outcome.
+        console.error('Estimate token persistence failed; QuickBooks connection needs review.');
+      }
+    }
   }
 }
 
