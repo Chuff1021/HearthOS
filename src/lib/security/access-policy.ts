@@ -45,7 +45,7 @@ export function canUseCrmApi(actor: CrmActor, route: string, method: string) {
     "access", "audit-logs", "banking", "bills", "customer-lookup", "customers", "dashboard", "dispatch",
     "estimates", "estimator", "expenses", "gabe", "gabe-test", "inventory", "invoices", "items",
     "jobs", "manuals", "mapbox", "pnl", "projects", "purchase-orders", "quickbooks", "reports",
-    "schedule", "search", "service-map", "square", "team", "tech", "techs", "time", "time-off-requests", "todos",
+    "schedule", "search", "service-map", "square", "team", "tech", "techs", "time", "time-off-requests", "todos", "vendors",
   ]);
   if (!known.has(resource)) return false;
   if (resource === "access") return route === "/api/access" && read;

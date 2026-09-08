@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import ts from "typescript";
+import { canUseCrmApi, type CrmActor } from "../../src/lib/security/access-policy";
 
 function routes(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? routes(path.join(directory, entry.name)) : entry.name === "route.ts" ? [path.join(directory, entry.name)] : []);
@@ -36,6 +37,14 @@ test("every exported HTTP handler has an explicit authorization boundary", (cont
       const statements = node.body!.statements;
       assert.ok(statements[0]?.getText(source).includes(`await ${expected}(`), `${relative} ${node.name.text}: guard must run first`);
       assert.match(statements[1]?.getText(source) || "", /if \(accessDenied\) return accessDenied/, relative);
+      if (expected === "authorizeCrmApi") {
+        const guard = statements[0].getText(source).match(/authorizeCrmApi\("([^"]+)", "([^"]+)"\)/);
+        assert.ok(guard, `${relative}: expected literal route and method for policy inventory`);
+        for (const role of ["owner", "admin"] as const) {
+          const actor: CrmActor = { clerkUserId: "test", orgId: "test", employeeId: "test", email: "test@example.test", name: "Test", role };
+          assert.equal(canUseCrmApi(actor, guard[1], guard[2]), true, `${relative} ${node.name.text}: ${role} route missing from permissions`);
+        }
+      }
     }
   }
   assert.ok(count >= 160, `unexpected handler inventory: ${count}`);
