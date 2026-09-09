@@ -13,13 +13,20 @@ The follow-up fixes those presentation gaps while preserving exact handlers,
 requests, hooks, routes, integrations, and persistence. No Banking or prototype
 pages added. Fresh read-only pre-release baseline:
 `production-baseline-2026-09-09T20-50-22-643Z.json` in the secure backup directory.
-PR #8 is open on the follow-up branch. Typecheck, the isolated production build,
+PR #8 merged into main at `344f302`. Typecheck, the isolated production build,
 all 199 quality tests, and the exact-handler/data-flow preservation check pass.
 Billing passes 169 checks; customer/project browser checks pass. The final frozen
 36-route workspace sweep passes 394 screenshots and 123 execution/safety checks
 after mobile vendor and contrast fixes, with zero runtime/style/geometry errors.
+Required CI passed on final source `939c7f7`. READY production deployment
+`dpl_D3ZJ2G2Lo4iGR94UNkfkE5foJG5K` now serves the canonical HearthOS URL from
+the production-environment main build. Signed-in To-Do/dialog, Schedule/Meeks,
+Inventory, Team, Reports, Estimates, Website Inbox and Expenses were inspected.
+Pre/post read-only baselines at 21:23 and 21:31 UTC match exactly: all 67 table
+counts, 28 recorded checksums and financial summaries. No data mutation, migration,
+auth/provider configuration, persistence or photo-storage change. New-deployment
+error/500 scans are clear. Rollback: `dpl_GkhJxY72QPXB4Yzufs1prKdFZiav`.
 See `docs/DESIGN_PAGE_AUDIT_2026_09_09.md` for coverage and explicit limits.
-No production deployment or data mutation has been performed for this follow-up.
 
 ### September 9, 2026: Approved Production Design Port
 
@@ -36,7 +43,7 @@ Released through protected PR #7 and merge `e425fae` after required CI succeeded
 Canonical production now serves READY deployment
 `dpl_GkhJxY72QPXB4Yzufs1prKdFZiav` from a production-environment Git build. All
 business counts and financial totals match the immediately pre-merge baseline;
-66 non-organization table checksums match exactly. A restored-backup/live column
+Non-organization table counts and recorded checksums match exactly. A restored-backup/live column
 comparison confirmed the sole organization-row change was the existing QB token
 refresh (`updated_at`, `qb_access_token`, `qb_token_expires_at`). Signed-in real
 dashboard, customers, schedule/Meeks and read-only PO details loaded successfully;
