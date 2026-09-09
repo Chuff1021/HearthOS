@@ -48,7 +48,7 @@
   .pw-todos .pw-heading { align-items: center; }
   .pw-todos .pw-heading .pw-todos-title {
     margin: 0;
-    font-size: 26px;
+    font-size: 25px;
     line-height: 1.3;
     font-weight: 650;
     color: var(--pw-todos-text);
@@ -72,20 +72,20 @@
   .pw-todos .pw-todos-search-input,
   .pw-todos .pw-todos-status,
   .pw-todo-dialog .pw-todo-dialog-control {
-    height: 38px;
+    height: 40px;
     padding: 8px 10px;
     border: 1px solid var(--pw-todos-line);
     border-radius: 6px;
     background: var(--pw-todos-surface);
     color: var(--pw-todos-text);
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.4;
     box-shadow: none;
   }
   .pw-todos .pw-todos-search-input { width: 260px; padding-left: 36px; }
   /* The shared input :is() selector carries several :not() specificity terms. */
   .pw-todos .pw-todos-search-input,
-  .pw-todos .pw-todos-status { min-height: 38px !important; font-size: 13px !important; }
+  .pw-todos .pw-todos-status { min-height: 40px !important; font-size: 14px !important; }
   .pw-todos .pw-todos-search-input::placeholder,
   .pw-todo-dialog .pw-todo-dialog-control::placeholder { color: var(--pw-todos-muted); opacity: 1; }
 
@@ -95,7 +95,7 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-height: 38px;
+    min-height: 40px;
     padding: 8px 14px;
     border: 1px solid #b4420a;
     border-radius: 6px;
@@ -264,7 +264,7 @@
   .pw-todos .pw-todos-check:hover::before { box-shadow: 0 0 0 3px var(--pw-todos-success-soft); border-color: var(--pw-todos-success); }
   .pw-todos .pw-todos-check > svg { position: relative; }
   .pw-todos .pw-task-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
-  .pw-todos .pw-todos-status { width: 122px; font-size: 12px !important; }
+  .pw-todos .pw-todos-status { width: 136px; }
   .pw-todos .pw-todos-icon-button,
   .pw-todo-dialog .pw-todo-dialog-close {
     display: inline-grid;
@@ -326,7 +326,7 @@
   .pw-todo-dialog .pw-todo-dialog-body > div,
   .pw-todo-dialog .pw-todo-dialog-fields > div { min-width: 0; }
   .pw-todo-dialog label { display: block; margin-bottom: 6px; color: var(--pw-todos-text); font-size: 12px; font-weight: 600; line-height: 1.5; }
-  .pw-todo-dialog .pw-todo-dialog-control { display: block; width: 100%; min-height: 38px; }
+  .pw-todo-dialog .pw-todo-dialog-control { display: block; width: 100%; min-height: 40px; }
   .pw-todo-dialog textarea.pw-todo-dialog-control { height: auto; min-height: 88px; resize: vertical; line-height: 1.55; }
   .pw-todo-dialog .pw-todo-dialog-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .pw-todo-dialog .pw-todo-dialog-customers { margin-top: 8px; border: 1px solid var(--pw-todos-line); border-radius: 6px; overflow: hidden; }
@@ -361,7 +361,7 @@
   }
   @media (max-width: 767px) {
     .pw-todos.pw-workspace { padding: 20px 16px; }
-    .pw-todos .pw-heading .pw-todos-title { font-size: 24px; }
+    .pw-todos .pw-heading .pw-todos-title { font-size: 23px; }
     .pw-todos .pw-toolbar { width: 100%; }
     .pw-todos .pw-todos-search { flex-basis: 180px; }
     .pw-todos .pw-todos-search-input { width: 100%; }

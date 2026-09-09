@@ -70,12 +70,16 @@ test("To-Do presentation remains screen-only and cannot style other pages or the
 });
 
 test("To-Do headings and row controls have explicit compact dimensions independent of global utilities", () => {
-  assert.equal(declarations(".pw-todos .pw-heading .pw-todos-title")["font-size"], "26px");
+  assert.equal(declarations(".pw-todos .pw-heading .pw-todos-title")["font-size"], "25px");
   assert.equal(declarations(".pw-todos .pw-todos-group-heading h2")["font-size"], "14px");
   assert.equal(declarations(".pw-todos .pw-task-row .pw-todos-task-title")["font-size"], "14px");
   assert.equal(declarations(".pw-todos .pw-task-row .pw-todos-description")["font-size"], "13px");
   assert.equal(declarations(".pw-todos .pw-todos-meta")["font-size"], "12px");
   assert.equal(declarations(".pw-todos .pw-todos-badge")["font-size"], "12px");
+  assert.equal(declarations(".pw-todos .pw-todos-status")["font-size"], "14px");
+  assert.equal(declarations(".pw-todos .pw-todos-search-input")["height"], "40px");
+  assert.equal(declarations(".pw-todo-dialog .pw-todo-dialog-control")["font-size"], "14px");
+  assert.equal(declarations(".pw-todo-dialog .pw-todo-dialog-control")["min-height"], "40px");
   assert.equal(declarations(".pw-todos .pw-todos-primary").background, "#b4420a");
   assert.equal(declarations(".pw-todos.pw-workspace .pw-task-row > .pw-todos-check", true)["min-height"], "40px");
   assert.match(source, /aria-pressed=\{on\}/);
