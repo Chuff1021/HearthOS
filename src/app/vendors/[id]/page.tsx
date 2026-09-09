@@ -610,9 +610,9 @@ function TxnTable({
 
 function DialogShell({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="pw-workspace pw-vendors fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/55" onClick={onClose} />
-      <div className="relative w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+      <div className="pw-dialog relative w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{title}</h2>
           <button onClick={onClose} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>

@@ -2,6 +2,20 @@
 
 ## Current State
 
+### September 9, 2026: Page-Level Design Consistency Follow-Up
+
+Owner reported that To-Do, Schedule, and other interiors still looked old after
+the initial design release. Working from current production `e425fae` on
+`codex/design-consistency-followup` in the existing production-design worktree.
+Found unlayered legacy heading rules overriding utility sizes, old gradient
+actions, blue control selections, and dialogs outside the new page-style scopes.
+The follow-up fixes those presentation gaps while preserving exact handlers,
+requests, hooks, routes, integrations, and persistence. No Banking or prototype
+pages added. Fresh read-only pre-release baseline:
+`production-baseline-2026-09-09T20-50-22-643Z.json` in the secure backup directory.
+At this checkpoint the changes are local; full page/overlay visual QA is pending.
+No production deployment or data mutation has been performed for this follow-up.
+
 ### September 9, 2026: Approved Production Design Port
 
 Worktree `/Users/fireplace/HearthOS-production-design`, branch

@@ -562,9 +562,9 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="pw-workspace pw-inventory pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
+        className="pw-dialog w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
         style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -929,9 +929,9 @@ function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="pw-workspace pw-inventory pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl overflow-hidden"
+        className="pw-dialog w-full max-w-lg rounded-2xl overflow-hidden"
         style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1052,7 +1052,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
 
   if (!data) {
     return (
-      <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="pw-workspace pw-inventory fixed inset-0 z-50 flex" onClick={onClose}>
         <div className="ml-auto h-full w-full md:w-[640px]" style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
           <div className="p-6 text-sm" style={{ color: "var(--color-text-muted)" }}>Loading…</div>
         </div>
@@ -1106,7 +1106,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+    <div className="pw-workspace pw-inventory fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1 bg-black/40" />
       <div
         className="h-full w-full md:w-[720px] overflow-y-auto"

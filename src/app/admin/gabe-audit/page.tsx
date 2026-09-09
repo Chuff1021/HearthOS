@@ -326,8 +326,8 @@ export default function GabeAuditPage() {
 
       {/* Message Detail Modal */}
       {selectedMessage && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] w-full max-w-2xl rounded-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="pw-workspace pw-admin pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="pw-dialog w-full max-w-2xl rounded-2xl max-h-[80vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="p-4 border-b border-gray-700 flex items-center justify-between">
               <div>

@@ -465,7 +465,7 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="pw-workspace pw-reports fixed inset-0 z-50 flex" onClick={onClose}>
         <div className="flex-1 bg-black/40" />
         <div className="h-full w-full md:w-[760px] p-5" style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
           <p className="text-sm" style={{ color: "#FF204E" }}>Failed to load: {error}</p>
@@ -475,7 +475,7 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+    <div className="pw-workspace pw-reports fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1 bg-black/40" />
       <div
         className="h-full w-full md:w-[760px] overflow-y-auto"

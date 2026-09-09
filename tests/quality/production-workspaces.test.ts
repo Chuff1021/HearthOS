@@ -64,3 +64,30 @@ test("task selection remains explicit and narrow layouts allow wrapping and tabl
   assert.ok(css.toString().includes("overflow-x: auto"));
   assert.ok(css.toString().includes("flex-wrap: wrap"));
 });
+
+test("workspace typography and controls defeat legacy defaults without affecting public pages", () => {
+  const selectors = new Map<string, Record<string, string>>();
+  css.walkRules((rule) => {
+    const values = selectors.get(rule.selector) || {};
+    rule.walkDecls((decl) => { values[decl.prop] = decl.value; });
+    selectors.set(rule.selector, values);
+  });
+  assert.equal(selectors.get(".pw-workspace h2")?.["font-size"], "16px");
+  assert.equal(selectors.get(".pw-workspace h3")?.["font-size"], "14px");
+  assert.equal(selectors.get(".pw-workspace button")?.["border-radius"], "6px");
+  assert.equal(selectors.get(".pw-workspace .pw-dialog")?.["max-height"], "calc(100dvh - 32px)");
+  assert.equal(selectors.get(".pw-workspace .pw-dialog")?.["overflow-y"], "auto");
+  assert.equal(selectors.get(".pw-workspace")?.["--pw-selected-text"], "#a83b08");
+  assert.ok(css.toString().includes('.pw-segmented > button[aria-pressed="true"]'));
+});
+
+test("legacy portals receive page styles as well as the underlying workspace", () => {
+  for (const file of ["team", "inventory", "vendors/[id]", "admin/time", "admin/gabe-audit", "reports/profit-by-job"]) {
+    const source = read(`src/app/${file}/page.tsx`);
+    const overlays = [...source.matchAll(/className="([^"]*fixed inset-0[^"]*)"/g)];
+    assert.ok(overlays.length, `${file}: dialog coverage`);
+    for (const [, classes] of overlays) assert.match(classes, /pw-workspace/, `${file}: ${classes}`);
+  }
+  assert.doesNotMatch(read("src/app/team/page.tsx"), /bg-\[#1a1a2e\]/);
+  assert.doesNotMatch(read("src/app/admin/gabe-audit/page.tsx"), /bg-\[#1a1a2e\]/);
+});

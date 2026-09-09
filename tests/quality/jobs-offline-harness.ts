@@ -15,6 +15,8 @@ export async function pageHarness(page: "jobs" | "schedule", params = "", handle
       entryPoints: [path.resolve(`src/app/${page}/page.tsx`)], bundle: true, write: false,
       format: "cjs", platform: "node", jsx: "automatic",
       plugins: [{ name: "offline-boundary", setup(builder) {
+        // Browser tests load CSS; this VM harness tests only the real handlers/effects.
+        builder.onResolve({ filter: /\.css$/ }, () => ({ path: "presentation-styles", namespace: "offline" }));
         builder.onResolve({ filter: /^(react(?:\/jsx-runtime)?|next\/navigation|lucide-react|@\/components\/(?:layout|meeks)\/.*)$/ }, (args) => ({ path: args.path, namespace: "offline" }));
         builder.onLoad({ filter: /.*/, namespace: "offline" }, (args) => ({ contents:
           args.path === "react" ? "module.exports = globalThis.hooks" :

@@ -2111,6 +2111,13 @@ main .rounded-lg[style*="--color-border"] {
 
 /* Approved CRM presentation. Public account, payment and acceptance pages retain their existing styles. */
 :root:has(.hearth-sidebar, .production-tech):not([data-theme="dark"]) {
+  --color-ember: #b4420a;
+  --color-ember-dark: #963700;
+  --color-ember-light: #ef601b;
+  --color-success: #13795d;
+  --color-warning: #94600d;
+  --color-danger: #b42341;
+  --color-info: #2867b9;
   --color-bg: #f0f4f8;
   --color-surface: #ffffff;
   --color-surface-1: #ffffff;

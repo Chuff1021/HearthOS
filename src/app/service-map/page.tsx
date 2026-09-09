@@ -671,7 +671,7 @@ export default function ServiceMapPage() {
                   ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+                  <div className="pw-segmented inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
                     <button
                       onClick={() => {
                         setSelected(null);
@@ -679,6 +679,7 @@ export default function ServiceMapPage() {
                         setMapMode("zones");
                       }}
                       className="rounded-xl px-3 py-1.5 text-xs font-semibold"
+                      aria-pressed={mapMode === "zones" && zoneFilter === "all" && !query}
                       style={{
                         background: mapMode === "zones" && zoneFilter === "all" && !query ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent",
                         color: mapMode === "zones" && zoneFilter === "all" && !query ? "#fff" : "var(--color-text-secondary)",
@@ -688,6 +689,7 @@ export default function ServiceMapPage() {
                     </button>
                     <button
                       onClick={() => setMapMode("customers")}
+                      aria-pressed={mapMode === "customers" || zoneFilter !== "all" || Boolean(query)}
                       className="rounded-xl px-3 py-1.5 text-xs font-semibold"
                       style={{
                         background: mapMode === "customers" || zoneFilter !== "all" || Boolean(query) ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent",
@@ -728,16 +730,16 @@ export default function ServiceMapPage() {
                     />
                   </div>
                   <Segmented value={radiusMiles} onChange={setRadiusMiles} values={[0.5, 1, 2]} suffix="mi" />
-                  <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
-                    <button onClick={() => setMapStyle("street")} className="rounded-xl px-3 py-1.5 text-xs font-semibold" style={{ background: mapStyle === "street" ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent", color: mapStyle === "street" ? "#fff" : "var(--color-text-secondary)" }}>Nav</button>
-                    <button onClick={() => setMapStyle("satellite")} className="rounded-xl px-3 py-1.5 text-xs font-semibold" style={{ background: mapStyle === "satellite" ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent", color: mapStyle === "satellite" ? "#fff" : "var(--color-text-secondary)" }}>Sat</button>
+                  <div className="pw-segmented inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+                    <button onClick={() => setMapStyle("street")} aria-pressed={mapStyle === "street"} className="px-3 py-1.5">Nav</button>
+                    <button onClick={() => setMapStyle("satellite")} aria-pressed={mapStyle === "satellite"} className="px-3 py-1.5">Sat</button>
                   </div>
                 </div>
               </div>
 
-              <div className="premium-tracking-map liquid-map-stage relative h-[610px] overflow-hidden rounded-[1.7rem]">
+              <div className="pw-tracking-surface premium-tracking-map liquid-map-stage relative h-[610px] overflow-hidden rounded-[1.7rem]">
                 <div ref={mapEl} className="absolute inset-0 ops-map-canvas" />
-                <div className="ops-map-glass" />
+                <div className="pw-map-reflection ops-map-glass" />
                 <div className="ops-map-topbar">
                   <span className="map-glass-chip">{mapboxProviderLabel()}</span>
                   <span className="map-glass-chip">{hasMapboxTiles() ? "customer targeting" : "fallback tiles"}</span>
@@ -913,11 +915,12 @@ function Metric({ label, value, sub, accent }: { label: string; value: number; s
 
 function Segmented({ value, onChange, values, suffix }: { value: number; onChange: (value: number) => void; values: number[]; suffix: string }) {
   return (
-    <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+    <div className="pw-segmented inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
       {values.map((item) => (
         <button
           key={item}
           onClick={() => onChange(item)}
+          aria-pressed={value === item}
           className="rounded-xl px-3 py-1.5 text-xs font-semibold"
           style={{
             background: value === item ? "linear-gradient(135deg, #ff7a1a, #f15b00)" : "transparent",

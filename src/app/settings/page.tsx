@@ -52,7 +52,7 @@ export default function SettingsPage() {
             {/* Organization Settings */}
             {activeTab === "organization" && (
               <div className="space-y-6">
-                <div className="p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+                <div className="pw-settings-section p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                   <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-text-primary)" }}>
                     Company Information
                   </h2>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+                <div className="pw-settings-section p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                   <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-text-primary)" }}>
                     Business Hours
                   </h2>
@@ -155,7 +155,7 @@ export default function SettingsPage() {
 
             {/* Notifications Settings */}
             {activeTab === "notifications" && (
-              <div className="p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
+              <div className="pw-settings-section p-6 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-text-primary)" }}>
                   Notification Preferences
                 </h2>

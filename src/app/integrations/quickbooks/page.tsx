@@ -35,7 +35,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
         <Header />
         {/* Page Header */}
         <div
-          className="pw-workspace pw-integrations px-6 py-4 flex items-center justify-between flex-shrink-0"
+          className="pw-workspace pw-integrations pw-heading px-6 py-4 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-3">
