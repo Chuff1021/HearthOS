@@ -88,7 +88,16 @@ Manual review covered every owned route's mobile-dark and desktop-light initial 
 | Large vendor metric values wrapped their final digit. | Container-aware numeric sizing and no-wrap amounts preserve complete values in the existing grid. |
 | Tech photo capture still had a blue gradient. | Existing capture button uses the shared primary style, without changing photo handlers or storage. |
 
-Production release remains pending protected CI, merge, and authenticated runtime checks. Rollback reference: `dpl_GkhJxY72QPXB4Yzufs1prKdFZiav`, production commit `e425fae`. No preview-environment artifact will be promoted over Aaron's production configuration. The fresh read-only baseline `production-baseline-2026-09-09T21-23-27-644Z.json` in the secure backup directory exactly matches the earlier baseline digest `6b7ef43373f86b5f79ef9873fa3dd3736c95300964fdabeda0387a2fc103c7f1`: one organization, all 67 table counts, selected business-table checksums and financial totals are unchanged.
+## Production Release
+
+- Protected PR #8 merged at `344f302c885bc53f4504934659dfe044d1d96f25` after required CI succeeded on final source commit `939c7f77e62722bca01b1ff5788a68bfa0b7c4d2`. The merged tree exactly matches the verified source tree.
+- CI run `34406843211` passed security, quality, disposable customer/payment persistence, Website Inbox persistence, TypeScript, lint, production dependency audit and isolated build checks. The post-merge main run `34407069223` also passed.
+- Vercel production deployment `dpl_D3ZJ2G2Lo4iGR94UNkfkE5foJG5K` is READY and serves `https://hearth-os.vercel.app/`. It is a main-branch production-environment Git build, not a promoted preview artifact. Build duration: 28.725 seconds.
+- Rollback reference remains `dpl_GkhJxY72QPXB4Yzufs1prKdFZiav`, production commit `e425fae`.
+- Signed-in production inspection confirmed updated To-Do rows and its unsaved creation dialog, populated Schedule month/week views and Meeks intake, Inventory, Team, Reports, Estimates, Website Inbox, Settings and expense review. Task counts remain 11 total/2 pending/9 completed; existing appointments, inventory and estimate records remain present. No save, send, sync, payment, deletion, invitation or other business mutation was used for live testing. Expense review has no matching receipts; populated receipt states were tested only with isolated fixtures. Settings retains its pre-existing static example fields and incomplete persistence; this styling release does not claim to make those settings functional.
+- Error-level and HTTP 500 scans for this deployment, bounded from the merge time through verification, returned no entries. This is a short release smoke test, not continuous monitoring or a full production authorization audit.
+- Pre-release `production-baseline-2026-09-09T21-23-27-644Z.json` and post-release `production-baseline-2026-09-09T21-31-26-940Z.json` in the secure backup directory match exactly: all 67 table counts, all 28 recorded table checksums, and organization financial summaries. Shared digest: `6b7ef43373f86b5f79ef9873fa3dd3736c95300964fdabeda0387a2fc103c7f1`.
+- No database migration, data reconstruction, authentication/provider configuration, persistence or photo-storage change was made.
 
 ## Safety and Limits
 
