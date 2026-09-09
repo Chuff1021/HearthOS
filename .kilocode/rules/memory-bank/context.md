@@ -2,6 +2,20 @@
 
 ## Current State
 
+### September 9, 2026: Isolated Product Quality Candidate
+
+Current work is `/Users/fireplace/HearthOS-product-quality`, branch
+`codex/product-quality`, based on verified production `19fb50f`. Six agents
+implemented a bounded dashboard/search/jobs/schedule/customer/navigation quality
+pass with synthetic browser tests and actual temporary PostgreSQL query parity.
+No production database, provider, configuration, or deployment changes were made.
+Production source worktree remains unchanged. See
+`docs/PRODUCT_QUALITY_EXECUTION_2026_09_09.md` for evidence and remaining gates.
+This is not full CRM or multi-tenant launch certification. Do not restore/reseed
+Aaron's records, deploy the foundation wholesale, or reconnect QuickBooks to
+repair a UI/access issue. The new-customer placeholder was removed pending a safe
+unified idempotent creation path. Meeks/GABE remain Aaron-only; demos separate.
+
 ### September 8, 2026: Access Incident Root Cause and Candidate Fix
 
 Authenticated browser verification on diagnostic deployment `dpl_7dX3utaMfhwg66S2we8qNRtpB4zD` showed MEMBERSHIP_NOT_FOUND: the user's verified business login email differs from the existing Colton employee contact email. Added deployment-controlled `HEARTHOS_EMPLOYEE_LOGIN_ALIASES` in production configuration, explicitly mapping that business login to the existing Colton employee UUID. No employee record, role, organization, or business record was changed. New guard permits only verified-email aliases scoped to the existing default organization, rejects ambiguous/inactive matches, and reads role from the existing employee record. Regression tests cover the actual differing-email scenario. Added `/api/access`, structured non-PII error classifications, and a client business access gate so denial cannot masquerade as empty business data. Candidate not yet promoted; working production remains rolled back until signed-in candidate verification passes.

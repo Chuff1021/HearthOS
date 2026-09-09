@@ -1,7 +1,7 @@
 import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, customers, invoices, payments } from '@/db';
-import { and, eq, sql, ilike, or } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { customerAddress, customerSearchPredicate } from '@/lib/customer-search';
 
@@ -24,14 +24,20 @@ export async function GET(req: NextRequest) {
 
     const org = await getOrCreateDefaultOrg();
 
-    const where: any[] = [eq(customers.orgId, org.id)];
+    const where: (SQL | undefined)[] = [eq(customers.orgId, org.id)];
     if (q) {
       where.push(customerSearchPredicate(q));
     }
     if (filter === 'active') where.push(eq(customers.isActive, true));
     if (filter === 'inactive') where.push(eq(customers.isActive, false));
 
-    const invStats = await db
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const yearStart = `${now.getFullYear()}-01-01`;
+
+    // Independent organization-scoped reads; financial summaries scan invoices once.
+    const [invStats, payStats, rows, [money]] = await Promise.all([
+      db
       .select({
         customerId: invoices.customerId,
         balance: sql<number>`COALESCE(SUM(${invoices.balance}), 0)::numeric(14,2)`,
@@ -42,11 +48,8 @@ export async function GET(req: NextRequest) {
       })
       .from(invoices)
       .where(eq(invoices.orgId, org.id))
-      .groupBy(invoices.customerId);
-    const invByCust = new Map<string, typeof invStats[number]>();
-    for (const r of invStats) if (r.customerId) invByCust.set(r.customerId, r);
-
-    const payStats = await db
+      .groupBy(invoices.customerId),
+      db
       .select({
         customerId: invoices.customerId,
         paymentCount: sql<number>`count(*)::int`,
@@ -54,12 +57,22 @@ export async function GET(req: NextRequest) {
       })
       .from(payments)
       .innerJoin(invoices, eq(invoices.id, payments.invoiceId))
-      .where(eq(payments.orgId, org.id))
-      .groupBy(invoices.customerId);
+      .where(and(eq(payments.orgId, org.id), eq(invoices.orgId, org.id)))
+      .groupBy(invoices.customerId),
+      db.select().from(customers).where(and(...where)),
+      db.select({
+        totalDue: sql<number>`COALESCE(SUM(${invoices.balance}), 0)::numeric(14,2)`,
+        openInvoiceCount: sql<number>`count(*) FILTER (WHERE ${invoices.balance} > 0)::int`,
+        overdueAmount: sql<number>`COALESCE(SUM(${invoices.balance}) FILTER (WHERE ${invoices.balance} > 0 AND ${invoices.dueDate} < ${today}::date), 0)::numeric(14,2)`,
+        overdueCount: sql<number>`count(*) FILTER (WHERE ${invoices.balance} > 0 AND ${invoices.dueDate} < ${today}::date)::int`,
+        revenueYTD: sql<number>`COALESCE(SUM(${invoices.subtotal}) FILTER (WHERE ${invoices.issueDate} >= ${yearStart}::date), 0)::numeric(14,2)`,
+        ytdInvoiceCount: sql<number>`count(*) FILTER (WHERE ${invoices.issueDate} >= ${yearStart}::date)::int`,
+      }).from(invoices).where(eq(invoices.orgId, org.id)),
+    ]);
+    const invByCust = new Map<string, typeof invStats[number]>();
+    for (const r of invStats) if (r.customerId) invByCust.set(r.customerId, r);
     const payByCust = new Map<string, typeof payStats[number]>();
     for (const r of payStats) if (r.customerId) payByCust.set(r.customerId, r);
-
-    const rows = await db.select().from(customers).where(and(...where));
 
     let items = rows.map((c) => {
       const inv = invByCust.get(c.id);
@@ -121,54 +134,20 @@ export async function GET(req: NextRequest) {
       { customers: 0, balance: 0, openInvoices: 0, revenue: 0 }
     );
 
-    const today = new Date().toISOString().slice(0, 10);
-    const yearStart = `${new Date().getFullYear()}-01-01`;
-
-    const [openAR] = await db
-      .select({
-        totalDue: sql<number>`COALESCE(SUM(${invoices.balance}), 0)::numeric(14,2)`,
-        openCount: sql<number>`count(*) FILTER (WHERE ${invoices.balance} > 0)::int`,
-      })
-      .from(invoices)
-      .where(eq(invoices.orgId, org.id));
-
-    const [overdue] = await db
-      .select({
-        amount: sql<number>`COALESCE(SUM(${invoices.balance}), 0)::numeric(14,2)`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(invoices)
-      .where(and(
-        eq(invoices.orgId, org.id),
-        sql`${invoices.balance} > 0`,
-        sql`${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today}::date`,
-      ));
-
-    const [ytd] = await db
-      .select({
-        revenue: sql<number>`COALESCE(SUM(${invoices.subtotal}), 0)::numeric(14,2)`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(invoices)
-      .where(and(
-        eq(invoices.orgId, org.id),
-        sql`${invoices.issueDate} >= ${yearStart}::date`,
-      ));
-
     return NextResponse.json({
       items,
       totals,
       moneyBar: {
-        totalDue: Number(openAR?.totalDue || 0),
-        openInvoiceCount: openAR?.openCount || 0,
-        overdueAmount: Number(overdue?.amount || 0),
-        overdueCount: overdue?.count || 0,
-        revenueYTD: Number(ytd?.revenue || 0),
-        ytdInvoiceCount: ytd?.count || 0,
+        totalDue: Number(money?.totalDue || 0),
+        openInvoiceCount: money?.openInvoiceCount || 0,
+        overdueAmount: Number(money?.overdueAmount || 0),
+        overdueCount: money?.overdueCount || 0,
+        revenueYTD: Number(money?.revenueYTD || 0),
+        ytdInvoiceCount: money?.ytdInvoiceCount || 0,
       },
-    });
-  } catch (err: any) {
+    }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (err) {
     console.error('Customer center list failed:', err);
-    return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to load customers. Please try again.' }, { status: 500 });
   }
 }

@@ -532,11 +532,11 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
   }
 
   return (
-    <section className={internal ? "min-w-[980px] p-4" : "mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
-      <div className={internal ? "grid gap-4" : "grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]"}>
-        <div className={internal ? "rounded-2xl p-5" : "rounded-[2rem] p-6"} style={glassPanel}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
+    <section className={internal ? "min-w-0 w-full p-3 sm:p-4 [&_input]:min-w-0 [&_select]:min-w-0" : "mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
+      <div className={internal ? "grid min-w-0 grid-cols-1 gap-4" : "grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]"}>
+        <div className={internal ? "min-w-0 rounded-2xl p-3 sm:p-5" : "rounded-[2rem] p-6"} style={glassPanel}>
+          <div className={internal ? "flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap" : "flex items-start justify-between gap-4"}>
+            <div className={internal ? "min-w-0 flex-1 basis-56" : undefined}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-ember)" }}>Meeks Installed Services</p>
               <h2 className="mt-1 text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>{internal ? "Meeks Calendar Intake" : "Scheduling Portal"}</h2>
               <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
@@ -544,7 +544,7 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
               </p>
             </div>
             {internal && (
-              <Link href="/meeks" className="rounded-xl px-3 py-2 text-xs font-semibold" style={{ background: "rgba(37,99,235,0.1)", color: "#2563eb", border: "1px solid rgba(37,99,235,0.2)" }}>
+              <Link href="/meeks" className="shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold" style={{ background: "rgba(37,99,235,0.1)", color: "#2563eb", border: "1px solid rgba(37,99,235,0.2)" }}>
                 Open portal
               </Link>
             )}
@@ -632,7 +632,7 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
           {message && <p className="mt-4 rounded-xl px-3 py-2 text-sm" style={{ background: "rgba(255,106,0,0.1)", color: "var(--color-ember)", border: "1px solid rgba(255,106,0,0.2)" }}>{message}</p>}
         </div>
 
-        <div className="rounded-[2rem] overflow-hidden" style={glassPanel}>
+        <div className="min-w-0 rounded-[2rem] overflow-hidden" style={glassPanel}>
           <MeeksToolbar
             calendarView={calendarView}
             headerLabel={headerLabel}
@@ -651,6 +651,8 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
           {loading ? (
             <div className="p-12 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>Loading Meeks calendar...</div>
           ) : calendarView === "month" ? (
+            <div className={internal ? "min-w-0 overflow-auto" : undefined}>
+            <div className={internal ? "min-w-[980px]" : undefined}>
             <MeeksMonthView
               currentDate={currentDate}
               monthGrid={monthGrid}
@@ -664,6 +666,8 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
               onDelete={deleteRequest}
               saving={saving}
             />
+            </div>
+            </div>
           ) : (
             <MeeksWeekView
               weekDates={weekDates}
@@ -697,7 +701,7 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
                 No Meeks jobs match this view.
               </div>
             ) : (
-              <div className={internal ? "grid gap-3 xl:grid-cols-2" : "grid gap-3 lg:grid-cols-2"}>
+              <div className={internal ? "grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2" : "grid gap-3 lg:grid-cols-2"}>
                 {visibleListJobs.map((job) => (
                   <MeeksJobCard
                     key={job.id}
@@ -785,15 +789,15 @@ function MeeksToolbar({
           <button onClick={onRefresh} disabled={saving} className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", opacity: saving ? 0.65 : 1 }}>Refresh</button>
         </div>
       </div>
-      <div className="grid gap-2 px-5 py-3 md:grid-cols-[1fr_180px]" style={{ borderBottom: "1px solid var(--color-border)" }}>
+      <div className="grid min-w-0 grid-cols-1 gap-2 px-5 py-3 md:grid-cols-[minmax(0,1fr)_180px]" style={{ borderBottom: "1px solid var(--color-border)" }}>
         <input
           value={searchQuery}
           onChange={(event) => onSearch(event.target.value)}
           placeholder="Search jobs, PO numbers, customers, addresses..."
-          className="rounded-xl px-3 py-2 text-sm"
+          className="min-w-0 w-full rounded-xl px-3 py-2 text-sm"
           style={inputStyle}
         />
-        <select value={statusFilter} onChange={(event) => onStatus(event.target.value as "all" | MeeksStatus)} className="rounded-xl px-3 py-2 text-sm" style={inputStyle}>
+        <select value={statusFilter} onChange={(event) => onStatus(event.target.value as "all" | MeeksStatus)} className="min-w-0 w-full rounded-xl px-3 py-2 text-sm" style={inputStyle}>
           <option value="all">All jobs</option>
           <option value="requested">Requested</option>
           <option value="scheduled">Scheduled</option>
@@ -1068,9 +1072,9 @@ function MeeksJobCard({
   const photos = job.linkedJob?.photos || [];
   const techNames = (job.linkedJob?.assignedTechs || job.assignedTechs || []).map((tech) => tech.name).join(", ");
   return (
-    <article className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 12px 34px rgba(36,56,92,0.08)" }}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <article className={internal ? "min-w-0 rounded-2xl p-4 [overflow-wrap:anywhere]" : "rounded-2xl p-4"} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 12px 34px rgba(36,56,92,0.08)" }}>
+      <div className={internal ? "flex flex-wrap items-start justify-between gap-3" : "flex items-start justify-between gap-3"}>
+        <div className={internal ? "min-w-0 flex-1 basis-48" : undefined}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: tone.bg, color: tone.color }}>{tone.label}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{job.requestNumber}</span>
@@ -1188,7 +1192,7 @@ function MoveToCalendarControls({
 }) {
   return (
     <div className="mt-4 rounded-2xl p-3" style={{ background: "rgba(247,250,255,0.72)", border: "1px solid var(--color-border)" }}>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <input type="date" value={move?.scheduledDate || requestedDate} onChange={(event) => onMoveChange({ scheduledDate: event.target.value })} className="rounded-xl px-2 py-2 text-xs" style={inputStyle} />
         <TimeSelect value={move?.scheduledTimeStart || "09:00"} onChange={(value) => onMoveChange({ scheduledTimeStart: value })} className="rounded-xl px-2 py-2 text-xs" style={inputStyle} />
         <TimeSelect value={move?.scheduledTimeEnd || "11:00"} onChange={(value) => onMoveChange({ scheduledTimeEnd: value })} className="rounded-xl px-2 py-2 text-xs" style={inputStyle} />

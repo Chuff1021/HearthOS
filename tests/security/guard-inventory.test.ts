@@ -34,9 +34,17 @@ test("every exported HTTP handler has an explicit authorization boundary", (cont
         continue;
       }
       const expected = relative.startsWith("cron/") ? "authorizeCron" : "authorizeCrmApi";
-      const statements = node.body!.statements;
+      // A leading try may wrap the same fail-closed guard to sanitize auth errors.
+      const first = node.body!.statements[0];
+      const statements = first && ts.isTryStatement(first) ? first.tryBlock.statements : node.body!.statements;
       assert.ok(statements[0]?.getText(source).includes(`await ${expected}(`), `${relative} ${node.name.text}: guard must run first`);
-      assert.match(statements[1]?.getText(source) || "", /if \(accessDenied\) return accessDenied/, relative);
+      const denial = statements[1];
+      assert.ok(denial && ts.isIfStatement(denial), `${relative}: guard denial must return`);
+      assert.equal(denial.expression.getText(source), "accessDenied", relative);
+      const denialBody = ts.isBlock(denial.thenStatement) ? denial.thenStatement.statements : [denial.thenStatement];
+      const denialReturn = denialBody[denialBody.length - 1];
+      assert.ok(denialReturn && ts.isReturnStatement(denialReturn), `${relative}: denial must end in a return`);
+      assert.equal(denialReturn.expression?.getText(source), "accessDenied", relative);
       if (expected === "authorizeCrmApi") {
         const guard = statements[0].getText(source).match(/authorizeCrmApi\("([^"]+)", "([^"]+)"\)/);
         assert.ok(guard, `${relative}: expected literal route and method for policy inventory`);

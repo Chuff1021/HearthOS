@@ -6,6 +6,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
 import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
+import { ChevronLeft, ChevronRight, RefreshCw, X } from "lucide-react";
+import JobTypeOptions from "@/components/job-form/JobTypeOptions";
+import CustomJobTypeInput from "@/components/job-form/CustomJobTypeInput";
+import { customerAddress, localDateValue, requireJobResponse, resolveJobType, scheduledDateLabel } from "@/components/job-form/job-form-helpers";
+import { useJobFormResource } from "@/components/job-form/useJobFormResource";
 
 type ViewMode = "master" | "tech";
 type CalendarView = "week" | "month";
@@ -46,6 +51,7 @@ interface CustomerLookup {
   companyName?: string;
   address?: {
     line1?: string;
+    line2?: string;
     city?: string;
     state?: string;
     zip?: string;
@@ -62,23 +68,6 @@ function resolveCustomerName(
   return (selectedCustomer?.name || formCustomerName || customerQuery || "").trim();
 }
 
-const JOB_TYPE_OPTIONS = [
-  "Service Call",
-  "Gas Service",
-  "Wood Fireplace Service",
-  "Pellet Stove Service",
-  "Chimney Repair",
-  "Chimney Sweep",
-  "Gas Fireplace Installation",
-  "Wood Stove Installation",
-  "Pellet Stove Installation",
-  "Inspection & Safety Check",
-  "Annual Cleaning",
-  "Venting/Flue Repair",
-  "Cap/Damper Repair",
-  "Estimate / Consultation",
-];
-
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am-6pm
@@ -93,6 +82,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function getWeekDates(baseDate: Date): Date[] {
   const sunday = new Date(baseDate);
+  sunday.setHours(0, 0, 0, 0);
   sunday.setDate(baseDate.getDate() - baseDate.getDay());
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
@@ -123,7 +113,7 @@ function getMonthGrid(baseDate: Date): Date[][] {
 }
 
 function isoDate(d: Date) {
-  return d.toISOString().split("T")[0];
+  return localDateValue(d);
 }
 
 function todayIso() {
@@ -219,9 +209,9 @@ export default function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("master");
   const [calendarView, setCalendarView] = useState<CalendarView>("week");
-  const [techs, setTechs] = useState<Tech[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [timeOff, setTimeOff] = useState<Array<{
+  const techResource = useJobFormResource<Tech>("/api/techs?activeOnly=true", "techs");
+  const jobResource = useJobFormResource<Job>("/api/jobs?limit=1000", "jobs");
+  const timeOffResource = useJobFormResource<{
     id: string;
     techId: string;
     techName?: string;
@@ -230,8 +220,13 @@ export default function SchedulePage() {
     endDate: string;
     reason?: string;
     status: string;
-  }>>([]);
-  const [loading, setLoading] = useState(true);
+  }>("/api/time-off-requests?status=approved", "requests");
+  const techs = techResource.data;
+  const jobs = jobResource.data;
+  const timeOff = timeOffResource.data;
+  const loading = jobResource.loading && !jobResource.loaded;
+  const filtersInitialized = useRef(false);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
   const [selectedTechIds, setSelectedTechIds] = useState<string[]>([]);
   const [focusTechId, setFocusTechId] = useState<string>("");
@@ -248,11 +243,13 @@ export default function SchedulePage() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [customerCreationUncertain, setCustomerCreationUncertain] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
     customerId: "",
     customerName: "",
@@ -276,49 +273,37 @@ export default function SchedulePage() {
   // ────────────────── Data loading ──────────────────
 
   async function loadData() {
-    setLoading(true);
-    try {
-      const [techRes, jobRes, torRes] = await Promise.all([
-        fetch("/api/techs?activeOnly=true"),
-        fetch("/api/jobs?limit=1000"),
-        fetch("/api/time-off-requests?status=approved").catch(() => null),
-      ]);
-      const techData = await techRes.json();
-      const jobData = await jobRes.json();
-      const torData = torRes ? await torRes.json().catch(() => ({ requests: [] })) : { requests: [] };
-
-      const loadedTechs: Tech[] = techData.techs || [];
-      const loadedJobs: Job[] = jobData.jobs || [];
-
-      setTechs(loadedTechs);
-      setJobs(loadedJobs);
-      setTimeOff(torData.requests || []);
-
-      if (loadedTechs.length && selectedTechIds.length === 0) {
-        setSelectedTechIds(loadedTechs.map((t) => t.id));
-        setFocusTechId(loadedTechs[0].id);
-      }
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([techResource.reload(), jobResource.reload(), timeOffResource.reload()]);
   }
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (filtersInitialized.current || !techResource.loaded) return;
+    filtersInitialized.current = true;
+    setSelectedTechIds(techs.map((tech) => tech.id));
+    setFocusTechId(techs[0]?.id || "");
+  }, [techs, techResource.loaded]);
 
-  // Auto-scroll to current hour on first week view load
   useEffect(() => {
-    if (calendarView !== "week" || loading) return;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const targetHour = Math.max(7, Math.min(currentHour, 17));
-    const rowIndex = targetHour - 7;
-    if (scrollRef.current && rowIndex > 0) {
-      scrollRef.current.scrollTop = rowIndex * 90;
+    setSelectedJob((current) => current ? jobs.find((job) => job.id === current.id) || current : null);
+  }, [jobs]);
+
+  // Only the desktop week grid uses hour offsets; the agenda starts at the top.
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    function alignScheduleScroll() {
+      const container = scrollRef.current;
+      if (!container) return;
+      if (!desktop.matches || calendarView !== "week") {
+        container.scrollTop = 0;
+      } else if (!loading) {
+        const targetHour = Math.max(7, Math.min(new Date().getHours(), 17));
+        container.scrollTop = (targetHour - 7) * 90;
+      }
     }
-  }, [calendarView, loading]);
+    alignScheduleScroll();
+    desktop.addEventListener("change", alignScheduleScroll);
+    return () => desktop.removeEventListener("change", alignScheduleScroll);
+  }, [calendarView, loading, currentDate]);
 
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
@@ -357,6 +342,7 @@ export default function SchedulePage() {
     if (q.length < 2) {
       setCustomerResults([]);
       setCustomerLookupError(null);
+      setCustomerLoading(false);
       return;
     }
 
@@ -398,11 +384,11 @@ export default function SchedulePage() {
 
   const visibleJobs = useMemo(() => {
     if (viewMode === "master") {
-      return weekJobs.filter((j) => !j.assignedTechs.length || j.assignedTechs.some((t) => selectedTechIds.includes(t.id)));
+      return weekJobs.filter((j) => !techResource.loaded || !j.assignedTechs.length || j.assignedTechs.some((t) => selectedTechIds.includes(t.id)));
     }
     if (!focusTechId) return [];
     return weekJobs.filter((j) => j.assignedTechs.some((t) => t.id === focusTechId));
-  }, [weekJobs, selectedTechIds, viewMode, focusTechId]);
+  }, [weekJobs, selectedTechIds, viewMode, focusTechId, techResource.loaded]);
 
   const weekJobLayouts = useMemo(() => {
     const layoutsByDay = new Map<string, Map<string, JobLayout>>();
@@ -425,17 +411,26 @@ export default function SchedulePage() {
     });
   }, [jobs, monthGrid, calendarView]);
 
+  const agendaJobs = useMemo(() => {
+    const rangeJobs = calendarView === "week" ? visibleJobs : monthJobs.filter((job) => viewMode === "master"
+      ? !techResource.loaded || !job.assignedTechs.length || job.assignedTechs.some((tech) => selectedTechIds.includes(tech.id))
+      : job.assignedTechs.some((tech) => tech.id === focusTechId));
+    return [...rangeJobs].sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || a.scheduledTimeStart.localeCompare(b.scheduledTimeStart) || a.id.localeCompare(b.id));
+  }, [calendarView, visibleJobs, monthJobs, viewMode, selectedTechIds, focusTechId, techResource.loaded]);
+
   // ────────────────── Navigation ──────────────────
 
   function goPrev() {
     const d = new Date(currentDate);
-    d.setDate(d.getDate() - (calendarView === "month" ? 30 : 7));
+    if (calendarView === "month") { d.setDate(1); d.setMonth(d.getMonth() - 1); }
+    else d.setDate(d.getDate() - 7);
     setCurrentDate(d);
   }
 
   function goNext() {
     const d = new Date(currentDate);
-    d.setDate(d.getDate() + (calendarView === "month" ? 30 : 7));
+    if (calendarView === "month") { d.setDate(1); d.setMonth(d.getMonth() + 1); }
+    else d.setDate(d.getDate() + 7);
     setCurrentDate(d);
   }
 
@@ -471,9 +466,7 @@ export default function SchedulePage() {
   // ────────────────── Customer helpers ──────────────────
 
   function customerAddressLine(c: CustomerLookup) {
-    const a = c.address;
-    if (!a) return "";
-    return [a.line1, [a.city, a.state].filter(Boolean).join(", "), a.zip].filter(Boolean).join(" ").trim();
+    return customerAddress(c.address);
   }
 
   function applyCustomer(c: CustomerLookup) {
@@ -501,6 +494,8 @@ export default function SchedulePage() {
     const customerName = resolveCustomerName(selectedCustomer, form.customerName, customerQuery);
     if (!form.title.trim()) errs.title = "Job title is required";
     if (!form.jobType.trim()) errs.jobType = "Job type is required";
+    try { resolveJobType(form.jobType, form.customJobType); }
+    catch (error) { errs.jobType = error instanceof Error ? error.message : "Enter a custom job type."; }
     if (!customerName) errs.customerName = "Customer is required";
     if (!form.propertyAddress.trim()) errs.propertyAddress = "Property address is required";
     if (!form.scheduledDate) errs.scheduledDate = "Date is required";
@@ -514,6 +509,7 @@ export default function SchedulePage() {
   }
 
   async function createCustomerInline() {
+    if (creatingCustomer || customerCreationUncertain) return;
     const name = customerQuery.trim() || form.customerName.trim();
     if (!name) {
       setCustomerLookupError("Enter a customer name first.");
@@ -535,33 +531,24 @@ export default function SchedulePage() {
         active: true,
       };
 
-      let created: CustomerLookup | null = null;
       const qbRes = await fetch("/api/quickbooks/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!qbRes.ok && qbRes.status < 500 && qbRes.status !== 408) {
+        setCustomerLookupError(`Customer creation was rejected (HTTP ${qbRes.status}). No local customer was created.`);
+        return;
+      }
+      if (!qbRes.ok) throw new Error("Uncertain customer creation");
       const qbData = await qbRes.json();
-      if (qbRes.ok && qbData?.customer) created = qbData.customer;
-
-      if (!created) {
-        const localRes = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const localData = await localRes.json();
-        if (localRes.ok && localData?.customer) created = localData.customer;
-      }
-
-      if (created) {
-        applyCustomer(created);
-        setCustomerLookupError(null);
-      } else {
-        setCustomerLookupError("Could not create customer.");
-      }
+      const created = qbData?.customer;
+      if (!created?.id || !created?.displayName) throw new Error("Uncertain customer creation");
+      applyCustomer(created);
+      setCustomerLookupError(null);
     } catch {
-      setCustomerLookupError("Could not create customer.");
+      setCustomerCreationUncertain(true);
+      setCustomerLookupError(null);
     } finally {
       setCreatingCustomer(false);
     }
@@ -581,7 +568,7 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
-          jobType: form.jobType,
+          jobType: resolveJobType(form.jobType, form.customJobType),
           priority: form.priority,
           customerId: selectedCustomer?.id || form.customerId || undefined,
           customerName,
@@ -611,6 +598,7 @@ export default function SchedulePage() {
       setForm({
         title: "",
         jobType: "service",
+        customJobType: "",
         priority: "normal",
         customerId: "",
         customerName: "",
@@ -625,15 +613,28 @@ export default function SchedulePage() {
         assignedTechs: [],
       });
       await loadData();
+    } catch {
+      setSaveError("Failed to add job. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
   async function removeJob(id: string) {
+    if (deletingJobId) return;
     if (!confirm("Remove this scheduled job?")) return;
-    await fetch(`/api/jobs?id=${id}`, { method: "DELETE" });
-    await loadData();
+    setDeletingJobId(id);
+    setSaveError(null);
+    try {
+      await requireJobResponse(await fetch(`/api/jobs?id=${encodeURIComponent(id)}`, { method: "DELETE" }), "Could not remove job");
+      setSelectedJob((current) => current?.id === id ? null : current);
+      jobResource.setData((current) => current.filter((job) => job.id !== id));
+      await loadData();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not remove job. Please try again.");
+    } finally {
+      setDeletingJobId(null);
+    }
   }
 
   async function moveJobToSlot(jobIdRaw: string, targetDate: Date, targetHour: number) {
@@ -651,6 +652,8 @@ export default function SchedulePage() {
     const newStart = targetHour;
     const newEnd = Math.min(23.5, newStart + duration);
 
+    setSaveError(null);
+    try {
     const res = await fetch("/api/jobs", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -669,6 +672,9 @@ export default function SchedulePage() {
     }
 
     await loadData();
+    } catch {
+      setSaveError("Failed to move job. Please try again.");
+    }
   }
 
   useEffect(() => {
@@ -688,42 +694,41 @@ export default function SchedulePage() {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
         <Header />
 
         {/* ── Toolbar ── */}
-        <div className="px-6 py-3 flex items-center justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div className="flex items-center gap-3">
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Schedule</h1>
             <div className="flex items-center gap-1">
-              <button onClick={goPrev} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              <button aria-label={`Previous ${calendarView}`} title={`Previous ${calendarView}`} onClick={goPrev} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}><ChevronLeft size={16} />
               </button>
               <button onClick={goToday} className="px-3 py-1 rounded text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>
                 Today
               </button>
-              <button onClick={goNext} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              <button aria-label={`Next ${calendarView}`} title={`Next ${calendarView}`} onClick={goNext} className="px-2 py-1 rounded hover:bg-black/5 transition-colors" style={{ border: "1px solid var(--color-border)" }}><ChevronRight size={16} />
               </button>
             </div>
             <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{headerLabel}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button aria-label="Refresh schedule" title="Refresh schedule" disabled={jobResource.loading || techResource.loading || timeOffResource.loading} onClick={() => void loadData()} className="p-2 rounded-lg"><RefreshCw size={16} /></button>
             {/* Calendar view toggle */}
             <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-              <button onClick={() => setCalendarView("week")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "week" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "week" ? "#fff" : "var(--color-text-secondary)" }}>Week</button>
-              <button onClick={() => setCalendarView("month")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "month" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "month" ? "#fff" : "var(--color-text-secondary)" }}>Month</button>
+              <button aria-pressed={calendarView === "week"} onClick={() => setCalendarView("week")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "week" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "week" ? "#fff" : "var(--color-text-secondary)" }}>Week</button>
+              <button aria-pressed={calendarView === "month"} onClick={() => setCalendarView("month")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "month" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "month" ? "#fff" : "var(--color-text-secondary)" }}>Month</button>
             </div>
             {/* Master / Tech toggle */}
             <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-              <button onClick={() => setViewMode("master")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "master" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>Master</button>
-              <button onClick={() => setViewMode("tech")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "tech" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>By Tech</button>
+              <button aria-pressed={viewMode === "master"} onClick={() => setViewMode("master")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "master" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>Master</button>
+              <button aria-pressed={viewMode === "tech"} onClick={() => setViewMode("tech")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: viewMode === "tech" ? "var(--color-surface-3)" : "var(--color-surface-2)" }}>By Tech</button>
             </div>
             <button
               onClick={() => setShowCreate(true)}
               className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-              style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "white" }}
+              style={{ background: "#C75300", color: "white" }}
             >
               + New Job
             </button>
@@ -732,17 +737,17 @@ export default function SchedulePage() {
 
         {/* ── Time-off banner: techs out in the visible week ── */}
         {(() => {
-          const visibleStart = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth(), 1) : weekStart;
-          const visibleEnd = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0) : weekEnd;
+          const visibleStart = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth(), 1) : new Date(weekStart);
+          const visibleEnd = calendarView === "month" ? new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0) : new Date(weekEnd);
           visibleStart.setHours(0, 0, 0, 0);
           visibleEnd.setHours(23, 59, 59, 999);
           const inRange = timeOff.filter((t) => {
-            const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
-            const e = new Date(t.endDate); e.setHours(0, 0, 0, 0);
+            const s = new Date(`${t.startDate}T00:00:00`); s.setHours(0, 0, 0, 0);
+            const e = new Date(`${t.endDate}T00:00:00`); e.setHours(0, 0, 0, 0);
             return e >= visibleStart && s <= visibleEnd;
           });
           if (inRange.length === 0) return null;
-          const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const fmtDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
           const TYPE_LABELS: Record<string, string> = {
             paid_vacation: "Paid PTO",
             unpaid_vacation: "Unpaid PTO",
@@ -784,6 +789,7 @@ export default function SchedulePage() {
               {techs.map((tech) => (
                 <button
                   key={tech.id}
+                  aria-pressed={selectedTechIds.includes(tech.id)}
                   onClick={() => toggleTech(tech.id)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
                   style={{
@@ -801,6 +807,7 @@ export default function SchedulePage() {
             <>
               <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Tech schedule:</span>
               <select
+                aria-label="Technician schedule"
                 value={focusTechId}
                 onChange={(e) => setFocusTechId(e.target.value)}
                 className="px-3 py-1.5 rounded-lg text-xs"
@@ -813,16 +820,40 @@ export default function SchedulePage() {
         </div>
 
         {saveError && (
-          <div className="mx-6 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
+          <div role="alert" className="mx-6 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
             {saveError}
           </div>
         )}
 
+        {[jobResource, techResource, timeOffResource].map((resource, index) => resource.error && (
+          <div key={index} role="alert" className="px-6 py-2 text-sm text-red-600">{resource.error} {resource.loaded && "Showing previously loaded data."} <button className="underline" onClick={() => void resource.reload()}>Retry {["jobs", "technicians", "time off"][index]}</button></div>
+        ))}
+        {jobResource.loading && jobResource.loaded && <p role="status" className="px-6 py-2 text-sm">Refreshing schedule...</p>}
         {/* ════════════════════ CALENDAR BODY ════════════════════ */}
         <div ref={scrollRef} className="flex-1 overflow-auto">
           {loading ? (
             <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>Loading schedule...</div>
-          ) : calendarView === "month" ? (
+          ) : !jobResource.loaded ? (
+            <p className="p-8 text-sm">Schedule unavailable. Retry loading jobs above.</p>
+          ) : (
+            <>
+              <section aria-label="Schedule agenda" className="lg:hidden px-4 py-3">
+                <h2 className="text-sm font-semibold mb-3">{calendarView === "week" ? "This week" : "This month"}</h2>
+                {!agendaJobs.length && !jobResource.error && <p className="py-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>No jobs scheduled for this {calendarView}{viewMode === "tech" || selectedTechIds.length < techs.length ? " with these technician filters" : ""}.</p>}
+                {!agendaJobs.length && jobResource.error && <p className="py-6 text-sm">The schedule could not be refreshed. Retry loading jobs above.</p>}
+                <div className="divide-y" style={{ borderColor: "var(--color-border)" }}>
+                  {agendaJobs.map((job) => <button key={job.id} onClick={() => { setSaveError(null); setSelectedJob(job); }} className="block w-full min-w-0 py-3 text-left break-words">
+                    <span className="block text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>{scheduledDateLabel(job.scheduledDate)}</span>
+                    <span className="block text-sm font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}</span>
+                    <span className="block text-sm font-medium mt-1" style={{ color: "var(--color-text-primary)" }}>{job.title}</span>
+                    <span className="block text-sm" style={{ color: "var(--color-text-secondary)" }}>{job.customerName}</span>
+                    <span className="block text-xs mt-1" style={{ color: "var(--color-text-secondary)" }}>{job.propertyAddress || "No property address"}</span>
+                    <span className="block text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>{job.status.replaceAll("_", " ")} · {job.assignedTechs.map((tech) => tech.name).join(", ") || "Unassigned"}</span>
+                  </button>)}
+                </div>
+              </section>
+              <div className="hidden lg:block">
+              {calendarView === "month" ? (
             /* ─────────── MONTH VIEW ─────────── */
             <div className="p-4">
               {/* Day headers */}
@@ -845,7 +876,6 @@ export default function SchedulePage() {
                     return (
                       <div
                         key={di}
-                        onClick={() => { setCurrentDate(new Date(date)); setCalendarView("week"); }}
                         className="border-t border-l p-1.5 cursor-pointer hover:bg-black/[0.03] transition-colors"
                         style={{
                           borderColor: "var(--color-border)",
@@ -856,12 +886,14 @@ export default function SchedulePage() {
                         }}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span
+                          <button
+                            aria-label={`Open week of ${iso}`}
+                            onClick={() => { setCurrentDate(new Date(date)); setCalendarView("week"); }}
                             className={`text-xs font-semibold leading-none ${isToday ? "bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center" : ""}`}
                             style={{ color: isToday ? undefined : "var(--color-text-primary)" }}
                           >
                             {date.getDate()}
-                          </span>
+                          </button>
                           {dayJobs.length > 0 && (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>
                               {dayJobs.length}
@@ -1013,7 +1045,6 @@ export default function SchedulePage() {
                                 setDraggedDuration(null);
                                 setDragOverSlot(null);
                               }}
-                              onClick={() => setSelectedJob(job)}
                               className="absolute rounded-lg cursor-pointer overflow-hidden"
                               style={{
                                 top: topOffset,
@@ -1030,12 +1061,16 @@ export default function SchedulePage() {
                             >
                               <div className="px-2 py-1.5 h-full flex flex-col min-w-0">
                                 {/* Time + status */}
-                                <div className="flex items-center gap-1.5">
+                                <button
+                                  aria-label={`Open ${job.title}, ${job.customerName}, ${formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}`}
+                                  onClick={() => { setSaveError(null); setSelectedJob(job); }}
+                                  className="flex items-center gap-1.5 text-left after:absolute after:inset-0"
+                                >
                                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: STATUS_COLORS[job.status] || "#9CA3AF" }} />
                                   <span className="text-[11px] font-bold truncate" style={{ color: "var(--color-text-primary)" }}>
                                     {formatTime12(job.scheduledTimeStart)}
                                   </span>
-                                </div>
+                                </button>
                                 {/* Customer */}
                                 <div className="text-xs font-semibold truncate mt-0.5" style={{ color: "var(--color-text-primary)" }}>
                                   {job.customerName}
@@ -1063,9 +1098,10 @@ export default function SchedulePage() {
                               </div>
                               {/* Remove button */}
                               <button
-                                onClick={(e) => { e.stopPropagation(); removeJob(job.id); }}
-                                disabled={draggedJobId !== null}
-                                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded text-[10px] transition-opacity hover:bg-red-500/20"
+                                aria-label={`Remove ${job.title}`}
+                                onClick={(e) => { e.stopPropagation(); void removeJob(job.id); }}
+                                disabled={Boolean(deletingJobId) || draggedJobId !== null}
+                                className="absolute z-10 top-1 right-1 w-5 h-5 flex items-center justify-center rounded text-[10px] transition-opacity hover:bg-red-500/20"
                                 style={{
                                   color: "var(--color-text-muted)",
                                   opacity: draggedJobId ? 0.3 : 0.6,
@@ -1084,6 +1120,9 @@ export default function SchedulePage() {
                 </div>
               ))}
             </div>
+              )}
+              </div>
+            </>
           )}
           <MeeksSchedulePanel internal />
         </div>
@@ -1095,9 +1134,10 @@ export default function SchedulePage() {
           <div className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Add Scheduled Job</h2>
-              <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button aria-label="Close new job" title="Close new job" onClick={() => setShowCreate(false)} className="p-1 text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="space-y-3">
+              {customerCreationUncertain && <p role="alert" className="text-sm text-red-600">Customer creation outcome is unknown. Check customer records before trying again. No local customer was created.</p>}
               {saveError && (
                 <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
                   {saveError}
@@ -1105,6 +1145,7 @@ export default function SchedulePage() {
               )}
               <div>
                 <input
+                  aria-label="Customer"
                   placeholder="Search customers..."
                   value={selectedCustomer?.name || customerQuery}
                   onChange={(e) => {
@@ -1128,10 +1169,10 @@ export default function SchedulePage() {
                     ))}
                   </div>
                 )}
-                {!customerLoading && customerQuery.trim().length >= 2 && customerResults.length === 0 && (
+                {!customerLoading && !customerLookupError && !selectedCustomer && customerQuery.trim().length >= 2 && customerResults.length === 0 && (
                   <div className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No matching customer found.</p>
-                    <button type="button" onClick={createCustomerInline} disabled={creatingCustomer} className="px-2 py-1 rounded text-xs font-semibold" style={{ background: "#2563EB", color: "white" }}>
+                    <button type="button" onClick={createCustomerInline} disabled={creatingCustomer || customerCreationUncertain} className="px-2 py-1 rounded text-xs font-semibold disabled:opacity-50" style={{ background: "#C75300", color: "white" }}>
                       {creatingCustomer ? "Creating..." : "Create Customer"}
                     </button>
                   </div>
@@ -1139,60 +1180,48 @@ export default function SchedulePage() {
               </div>
 
               <div>
-                <input placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.title ? "#FF204E" : "var(--color-border)"}` }} />
+                <input aria-label="Job title" placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.title ? "#FF204E" : "var(--color-border)"}` }} />
                 {formErrors.title && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.title}</p>}
               </div>
               <div>
-                <input placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.propertyAddress ? "#FF204E" : "var(--color-border)"}` }} />
+                <input aria-label="Property address" placeholder="Property address" value={form.propertyAddress} onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.propertyAddress ? "#FF204E" : "var(--color-border)"}` }} />
                 {formErrors.propertyAddress && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.propertyAddress}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <select value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
-                    <optgroup label="Service">
-                      <option value="service">Gas Service</option>
-                      <option value="wood-service">Wood Fireplace Service</option>
-                      <option value="pellet-service">Pellet Stove Service</option>
-                    </optgroup>
-                    <optgroup label="Installation">
-                      <option value="installation">Fireplace Installation</option>
-                    </optgroup>
-                    <optgroup label="Other">
-                      <option value="inspection">Inspection</option>
-                      <option value="cleaning">Chimney Sweep / Cleaning</option>
-                      <option value="repair">Repair</option>
-                      <option value="estimate">Estimate / Consultation</option>
-                    </optgroup>
+                  <select aria-label="Job type" value={form.jobType} onChange={(e) => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.jobType ? "#FF204E" : "var(--color-border)"}` }}>
+                    <JobTypeOptions values={[form.jobType]} />
                   </select>
                   {formErrors.jobType && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.jobType}</p>}
                 </div>
                 <div>
-                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
+                  <select aria-label="Priority" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
                     <option value="low">Low</option>
                     <option value="normal">Normal</option>
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
                   </select>
                 </div>
+                {form.jobType === "custom" && <CustomJobTypeInput value={form.customJobType} onChange={(value) => setForm({ ...form, customJobType: value })} />}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledDate ? "#FF204E" : "var(--color-border)"}` }} />
+                  <input aria-label="Scheduled date" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledDate ? "#FF204E" : "var(--color-border)"}` }} />
                   {formErrors.scheduledDate && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledDate}</p>}
                 </div>
                 <div>
-                  <textarea placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={1} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
+                  <textarea aria-label="Notes" placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={1} className="w-full px-3 py-2 rounded-lg resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <TimeSelect value={form.scheduledTimeStart} onChange={(value) => setForm({ ...form, scheduledTimeStart: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeStart ? "#FF204E" : "var(--color-border)"}` }} />
+                  <label className="min-w-0 flex flex-col gap-1 text-xs">Start time<TimeSelect value={form.scheduledTimeStart} onChange={(value) => setForm({ ...form, scheduledTimeStart: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeStart ? "#FF204E" : "var(--color-border)"}` }} /></label>
                   {formErrors.scheduledTimeStart && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeStart}</p>}
                 </div>
                 <div>
-                  <TimeSelect value={form.scheduledTimeEnd} onChange={(value) => setForm({ ...form, scheduledTimeEnd: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeEnd ? "#FF204E" : "var(--color-border)"}` }} />
+                  <label className="min-w-0 flex flex-col gap-1 text-xs">End time<TimeSelect value={form.scheduledTimeEnd} onChange={(value) => setForm({ ...form, scheduledTimeEnd: value })} className="w-full px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-3)", border: `1px solid ${formErrors.scheduledTimeEnd ? "#FF204E" : "var(--color-border)"}` }} /></label>
                   {formErrors.scheduledTimeEnd && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.scheduledTimeEnd}</p>}
                 </div>
               </div>
@@ -1232,7 +1261,7 @@ export default function SchedulePage() {
                 {formErrors.assignedTechs && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.assignedTechs}</p>}
               </div>
             </div>
-            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)" }}>
+            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "#C75300" }}>
               {saving ? "Saving..." : "Create Job"}
             </button>
           </div>
@@ -1264,8 +1293,7 @@ export default function SchedulePage() {
                   >
                     {selectedJob.status === "in_progress" ? "In Progress" : selectedJob.status === "on_hold" ? "On Hold" : selectedJob.status.charAt(0).toUpperCase() + selectedJob.status.slice(1)}
                   </span>
-                  <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  <button aria-label="Close job details" title="Close job details" onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} />
                   </button>
                 </div>
               </div>
@@ -1363,17 +1391,19 @@ export default function SchedulePage() {
               )}
             </div>
 
+            {saveError && <p role="alert" className="px-6 py-2 text-sm text-red-600">{saveError}</p>}
             {/* Footer actions */}
             <div className="px-6 py-4 flex gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
               <a
-                href={`/jobs?highlight=${selectedJob.id}`}
+                href={`/jobs?id=${encodeURIComponent(selectedJob.id)}`}
                 className="flex-1 text-center py-2.5 rounded-lg text-sm font-semibold transition-colors"
                 style={{ background: "var(--color-surface-3)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
               >
                 Open in Jobs
               </a>
               <button
-                onClick={() => { removeJob(selectedJob.id); setSelectedJob(null); }}
+                disabled={Boolean(deletingJobId)}
+                onClick={() => void removeJob(selectedJob.id)}
                 className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                 style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}
               >

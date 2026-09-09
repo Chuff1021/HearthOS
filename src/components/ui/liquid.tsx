@@ -95,9 +95,8 @@ export function StatusPill({
       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
       style={{
         color,
-        background: "rgba(255,255,255,0.62)",
-        border: "1px solid rgba(255,255,255,0.78)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.82)",
+        background: "var(--color-surface-2)",
+        border: "1px solid var(--color-border)",
       }}
     >
       <span className="h-1.5 w-1.5 rounded-full pulse-dot" style={{ background: color }} />
