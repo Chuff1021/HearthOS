@@ -2,6 +2,33 @@
 
 ## Current State
 
+### September 9, 2026: Approved Production Design Port
+
+Worktree `/Users/fireplace/HearthOS-production-design`, branch
+`codex/production-design-refinement`, starts at verified current production/main
+`7cfbe34`. Owner explicitly approved porting revision-3 design into production,
+without prototype-only pages or Banking navigation. This is a presentation-only
+port onto actual production components, not the synthetic preview application.
+Existing APIs, auth, providers, persistence, routes, and data configuration remain
+unchanged. A fresh encrypted backup passed full disposable PostgreSQL restoration;
+read-only baseline records 67 tables and the existing Aaron organization. Review
+`docs/DESIGN_PRODUCTION_RELEASE_2026_09_09.md` for evidence and rollout gates.
+At this checkpoint local QA is in progress; no production deploy has occurred.
+Do not treat earlier historical release-preparation notes as the current live
+source, and never deploy the dormant multi-tenant branch over this production line.
+
+### September 9, 2026: Workspace Presentation Checkpoint
+
+The production-design workspace-page pass is source-frozen. `production-workspaces.css`
+uses `pw-` scopes and existing page hooks; Meeks dark styling also covers its existing
+panel embedded in `.ops-production`. Shared globals remain parent-owned. No behavior,
+auth, provider, database, route-handler, Banking, public-page or print changes were
+made by this pass. Independent offline actual-page QA passed 52/52 initial viewport
+checks at 390/1440, with focused standalone/embedded Meeks dark checks passing.
+Typecheck and the latest 188 quality tests passed. Evidence and explicit coverage
+gaps: `/tmp/hearth-workspaces-qa/REPORT.md`. Synthetic QA does not verify live GPS,
+PO/receipt/payment persistence or authenticated identity isolation. No commit/deploy.
+
 ### September 9, 2026: Website Inbox Local Implementation
 
 Worktree `/Users/fireplace/HearthOS-website-inbox`, branch `codex/website-inbox`,

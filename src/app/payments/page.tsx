@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import "../billing-presentation.css";
 
 interface Payment {
   id: string;
@@ -264,21 +265,21 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
+    <div className="billing-page flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="billing-shell flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="billing-surface billing-main flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto space-y-5">
             {/* ── Page header ─────────────────────────────────────────── */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="billing-heading flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Payments</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Take a Square card payment in-app or send a hosted checkout link.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="billing-actions flex items-center gap-2">
                 <button
                   onClick={() => window.open(squareDashboardUrl, "_blank", "noopener,noreferrer")}
                   className="px-3 py-2 rounded-lg text-sm font-semibold"
@@ -297,14 +298,14 @@ export default function PaymentsPage() {
             </div>
 
             {/* ── Money tiles ─────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="billing-metrics grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: "Received", value: fmtMoney(totalReceived), accent: "#16A34A" },
                 { label: "Pending",  value: fmtMoney(totalPending),  accent: "#f8971f" },
                 { label: "This view", value: fmtMoney(totalReceived + totalPending), accent: "#f8971f" },
                 { label: "Transactions", value: String(payments.length), accent: "var(--color-text-muted)" },
               ].map((t) => (
-                <div key={t.label} className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", borderLeft: `4px solid ${t.accent}` }}>
+                <div key={t.label} className="billing-metric p-4 rounded-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", borderLeft: `4px solid ${t.accent}` }}>
                   <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{t.label}</p>
                   <p className="text-2xl font-bold mt-1" style={{ color: t.accent === "var(--color-text-muted)" ? "var(--color-text-primary)" : t.accent }}>{t.value}</p>
                 </div>
@@ -312,7 +313,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* ── Take a payment (in-app card form) ───────────────────── */}
-            <div className="rounded-xl p-5 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="billing-panel rounded-xl p-5 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="flex items-baseline justify-between gap-3 flex-wrap">
                 <div>
                   <h2 className="font-semibold text-lg" style={{ color: "var(--color-text-primary)" }}>Take a payment</h2>
@@ -397,7 +398,7 @@ export default function PaymentsPage() {
               </div>
 
               {/* Card entry */}
-              <div className="rounded-lg p-4 space-y-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              <div className="billing-card-entry rounded-lg p-4 space-y-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="flex items-baseline justify-between">
                   <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Card details</div>
                   <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>Securely captured by Square</div>
@@ -407,7 +408,7 @@ export default function PaymentsPage() {
                   <button
                     onClick={chargeCard}
                     disabled={chargingCard || !squareReady}
-                    className="py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
+                    className="billing-primary py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-opacity hover:opacity-90"
                     style={{ background: "linear-gradient(135deg, #f8971f, #eaa23f)" }}
                   >
                     {chargingCard ? "Processing…" : `Charge Card${form.amount ? ` ${fmtMoney(Number(form.amount) || 0)}` : ""}`}
@@ -451,7 +452,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* ── History filters ─────────────────────────────────────── */}
-            <div className="flex gap-3 items-center flex-wrap">
+            <div className="billing-filters flex gap-3 items-center flex-wrap">
               <input
                 type="text" placeholder="Search by customer or invoice…"
                 value={searchQuery}
@@ -459,7 +460,7 @@ export default function PaymentsPage() {
                 className="flex-1 min-w-[240px] px-3 py-2 rounded-lg outline-none"
                 style={{ background: "var(--color-surface-1)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
               />
-              <div className="flex gap-1.5">
+              <div className="billing-segmented flex gap-1.5">
                 {(["all", "completed", "pending", "failed"] as const).map((status) => (
                   <button
                     key={status}
@@ -478,9 +479,9 @@ export default function PaymentsPage() {
             </div>
 
             {/* ── Payments table ──────────────────────────────────────── */}
-            <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="billing-ledger rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="billing-table w-full">
                   <thead>
                     <tr style={{ background: "var(--color-surface-2)" }}>
                       <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Date</th>

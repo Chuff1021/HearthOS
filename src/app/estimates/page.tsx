@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import PnlModal from "@/components/PnlModal";
+import "../billing-presentation.css";
 
 type Customer = { id: string; displayName: string };
 type Item = { Id: string; Name: string; FullyQualifiedName?: string; Sku?: string; UnitPrice?: number };
@@ -877,12 +878,12 @@ export default function EstimatesPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
+    <div className="billing-page flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="billing-shell flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="billing-surface billing-heading px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Estimates</h1>
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>AI draft builder with QuickBooks save</p>
@@ -890,21 +891,21 @@ export default function EstimatesPage() {
           <button onClick={loadAll} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="billing-surface billing-main flex-1 overflow-y-auto p-5">
           <div className="max-w-[1900px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
             <section className="min-w-0 space-y-5">
-              <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="billing-panel billing-composer rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                 <div className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
                   <div>
                     <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>New Estimate</h2>
                     <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>Build the draft, confirm the QuickBooks customer, then save.</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="billing-actions flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-[11px] font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Draft Total</div>
                       <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</div>
                     </div>
-                    <button disabled={saving} onClick={saveEstimateToQuickBooks} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style={{ background: "#2563EB", opacity: saving ? 0.7 : 1 }}>
+                    <button disabled={saving} onClick={saveEstimateToQuickBooks} className="billing-primary px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style={{ background: "#2563EB", opacity: saving ? 0.7 : 1 }}>
                       {saving ? "Saving..." : "Save to QuickBooks"}
                     </button>
                   </div>
@@ -913,7 +914,7 @@ export default function EstimatesPage() {
                 <div className="p-5 space-y-5">
                   {error && <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.35)" }}>{error}</div>}
 
-                  <div className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4">
+                  <div className="billing-composer-fields grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4">
                     <div className="relative">
                       <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>QuickBooks Customer</label>
                       <input
@@ -964,7 +965,7 @@ export default function EstimatesPage() {
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
-                    <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "#F8971F" }}>
+                    <button onClick={generateFromAI} disabled={aiGenerating || !prompt.trim()} className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 flex items-center gap-2" style={{ background: "#F8971F" }}>
                       {aiGenerating ? (
                         <>
                           <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
@@ -998,9 +999,9 @@ export default function EstimatesPage() {
                     </div>
                   )}
 
-                  <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                  <div className="billing-line-scroll rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
                     <div className="min-w-[1040px]">
-                      <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px_40px] gap-0 px-3 py-2.5" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                      <div className="grid grid-cols-[44px_190px_170px_minmax(320px,1fr)_64px_92px_104px_40px] gap-0 px-3 py-2.5" style={{ background: "var(--billing-table-head, #f5f6f8)", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                         <div className="text-xs font-bold text-right">#</div>
                         <div className="text-xs font-bold">Product/service</div>
                         <div className="text-xs font-bold">QuickBooks item</div>
@@ -1026,7 +1027,7 @@ export default function EstimatesPage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <div className="w-full sm:w-80 space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                    <div className="billing-totals w-full sm:w-80 space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
                       <div className="flex justify-between text-sm">
                         <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
                         <span style={{ color: "var(--color-text-primary)" }}>${draftTotal.toFixed(2)}</span>
@@ -1044,7 +1045,7 @@ export default function EstimatesPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+              <div className="billing-panel rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                 {!selectedEstimate ? (
                   <div className="p-5">
                     <h2 className="font-semibold mb-2" style={{ color: "var(--color-text-primary)" }}>Estimate Details</h2>
@@ -1077,10 +1078,10 @@ export default function EstimatesPage() {
                       </div>
                     </div>
 
-                    <div className="px-5 py-3 flex flex-wrap gap-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                    <div className="billing-actions px-5 py-3 flex flex-wrap gap-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
                       {editingEstimateId === selectedEstimate.Id ? (
                         <>
-                          <button onClick={saveEstimateEdits} disabled={savingEstimateEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB", opacity: savingEstimateEdits ? 0.7 : 1 }}>
+                          <button onClick={saveEstimateEdits} disabled={savingEstimateEdits} className="billing-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB", opacity: savingEstimateEdits ? 0.7 : 1 }}>
                             {savingEstimateEdits ? "Saving..." : "Save Changes"}
                           </button>
                           <button onClick={() => setEditingEstimateId(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
@@ -1127,10 +1128,10 @@ export default function EstimatesPage() {
                     )}
 
                     <div className="p-5">
-                      <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                      <div className="billing-line-scroll rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
                         <div className="min-w-[1080px]">
                           {editingEstimateId === selectedEstimate.Id ? (
-                            <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="grid grid-cols-[44px_250px_minmax(360px,1fr)_76px_104px_104px_44px] gap-2 px-3 py-2.5 text-xs font-bold" style={{ background: "var(--billing-table-head, #f5f6f8)", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div></div>
                               <div>Product/service</div>
                               <div>Description</div>
@@ -1140,7 +1141,7 @@ export default function EstimatesPage() {
                               <div></div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-[44px_minmax(520px,1fr)_64px_96px_112px] gap-3 px-3 py-2.5 text-xs font-bold" style={{ background: "#f5f6f8", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="grid grid-cols-[44px_minmax(520px,1fr)_64px_96px_112px] gap-3 px-3 py-2.5 text-xs font-bold" style={{ background: "var(--billing-table-head, #f5f6f8)", color: "var(--color-text-primary)", borderBottom: "1px solid var(--color-border)" }}>
                               <div className="text-right">#</div>
                               <div>Product</div>
                               <div className="text-right">Qty</div>
@@ -1283,7 +1284,7 @@ export default function EstimatesPage() {
                             <div className="text-sm rounded-lg p-3 min-h-20" style={{ color: "var(--color-text-secondary)", background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>{selectedEstimate.PrivateNote || "No notes on this estimate."}</div>
                           )}
                         </div>
-                        <div className="space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                        <div className="billing-totals space-y-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
                           <div className="flex items-center justify-between text-sm">
                             <span style={{ color: "var(--color-text-muted)" }}>Subtotal</span>
                             <span style={{ color: "var(--color-text-primary)" }}>
@@ -1312,7 +1313,7 @@ export default function EstimatesPage() {
               </div>
             </section>
 
-            <aside className="rounded-xl p-4 xl:sticky xl:top-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <aside className="billing-recent rounded-xl p-4 xl:sticky xl:top-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Estimates</h2>
@@ -1344,9 +1345,9 @@ export default function EstimatesPage() {
                       onClick={() => setSelectedEstimate(e)}
                       className="w-full text-left p-3 rounded-lg transition-colors"
                       style={{
-                        background: selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.08)" : "var(--color-surface-3)",
-                        border: `1px solid ${selectedEstimate?.Id === e.Id ? "rgba(37,99,235,0.45)" : "var(--color-border)"}`,
-                        boxShadow: selectedEstimate?.Id === e.Id ? "0 0 0 1px rgba(37,99,235,0.12) inset" : "none",
+                        background: selectedEstimate?.Id === e.Id ? "var(--billing-selection-bg, rgba(37,99,235,0.08))" : "var(--color-surface-3)",
+                        border: `1px solid ${selectedEstimate?.Id === e.Id ? "var(--billing-accent, rgba(37,99,235,0.45))" : "var(--color-border)"}`,
+                        boxShadow: selectedEstimate?.Id === e.Id ? "inset 3px 0 var(--billing-accent, rgba(37,99,235,0.12))" : "none",
                       }}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1377,7 +1378,7 @@ export default function EstimatesPage() {
       </div>
 
       {emailDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="billing-surface billing-modal fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/55" onClick={() => !sendingEstimateEmail && setEmailDialogOpen(false)} />
           <div className="relative w-full max-w-[1200px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -1417,7 +1418,7 @@ export default function EstimatesPage() {
                   <textarea value={emailBody} onChange={(event) => setEmailBody(event.target.value)} rows={10} className="px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-3)", border: "1px solid #16A34A", color: "var(--color-text-primary)" }} />
                 </div>
               </div>
-              <div className="p-5" style={{ background: "#777" }}>
+              <div className="billing-preview-scroll p-5" style={{ background: "#777" }}>
                 <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "24px" }}>
                   <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
                     <div>
@@ -1478,7 +1479,7 @@ export default function EstimatesPage() {
             </div>
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button disabled={sendingEstimateEmail} onClick={() => setEmailDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
-              <button onClick={emailEstimate} disabled={sendingEstimateEmail} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingEstimateEmail ? 0.7 : 1 }}>
+              <button onClick={emailEstimate} disabled={sendingEstimateEmail} className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingEstimateEmail ? 0.7 : 1 }}>
                 {sendingEstimateEmail ? "Sending..." : "Send and close"}
               </button>
             </div>

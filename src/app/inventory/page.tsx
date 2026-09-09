@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -191,18 +192,18 @@ export default function InventoryPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="pw-workspace pw-inventory flex-1 overflow-y-auto p-5">
           <div className="max-w-[1800px] mx-auto space-y-4">
 
             {/* Title row */}
-            <div className="flex items-end justify-between gap-4">
+            <div className="pw-heading flex items-end justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Inventory</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Search, sort, manage every part. Click an item for full cost history.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="pw-toolbar flex items-center gap-2">
                 <button onClick={() => fetchList()} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)" }}>
                   Refresh
                 </button>
@@ -236,7 +237,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Stats banner */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="pw-metrics grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard
                 label="Active inventory"
                 value={data?.stats.trackedItems ?? 0}
@@ -261,7 +262,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Search + category */}
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="pw-toolbar flex flex-wrap gap-2 items-center">
               <input
                 type="text"
                 placeholder={searching ? "Searching all inventory…" : "Search by name, SKU, description, category…"}
@@ -285,7 +286,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Scope tabs — primary working set selector */}
-            <div className="flex items-center gap-1 px-1 py-1 rounded-xl w-fit" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            <div className="pw-tabs flex items-center gap-1 px-1 py-1 rounded-xl w-fit" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
               {([
                 { id: "active", label: "Active inventory", count: data?.stats.trackedItems },
                 { id: "retired", label: "Retired", count: data?.stats.untrackedItems },
@@ -319,8 +320,8 @@ export default function InventoryPage() {
 
             {/* Table */}
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="pw-table-scroll overflow-x-auto">
+                <table className="pw-table w-full text-sm">
                   <thead style={{ background: "var(--color-surface-2)" }}>
                     <tr>
                       <Th onClick={headerSort("name")} active={sort === "name"} dir={dir}>Item</Th>
@@ -680,7 +681,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
             </div>
           )}
           {data && !loading && data.rows.length > 0 && (
-            <table className="w-full text-xs">
+            <table className="pw-table w-full text-xs">
               <thead className="sticky top-0" style={{ background: "var(--color-surface-2)" }}>
                 <tr>
                   <th className="px-3 py-2 text-left">
@@ -815,6 +816,7 @@ function StatCard({ label, value, tone, onClick, active }: { label: string; valu
   return (
     <Tag
       onClick={onClick}
+      aria-pressed={onClick ? Boolean(active) : undefined}
       className={`p-4 rounded-xl text-left transition-all w-full ${active ? "ring-2 ring-orange-500" : ""}`}
       style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
     >
@@ -1183,7 +1185,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
           {data.vendorBreakdown.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No bills found for this item.</p>
           ) : (
-            <table className="w-full text-xs">
+            <table className="pw-table w-full text-xs">
               <thead style={{ color: "var(--color-text-muted)" }}>
                 <tr>
                   <th className="text-left py-1">Vendor</th>

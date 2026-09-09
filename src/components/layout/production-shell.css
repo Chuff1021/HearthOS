@@ -1,0 +1,255 @@
+/* Header and Sidebar share these tokens; page surfaces remain owned by globals.css. */
+[data-production-shell] {
+  --color-bg: #f0f4f8;
+  --color-surface-1: #fff;
+  --color-surface-2: #f6f8fb;
+  --color-border: #dce5ed;
+  --color-text-primary: #1d2938;
+  --color-text-secondary: #4f6075;
+  --color-text-muted: #637186;
+  --color-nav-icon: #718196;
+  --color-nav-active: #a73c08;
+  --color-nav-active-bg: #fff0e6;
+  --color-nav-active-border: #f3cfb5;
+  --color-nav-hover: #f0f4f8;
+  --color-focus-ring: #b4420a;
+  --shell-accent: #ef601b;
+  --shell-avatar-bg: #e8eef5;
+  --shell-avatar-text: #40546c;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  letter-spacing: 0;
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] [data-production-shell] {
+  --color-bg: #181818;
+  --color-surface-1: #262626;
+  --color-surface-2: #2e2e2e;
+  --color-border: #484848;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #dedede;
+  --color-text-muted: #bcbcbc;
+  --color-nav-icon: #b6bec8;
+  --color-nav-active: #ffc99f;
+  --color-nav-active-bg: #4a2a17;
+  --color-nav-active-border: #8e5026;
+  --color-nav-hover: #333;
+  --color-focus-ring: #ffad70;
+  --shell-avatar-bg: #3a414a;
+  --shell-avatar-text: #e0e7ee;
+}
+
+.production-header {
+  min-width: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+}
+
+.production-header-toolbar {
+  min-height: 64px;
+  overflow: visible;
+}
+
+.production-header-search {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  box-shadow: none;
+}
+
+.production-header-search::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.production-header-shortcut {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+}
+
+.production-header-icon,
+.production-header-account,
+.production-header-status-link {
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+}
+
+.production-header-icon {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+  cursor: pointer;
+}
+
+.production-header-account {
+  color: var(--color-text-primary);
+}
+
+.production-header-divider {
+  background: var(--color-border);
+}
+
+.production-header-avatar,
+[data-production-shell] .hearth-account-avatar {
+  background: var(--shell-avatar-bg);
+  color: var(--shell-avatar-text);
+}
+
+.production-header-account-caption {
+  color: var(--color-text-muted);
+}
+
+.production-header-status {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.production-header-results {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+  box-shadow: 0 12px 32px rgb(29 41 56 / 14%);
+}
+
+.production-header-results-bar {
+  border-color: var(--color-border);
+}
+
+.production-header-result-icon {
+  border-color: var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.production-header :is(.production-header-icon, .production-header-account, .production-header-status-link, .production-header-result):hover,
+.production-header-result:focus-visible {
+  background: var(--color-nav-hover);
+}
+
+[data-production-shell] :is(a, button, input):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.hearth-sidebar[data-production-shell] {
+  flex-basis: 222px;
+  width: 222px;
+  margin: 0;
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface-1);
+  box-shadow: none;
+}
+
+.hearth-sidebar[data-production-shell][data-collapsed="true"] {
+  flex-basis: 76px;
+  width: 76px;
+}
+
+[data-production-shell] .hearth-sidebar-header {
+  min-height: 80px;
+  padding: 16px 12px;
+}
+
+[data-production-shell] .hearth-sidebar-logo {
+  width: 32px;
+  height: 32px;
+}
+
+/* Keep the production brand artwork, without its former glow treatment. */
+[data-production-shell] .hearth-sidebar-logo > div {
+  background: var(--shell-accent) !important;
+  box-shadow: none !important;
+}
+
+[data-production-shell] .hearth-sidebar-brand strong {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+[data-production-shell] .hearth-sidebar-brand span {
+  margin-top: 3px;
+}
+
+[data-production-shell] .hearth-nav-icon-button {
+  border-radius: 6px;
+}
+
+[data-production-shell] .hearth-sidebar-header .hearth-nav-icon-button {
+  width: 28px;
+  height: 32px;
+  border-color: transparent;
+}
+
+[data-production-shell] .hearth-sidebar-navigation {
+  padding: 0 10px 12px;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+[data-production-shell] .hearth-nav-group + .hearth-nav-group {
+  margin-top: 14px;
+}
+
+[data-production-shell] .hearth-nav-heading {
+  padding: 8px 10px 6px;
+  font-weight: 500;
+}
+
+[data-production-shell] .hearth-nav-link {
+  position: relative;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+[data-production-shell] .hearth-nav-link:is([aria-current="page"], [data-active="true"]) {
+  font-weight: 600;
+}
+
+[data-production-shell] .hearth-nav-link[aria-current="page"] .hearth-nav-link-icon {
+  color: var(--color-nav-active);
+}
+
+.hearth-sidebar[data-production-shell] .hearth-nav-link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px -1px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--shell-accent);
+}
+
+[data-production-shell] .hearth-sidebar-footer {
+  padding: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-production-shell] .hearth-account-link {
+  border-color: transparent;
+  border-radius: 6px;
+}
+
+.hearth-mobile-dock[data-production-shell] {
+  background: var(--color-surface-1);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.hearth-navigation-drawer[data-production-shell] {
+  background: var(--color-surface-1);
+  border-radius: 8px 8px 0 0;
+}
+
+@media (max-width: 1023px) {
+  .production-header { padding: 0 16px; }
+  .production-header-toolbar { min-height: 60px; }
+}
+
+@media (max-width: 639px) {
+  .production-header { padding: 0 12px; }
+  .production-header-search { font-size: 16px; }
+}

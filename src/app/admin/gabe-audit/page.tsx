@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -117,7 +118,7 @@ export default function GabeAuditPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="pw-workspace pw-admin flex-1 overflow-y-auto p-5">
           <div className="max-w-[1600px] mx-auto space-y-5">
             {/* Page Header */}
             <div className="flex items-start justify-between gap-4">
@@ -138,7 +139,7 @@ export default function GabeAuditPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="pw-metrics grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Conversations</p>
                 <p className="text-2xl font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>{stats.total}</p>

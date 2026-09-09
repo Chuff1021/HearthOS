@@ -7,6 +7,7 @@ import { ArrowDown, ArrowRight, ArrowUp, Plus, RefreshCw, Search } from "lucide-
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import CreateCustomerDialog from "@/components/customers/CreateCustomerDialog";
+import OperationsStyles from "@/components/scheduling/OperationsStyles";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
 import { syncQuickBooksEntity } from "@/lib/quickbooks/browser-sync";
 
@@ -186,7 +187,8 @@ function CustomersListInner() {
       <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto" style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
+        <main className="ops-production flex-1 overflow-y-auto" style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
+          <OperationsStyles />
           <div className="max-w-[1600px] mx-auto p-3 sm:px-5 sm:pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -221,7 +223,7 @@ function CustomersListInner() {
             )}
 
             {/* Money bar */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 border-y py-3" style={{ borderColor: "var(--color-border)" }}>
+            <div className="ops-metrics grid grid-cols-2 lg:grid-cols-4 border-y" style={{ borderColor: "var(--color-border)" }}>
               <MoneyTile
                 label="Open A/R"
                 value={fmtMoney(data?.moneyBar.totalDue)}
@@ -317,7 +319,7 @@ function CustomersListInner() {
             </div>
 
             {/* Customer table */}
-            <div className="hidden lg:block overflow-hidden" aria-busy={loading} style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="ops-directory-table hidden lg:block overflow-hidden" aria-busy={loading} style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[960px]">
                   <thead style={{ background: "var(--color-surface-2)" }}>
@@ -421,8 +423,7 @@ function MoneyTile({ label, value, hint, tone, onClick }: { label: string; value
   return (
     <Tag
       onClick={onClick}
-      className={`px-3 py-1 text-left w-full min-w-0 ${onClick ? "hover:opacity-80 transition-opacity" : ""}`}
-      style={{ borderLeft: `3px solid ${accent}` }}
+      className={`ops-metric text-left w-full min-w-0 ${onClick ? "hover:opacity-80 transition-opacity" : ""}`}
     >
       <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{label}</p>
       <p className="text-xl font-bold mt-1 break-words tabular-nums" style={{ color: accent }}>{value}</p>
@@ -437,12 +438,7 @@ function Pill<V extends string>({ label, v, cur, on }: { label: string; v: V; cu
     <button
       onClick={() => on(v)}
       aria-pressed={active}
-      className="px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors"
-      style={{
-        background: active ? "#c2410c" : "var(--color-surface-1)",
-        color: active ? "white" : "var(--color-text-secondary)",
-        border: "1px solid var(--color-border)",
-      }}
+      className="ops-filter px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors"
     >
       {label}
     </button>

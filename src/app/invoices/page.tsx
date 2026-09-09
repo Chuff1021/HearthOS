@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import PnlModal from "@/components/PnlModal";
+import "../billing-presentation.css";
 
 interface InvoiceLineItem {
   id: string;
@@ -966,13 +967,13 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
+    <div className="billing-page flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="billing-shell billing-invoice-shell flex-1 flex flex-col overflow-hidden">
         <Header />
         {/* Page Header */}
         <div
-          className="px-6 py-4 flex items-center justify-between flex-shrink-0"
+          className="billing-surface billing-heading px-6 py-4 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div>
@@ -983,7 +984,7 @@ export default function InvoicesPage() {
           </div>
           <button
             onClick={() => { resetCreateForm(); setShowCreateModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            className="billing-primary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white", boxShadow: "0 0 16px rgba(29,78,216,0.25)" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -994,7 +995,7 @@ export default function InvoicesPage() {
           <button
             onClick={handleSyncWithQuickBooks}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            className="billing-secondary flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             style={{ background: "#2CA01C", color: "white" }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`}>
@@ -1005,7 +1006,7 @@ export default function InvoicesPage() {
         </div>
 
         {manualPaymentMessage && (
-          <div className="px-6 py-3 text-sm flex flex-wrap items-center gap-3" role="status" aria-live="polite"
+          <div className="billing-surface px-6 py-3 text-sm flex flex-wrap items-center gap-3" role="status" aria-live="polite"
             style={{ color: 'var(--color-text-primary)', borderBottom: '1px solid var(--color-border)' }}>
             <span>{manualPaymentMessage}</span>
             {manualPaymentPending && (
@@ -1020,7 +1021,7 @@ export default function InvoicesPage() {
 
         {/* Summary Stats */}
         <div
-          className="px-6 py-4 grid grid-cols-4 gap-4 flex-shrink-0"
+          className="billing-surface billing-metrics px-6 py-4 grid grid-cols-4 gap-4 flex-shrink-0"
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           {[
@@ -1033,7 +1034,7 @@ export default function InvoicesPage() {
               key={stat.label}
               type="button"
               onClick={() => toggleMetricFilter(stat.key as "outstanding" | "overdue" | "paid" | "draft")}
-              className="rounded-lg p-3 text-left transition-all"
+              className="billing-metric rounded-lg p-3 text-left transition-all"
               style={{
                 background: metricFilter === stat.key ? "rgba(255,255,255,0.08)" : "var(--color-surface-2)",
                 border: metricFilter === stat.key ? `1px solid ${stat.color}` : "1px solid var(--color-border)",
@@ -1048,7 +1049,7 @@ export default function InvoicesPage() {
 
         {/* Filters */}
         <div
-          className="px-6 py-3 flex items-center gap-4 flex-shrink-0"
+          className="billing-surface billing-filters px-6 py-3 flex items-center gap-4 flex-shrink-0"
           style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex-1 relative">
@@ -1115,9 +1116,9 @@ export default function InvoicesPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="billing-surface billing-invoice-content flex-1 flex overflow-hidden">
           {/* Invoice List */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="billing-invoice-list flex-1 overflow-y-auto p-6">
             {error && (
               <div className="rounded-lg px-4 py-3 text-sm mb-4" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.2)", color: "#FF204E" }}>
                 {error}
@@ -1137,7 +1138,7 @@ export default function InvoicesPage() {
                   <div
                     key={invoice.id}
                     onClick={() => setSelectedInvoice(invoice)}
-                    className={`rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.005] ${selectedInvoice?.id === invoice.id ? "ring-2 ring-orange-500" : ""}`}
+                    className={`billing-invoice-record rounded-xl p-4 cursor-pointer transition-all ${selectedInvoice?.id === invoice.id ? "ring-2 ring-orange-500" : ""}`}
                     style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
                   >
                     <div className="flex items-start justify-between">
@@ -1203,7 +1204,7 @@ export default function InvoicesPage() {
           {/* Invoice Detail Panel */}
           {selectedInvoice && (
             <div
-              className="w-[420px] flex-shrink-0 overflow-y-auto border-l"
+              className="billing-invoice-detail w-[420px] flex-shrink-0 overflow-y-auto border-l"
               style={{ background: "var(--color-surface-1)", borderColor: "var(--color-border)" }}
             >
               <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -1223,7 +1224,7 @@ export default function InvoicesPage() {
                       </button>
                     </>
                   ) : (
-                    <button onClick={handleSaveInvoiceEdits} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB" }}>
+                    <button onClick={handleSaveInvoiceEdits} className="billing-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#2563EB" }}>
                       Save
                     </button>
                   )}
@@ -1292,7 +1293,7 @@ export default function InvoicesPage() {
                   </div>
                   <div className="space-y-2">
                     {selectedInvoice.lineItems.map((item, idx) => (
-                      <div key={idx} className="flex items-start justify-between py-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                      <div key={idx} className="billing-invoice-line flex items-start justify-between py-2" style={{ borderBottom: "1px solid var(--color-border)" }}>
                         <div className="flex-1">
                           {editMode ? (
                             <div className="space-y-1">
@@ -1399,7 +1400,7 @@ export default function InvoicesPage() {
                   </div>
 
                   {/* Totals */}
-                  <div className="mt-3 space-y-1.5">
+                  <div className="billing-totals mt-3 space-y-1.5">
                     <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
                       <span>Subtotal</span>
                       <span>${selectedSubtotal.toFixed(2)}</span>
@@ -1440,7 +1441,7 @@ export default function InvoicesPage() {
                 )}
 
                 {/* Actions */}
-                <div className="space-y-2">
+                <div className="billing-invoice-actions space-y-2">
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => openInvoiceEmailDialog(selectedInvoice)}
@@ -1474,7 +1475,7 @@ export default function InvoicesPage() {
                   {selectedInvoice.balance > 0 && (
                     <button
                       onClick={() => handlePayNow(selectedInvoice)}
-                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
+                      className="billing-primary w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
                       style={{ background: "linear-gradient(135deg, #f8971f, #f8971f)", color: "white" }}
                     >
                       Pay Now (Square)
@@ -1493,7 +1494,7 @@ export default function InvoicesPage() {
                     <button
                       onClick={() => handleRecordCheckPayment(selectedInvoice)}
                       disabled={manualPaymentBusy || !!manualPaymentPending}
-                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                      className="billing-secondary w-full px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
                       style={{ background: "linear-gradient(135deg, #98CD00, #98CD00)", color: "white" }}
                     >
                       Record Check Payment
@@ -1524,7 +1525,7 @@ export default function InvoicesPage() {
 
       {/* Create Invoice Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="billing-surface billing-modal fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCreateModal(false)} />
           <div
             className="relative w-full max-w-2xl rounded-xl overflow-hidden"
@@ -1575,7 +1576,7 @@ export default function InvoicesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="billing-invoice-dates grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Issue Date</label>
                   <input
@@ -1616,7 +1617,7 @@ export default function InvoicesPage() {
                 </div>
                 <div className="space-y-2">
                   {createForm.lineItems.map((li, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                    <div key={idx} className="billing-invoice-create-line grid grid-cols-12 gap-2 items-end">
                       <select
                         value={li.itemId}
                         onChange={(e) => applyItemToCreateLine(idx, e.target.value)}
@@ -1674,7 +1675,7 @@ export default function InvoicesPage() {
               </div>
 
               {/* Totals Preview */}
-              <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              <div className="billing-totals rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="flex justify-between text-sm" style={{ color: "var(--color-text-secondary)" }}>
                   <span>Subtotal</span>
                   <span>${createSubtotal.toFixed(2)}</span>
@@ -1712,7 +1713,7 @@ export default function InvoicesPage() {
               <button
                 onClick={handleCreateInvoice}
                 disabled={saving || !createForm.customerName || !createForm.jobTitle || createForm.lineItems.every((li) => !li.description)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #2563EB, #2563EB)", color: "white" }}
               >
                 {saving ? "Creating..." : "Create Invoice"}
@@ -1723,7 +1724,7 @@ export default function InvoicesPage() {
       )}
 
       {emailDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="billing-surface billing-modal fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/55" onClick={() => !sendingInvoiceEmail && setEmailDialogOpen(false)} />
           <div className="relative w-full max-w-[1200px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -1763,7 +1764,7 @@ export default function InvoicesPage() {
                   <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={10} className="px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid #16A34A", color: "var(--color-text-primary)" }} />
                 </div>
               </div>
-              <div className="p-5" style={{ background: "#777" }}>
+              <div className="billing-preview-scroll p-5" style={{ background: "#777" }}>
                 <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "410px", minHeight: "560px", padding: "24px" }}>
                   <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
                     <div>
@@ -1826,7 +1827,7 @@ export default function InvoicesPage() {
             </div>
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button disabled={sendingInvoiceEmail} onClick={() => setEmailDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
-              <button onClick={handleEmailInvoice} disabled={sendingInvoiceEmail} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingInvoiceEmail ? 0.7 : 1 }}>
+              <button onClick={handleEmailInvoice} disabled={sendingInvoiceEmail} className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: sendingInvoiceEmail ? 0.7 : 1 }}>
                 {sendingInvoiceEmail ? "Sending..." : "Send and close"}
               </button>
             </div>

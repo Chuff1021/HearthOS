@@ -191,7 +191,7 @@ export default function TechApp() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="flex flex-col min-h-screen pb-32">
+    <div className="pw-workspace pw-tech flex flex-col min-h-screen pb-32">
       <header
         className="sticky top-0 z-10 px-4 pb-4"
         style={{
@@ -269,7 +269,7 @@ export default function TechApp() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="pw-metrics grid grid-cols-3 gap-3">
           {[
             { label: "Today", value: session?.stats.jobsToday ?? 0 },
             { label: "Done", value: session?.stats.jobsCompletedToday ?? 0 },

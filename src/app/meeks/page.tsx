@@ -1,3 +1,4 @@
+import "@/app/production-workspaces.css";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
@@ -14,7 +15,7 @@ export default async function MeeksPortalPage() {
 
   if (!access.ok) {
     return (
-      <main className="flex min-h-screen items-center justify-center overflow-x-hidden px-4" style={{ background: "var(--color-bg)" }}>
+      <main className="pw-workspace pw-meeks pw-standalone flex min-h-screen items-center justify-center overflow-x-hidden px-4" style={{ background: "var(--color-bg)" }}>
         <div className="w-full max-w-lg rounded-[2rem] p-8 text-center" style={{ background: "rgba(255,255,255,0.74)", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 24px 70px rgba(35,55,90,0.12)", backdropFilter: "blur(26px)" }}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--color-ember)" }}>HearthOS partner portal</p>
           <h1 className="mt-2 text-2xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Access not approved</h1>
@@ -30,9 +31,9 @@ export default async function MeeksPortalPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden">
+    <main className="pw-workspace pw-meeks pw-standalone min-h-screen overflow-x-hidden">
       <div className="mx-auto max-w-[1440px] px-4 pt-6">
-        <div className="rounded-[2rem] px-5 py-4" style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 24px 70px rgba(35,55,90,0.1)", backdropFilter: "blur(26px)" }}>
+        <div className="pw-meeks-heading rounded-[2rem] px-5 py-4" style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 24px 70px rgba(35,55,90,0.1)", backdropFilter: "blur(26px)" }}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--color-ember)" }}>HearthOS partner portal</p>

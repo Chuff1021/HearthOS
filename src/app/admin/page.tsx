@@ -1,8 +1,9 @@
+import "@/app/production-workspaces.css";
 import Link from "next/link";
 
 export default function AdminHomePage() {
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="pw-workspace pw-admin pw-standalone min-h-screen bg-black text-white p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Admin Backend</h1>

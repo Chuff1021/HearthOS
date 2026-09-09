@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+import "../billing-presentation.css";
 
 type ExpenseStatus = "submitted" | "approved" | "reimbursed" | "rejected";
 type Expense = {
@@ -125,13 +126,13 @@ export default function ExpensesPage() {
   ], [data]);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
+    <div className="billing-page flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 pb-28 sm:p-6 lg:pb-6">
+        <main className="billing-surface billing-main flex-1 overflow-y-auto p-4 pb-28 sm:p-6 lg:pb-6">
           <div className="mx-auto max-w-[1500px] space-y-5">
-            <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="billing-heading flex flex-wrap items-end justify-between gap-4">
               <div>
                 <div className="mb-1 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--color-ember)" }}>
                   <ReceiptText size={16} /> Expense center
@@ -141,16 +142,16 @@ export default function ExpensesPage() {
                   Review field purchases, customer costs, and stock or shop spending.
                 </p>
               </div>
-              <div className="rounded-2xl px-4 py-2 text-sm font-medium" style={{ background: "rgba(255,255,255,0.7)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>
+              <div className="billing-notice rounded-2xl px-4 py-2 text-sm font-medium" style={{ background: "rgba(255,255,255,0.7)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>
                 Tech receipts appear here as soon as they are submitted.
               </div>
             </div>
 
-            <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <section className="billing-metrics grid grid-cols-2 gap-3 xl:grid-cols-4">
               {tiles.map((tile) => {
                 const Icon = tile.icon;
                 return (
-                  <div key={tile.label} className="glass-card rounded-2xl p-4 sm:p-5">
+                  <div key={tile.label} className="billing-metric glass-card rounded-2xl p-4 sm:p-5">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <span className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)", letterSpacing: "0.08em" }}>{tile.label}</span>
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ color: tile.tone, background: `${tile.tone}12` }}><Icon size={18} /></span>
@@ -162,15 +163,15 @@ export default function ExpensesPage() {
               })}
             </section>
 
-            <section className="glass-panel overflow-hidden rounded-2xl">
-              <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center" style={{ borderColor: "var(--color-border)" }}>
+            <section className="billing-ledger glass-panel overflow-hidden rounded-2xl">
+              <div className="billing-expense-filters flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center" style={{ borderColor: "var(--color-border)" }}>
                 <div className="relative min-w-0 flex-1">
                   <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search merchant, customer, employee, or category" className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm outline-none" style={{ background: "rgba(255,255,255,0.72)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+                <div className="billing-segmented flex gap-2 overflow-x-auto pb-1 lg:pb-0">
                   {(["all", "submitted", "approved", "reimbursed", "rejected"] as const).map((value) => (
-                    <button key={value} onClick={() => setStatus(value)} className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: status === value ? "#fff" : "var(--color-text-secondary)", background: status === value ? "var(--color-ember)" : "rgba(255,255,255,0.68)", border: "1px solid var(--color-border)" }}>
+                    <button key={value} onClick={() => setStatus(value)} className="whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold" style={{ color: status === value ? "#fff" : "var(--color-text-secondary)", background: status === value ? "var(--billing-accent, var(--color-ember))" : "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                       {value === "all" ? "All" : value[0].toUpperCase() + value.slice(1)}
                     </button>
                   ))}
@@ -185,7 +186,7 @@ export default function ExpensesPage() {
               {error ? <div className="m-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
               <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[1050px] text-left">
+                <table className="billing-table w-full min-w-[1050px] text-left">
                   <thead>
                     <tr className="border-b text-[11px] font-semibold uppercase" style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}>
                       <th className="px-5 py-3">Date</th><th className="px-5 py-3">Merchant</th><th className="px-5 py-3">Submitted by</th><th className="px-5 py-3">Allocation</th><th className="px-5 py-3 text-right">Amount</th><th className="px-5 py-3">Receipt</th><th className="px-5 py-3">Status</th>
@@ -205,7 +206,7 @@ export default function ExpensesPage() {
                             <select disabled={updatingId === expense.id} value={expense.status} onChange={(event) => void changeStatus(expense.id, event.target.value as ExpenseStatus)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none disabled:opacity-50" style={{ ...statusTone(expense.status), border: "1px solid transparent" }}>
                               {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                             </select>
-                          ) : <span className="rounded-full px-2.5 py-1 text-xs font-semibold" style={statusTone(expense.status)}>{expense.status}</span>}
+                          ) : <span className="billing-status rounded-full px-2.5 py-1 text-xs font-semibold" style={statusTone(expense.status)}>{expense.status}</span>}
                         </td>
                       </tr>
                     ))}
@@ -215,7 +216,7 @@ export default function ExpensesPage() {
 
               <div className="space-y-3 p-3 lg:hidden">
                 {(data?.expenses || []).map((expense) => (
-                  <article key={expense.id} className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.72)", border: "1px solid var(--color-border)" }}>
+                  <article key={expense.id} className="billing-expense-record rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.72)", border: "1px solid var(--color-border)" }}>
                     <div className="flex items-start justify-between gap-3"><div><div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{expense.merchant}</div><div className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>{prettyDate(expense.expenseDate)} · {expense.submittedByName}</div></div><div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>{money(expense.amount)}</div></div>
                     <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>{expense.allocationType === "customer" ? <CheckCircle2 size={16} /> : <Store size={16} />}{expense.customerName || "Stock / Shop"}</div>
                     <div className="mt-4 flex items-center justify-between gap-3"><a href={`/api/expenses/${expense.id}/receipt`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--color-ember)" }}>View receipt <ExternalLink size={14} /></a><select disabled={updatingId === expense.id} value={expense.status} onChange={(event) => void changeStatus(expense.id, event.target.value as ExpenseStatus)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none" style={{ ...statusTone(expense.status), border: "1px solid transparent" }}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>

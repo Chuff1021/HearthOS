@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback } from "react";
 import { useRecordQuery } from "@/lib/use-record-query";
 import Link from "next/link";
@@ -197,7 +198,7 @@ export default function ProfitByJobPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="pw-workspace pw-reports flex-1 overflow-y-auto p-5">
           <div className="max-w-[1800px] mx-auto space-y-4">
 
             {/* Title row */}
@@ -259,8 +260,8 @@ export default function ProfitByJobPage() {
 
             {/* Table */}
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="pw-table-scroll overflow-x-auto">
+                <table className="pw-table w-full text-sm">
                   <thead style={{ background: "var(--color-surface-2)" }}>
                     <tr>
                       <Th onClick={sortFor("number")} active={sort === "number"} dir={dir}>Invoice</Th>
@@ -377,7 +378,7 @@ function WindowStatsBanner({ data, preset, loading }: { data: ListResponse | nul
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="pw-metrics grid grid-cols-2 md:grid-cols-5 gap-3">
         <BannerStat label="Revenue" value={fmtMoney(w?.revenue ?? 0)} />
         <BannerStat label="Material cost" value={fmtMoney(w?.cogs ?? 0)} tone="warn" />
         <BannerStat label="Other costs" value={fmtMoney(w?.billable ?? 0)} tone="warn" />
@@ -534,7 +535,7 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
               {data.lines.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No line items.</p>
               ) : (
-                <table className="w-full text-xs">
+                <table className="pw-table w-full text-xs">
                   <thead style={{ color: "var(--color-text-muted)" }}>
                     <tr>
                       <th className="text-left py-1 pr-3">Item</th>
@@ -615,9 +616,9 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
             </div>
 
             {/* Final P&L summary */}
-            <div className="p-5">
+            <div className="pw-table-scroll p-5">
               <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--color-text-secondary)" }}>P&amp;L summary</h3>
-              <table className="w-full text-sm">
+              <table className="pw-table w-full text-sm">
                 <tbody>
                   <tr>
                     <td className="py-1.5" style={{ color: "var(--color-text-secondary)" }}>Revenue (line totals)</td>

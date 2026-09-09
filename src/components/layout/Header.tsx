@@ -9,6 +9,7 @@ import {
   createHeaderSearch, emptySearchState, parseDispatchStatus, parseQuickBooksStatus, readHeaderJson,
   type HeaderSearchResult,
 } from "./header-search";
+import "./production-shell.css";
 
 function subscribeTheme(onChange: () => void) {
   const observer = new MutationObserver(onChange);
@@ -141,21 +142,11 @@ function HeaderContent({ identity }: { identity: DisplayIdentity }) {
   const totalResults = search.results.customers.length + search.results.jobs.length + search.results.invoices.length;
   const qbLabel = qb.loading ? "QB Checking..." : qb.data === null ? "QB Unavailable" : qb.data ? "QB Connected" : "QB Attention";
   const accountLabel = identity.isSignedIn ? `Account settings for ${identity.name}` : "Account settings";
-  const iconClass = "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-100 bg-white/80 text-gray-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500";
+  const iconClass = "production-header-icon relative flex h-10 w-10 shrink-0 items-center justify-center";
 
   return (
-    <header className="relative z-40 shrink-0 px-3 pb-2 pt-3 lg:px-5 lg:pt-4">
-      <div
-        className="glass-shell glass-toolbar flex min-w-0 items-center gap-2 rounded-[1.65rem] px-3 py-2 sm:gap-4 sm:px-4"
-        style={{
-          overflow: "visible",
-          background: "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,249,244,0.82))",
-          border: "1px solid rgba(255,255,255,0.96)",
-          boxShadow: "0 18px 52px rgba(39,55,82,0.1), inset 0 1px 0 rgba(255,255,255,0.98)",
-          backdropFilter: "blur(24px) saturate(1.16)",
-          WebkitBackdropFilter: "blur(24px) saturate(1.16)",
-        }}
-      >
+    <header className="production-header relative z-40 shrink-0" data-production-shell>
+      <div className="production-header-toolbar flex min-w-0 items-center gap-2 sm:gap-4">
         <div
           ref={searchRef} className="relative min-w-0 max-w-xl flex-1" style={{ zIndex: 2 }}
           onKeyDown={handleSearchKey}
@@ -167,19 +158,18 @@ function HeaderContent({ identity }: { identity: DisplayIdentity }) {
             aria-expanded={isOpen} aria-controls={isOpen ? popupId : undefined} aria-haspopup="dialog" aria-autocomplete="none"
             aria-keyshortcuts="Meta+K Control+K" autoComplete="off"
             placeholder="Search customers, jobs, invoices..."
-            className="shell-input h-11 w-full min-w-0 rounded-2xl pl-9 pr-2 text-sm focus-visible:outline-2 focus-visible:outline-orange-500 sm:h-12 sm:pr-24"
+            className="production-header-search h-10 w-full min-w-0 pl-9 pr-2 text-sm sm:pr-24"
             value={query}
             onFocus={() => searchController.search(query)}
             onChange={(event) => { setQuery(event.target.value); searchController.search(event.target.value); }}
           />
-          <kbd aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-lg border border-orange-100 bg-white/80 px-2 py-1 text-[10px] text-gray-500 sm:block">Cmd/Ctrl K</kbd>
+          <kbd aria-hidden="true" className="production-header-shortcut pointer-events-none absolute right-3 top-1/2 z-10 hidden -translate-y-1/2 px-1.5 py-0.5 text-[10px] sm:block">Cmd/Ctrl K</kbd>
 
           {isOpen && (
             <div id={popupId} role="dialog" aria-label="Search results"
-              className="liquid-panel absolute left-0 top-full z-50 mt-3 w-[min(36rem,calc(100vw-4.5rem))] max-w-none overflow-hidden rounded-lg sm:w-full"
-              style={{ position: "absolute", borderRadius: 8, boxShadow: "var(--shadow-elevated)" }}
+              className="production-header-results absolute left-0 top-full z-50 mt-2 w-[min(36rem,calc(100vw-1.5rem))] max-w-none overflow-hidden rounded-lg sm:w-full"
             >
-              <div className="flex items-center justify-between gap-2 border-b border-orange-100 px-3 py-1">
+              <div className="production-header-results-bar flex items-center justify-between gap-2 border-b px-3 py-1">
                 <span role="status" aria-live="polite" className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                   {search.status === "loading" ? "Searching..." : search.status === "error" ? "Search unavailable" : `${totalResults} ${totalResults === 1 ? "result" : "results"}`}
                 </span>
@@ -204,10 +194,10 @@ function HeaderContent({ identity }: { identity: DisplayIdentity }) {
         </div>
 
         <div className="hidden items-center gap-2 xl:flex" aria-live="polite">
-          <Link href="/integrations/quickbooks" className="rounded-full focus-visible:outline-2 focus-visible:outline-orange-500">
+          <Link href="/integrations/quickbooks" className="production-header-status-link">
             <HeaderStatusPill tone={qb.data === true ? "success" : qb.loading ? "neutral" : "warning"}>{qbLabel}</HeaderStatusPill>
           </Link>
-          <Link href="/dispatch" className="rounded-full focus-visible:outline-2 focus-visible:outline-orange-500">
+          <Link href="/dispatch" className="production-header-status-link">
             <HeaderStatusPill tone={dispatch.data === null ? "neutral" : "success"}>
               {dispatch.loading ? "Techs Checking..." : dispatch.data === null ? "Active techs unknown" : `${dispatch.data.activeTechs} techs active${dispatch.data.onJob ? ` · ${dispatch.data.onJob} on job` : ""}`}
             </HeaderStatusPill>
@@ -220,16 +210,16 @@ function HeaderContent({ identity }: { identity: DisplayIdentity }) {
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >{theme === "dark" ? <SunMedium size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}</button>
           <Link href="/settings" className={`${iconClass} hidden sm:flex`} aria-label="Settings" title="Settings"><Settings size={17} aria-hidden="true" /></Link>
-          <div className="mx-1 hidden h-8 w-px bg-orange-100 sm:block" />
+          <div className="production-header-divider mx-1 hidden h-6 w-px sm:block" />
           <Link href="/settings" aria-label={accountLabel} title={accountLabel}
-            className="flex h-10 max-w-48 items-center gap-2 rounded-2xl border border-orange-100 bg-white/80 p-1 text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 md:pr-3"
+            className="production-header-account flex h-10 max-w-48 items-center gap-2 p-1 md:pr-2"
           >
-            <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "linear-gradient(135deg, var(--color-ember), #ff9b45)" }}>
+            <span aria-hidden="true" className="production-header-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
               {identity.initials || <UserRound size={16} />}
             </span>
             <span className="hidden min-w-0 leading-tight md:block">
               <span className="block truncate text-xs font-semibold">{identity.name}</span>
-              <span className="block text-[10px] text-gray-500">Account</span>
+              <span className="production-header-account-caption block text-[10px]">Account</span>
             </span>
           </Link>
         </div>
@@ -240,8 +230,7 @@ function HeaderContent({ identity }: { identity: DisplayIdentity }) {
 
 function HeaderStatusPill({ tone, children }: { tone: "success" | "warning" | "neutral"; children: ReactNode }) {
   const dot = tone === "success" ? "var(--color-success)" : tone === "warning" ? "var(--color-warning)" : "var(--color-text-muted)";
-  return <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
-    style={{ background: "var(--color-surface-2)", borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}>
+  return <span className="production-header-status inline-flex items-center gap-1.5 px-1 py-1 text-xs font-medium">
     <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />{children}
   </span>;
 }
@@ -253,9 +242,9 @@ function SearchGroup({ label, items, onPick }: { label: string; items: HeaderSea
       <h2 className="px-3 py-2 font-semibold uppercase" style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{label}</h2>
       {items.map((item) => (
         <Link key={`${item.type}-${item.id}`} href={item.href} data-search-result
-          className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-black/5 focus-visible:bg-black/5 focus-visible:outline-2 focus-visible:outline-orange-500" onClick={onPick}
+          className="production-header-result flex items-center gap-3 rounded-md px-3 py-3" onClick={onPick}
         >
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-orange-100 bg-white/70"
+          <span aria-hidden="true" className="production-header-result-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
             style={{ color: item.type === "invoice" ? "var(--color-success)" : item.type === "job" ? "var(--color-info)" : "var(--color-ember)" }}
           >{item.type === "invoice" ? <Receipt size={16} /> : item.type === "job" ? <Zap size={16} /> : <UserRound size={16} />}</span>
           <span className="min-w-0 flex-1">

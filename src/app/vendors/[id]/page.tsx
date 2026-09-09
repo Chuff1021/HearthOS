@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -258,7 +259,7 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="pw-workspace pw-vendors flex-1 overflow-y-auto">
           <div className="max-w-[1600px] mx-auto p-6 space-y-5">
             {/* Breadcrumb / back */}
             <div className="flex items-center gap-2 text-sm">
@@ -291,7 +292,7 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
                 />
 
                 {/* Stats row */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="pw-metrics grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Stat label="Open balance" value={fmtMoney(data.summary.billOpenBalance)} hint={`${data.summary.openBillCount} open bills`} tone={data.summary.billOpenBalance > 0 ? "warn" : undefined} />
                   <Stat label="Total billed" value={fmtMoney(data.summary.billTotalBilled)} hint={`${data.summary.billCount} bills`} />
                   <Stat label="Open POs" value={data.summary.openPOCount.toString()} hint={fmtMoney(data.summary.poOpenValue)} tone={data.summary.openPOCount > 0 ? "brand" : undefined} />
@@ -535,8 +536,8 @@ function TxnTable({
     return <p className="p-8 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>No transactions yet.</p>;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="pw-table-scroll overflow-x-auto">
+      <table className="pw-table w-full text-sm">
         <thead>
           <tr style={{ background: "var(--color-surface-2)" }}>
             <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Type</th>

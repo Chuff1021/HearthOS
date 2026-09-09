@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -423,7 +424,7 @@ export default function DispatchPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="pw-workspace pw-dispatch pw-heading px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <h1 className="font-bold text-xl" style={{ color: 'var(--color-text-primary)' }}>Dispatch</h1>
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
@@ -439,16 +440,16 @@ export default function DispatchPage() {
           <button onClick={loadDispatch} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: '1px solid var(--color-border)' }}>Refresh</button>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
-          <div className="xl:col-span-2 rounded-3xl p-5 glass-panel" style={{ border: '1px solid rgba(255,255,255,0.72)' }}>
-            <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="pw-workspace pw-dispatch pw-dispatch-layout flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 p-6 overflow-y-auto">
+          <div className="pw-map-panel xl:col-span-2 rounded-3xl p-5 glass-panel" style={{ border: '1px solid rgba(255,255,255,0.72)' }}>
+            <div className="pw-heading mb-3 flex items-center justify-between gap-2">
               <div>
                 <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                   {mapboxProviderLabel()} · {hasMapboxTiles() ? 'high-detail employee tracking map' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="pw-toolbar flex items-center gap-2">
                 <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
                   <button onClick={() => setMapStyle('street')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'street' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'street' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Navigation</button>
                   <button onClick={() => setMapStyle('satellite')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'satellite' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'satellite' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'satellite' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Satellite</button>

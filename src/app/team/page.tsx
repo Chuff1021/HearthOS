@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -192,10 +193,10 @@ export default function TeamPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="pw-workspace pw-team flex-1 overflow-y-auto p-5">
           <div className="max-w-[1600px] mx-auto space-y-5">
             {/* Page Header */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="pw-heading flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
                   Team
@@ -222,13 +223,14 @@ export default function TeamPage() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="pw-metrics grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-5 rounded-xl" style={{ background: "var(--color-surface-1)" }}>
                 <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Total Team</p>
                 <p className="text-2xl font-bold mt-1" style={{ color: "var(--color-text-primary)" }}>{techs.length}</p>
               </div>
               <button
                 onClick={() => setFilter("available")}
+                aria-pressed={filter === "available"}
                 className={`p-5 rounded-xl text-left transition-all ${filter === "available" ? "ring-2 ring-green-500" : ""}`}
                 style={{ background: "var(--color-surface-1)" }}
               >
@@ -237,6 +239,7 @@ export default function TeamPage() {
               </button>
               <button
                 onClick={() => setFilter("on_job")}
+                aria-pressed={filter === "on_job"}
                 className={`p-5 rounded-xl text-left transition-all ${filter === "on_job" ? "ring-2 ring-blue-500" : ""}`}
                 style={{ background: "var(--color-surface-1)" }}
               >
@@ -252,7 +255,7 @@ export default function TeamPage() {
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex gap-2">
+            <div className="pw-tabs flex gap-2">
               {[
                 { id: "all", label: "All" },
                 { id: "available", label: "Available" },
@@ -262,6 +265,7 @@ export default function TeamPage() {
                 <button
                   key={tab.id}
                   onClick={() => setFilter(tab.id as any)}
+                  aria-pressed={filter === tab.id}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     filter === tab.id 
                       ? "bg-orange-500 text-white" 
@@ -279,7 +283,7 @@ export default function TeamPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="pw-team-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredTechs.map((tech) => (
                   <div 
                     key={tech.id}

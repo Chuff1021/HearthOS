@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/production-workspaces.css";
+import { Building2, Bell, CreditCard, Plug } from "lucide-react";
 import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -12,7 +14,7 @@ export default function SettingsPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="pw-workspace pw-settings flex-1 overflow-y-auto p-5">
           <div className="max-w-[1200px] mx-auto space-y-5">
             {/* Page Header */}
             <div>
@@ -25,23 +27,24 @@ export default function SettingsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 border-b" style={{ borderColor: "var(--color-border)" }}>
+            <div className="pw-tabs flex gap-2 border-b" style={{ borderColor: "var(--color-border)" }}>
               {[
-                { id: "organization", label: "Organization", icon: "🏢" },
-                { id: "notifications", label: "Notifications", icon: "🔔" },
-                { id: "billing", label: "Billing", icon: "💳" },
-                { id: "integrations", label: "Integrations", icon: "🔗" },
+                { id: "organization", label: "Organization", icon: Building2 },
+                { id: "notifications", label: "Notifications", icon: Bell },
+                { id: "billing", label: "Billing", icon: CreditCard },
+                { id: "integrations", label: "Integrations", icon: Plug },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
+                  aria-pressed={activeTab === tab.id}
                   className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.id 
                       ? "border-orange-500 text-orange-500" 
                       : "border-transparent text-gray-400 hover:text-white"
                   }`}
                 >
-                  {tab.icon} {tab.label}
+                  <tab.icon size={15} className="inline-block mr-2" aria-hidden="true" />{tab.label}
                 </button>
               ))}
             </div>
@@ -121,7 +124,7 @@ export default function SettingsPage() {
                   </h2>
                   <div className="space-y-3">
                     {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
-                      <div key={day} className="flex items-center gap-4">
+                      <div key={day} className="pw-hours-row flex items-center gap-4">
                         <span className="w-24 text-sm font-medium" style={{ color: "var(--color-text-secondary)" }}>{day}</span>
                         <input
                           type="time"

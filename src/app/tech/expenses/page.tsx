@@ -108,7 +108,7 @@ export default function TechExpensesPage() {
   }
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="pw-workspace pw-tech min-h-screen pb-28">
       <header className="sticky top-0 z-10 border-b px-4 pb-4" style={{ paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))", background: "color-mix(in srgb, var(--color-surface-1) 94%, #fff)", borderColor: "rgba(255,106,0,0.12)" }}>
         <div className="flex items-center justify-between"><div><h1 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Expenses</h1><p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Photograph a receipt and send it to the office.</p></div><div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}><Camera size={20} /></div></div>
       </header>

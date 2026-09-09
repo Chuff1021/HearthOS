@@ -1,3 +1,4 @@
+import "@/app/production-workspaces.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import QuickBooksActions from "@/components/integrations/QuickBooksActions";
@@ -34,7 +35,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
         <Header />
         {/* Page Header */}
         <div
-          className="px-6 py-4 flex items-center justify-between flex-shrink-0"
+          className="pw-workspace pw-integrations px-6 py-4 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-3">
@@ -59,7 +60,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
         </div>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="pw-workspace pw-integrations flex-1 overflow-y-auto p-6">
           <div className="max-w-5xl mx-auto space-y-6">
             {errorMessage ? (
               <div
@@ -112,7 +113,7 @@ export default function QuickBooksPage({ searchParams }: QuickBooksPageProps) {
             </div>
 
             {/* Sync Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="pw-metrics grid grid-cols-2 md:grid-cols-4 gap-4">
               {syncStats.map((stat) => (
                 <div
                   key={stat.label}

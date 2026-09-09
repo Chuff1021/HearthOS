@@ -323,7 +323,7 @@ export default function ManualsPage() {
   }
 
   return (
-    <div className="ui-page-mobile flex flex-col min-h-screen pb-32">
+    <div className="pw-workspace pw-tech ui-page-mobile flex flex-col min-h-screen pb-32">
       <header
         className="ui-mobile-header sticky top-0 z-10 px-4 pb-4"
         style={{ paddingTop: "max(1rem, calc(env(safe-area-inset-top) + 0.75rem))" }}

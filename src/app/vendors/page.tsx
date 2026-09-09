@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -148,7 +149,7 @@ function VendorsListInner() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="pw-workspace pw-vendors flex-1 overflow-y-auto">
           <div className="max-w-[1600px] mx-auto p-6 space-y-6">
             {/* Page header */}
             <div className="flex items-center justify-between gap-4">
@@ -181,7 +182,7 @@ function VendorsListInner() {
             </div>
 
             {/* Money bar */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="pw-metrics grid grid-cols-2 lg:grid-cols-4 gap-3">
               <MoneyTile
                 label="Total to pay"
                 value={fmtMoney(data?.moneyBar.totalOwed ?? 0)}
@@ -230,8 +231,8 @@ function VendorsListInner() {
 
             {/* Vendor table */}
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="pw-table-scroll overflow-x-auto">
+                <table className="pw-table w-full">
                   <thead style={{ background: "var(--color-surface-2)" }}>
                     <tr>
                       <Th onClick={sortFor("name")} active={sort === "name"} dir={dir}>Vendor</Th>

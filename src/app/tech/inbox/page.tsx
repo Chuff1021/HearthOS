@@ -59,7 +59,7 @@ export default function TechInboxPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-32" style={{ background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
+    <div className="pw-workspace pw-tech flex flex-col min-h-screen pb-32" style={{ background: 'var(--color-bg)', color: 'var(--color-text-primary)' }}>
       <header
         className="sticky top-0 z-10 px-4 pb-4"
         style={{

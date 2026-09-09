@@ -3,8 +3,10 @@
 import { use, useState } from "react";
 import { useRecordQuery } from "@/lib/use-record-query";
 import Link from "next/link";
+import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import OperationsStyles from "@/components/scheduling/OperationsStyles";
 import DocumentDrawer, { type DocumentType } from "@/components/documents/DocumentDrawer";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
 
@@ -99,19 +101,20 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[1600px] mx-auto p-6 space-y-5">
+        <main className="ops-production flex-1 overflow-y-auto">
+          <OperationsStyles />
+          <div className="ops-profile-content max-w-[1600px] mx-auto p-6 space-y-5">
             <div className="flex items-center gap-2 text-sm">
-              <Link href="/customers" className="hover:underline" style={{ color: "var(--color-text-muted)" }}>
-                ← Customers
+              <Link href="/customers" className="inline-flex items-center gap-2 hover:underline" style={{ color: "var(--color-text-muted)" }}>
+                <ArrowLeft size={16} aria-hidden="true" /> Customers
               </Link>
             </div>
 
             {error && (
-              <div className="rounded-xl p-5 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid #FF204E", color: "#FF204E" }}>
+              <div className="rounded-xl p-5 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid #FF204E", color: "var(--color-danger)" }}>
                 {error}
               </div>
             )}
@@ -126,15 +129,15 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
               <>
                 <CustomerHero customer={data.customer} summary={data.summary} />
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="ops-metrics grid grid-cols-2 md:grid-cols-4">
                   <Stat label="Open balance" value={fmtMoney(data.summary.invoiceOpenBalance)} hint={`${data.summary.openInvoiceCount} open invoices`} tone={data.summary.invoiceOpenBalance > 0 ? "warn" : undefined} />
                   <Stat label="Lifetime revenue" value={fmtMoney(data.summary.invoiceTotalBilled)} hint={`${data.summary.invoiceCount} invoices`} />
                   <Stat label="Payments received" value={fmtMoney(data.summary.totalReceived)} hint={`${data.summary.paymentCount} payments`} tone="good" />
                   <Stat label="Last activity" value={relTime(data.summary.lastActivity)} hint={fmtDate(data.summary.lastActivity)} />
                 </div>
 
-                <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                  <div className="flex gap-0 px-4 pt-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                <div className="overflow-hidden" style={{ background: "var(--color-surface-1)", borderBlock: "1px solid var(--color-border)" }}>
+                  <div className="ops-profile-tabs flex gap-0 px-4 pt-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
                     <Tab v="transactions" cur={tab} on={setTab} count={data.transactions.length}>All transactions</Tab>
                     <Tab v="invoices" cur={tab} on={setTab} count={data.summary.invoiceCount}>Invoices</Tab>
                     <Tab v="payments" cur={tab} on={setTab} count={data.summary.paymentCount}>Payments</Tab>
@@ -177,12 +180,12 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
 // ───────────────────────────────────────────────────────────────────────────
 function CustomerHero({ customer, summary }: { customer: DetailResponse["customer"]; summary: DetailResponse["summary"] }) {
   return (
-    <div className="rounded-xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+    <div className="ops-customer-hero">
       <div className="flex items-start justify-between gap-6 flex-wrap">
         <div className="flex items-start gap-4 min-w-0">
           <div
             className="rounded-2xl flex items-center justify-center font-bold flex-shrink-0"
-            style={{ background: colorFromName(customer.displayName), color: "white", width: 64, height: 64, fontSize: 24, letterSpacing: 1 }}
+            style={{ background: colorFromName(customer.displayName), color: "white", width: 56, height: 56, fontSize: 22, letterSpacing: 0 }}
           >
             {initialsFromName(customer.displayName)}
           </div>
@@ -204,17 +207,17 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
               {customer.email && (
                 <a href={`mailto:${customer.email}`} className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>✉</span>{customer.email}
+                  <Mail size={15} aria-hidden="true" />{customer.email}
                 </a>
               )}
               {customer.phone && (
                 <a href={`tel:${customer.phone}`} className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>☎</span>{customer.phone}
+                  <Phone size={15} aria-hidden="true" />{customer.phone}
                 </a>
               )}
               {customer.phoneAlt && (
                 <a href={`tel:${customer.phoneAlt}`} className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>☎</span>{customer.phoneAlt}
+                  <Phone size={15} aria-hidden="true" />{customer.phoneAlt}
                 </a>
               )}
               {(() => {
@@ -228,7 +231,7 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
                 const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lines.join(", "))}`;
                 return (
                   <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1.5">
-                    <span style={{ color: "var(--color-text-muted)" }}>📍</span>{oneLine}
+                    <MapPin size={15} aria-hidden="true" />{oneLine}
                   </a>
                 );
               })()}
@@ -238,7 +241,7 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
 
         <div className="text-right">
           <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Open balance</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: summary.invoiceOpenBalance > 0 ? "#F59E0B" : "var(--color-text-primary)" }}>
+          <p className="text-2xl font-semibold mt-1 tabular-nums break-words" style={{ color: summary.invoiceOpenBalance > 0 ? "var(--color-warning)" : "var(--color-text-primary)" }}>
             {fmtMoney(summary.invoiceOpenBalance)}
           </p>
         </div>
@@ -268,9 +271,9 @@ function CustomerHero({ customer, summary }: { customer: DetailResponse["custome
 }
 
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "warn" | "danger" | "good" | "brand" }) {
-  const color = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : tone === "good" ? "#16A34A" : tone === "brand" ? "#0EA5E9" : "var(--color-text-primary)";
+  const color = tone === "danger" ? "var(--color-danger)" : tone === "warn" ? "var(--color-warning)" : tone === "good" ? "var(--color-success)" : tone === "brand" ? "var(--color-info)" : "var(--color-text-primary)";
   return (
-    <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+    <div className="ops-metric">
       <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
       <p className="text-xl font-bold mt-1" style={{ color }}>{value}</p>
       {hint && <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{hint}</p>}
@@ -282,17 +285,18 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
   const active = cur === v;
   return (
     <button
+      aria-pressed={active}
       onClick={() => on(v)}
       className="px-4 py-2.5 text-sm font-medium relative transition-colors"
       style={{
         color: active ? "var(--color-text-primary)" : "var(--color-text-muted)",
-        borderBottom: active ? "2px solid #f8971f" : "2px solid transparent",
+        borderBottom: active ? "2px solid var(--color-ember)" : "2px solid transparent",
         marginBottom: "-1px",
       }}
     >
       {children}
       {typeof count === "number" && count > 0 && (
-        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: active ? "#f8971f" : "var(--color-surface-2)", color: active ? "white" : "var(--color-text-muted)" }}>
+        <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded font-semibold" style={{ background: active ? "var(--ops-orange-bg)" : "var(--color-surface-2)", color: active ? "var(--color-ember)" : "var(--color-text-muted)" }}>
           {count}
         </span>
       )}
@@ -304,7 +308,7 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
   if (rows.length === 0) return <p className="p-8 text-center text-sm" style={{ color: "var(--color-text-muted)" }}>No transactions yet.</p>;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="ops-profile-table w-full text-sm">
         <thead>
           <tr style={{ background: "var(--color-surface-2)" }}>
             <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Type</th>
@@ -318,9 +322,9 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
         <tbody>
           {rows.map((t) => {
             const overdue = t.type === "invoice" && isOverdue(t.date, t.balance);
-            const statusColor = overdue ? "#FF204E" :
-              t.type === "payment" ? "#16A34A" :
-              t.balance > 0 ? "#F59E0B" :
+            const statusColor = overdue ? "var(--color-danger)" :
+              t.type === "payment" ? "var(--color-success)" :
+              t.balance > 0 ? "var(--color-warning)" :
               "var(--color-text-muted)";
             const statusText = overdue ? "Overdue" : (t.status || "—");
             const isClickable = t.type === "invoice";
@@ -336,7 +340,7 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
                 <td className="px-3 py-2.5">
                   <span className="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full" style={{
                     background: t.type === "invoice" ? "rgba(245,158,11,0.15)" : "rgba(22,163,74,0.15)",
-                    color: t.type === "invoice" ? "#F59E0B" : "#16A34A",
+                    color: t.type === "invoice" ? "var(--color-warning)" : "var(--color-success)",
                   }}>
                     {t.type === "invoice" ? "Invoice" : "Payment"}
                   </span>
@@ -347,10 +351,10 @@ function TxnTable({ rows, onRowClick }: { rows: Txn[]; onRowClick: (t: Txn) => v
                   {t.paymentMethod && <span className="ml-2 text-[10px] uppercase opacity-60">{t.paymentMethod}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-xs uppercase font-medium" style={{ color: statusColor }}>{statusText}</td>
-                <td className="px-3 py-2.5 text-right font-medium" style={{ color: t.type === "payment" ? "#16A34A" : "var(--color-text-primary)" }}>
+                <td className="px-3 py-2.5 text-right font-medium" style={{ color: t.type === "payment" ? "var(--color-success)" : "var(--color-text-primary)" }}>
                   {t.type === "payment" ? `+${fmtMoney(t.total)}` : fmtMoney(t.total)}
                 </td>
-                <td className="px-3 py-2.5 text-right font-medium" style={{ color: t.balance > 0 ? "#F59E0B" : "var(--color-text-muted)" }}>
+                <td className="px-3 py-2.5 text-right font-medium" style={{ color: t.balance > 0 ? "var(--color-warning)" : "var(--color-text-muted)" }}>
                   {t.balance > 0 ? fmtMoney(t.balance) : "—"}
                 </td>
               </tr>

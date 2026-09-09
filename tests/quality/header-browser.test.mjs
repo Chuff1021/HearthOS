@@ -30,7 +30,7 @@ test("header actual component: synthetic identity, statuses, dismissal, keyboard
       window.fetch=(url,options)=>new Promise(resolve=>window.requests.push({url,signal:options?.signal,resolve}));
       window.respond=(match,body,status=200)=>{const index=window.requests.findIndex(r=>r.url.includes(match));if(index<0)throw Error('No request: '+match);const [r]=window.requests.splice(index,1);r.resolve(Response.json(body,{status}));};
       createRoot(document.getElementById('root')).render(<><Header/><main style={{paddingTop:400}}><button id='outside'>Outside focus</button></main></>);`, resolveDir: process.cwd(), loader: "tsx" },
-    bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic",
+    bundle: true, write: false, outdir: '/tmp/hearthos-header-bundle', platform: "browser", format: "iife", jsx: "automatic",
     define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": '"synthetic-only"' },
     plugins: [{ name: "header-offline-adapters", setup(builder) {
       builder.onResolve({ filter: /^(next\/(navigation|link)|@clerk\/nextjs)$/ }, args => ({ path: args.path, namespace: "fixture" }));
@@ -38,9 +38,11 @@ test("header actual component: synthetic identity, statuses, dismissal, keyboard
     } }],
   });
   const css = (await postcss([tailwind()]).process(await readFile("src/app/globals.css", "utf8"), { from: path.resolve("src/app/globals.css") })).css;
+  const script = bundle.outputFiles.find(file => file.path.endsWith('.js')).text;
+  const moduleCss = bundle.outputFiles.find(file => file.path.endsWith('.css'))?.text || '';
   const server = createServer((req, res) => {
-    if (req.url === "/fixture.js") { res.setHeader("Content-Type", "application/javascript"); res.end(bundle.outputFiles[0].text); }
-    else if (req.url === "/fixture.css") { res.setHeader("Content-Type", "text/css"); res.end(css + ":root{--font-geist-sans:Arial;--font-geist-mono:monospace}"); }
+    if (req.url === "/fixture.js") { res.setHeader("Content-Type", "application/javascript"); res.end(script); }
+    else if (req.url === "/fixture.css") { res.setHeader("Content-Type", "text/css"); res.end(css + '\n' + moduleCss + ":root{--font-geist-sans:Arial;--font-geist-mono:monospace}"); }
     else if (req.url.startsWith("/api/")) { res.writeHead(503); res.end("No live API access"); }
     else { res.setHeader("Content-Type", "text/html"); res.end('<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Header offline fixture</title><link rel="stylesheet" href="/fixture.css"></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>'); }
   });

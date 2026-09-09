@@ -39,7 +39,7 @@ const fmtMoney = (n: number | string | null | undefined) => {
 
 const fmtDate = (s: string | null | undefined) => {
   if (!s) return "—";
-  const d = new Date(s);
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 

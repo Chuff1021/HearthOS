@@ -11,11 +11,11 @@ import { isActivePath, mobileNavItems, navigationGroups } from "../../src/compon
 const expectedRoutes = [
   "/", "/todos", "/schedule", "/projects", "/meeks", "/jobs", "/customers", "/website-inbox",
   "/service-map", "/dispatch", "/invoices", "/payments", "/expenses", "/estimates",
-  "/purchase-orders", "/inventory", "/vendors", "/banking", "/reports", "/gabe",
+  "/purchase-orders", "/inventory", "/vendors", "/reports", "/gabe",
   "/team", "/admin/gabe-audit", "/admin/time", "/settings", "/integrations/quickbooks",
 ];
 
-test("navigation preserves every existing route including Aaron's Meeks and GABE tools", () => {
+test("navigation preserves existing destinations except Banking, including Aaron's Meeks and GABE tools", () => {
   const routes = navigationGroups.flatMap((group) => group.items.map((item) => item.href));
   assert.deepEqual(routes, expectedRoutes);
   assert.equal(new Set(routes).size, routes.length);
