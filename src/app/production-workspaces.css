@@ -342,6 +342,15 @@
   .pw-tech > :is(main, .p-4) { min-width: 0; }
   .pw-tech > :is(main, .p-4) :is(input, select, textarea) { max-width: 100%; }
   .pw-tech > :is(main, .p-4) :is(h2, h3, label) { overflow-wrap: anywhere; }
+  .pw-tech :is(button, label).bg-blue-600,
+  .pw-tech :is(button, label).bg-blue-500 {
+    color: #fff;
+    background: #b4420a;
+  }
+  .pw-tech button.text-blue-600.border-orange-400 {
+    color: var(--pw-selected-text);
+    border-color: var(--pw-selection-line);
+  }
 
   /* These existing pages have no shared sidebar and need their own tokens. */
   .pw-standalone {
@@ -428,6 +437,8 @@
     --color-info: #99c3ff;
   }
   :root[data-theme="dark"] .pw-workspace .text-purple-400 { color: #cfb7f2; }
+  :root[data-theme="dark"] .pw-tech :is(.text-blue-600, .text-blue-500) { color: var(--color-info); }
+  :root[data-theme="dark"] .pw-tech button.text-blue-600.border-orange-400 { color: var(--pw-selected-text); }
   :root[data-theme="dark"] .pw-standalone {
     color-scheme: dark;
     --color-bg: #171717;
