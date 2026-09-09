@@ -13,7 +13,17 @@ Existing APIs, auth, providers, persistence, routes, and data configuration rema
 unchanged. A fresh encrypted backup passed full disposable PostgreSQL restoration;
 read-only baseline records 67 tables and the existing Aaron organization. Review
 `docs/DESIGN_PRODUCTION_RELEASE_2026_09_09.md` for evidence and rollout gates.
-At this checkpoint local QA is in progress; no production deploy has occurred.
+Released through protected PR #7 and merge `e425fae` after required CI succeeded.
+Canonical production now serves READY deployment
+`dpl_GkhJxY72QPXB4Yzufs1prKdFZiav` from a production-environment Git build. All
+business counts and financial totals match the immediately pre-merge baseline;
+66 non-organization table checksums match exactly. A restored-backup/live column
+comparison confirmed the sole organization-row change was the existing QB token
+refresh (`updated_at`, `qb_access_token`, `qb_token_expires_at`). Signed-in real
+dashboard, customers, schedule/Meeks and read-only PO details loaded successfully;
+bounded new-deployment error/500 log scans returned no entries. Prior deployment
+`dpl_2hEqatkuea22325DqDarB1CHPGuJ` remains the rollback reference. No production
+migration, data reconstruction, auth/provider configuration, or photo change.
 Do not treat earlier historical release-preparation notes as the current live
 source, and never deploy the dormant multi-tenant branch over this production line.
 

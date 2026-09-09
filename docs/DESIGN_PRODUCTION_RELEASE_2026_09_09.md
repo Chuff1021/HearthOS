@@ -65,12 +65,50 @@ with unrelated changes. Production dependency audit passed without findings.
 
 ## Rollout Gate
 
-At document creation the changes are local and production is unchanged. Merge
-through the protected pull request only after its required checks pass. Use a new
-production-environment build with existing server-managed environment values;
-never promote a preview-environment artifact over production. Keep the rollback
-deployment available. Inspect the new build, runtime errors, authenticated data
-visibility, and fresh read-only reconciliation after activation.
+Release completed through protected PR #7 after all required checks passed:
+https://github.com/Chuff1021/HearthOS/pull/7.
+
+- Production merge: `e425fae991ec8ddd3cbc883039c242009679a4d4`.
+- Required CI: https://github.com/Chuff1021/HearthOS/actions/runs/34401283854,
+  success in 2m10s.
+- Live deployment: `dpl_GkhJxY72QPXB4Yzufs1prKdFZiav`, READY.
+- Deployment URL: `https://hearth-2nsvb8cds-chuff1021s-projects.vercel.app`.
+- Canonical alias verified: `https://hearth-os.vercel.app/`.
+- Production-environment Git build used existing server-managed configuration;
+  no preview-environment artifact was promoted. Build took approximately 35s.
+- Prior deployment listed above remains the rollback reference.
+
+## Post-Deployment Verification
+
+The immediately pre-merge baseline,
+`production-baseline-2026-09-09T20-30-24-773Z.json`, matched the recovery baseline.
+The post-deploy read-only baseline,
+`production-baseline-2026-09-09T20-32-37-084Z.json`, retained every business count
+and financial total listed above. All 66 non-organization table checksums matched.
+
+The single organization row changed only `updated_at`, `qb_access_token`, and
+`qb_token_expires_at`, consistent with the existing QuickBooks status check
+refreshing its access token. This was independently verified by restoring the
+encrypted archive to temporary PostgreSQL and comparing hashes of all 17 columns
+with both database sessions normalized to UTC. Only changed column names were
+reported; no credential values were disclosed and no production SQL writes were
+performed by the comparison. No customer, invoice, payment, job, project, or Meeks
+record changed in the reconciliation.
+
+The existing signed-in owner session loaded real dashboard totals, customer
+records, appointments, and the embedded Meeks calendar. QuickBooks showed
+connected. Recent PO #52421 opened existing live details read-only, including its
+correct date, line item, and total; closing returned keyboard focus to its trigger.
+Production screenshots of the dashboard, schedule, and PO drawer were inspected.
+The website inbox also loaded its 25 existing requests and follow-up controls;
+no check/import action or request mutation was triggered.
+Unauthenticated access to the access/dashboard/customers/jobs/inbox APIs returned
+401, not business data. Bounded new-deployment error and HTTP-500 log queries
+returned no entries during release checks.
+
+Automated regression coverage, six-viewport core UI checks, focused billing,
+customer/project and workspace checks, typecheck, lint, and build passed. Existing
+lint/build warnings are documented above. No dependency changes were introduced.
 
 No real charges, estimate emails, QuickBooks reimports, or job mutations are
 submitted just to test a presentation release. Actual provider transactions and
