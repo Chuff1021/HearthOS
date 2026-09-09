@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { isActivePath, mobileNavItems, navigationGroups } from "../../src/components/layout/navigation-model";
 
 const expectedRoutes = [
-  "/", "/todos", "/schedule", "/projects", "/meeks", "/jobs", "/customers",
+  "/", "/todos", "/schedule", "/projects", "/meeks", "/jobs", "/customers", "/website-inbox",
   "/service-map", "/dispatch", "/invoices", "/payments", "/expenses", "/estimates",
   "/purchase-orders", "/inventory", "/vendors", "/banking", "/reports", "/gabe",
   "/team", "/admin/gabe-audit", "/admin/time", "/settings", "/integrations/quickbooks",

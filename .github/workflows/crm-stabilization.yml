@@ -27,6 +27,7 @@ jobs:
         run: printf 'POSTGRES_BIN=%s\n' "$(pg_config --bindir)" >> "$GITHUB_ENV"
       - run: npm run test:customer-persistence
       - run: npm run test:payment-persistence
+      - run: node scripts/testing/website-inbox.mjs
       - run: npm run typecheck
       - run: npm run lint
       - run: npm audit --omit=dev

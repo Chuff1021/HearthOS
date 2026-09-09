@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+.website-inbox main :is(.border, .border-t, .border-b),
+.website-inbox main .divide-y > * + * {
+  border-color: var(--color-border);
+}
+.website-inbox main :is(input, select, textarea, .rounded-lg) {
+  border-radius: 8px;
+}
+.website-inbox main :is(button, select, a.border) { min-height: 40px; }
+.website-inbox main button:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 1023px) {
+  .website-inbox main :is(button, select, a.border) { min-height: 44px; }
+}
+
 :root {
   --color-ember: #ff6a00;
   --color-ember-dark: #e65700;
