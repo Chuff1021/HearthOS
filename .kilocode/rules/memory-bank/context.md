@@ -2,6 +2,19 @@
 
 ## Current State
 
+### September 9, 2026: Website Inbox Local Implementation
+
+Worktree `/Users/fireplace/HearthOS-website-inbox`, branch `codex/website-inbox`,
+base production `8e15cc7`. New internal website inbox with follow-up notes/status,
+safe schedule link, organization-scoped Neon mirror and resumable private export
+import. Three additive SQL tables are staged, not applied. Website export addition
+is in `/Users/fireplace/fireplace-webstore-hearthos-inbox`, branch
+`codex/hearthos-inbox-connection`, existing source base `3aa2bd38` (not older main).
+No deploy/config/production data changes. Both builds/typechecks passed; CRM
+230 security +183 quality, 10 temporary PG and one website credential test passed;
+synthetic desktop/mobile UI checks passed. Actual connection and full HTTP role
+acceptance remain pending. Read docs/WEBSITE_INBOX_2026_09_09.md before activation.
+
 ### September 9, 2026: Clerk Dashboard Access Confirmed
 
 Owner signed into Clerk. Read-only inspection found the HearthOS development

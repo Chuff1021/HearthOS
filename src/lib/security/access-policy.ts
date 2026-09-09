@@ -45,10 +45,11 @@ export function canUseCrmApi(actor: CrmActor, route: string, method: string) {
     "access", "audit-logs", "banking", "bills", "customer-lookup", "customers", "dashboard", "dispatch",
     "estimates", "estimator", "expenses", "gabe", "gabe-test", "inventory", "invoices", "items",
     "jobs", "manuals", "mapbox", "pnl", "projects", "purchase-orders", "quickbooks", "reports",
-    "schedule", "search", "service-map", "square", "team", "tech", "techs", "time", "time-off-requests", "todos", "vendors",
+    "schedule", "search", "service-map", "square", "team", "tech", "techs", "time", "time-off-requests", "todos", "vendors", "website-inbox",
   ]);
   if (!known.has(resource)) return false;
   if (resource === "access") return route === "/api/access" && read;
+  if (resource === "website-inbox") return isOfficeActor(actor);
   if (actor.role === "owner" || actor.role === "admin") return true;
   if (resource === "team" || resource === "audit-logs" || resource === "gabe-test") return false;
   if (route.startsWith("/api/gabe/ops/") || route.includes("test-engine") || route.includes("price-audit") || route.endsWith("/trim")) return false;

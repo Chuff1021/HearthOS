@@ -1,6 +1,6 @@
 import {
   Banknote, BarChart3, Boxes, BriefcaseBusiness, CalendarDays, CircleDollarSign,
-  ClipboardCheck, CreditCard, FileText, Gauge, MapPinned, NotebookTabs,
+  ClipboardCheck, CreditCard, FileText, Gauge, Inbox, MapPinned, NotebookTabs,
   PackageCheck, PlugZap, Receipt, Settings, Sparkles, Users, UserRoundCog,
   type LucideIcon,
 } from "lucide-react";
@@ -16,6 +16,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     { label: "Meeks Portal", href: "/meeks", icon: CalendarDays },
     { label: "Jobs", href: "/jobs", icon: BriefcaseBusiness },
     { label: "Customers", href: "/customers", icon: Users },
+    { label: "Website Inbox", href: "/website-inbox", icon: Inbox },
     { label: "Service Map", href: "/service-map", icon: MapPinned },
     { label: "Dispatch Map", href: "/dispatch", icon: MapPinned },
   ] },

@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/website-inbox",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/cleanup-locations",
       "schedule": "0 3 * * *"
     },
