@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
 import OperationsStyles from "@/components/scheduling/OperationsStyles";
+import { buildScheduleTechColors, technicianStyle, UNASSIGNED_TECH_COLOR } from "@/components/scheduling/technician-colors";
 import MeeksSchedulePanel from "@/components/meeks/MeeksSchedulePanel";
 import { CalendarDays, ChevronLeft, ChevronRight, Hash, MapPin, Plus, RefreshCw, TriangleAlert, Users, X } from "lucide-react";
 import JobTypeOptions from "@/components/job-form/JobTypeOptions";
@@ -225,6 +226,8 @@ export default function SchedulePage() {
   }>("/api/time-off-requests?status=approved", "requests");
   const techs = techResource.data;
   const jobs = jobResource.data;
+  const techColors = buildScheduleTechColors(techs, jobs.flatMap(job => job.assignedTechs));
+  const colorFor = (tech?: { id: string }) => techColors.get(tech?.id || "") || UNASSIGNED_TECH_COLOR;
   const timeOff = timeOffResource.data;
   const loading = jobResource.loading && !jobResource.loaded;
   const filtersInitialized = useRef(false);
@@ -792,7 +795,7 @@ export default function SchedulePage() {
                       className="ops-schedule-time-off-chip inline-flex items-center gap-1.5 text-xs px-2 py-0.5"
                       style={{ background: "var(--ops-green-bg)", border: "1px solid var(--ops-green-border)", color: "var(--color-success)" }}
                     >
-                      <span className="inline-block rounded-full" style={{ width: 6, height: 6, background: tech?.color || "#16A34A" }} />
+                      <span className="inline-block rounded-full" style={{ width: 6, height: 6, background: colorFor(tech) }} />
                       <span className="font-semibold">{name}</span>
                       <span style={{ color: "var(--color-text-muted)" }}>·</span>
                       <span>{fmtDay(t.startDate)}{t.startDate !== t.endDate ? ` – ${fmtDay(t.endDate)}` : ""}</span>
@@ -817,8 +820,9 @@ export default function SchedulePage() {
                   aria-pressed={selectedTechIds.includes(tech.id)}
                   onClick={() => toggleTech(tech.id)}
                   className="ops-tech-filter flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                  style={technicianStyle(colorFor(tech))}
                 >
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: tech.color }} />
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: colorFor(tech) }} />
                   {tech.name}
                 </button>
               ))}
@@ -862,7 +866,7 @@ export default function SchedulePage() {
                 {!agendaJobs.length && !jobResource.error && <p className="py-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>No jobs scheduled for this {calendarView}{viewMode === "tech" || selectedTechIds.length < techs.length ? " with these technician filters" : ""}.</p>}
                 {!agendaJobs.length && jobResource.error && <p className="py-6 text-sm">The schedule could not be refreshed. Retry loading jobs above.</p>}
                 <div className="divide-y" style={{ borderColor: "var(--color-border)" }}>
-                  {agendaJobs.map((job) => <button key={job.id} onClick={() => { setSaveError(null); setSelectedJob(job); }} className="ops-agenda-event block w-full min-w-0 py-3 text-left break-words" style={{ borderLeft: `3px solid ${job.assignedTechs[0]?.color || "var(--color-info)"}` }}>
+                  {agendaJobs.map((job) => <button key={job.id} onClick={() => { setSaveError(null); setSelectedJob(job); }} className="ops-agenda-event block w-full min-w-0 py-3 text-left break-words" style={{ ...technicianStyle(colorFor(job.assignedTechs[0])), borderLeft: `3px solid ${colorFor(job.assignedTechs[0])}` }}>
                     <span className="block text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>{scheduledDateLabel(job.scheduledDate)}</span>
                     <span className="block text-sm font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}</span>
                     <span className="block text-sm font-medium mt-1" style={{ color: "var(--color-text-primary)" }}>{job.title}</span>
@@ -926,8 +930,10 @@ export default function SchedulePage() {
                             <div
                               key={job.id}
                               className="ops-month-event"
+                              title={`${job.title}\n${job.assignedTechs.map(tech => tech.name).join(", ") || "Unassigned"}`}
                               style={{
-                                borderLeft: `3px solid ${job.assignedTechs[0]?.color || "#2563EB"}`,
+                                ...technicianStyle(colorFor(job.assignedTechs[0])),
+                                borderLeft: `3px solid ${colorFor(job.assignedTechs[0])}`,
                               }}
                             >
                               <span className="font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
@@ -1044,7 +1050,7 @@ export default function SchedulePage() {
                           const columnWidth = `calc(${100 / layout.columns}% - ${(8 / layout.columns) + ((layout.columns - 1) * columnGap / layout.columns)}px)`;
                           const columnLeft = `calc(${(layout.column * 100) / layout.columns}% + ${4 + (layout.column * (columnGap - 8) / layout.columns)}px)`;
                           const topOffset = ((start - hour) * 90) + 2;
-                          const techColor = job.assignedTechs[0]?.color || "#2563EB";
+                          const techColor = colorFor(job.assignedTechs[0]);
                           const isHighPriority = job.priority === "high" || job.priority === "urgent";
                           const compact = layout.columns > 1;
 
@@ -1067,13 +1073,13 @@ export default function SchedulePage() {
                               className="ops-calendar-event absolute cursor-pointer overflow-hidden"
                               data-short={duration < 1}
                               style={{
+                                ...technicianStyle(techColor),
                                 top: topOffset,
                                 left: columnLeft,
                                 width: columnWidth,
                                 height: Math.max(duration * 90 - 4, 42),
-                                background: "var(--color-surface-1)",
-                                border: `1px solid ${isHighPriority ? "#F59E0B" : "var(--color-border)"}`,
-                                borderLeft: `4px solid ${isHighPriority ? "#F59E0B" : techColor}`,
+                                border: `1px solid ${isHighPriority ? "#F59E0B" : "color-mix(in srgb, var(--schedule-tech-color) 28%, var(--color-border))"}`,
+                                borderLeft: `4px solid ${techColor}`,
                                 opacity: draggedJobId === job.id ? 0.6 : 1,
                               }}
                               title={`${job.title}\n${job.customerName}\n${job.propertyAddress}\n${formatTimeRange(job.scheduledTimeStart, job.scheduledTimeEnd)}`}
@@ -1089,6 +1095,7 @@ export default function SchedulePage() {
                                   <span className="text-[11px] font-bold truncate" style={{ color: "var(--color-text-primary)" }}>
                                     {formatTime12(job.scheduledTimeStart)}
                                   </span>
+                                  {isHighPriority && <span className="ops-event-priority" title={job.priority === "urgent" ? "Urgent priority" : "High priority"}><TriangleAlert size={12} aria-label={job.priority === "urgent" ? "Urgent priority" : "High priority"} /></span>}
                                 </button>
                                 {/* Title */}
                                 <div className="ops-event-title text-[13px] font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
@@ -1108,8 +1115,8 @@ export default function SchedulePage() {
                                 {duration >= 1.5 && !compact && job.assignedTechs.length > 0 && (
                                   <div className="flex gap-1 mt-1 min-w-0">
                                     {job.assignedTechs.map((t) => (
-                                      <span key={t.id} className="ops-event-tech" title={t.name}>
-                                        <i aria-hidden="true" style={{ background: t.color }} /><span className="truncate">{t.name.split(" ")[0]}</span>
+                                      <span key={t.id} className="ops-event-tech" title={t.name} style={technicianStyle(colorFor(t))}>
+                                        <i aria-hidden="true" style={{ background: colorFor(t) }} /><span className="truncate">{t.name.split(" ")[0]}</span>
                                       </span>
                                     ))}
                                   </div>
@@ -1272,7 +1279,7 @@ export default function SchedulePage() {
               <div>
                 <div className="flex flex-wrap gap-2">
                   {techs.map((t) => (
-                    <label key={t.id} className="ops-schedule-assignee flex items-center gap-2 px-3 py-1.5 rounded-lg">
+                    <label key={t.id} className="ops-schedule-assignee flex items-center gap-2 px-3 py-1.5 rounded-lg" style={technicianStyle(colorFor(t))}>
                       <input
                         type="checkbox"
                         checked={form.assignedTechs.includes(t.id)}
@@ -1285,7 +1292,7 @@ export default function SchedulePage() {
                           })
                         }
                       />
-                      <i aria-hidden="true" className="ops-schedule-tech-dot" style={{ background: t.color }} />
+                      <i aria-hidden="true" className="ops-schedule-tech-dot" style={{ background: colorFor(t) }} />
                       <span className="text-sm">{t.name}</span>
                     </label>
                   ))}
@@ -1312,7 +1319,7 @@ export default function SchedulePage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header with color bar */}
-            <div className="rounded-t-2xl px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)", borderLeft: `5px solid ${selectedJob.assignedTechs[0]?.color || "#2563EB"}` }}>
+            <div className="rounded-t-2xl px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)", borderLeft: `5px solid ${colorFor(selectedJob.assignedTechs[0])}` }}>
               <div className="ops-modal-heading flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 id="schedule-detail-title" className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{selectedJob.title}</h2>
@@ -1387,7 +1394,7 @@ export default function SchedulePage() {
                   <div className="flex flex-wrap gap-2">
                     {selectedJob.assignedTechs.map((t) => (
                       <span key={t.id} className="ops-schedule-assignee flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: colorFor(t) }} />
                         {t.name}
                       </span>
                     ))}

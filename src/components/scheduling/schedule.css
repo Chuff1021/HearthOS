@@ -4,12 +4,16 @@
 .ops-production.ops-schedule-dialog {
   --schedule-weekend: #fafbfd;
   --schedule-today: #fffaf6;
+  --schedule-tech-tint: 9%;
+  --schedule-tech-color: #64748b;
   font-size: 13px;
 }
 
-[data-theme="dark"] .ops-production.ops-schedule {
+[data-theme="dark"] .ops-production.ops-schedule,
+[data-theme="dark"] .ops-production.ops-schedule-dialog {
   --schedule-weekend: #232323;
   --schedule-today: #2b2621;
+  --schedule-tech-tint: 20%;
 }
 
 .ops-production.ops-schedule .ops-schedule-toolbar {
@@ -86,9 +90,10 @@
 }
 
 .ops-production.ops-schedule .ops-tech-filter[aria-pressed="true"] {
-  border-color: var(--ops-orange-border);
-  background: var(--ops-orange-bg);
-  color: var(--color-ember);
+  border-color: color-mix(in srgb, var(--schedule-tech-color) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--schedule-tech-color) var(--schedule-tech-tint), var(--color-surface-1));
+  color: var(--color-text-primary);
+  box-shadow: inset 0 -2px var(--schedule-tech-color);
 }
 
 .ops-production.ops-schedule :is(.ops-tech-filter, .ops-schedule-today):hover {
@@ -148,6 +153,16 @@
   box-shadow: 0 1px 2px #1d29380a;
 }
 
+.ops-production.ops-schedule :is(.ops-calendar-event, .ops-month-event, .ops-agenda-event) {
+  background: color-mix(in srgb, var(--schedule-tech-color) var(--schedule-tech-tint), var(--color-surface-1));
+}
+
+.ops-production.ops-schedule .ops-event-priority {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
 .ops-production.ops-schedule .ops-calendar-event:hover {
   box-shadow: 0 2px 6px #1d293822;
 }
@@ -189,7 +204,6 @@
 
 .ops-production.ops-schedule .ops-month-event {
   padding: 5px 6px;
-  background: var(--color-surface-2);
   font-size: 12px;
   line-height: 16px;
 }
@@ -252,9 +266,9 @@
 }
 
 .ops-production.ops-schedule-dialog .ops-schedule-assignee:has(input:checked) {
-  background: var(--ops-orange-bg);
-  border-color: var(--ops-orange-border);
-  color: var(--color-ember);
+  background: color-mix(in srgb, var(--schedule-tech-color) var(--schedule-tech-tint), var(--color-surface-1));
+  border-color: color-mix(in srgb, var(--schedule-tech-color) 45%, var(--color-border));
+  color: var(--color-text-primary);
 }
 
 .ops-production.ops-schedule-dialog .ops-schedule-assignee :is(input, i) {

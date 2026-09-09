@@ -2,6 +2,16 @@
 
 ## Current State
 
+### September 9, 2026: Schedule Technician Color Follow-Up
+
+Branch `codex/schedule-technician-colors` starts from live `344f302`.
+All seven staff records share default blue; use a display-only distinct palette,
+matching soft appointment tints and technician filters, without writing colors
+or changing handlers/data. All 204 quality tests, types, targeted lint, isolated
+build, preservation guard, 16 color screenshots, and four-width schedule
+regression pass. Deployment pending protected PR. See
+`docs/SCHEDULE_TECHNICIAN_COLORS_2026_09_09.md` for scope and fresh baseline.
+
 ### September 9, 2026: Page-Level Design Consistency Follow-Up
 
 Owner reported that To-Do, Schedule, and other interiors still looked old after

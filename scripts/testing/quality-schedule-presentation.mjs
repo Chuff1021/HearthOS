@@ -77,7 +77,9 @@ try {
       }), true, 'Later hour backgrounds must not paint over multi-hour appointments');
       assert.equal(await events.nth(0).locator('.ops-event-title').evaluate(el => getComputedStyle(el).fontSize), '13px');
       assert.equal(await events.nth(0).evaluate(el => getComputedStyle(el).borderLeftColor), 'rgb(38, 116, 184)');
-      assert.equal(await events.nth(3).evaluate(el => getComputedStyle(el).borderLeftColor), 'rgb(245, 158, 11)');
+      assert.equal(await events.nth(3).evaluate(el => getComputedStyle(el).borderLeftColor), 'rgb(19, 121, 93)');
+      assert.equal(await events.nth(3).evaluate(el => getComputedStyle(el).borderTopColor), 'rgb(245, 158, 11)');
+      assert.equal(await events.nth(3).locator('.ops-event-priority').count(), 1);
       assert.equal(await page.locator('.ops-calendar-event[data-short="true"] .ops-event-title').evaluate(el => {
         const title = el.getBoundingClientRect(), event = el.closest('.ops-calendar-event').getBoundingClientRect();
         return title.top >= event.top && title.bottom <= event.bottom;
@@ -119,7 +121,7 @@ try {
     await page.screenshot({ path: path.join(output, `create-${width}.png`) });
     await page.getByRole('button', { name: 'Close new job', exact: true }).click();
     await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
-    await page.waitForFunction(() => getComputedStyle(document.querySelector('.ops-tech-filter')).backgroundColor === 'rgb(57, 42, 33)');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.ops-schedule')).getPropertyValue('--schedule-tech-tint').trim() === '20%');
     await page.locator('.ops-schedule-scroll').evaluate(el => { el.scrollTop = 0; });
     await page.screenshot({ path: path.join(output, `dark-${width}.png`) });
     await page.close();
