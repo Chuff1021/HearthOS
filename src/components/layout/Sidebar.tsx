@@ -19,9 +19,9 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="hearth-sidebar liquid-rail glass-shell" data-collapsed={collapsed} aria-label="HearthOS sidebar">
+      <aside className="hearth-sidebar" data-production-shell data-collapsed={collapsed} aria-label="HearthOS sidebar">
         <div className="hearth-sidebar-header">
-          <div className="hearth-sidebar-logo" aria-hidden="true"><FlameLogo size={28} /></div>
+          <div className="hearth-sidebar-logo" aria-hidden="true"><FlameLogo size={32} /></div>
           {!collapsed && (
             <div className="hearth-sidebar-brand">
               <strong>HearthOS</strong>
@@ -136,7 +136,7 @@ function MobileDock({ pathname }: { pathname: string | null }) {
 
   return (
     <>
-      <nav className="hearth-mobile-dock" aria-label="Mobile navigation">
+      <nav className="hearth-mobile-dock" data-production-shell aria-label="Mobile navigation">
         {mobileNavItems.map((item) => (
           <NavigationLink key={item.href} item={item} pathname={pathname} />
         ))}
@@ -159,6 +159,7 @@ function MobileDock({ pathname }: { pathname: string | null }) {
         ref={dialogRef}
         id={drawerId}
         className="hearth-navigation-drawer"
+        data-production-shell
         aria-labelledby={titleId}
         onCancel={closeDrawer}
         onClose={() => {

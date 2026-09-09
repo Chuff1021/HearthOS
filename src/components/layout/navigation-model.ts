@@ -1,5 +1,5 @@
 import {
-  Banknote, BarChart3, Boxes, BriefcaseBusiness, CalendarDays, CircleDollarSign,
+  BarChart3, Boxes, BriefcaseBusiness, CalendarDays, CircleDollarSign,
   ClipboardCheck, CreditCard, FileText, Gauge, Inbox, MapPinned, NotebookTabs,
   PackageCheck, PlugZap, Receipt, Settings, Sparkles, Users, UserRoundCog,
   type LucideIcon,
@@ -30,7 +30,6 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   { label: "Operations", items: [
     { label: "Inventory", href: "/inventory", icon: Boxes },
     { label: "Vendors", href: "/vendors", icon: NotebookTabs },
-    { label: "Banking", href: "/banking", icon: Banknote },
     { label: "Reports", href: "/reports", icon: BarChart3 },
     { label: "GABE", href: "/gabe", icon: Sparkles },
   ] },

@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -98,7 +99,7 @@ export default function SalesByItemPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="pw-workspace pw-reports flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto space-y-5">
             <div>
               <Link href="/reports" className="text-xs" style={{ color: "var(--color-text-muted)" }}>← Reports</Link>
@@ -138,7 +139,7 @@ export default function SalesByItemPage() {
             </div>
 
             {data && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="pw-metrics grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Tile label="Revenue" value={fmtMoney(data.totals.revenue)} accent="#16A34A" />
                 <Tile label="Profit" value={fmtMoney(data.totals.profit)} accent={data.totals.profit < 0 ? "#DC2626" : "#16A34A"} />
                 <Tile label="Items sold" value={String(data.totals.itemCount)} accent="var(--color-text-muted)" />
@@ -152,8 +153,8 @@ export default function SalesByItemPage() {
               <Empty text="No items match." />
             ) : (
               <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="pw-table-scroll overflow-x-auto">
+                  <table className="pw-table w-full">
                     <thead>
                       <tr style={{ background: "var(--color-surface-2)" }}>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Item</th>

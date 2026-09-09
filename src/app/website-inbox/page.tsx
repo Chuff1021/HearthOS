@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight, Inbox, Mail, Phone, RefreshCw, Search, X } from "lucide-react";
@@ -65,7 +66,7 @@ export default function WebsiteInboxPage() {
     } catch (e) { setError(e instanceof Error ? e.message : "Website sync unavailable"); }
     finally { syncLock.current = false; setSyncing(false); }
   }
-  return <div className="website-inbox flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}><Sidebar/><div className="min-w-0 flex-1 flex flex-col overflow-hidden"><Header/><main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 space-y-5" style={{ color: "var(--color-text-primary)" }}>
+  return <div className="website-inbox flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}><Sidebar/><div className="min-w-0 flex-1 flex flex-col overflow-hidden"><Header/><main className="pw-workspace pw-website-inbox flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 space-y-5" style={{ color: "var(--color-text-primary)" }}>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="text-2xl font-semibold">Website Inbox</h1><p className="text-sm text-[var(--color-text-secondary)]">Aaron&apos;s Fireplace Co.</p></div>
       <button className="ui-btn-primary flex items-center gap-2 px-4 py-2" disabled={syncing || !data?.configured} onClick={sync}><RefreshCw size={16} className={syncing ? "animate-spin" : ""}/>{syncing ? "Checking website..." : "Check website"}</button>

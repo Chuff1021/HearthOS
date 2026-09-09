@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -52,7 +53,7 @@ export default function CashFlowPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="pw-workspace pw-reports flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto space-y-5">
             <div>
               <Link href="/reports" className="text-xs" style={{ color: "var(--color-text-muted)" }}>← Reports</Link>
@@ -73,7 +74,7 @@ export default function CashFlowPage() {
             </div>
 
             {data && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="pw-metrics grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Tile label="Money in" value={fmtMoney(data.totals.in)} accent="#16A34A" />
                 <Tile label="Money out" value={fmtMoney(data.totals.out)} accent="#DC2626" />
                 <Tile label="Net" value={fmtMoney(data.totals.net)} accent={data.totals.net < 0 ? "#DC2626" : "#16A34A"} />
@@ -118,8 +119,8 @@ export default function CashFlowPage() {
                 </div>
 
                 {/* Table */}
-                <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                  <table className="w-full">
+                <div className="pw-table-scroll rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                  <table className="pw-table w-full">
                     <thead>
                       <tr style={{ background: "var(--color-surface-2)" }}>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Month</th>

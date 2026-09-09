@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/production-workspaces.css";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import TimeSelect from "@/components/scheduling/TimeSelect";
@@ -532,7 +534,7 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
   }
 
   return (
-    <section className={internal ? "min-w-0 w-full p-3 sm:p-4 [&_input]:min-w-0 [&_select]:min-w-0" : "mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
+    <section className={internal ? "pw-meeks-panel min-w-0 w-full p-3 sm:p-4 [&_input]:min-w-0 [&_select]:min-w-0" : "pw-meeks-panel mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
       <div className={internal ? "grid min-w-0 grid-cols-1 gap-4" : "grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]"}>
         <div className={internal ? "min-w-0 rounded-2xl p-3 sm:p-5" : "rounded-[2rem] p-6"} style={glassPanel}>
           <div className={internal ? "flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap" : "flex items-start justify-between gap-4"}>

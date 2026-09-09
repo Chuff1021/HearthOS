@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -224,15 +225,15 @@ export default function TodosPage() {
   // Priority + status palette aligned with the rest of the site (ember theme).
   const PRIORITY_STYLE: Record<TodoPriority, { color: string; bg: string; label: string }> = {
     urgent: { color: "#DC2626", bg: "rgba(220,38,38,0.12)", label: "Urgent" },
-    high:   { color: "#F59E0B", bg: "rgba(245,158,11,0.12)", label: "High" },
-    medium: { color: "#f8971f", bg: "rgba(248,151,31,0.14)", label: "Medium" },
+    high:   { color: "#94600d", bg: "rgba(245,158,11,0.12)", label: "High" },
+    medium: { color: "#a84312", bg: "rgba(248,151,31,0.14)", label: "Medium" },
     low:    { color: "#3B82F6", bg: "rgba(59,130,246,0.12)", label: "Low" },
   };
 
   const STATUS_STYLE: Record<TodoStatus, { color: string; bg: string; label: string }> = {
     pending:     { color: "#9a5d12", bg: "rgba(248,151,31,0.12)", label: "Pending" },
     in_progress: { color: "#2563EB", bg: "rgba(37,99,235,0.12)", label: "In progress" },
-    completed:   { color: "#16A34A", bg: "rgba(22,163,74,0.12)", label: "Completed" },
+    completed:   { color: "#13795d", bg: "rgba(22,163,74,0.12)", label: "Completed" },
     cancelled:   { color: "var(--color-text-muted)", bg: "var(--color-surface-2)", label: "Cancelled" },
   };
 
@@ -263,17 +264,17 @@ export default function TodosPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="pw-workspace pw-todos flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto space-y-5">
             {/* ── Page header ─────────────────────────────────────────────── */}
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="pw-heading flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Tasks</h1>
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Follow-ups, callbacks, and quick reminders
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="pw-toolbar flex items-center gap-2">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 18a7 7 0 110-14 7 7 0 010 14z" /></svg>
@@ -298,7 +299,7 @@ export default function TodosPage() {
             </div>
 
             {/* ── Money / count tiles (status filters) ───────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="pw-metrics grid grid-cols-2 md:grid-cols-6 gap-3">
               {[
                 { key: "all" as const, label: "All tasks", count: stats.total, color: "var(--color-text-primary)", accent: "var(--color-text-muted)" },
                 { key: "pending" as const, label: "Pending", count: stats.pending, color: "#9a5d12", accent: "#f8971f" },
@@ -312,6 +313,7 @@ export default function TodosPage() {
                 return (
                   <button
                     key={i}
+                    aria-pressed={clickable ? isActive : undefined}
                     onClick={clickable ? () => setFilter(tile.key as any) : undefined}
                     className={`p-4 rounded-xl text-left transition-all ${clickable ? "hover:-translate-y-0.5 cursor-pointer" : "cursor-default"}`}
                     style={{
@@ -402,7 +404,7 @@ export default function TodosPage() {
                         <h2 className="text-sm font-bold" style={{ color: key === "overdue" ? "#DC2626" : "var(--color-text-primary)" }}>{group.label}</h2>
                         <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{group.rows.length}</span>
                       </div>
-                      <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+                      <div className="pw-task-list rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                         {group.rows.map((todo, idx) => {
                           const overdue = isOverdue(todo);
                           const pStyle = PRIORITY_STYLE[todo.priority];
@@ -411,7 +413,7 @@ export default function TodosPage() {
                           return (
                             <div
                               key={todo.id}
-                              className="px-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-black/[0.02]"
+                              className="pw-task-row px-4 py-3.5 flex items-start gap-3 transition-colors hover:bg-black/[0.02]"
                               style={{
                                 borderTop: idx === 0 ? "none" : "1px solid var(--color-border)",
                                 borderLeft: `3px solid ${pStyle.color}`,
@@ -419,6 +421,8 @@ export default function TodosPage() {
                             >
                               <button
                                 onClick={() => handleUpdateStatus(todo.id, completed ? "pending" : "completed")}
+                                aria-label={completed ? `Reopen ${todo.title}` : `Complete ${todo.title}`}
+                                aria-pressed={completed}
                                 className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
                                 style={{
                                   background: completed ? "#16A34A" : "transparent",
@@ -474,9 +478,10 @@ export default function TodosPage() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1 flex-shrink-0">
+                              <div className="pw-task-actions flex items-center gap-1 flex-shrink-0">
                                 <select
                                   value={todo.status}
+                                  aria-label={`Status for ${todo.title}`}
                                   onChange={(e) => handleUpdateStatus(todo.id, e.target.value as TodoStatus)}
                                   className="px-2 py-1 rounded-md text-[11px] outline-none"
                                   style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}

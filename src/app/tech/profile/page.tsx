@@ -134,7 +134,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-32">
+    <div className="pw-workspace pw-tech flex flex-col min-h-screen pb-32">
       {/* Header */}
       <header
         className="bg-[var(--color-surface-1)] sticky top-0 z-10 px-4 pb-4"

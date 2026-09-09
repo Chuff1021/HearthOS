@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -95,7 +96,7 @@ export default function ARAgingPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto">
+        <main className="pw-workspace pw-reports flex-1 overflow-y-auto">
           <div className="max-w-[1600px] mx-auto p-6 space-y-5">
             <div>
               <Link href="/reports" className="text-xs hover:underline" style={{ color: "var(--color-text-muted)" }}>← Reports</Link>
@@ -106,7 +107,7 @@ export default function ARAgingPage() {
             </div>
 
             {/* Bucket totals */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="pw-metrics grid grid-cols-2 md:grid-cols-5 gap-3">
               {BUCKET_ORDER.map((b) => {
                 const v = data?.buckets[b] ?? 0;
                 const tone = b === "current" ? "good" : b === "d91_plus" || b === "d61_90" ? "danger" : b === "d31_60" ? "warn" : "warn";
@@ -138,8 +139,8 @@ export default function ARAgingPage() {
 
             {/* Customer breakdown */}
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="pw-table-scroll overflow-x-auto">
+                <table className="pw-table w-full text-sm">
                   <thead style={{ background: "var(--color-surface-2)" }}>
                     <tr>
                       <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Customer</th>

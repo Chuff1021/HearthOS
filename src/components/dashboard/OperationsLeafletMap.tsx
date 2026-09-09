@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import { LocateFixed, Minus, Plus, RefreshCw } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import "./dashboard.css";
 import { createTrackingTileLayer, hasMapboxTiles } from "@/lib/mapbox";
 import { escapeMapHtml, getLocationMarkers, initializeMap, locationLabel, markerHtml, type LocationMarker, type MapTech } from "./operations-map-data";
 

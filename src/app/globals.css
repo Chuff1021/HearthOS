@@ -2108,3 +2108,117 @@ main .rounded-lg[style*="--color-border"] {
     display: none;
   }
 }
+
+/* Approved CRM presentation. Public account, payment and acceptance pages retain their existing styles. */
+:root:has(.hearth-sidebar, .production-tech):not([data-theme="dark"]) {
+  --color-bg: #f0f4f8;
+  --color-surface: #ffffff;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f5f8fb;
+  --color-surface-3: #edf2f7;
+  --color-surface-4: #e5edf5;
+  --color-border: #d6e1ec;
+  --color-border-hover: #b7c9dc;
+  --color-text-primary: #1d2938;
+  --color-text-secondary: #40536b;
+  --color-text-muted: #5c6b7f;
+  --color-nav-icon: #768da6;
+  --color-nav-active: #a83b08;
+  --color-nav-active-bg: #fff6ef;
+  --color-nav-active-border: #f5c8ab;
+  --color-nav-hover: #f0f5fa;
+  --color-focus-ring: #ad430d;
+  --color-ff-cream: #f0f4f8;
+  --color-ff-charcoal: #1d2938;
+  --color-ff-taupe: #5c6b7f;
+  --color-ff-cream-button: #ffffff;
+  --shadow-subtle: 0 4px 16px #263e6408;
+  --shadow-elevated: 0 16px 48px #263e6420;
+  --shadow-glow: 0 0 0 1px #d6e1ec;
+}
+:root:has(.hearth-sidebar, .production-tech) {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+}
+body:has(.hearth-sidebar, .production-tech) {
+  background: var(--color-bg) !important;
+  letter-spacing: 0;
+}
+body:has(.hearth-sidebar, .production-tech)::before,
+body:has(.hearth-sidebar, .production-tech)::after,
+.app-chrome:has(.hearth-sidebar)::before,
+.flex.h-screen.overflow-hidden:has(.hearth-sidebar) main::before {
+  content: none;
+}
+.app-chrome:has(.hearth-sidebar),
+.flex.h-screen.overflow-hidden:has(.hearth-sidebar) {
+  background: var(--color-bg) !important;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.liquid-panel, .liquid-panel-strong, .glass-panel, .glass-card, .glass-dock, .shell-card, .ui-card) {
+  background: var(--color-surface-1) !important;
+  border-color: var(--color-border) !important;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px #263e6408 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.liquid-panel, .liquid-panel-strong, .glass-panel, .glass-card, .glass-dock, .shell-card, .ui-card)::before,
+body:has(.hearth-sidebar, .production-tech) :is(.liquid-panel, .liquid-panel-strong, .glass-panel, .glass-card, .glass-dock, .shell-card, .ui-card)::after {
+  content: none;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.shell-input, .ui-input, .ui-select, .ui-textarea, .map-glass-chip, .glass-chip, .glass-nested, .shell-btn-secondary, .ui-btn-secondary, .shell-badge, .ui-card-muted, .ui-empty-state) {
+  background: var(--color-surface-1) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+  border-radius: 6px;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.glass-row, .activity-row, .schedule-card, .queue-row, .recommendation-row) {
+  background: var(--color-surface-1) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+  border-radius: 6px;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.ui-btn-primary, .btn-ember) {
+  background: #b4420a !important;
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px #263e6410, inset 0 1px #ffffff38 !important;
+}
+body:has(.hearth-sidebar, .production-tech) :is(.ui-btn-primary, .btn-ember):hover:not(:disabled) {
+  background: #963700 !important;
+}
+body:has(.hearth-sidebar, .production-tech) :is(h1, h2, h3, button, input, select, textarea, th) {
+  letter-spacing: 0;
+}
+body:has(.hearth-sidebar) main :is(th, td) {
+  border-color: var(--color-border) !important;
+}
+body:has(.hearth-sidebar) main th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+body:has(.hearth-sidebar) main td {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+body:has(.hearth-sidebar) main tbody tr:hover {
+  background: var(--color-surface-2);
+}
+body:has(.hearth-sidebar) main :is(.rounded-xl, .rounded-2xl, .rounded-lg)[style*="--color-border"] {
+  border-color: var(--color-border) !important;
+  border-radius: 8px;
+}
+body:has(.hearth-sidebar, .production-tech) :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  body:has(.hearth-sidebar, .production-tech) :is(.liquid-panel, .glass-card, .ui-card) {
+    animation: none;
+    transition: none;
+  }
+}

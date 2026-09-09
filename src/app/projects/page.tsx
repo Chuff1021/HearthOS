@@ -13,9 +13,11 @@ import {
   Receipt,
   RefreshCw,
   Truck,
+  X,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import OperationsStyles from "@/components/scheduling/OperationsStyles";
 
 type ProjectStage = "new" | "parts_needed" | "parts_ordered" | "ready" | "scheduled" | "in_progress" | "complete";
 type PartsStatus = "not_ordered" | "quote_requested" | "ordered" | "partial" | "received" | "backordered";
@@ -109,10 +111,10 @@ function sourceKey(type: "estimate" | "invoice", id: string) {
 }
 
 function metricTone(label: string) {
-  if (label.includes("Ready")) return "#16A34A";
-  if (label.includes("Ordered")) return "#2563EB";
-  if (label.includes("Need")) return "#F8971F";
-  return "var(--color-ember)";
+  if (label.includes("Ready")) return "var(--color-success)";
+  if (label.includes("Ordered")) return "var(--color-info)";
+  if (label.includes("Need")) return "var(--color-warning)";
+  return "var(--color-text-primary)";
 }
 
 export default function ProjectsPage() {
@@ -292,8 +294,9 @@ export default function ProjectsPage() {
       <main className="min-w-0 flex-1 overflow-x-hidden pb-24 lg:pb-0">
         <Header />
 
-        <div className="mx-auto flex max-w-[1680px] flex-col gap-5 px-4 py-4 lg:px-6 lg:py-6">
-          <section className="glass-panel rounded-[1.6rem] p-5">
+        <div className="ops-production mx-auto flex max-w-[1680px] flex-col gap-5 px-4 py-4 lg:px-6 lg:py-6">
+          <OperationsStyles />
+          <section className="ops-project-heading">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em]" style={{ color: "var(--color-ember)" }}>
@@ -303,22 +306,20 @@ export default function ProjectsPage() {
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
                   Project board
                 </h1>
-                <p className="mt-1 max-w-2xl text-sm" style={{ color: "var(--color-text-muted)" }}>
-                  Turn accepted estimates and active invoices into organized install projects, track parts ordering, and move them toward scheduling.
-                </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
+                  aria-label="Search projects, customers, or purchase orders"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search projects, customers, PO..."
-                  className="h-11 min-w-[260px] rounded-2xl px-4 text-sm outline-none"
-                  style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(15,23,42,0.08)", color: "var(--color-text-primary)" }}
+                  className="h-10 w-full sm:w-72 rounded-lg px-3 text-sm"
+                  style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                 />
                 <button
                   onClick={loadAll}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold"
-                  style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(15,23,42,0.08)", color: "var(--color-text-primary)" }}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold"
+                  style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                 >
                   <RefreshCw size={16} />
                   Refresh
@@ -326,40 +327,36 @@ export default function ProjectsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="ops-metrics mt-5 grid grid-cols-2 xl:grid-cols-4">
               {summary.map((metric) => (
-                <div key={metric.label} className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.62)", border: "1px solid rgba(255,255,255,0.76)" }}>
+                <div key={metric.label} className="ops-metric ops-project-metric">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--color-text-muted)" }}>{metric.label}</div>
                   <div className="mt-2 text-3xl font-bold" style={{ color: metricTone(metric.label) }}>{metric.value}</div>
                 </div>
               ))}
             </div>
             {message && (
-              <div className="mt-4 rounded-2xl px-4 py-3 text-sm font-medium" style={{ background: "rgba(255,255,255,0.62)", color: "var(--color-text-secondary)", border: "1px solid rgba(15,23,42,0.08)" }}>
+              <div className="mt-4 rounded-lg px-4 py-3 text-sm font-medium" style={{ background: "var(--color-surface-1)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
                 {message}
               </div>
             )}
           </section>
 
           <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <aside className="glass-panel rounded-[1.6rem] p-4">
+            <aside className="ops-project-sources">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Add from documents</h2>
-                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Pull estimates or invoices into projects.</p>
                 </div>
                 <Plus size={18} style={{ color: "var(--color-ember)" }} />
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl p-1" style={{ background: "rgba(255,255,255,0.58)", border: "1px solid rgba(15,23,42,0.06)" }}>
+              <div className="ops-source-tabs mt-4 grid grid-cols-2 gap-2 p-1">
                 {(["estimate", "invoice"] as const).map((tab) => (
                   <button
                     key={tab}
+                    aria-pressed={sourceTab === tab}
                     onClick={() => setSourceTab(tab)}
                     className="rounded-xl px-3 py-2 text-sm font-semibold"
-                    style={{
-                      background: sourceTab === tab ? "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))" : "transparent",
-                      color: sourceTab === tab ? "#fff" : "var(--color-text-secondary)",
-                    }}
                   >
                     {tab === "estimate" ? "Estimates" : "Invoices"}
                   </button>
@@ -405,7 +402,7 @@ export default function ProjectsPage() {
 
             <section className="min-w-0">
               {loading ? (
-                <div className="glass-panel rounded-[1.6rem] p-8 text-center" style={{ color: "var(--color-text-muted)" }}>Loading projects...</div>
+                <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>Loading projects...</div>
               ) : (
                 <div className="grid min-h-[620px] gap-4 xl:grid-cols-3 2xl:grid-cols-6">
                   {columns.map((column) => {
@@ -415,13 +412,13 @@ export default function ProjectsPage() {
                         : project.stage === column.key,
                     );
                     return (
-                      <div key={column.key} className="glass-panel flex min-h-[360px] flex-col rounded-[1.4rem] p-3">
+                      <div key={column.key} data-stage={column.key} className="ops-project-column flex min-h-[360px] flex-col">
                         <div className="mb-3 flex items-start justify-between px-1">
                           <div>
                             <h3 className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>{column.label}</h3>
                             <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{column.hint}</p>
                           </div>
-                          <span className="rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: "rgba(255,255,255,0.68)", color: "var(--color-ember)" }}>
+                          <span className="rounded px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)" }}>
                             {rows.length}
                           </span>
                         </div>
@@ -429,17 +426,13 @@ export default function ProjectsPage() {
                           {rows.map((project) => (
                             <button
                               key={project.id}
+                              aria-pressed={selected?.id === project.id}
                               onClick={() => setSelected(project)}
-                              className="w-full rounded-2xl p-3 text-left transition hover:-translate-y-0.5"
-                              style={{
-                                background: selected?.id === project.id ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.68)",
-                                border: selected?.id === project.id ? "1px solid rgba(255,106,0,0.38)" : "1px solid rgba(255,255,255,0.78)",
-                                boxShadow: "0 16px 34px rgba(39,55,82,0.08)",
-                              }}
+                              className="ops-project-card w-full p-3 text-left transition-colors"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <div className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: project.sourceType === "invoice" ? "#2563EB" : "var(--color-ember)" }}>
+                                  <div className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: project.sourceType === "invoice" ? "var(--color-info)" : "var(--color-ember)" }}>
                                     {project.sourceType} {project.sourceNumber}
                                   </div>
                                   <div className="mt-1 line-clamp-2 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>{project.title}</div>
@@ -455,7 +448,7 @@ export default function ProjectsPage() {
                             </button>
                           ))}
                           {rows.length === 0 && (
-                            <div className="rounded-2xl p-4 text-center text-xs" style={{ background: "rgba(255,255,255,0.42)", color: "var(--color-text-muted)", border: "1px dashed rgba(15,23,42,0.12)" }}>
+                            <div className="rounded-lg p-4 text-center text-xs" style={{ color: "var(--color-text-muted)", border: "1px dashed var(--color-border)" }}>
                               No projects here.
                             </div>
                           )}
@@ -471,23 +464,23 @@ export default function ProjectsPage() {
       </main>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/20 p-3 backdrop-blur-sm lg:p-5" onClick={() => setSelected(null)}>
+        <div className="ops-production fixed inset-0 z-50 flex items-end justify-end p-3 lg:p-5" style={{ background: "rgba(29,41,56,0.35)" }} onClick={() => setSelected(null)}>
           <section
-            className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-[1.6rem] p-5"
-            style={{ background: "rgba(255,255,255,0.96)", border: "1px solid rgba(255,255,255,0.92)", boxShadow: "0 28px 80px rgba(15,23,42,0.22)" }}
+            className="ops-modal max-h-[92vh] w-full max-w-[560px] overflow-y-auto p-5"
+            style={{ border: "1px solid var(--color-border)" }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--color-ember)" }}>
                   {selected.sourceType} {selected.sourceNumber}
                 </div>
                 <h2 className="mt-1 text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{selected.customerName}</h2>
-                <Link href={selected.sourceUrl} className="mt-1 inline-flex text-sm font-semibold" style={{ color: "#2563EB" }}>
+                <Link href={selected.sourceUrl} className="mt-1 inline-flex text-sm font-semibold" style={{ color: "var(--color-info)" }}>
                   Open source document
                 </Link>
               </div>
-              <button onClick={() => setSelected(null)} className="rounded-full px-3 py-1 text-sm" style={{ background: "var(--color-surface-2)" }}>Close</button>
+              <button aria-label="Close project" title="Close project" onClick={() => setSelected(null)} className="ops-icon-button"><X size={18} /></button>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -530,9 +523,9 @@ export default function ProjectsPage() {
                   <Truck size={16} />
                   Required parts
                 </div>
-                <div className="max-h-56 space-y-2 overflow-y-auto rounded-2xl p-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="ops-parts-list max-h-56 overflow-y-auto">
                   {selected.parts.map((part) => (
-                    <div key={part.id} className="rounded-xl bg-white/70 p-3">
+                    <div key={part.id} className="p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{part.sku || part.name || "Part"}</div>
@@ -557,18 +550,18 @@ export default function ProjectsPage() {
                 />
               </label>
 
-              <div className="rounded-2xl p-3" style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)" }}>
-                <div className="flex items-center gap-2 text-sm font-bold" style={{ color: "#2563EB" }}>
+              <div className="ops-project-scheduling">
+                <div className="flex items-center gap-2 text-sm font-bold" style={{ color: "var(--color-info)" }}>
                   <CalendarDays size={16} />
                   Create scheduled job
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "#fff", border: "1px solid rgba(37,99,235,0.18)" }} />
-                  <input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "#fff", border: "1px solid rgba(37,99,235,0.18)" }} />
-                  <input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "#fff", border: "1px solid rgba(37,99,235,0.18)" }} />
+                  <input aria-label="Scheduled date" type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} />
+                  <input aria-label="Start time" type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} />
+                  <input aria-label="End time" type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} className="rounded-xl px-3 py-2 text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} />
                 </div>
                 {selected.scheduledJobId ? (
-                  <Link href="/jobs" className="mt-3 inline-flex text-sm font-bold" style={{ color: "#2563EB" }}>View scheduled job</Link>
+                  <Link href="/jobs" className="mt-3 inline-flex text-sm font-bold" style={{ color: "var(--color-info)" }}>View scheduled job</Link>
                 ) : (
                   <button
                     onClick={() => scheduleProject(selected)}
@@ -586,7 +579,7 @@ export default function ProjectsPage() {
                   onClick={() => saveProject(selected)}
                   disabled={saving}
                   className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, var(--color-ember), var(--color-ember-dark))", opacity: saving ? 0.72 : 1 }}
+                  style={{ background: "var(--ops-action)", opacity: saving ? 0.72 : 1 }}
                 >
                   {saving ? "Saving..." : "Save Project"}
                 </button>
@@ -638,10 +631,9 @@ function SourceButton({
     <button
       onClick={onClick}
       disabled={imported || loading}
-      className="w-full rounded-2xl p-3 text-left"
+      className="ops-source-button w-full rounded-lg p-3 text-left"
+      data-imported={imported}
       style={{
-        background: imported ? "rgba(22,163,74,0.08)" : "rgba(255,255,255,0.66)",
-        border: imported ? "1px solid rgba(22,163,74,0.24)" : "1px solid rgba(255,255,255,0.76)",
         opacity: loading ? 0.7 : 1,
       }}
     >
@@ -655,7 +647,7 @@ function SourceButton({
             <span className="text-xs font-bold" style={{ color: "var(--color-text-primary)" }}>{amount}</span>
           </span>
           <span className="mt-1 line-clamp-2 text-xs" style={{ color: "var(--color-text-muted)" }}>{subtitle}</span>
-          <span className="mt-2 flex items-center justify-between text-[11px] font-semibold" style={{ color: imported ? "#16A34A" : "var(--color-text-muted)" }}>
+          <span className="mt-2 flex items-center justify-between text-[11px] font-semibold" style={{ color: imported ? "var(--color-success)" : "var(--color-text-muted)" }}>
             <span>{meta}</span>
             <span>{loading ? "Adding..." : imported ? "On board" : "Add"}</span>
           </span>
@@ -667,13 +659,13 @@ function SourceButton({
 
 function Pill({ label, tone }: { label: string; tone: "green" | "red" | "orange" | "blue" | "gray" }) {
   const colors = {
-    green: { bg: "rgba(22,163,74,0.12)", fg: "#16A34A" },
-    red: { bg: "rgba(220,38,38,0.12)", fg: "#DC2626" },
-    orange: { bg: "rgba(248,151,31,0.14)", fg: "#B45309" },
-    blue: { bg: "rgba(37,99,235,0.12)", fg: "#2563EB" },
-    gray: { bg: "rgba(100,116,139,0.12)", fg: "#64748B" },
+    green: { bg: "var(--ops-green-bg)", fg: "var(--color-success)" },
+    red: { bg: "var(--ops-red-bg)", fg: "var(--color-danger)" },
+    orange: { bg: "var(--ops-orange-bg)", fg: "var(--color-warning)" },
+    blue: { bg: "var(--ops-blue-bg)", fg: "var(--color-info)" },
+    gray: { bg: "var(--color-surface-3)", fg: "var(--color-text-secondary)" },
   }[tone];
-  return <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: colors.bg, color: colors.fg }}>{label}</span>;
+  return <span className="ops-project-badge px-2 py-1 font-medium" style={{ background: colors.bg, color: colors.fg }}>{label}</span>;
 }
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {

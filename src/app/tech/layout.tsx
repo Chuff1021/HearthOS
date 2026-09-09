@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import "@/app/production-workspaces.css";
 import { isClerkConfigured } from "@/lib/auth";
 import TechAuthGate from "@/components/tech/TechAuthGate";
 import TechPwaProvider from "@/components/tech/TechPwaProvider";
 import TechRuntimeProvider from "@/components/tech/TechRuntimeProvider";
 import { GpsStatusProvider } from "@/components/tech/GpsStatusContext";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "HearthOS Tech",
@@ -41,7 +40,7 @@ export default function TechLayout({
   const clerkEnabled = isClerkConfigured();
 
   return (
-    <div className={`${inter.className} min-h-screen`} style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
+    <div className={`${GeistSans.className} production-tech min-h-screen`} style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
       <div className="max-w-md mx-auto min-h-screen flex flex-col">
         <TechPwaProvider />
         {clerkEnabled ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useRef, useState, useMemo } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -205,7 +206,7 @@ export default function GabeChatPage() {
         <Header />
 
         {/* Chat header */}
-        <div className="px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="pw-workspace pw-gabe px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold" style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}>
               G
@@ -227,7 +228,7 @@ export default function GabeChatPage() {
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="pw-workspace pw-gabe flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
             {messages.length === 0 && !loading && (
               <div className="text-center py-16">
@@ -310,7 +311,7 @@ export default function GabeChatPage() {
         </div>
 
         {/* Input bar */}
-        <div className="flex-shrink-0 px-6 py-4" style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
+        <div className="pw-workspace pw-gabe flex-shrink-0 px-6 py-4" style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface-1)" }}>
           <div className="max-w-3xl mx-auto flex gap-3">
             <textarea
               ref={inputRef}

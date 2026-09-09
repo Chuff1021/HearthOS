@@ -63,6 +63,18 @@ test("failed sources have explicit retry while successful panels remain visible"
   assert.doesNotMatch(html, /fully assigned|No customers with an open balance|No recent synced activity/);
 });
 
+test("schedule links use the jobs selected-record route and encode reserved ID characters", () => {
+  const html = render("loading", {
+    jobs: { status: "ready", data: ["fixture-job", "fixture/job &?#%"].map((id) => ({
+      id, title: "Synthetic scheduled job", customerName: "Test customer",
+      status: "scheduled", scheduledTimeStart: "10:00", assignedTechs: [],
+    })) },
+  });
+  assert.match(html, /href="\/jobs\?id=fixture-job" class="schedule-card"/);
+  assert.match(html, /href="\/jobs\?id=fixture%2Fjob%20%26%3F%23%25" class="schedule-card"/);
+  assert.doesNotMatch(html, /href="\/jobs\//);
+});
+
 test("confirmed empty data renders real zeros without invented confidence or healthy-account scores", () => {
   const html = render("ready", {
     profit: { status: "ready", data: { windowStats: { revenue: 0, profit: 0, cogs: 0, billable: 0, margin: null, invoiceCount: 0 } } },

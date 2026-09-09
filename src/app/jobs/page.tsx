@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Brush, ClipboardList, Hammer, RefreshCw, RotateCcw, Search, SlidersHorizontal, Wrench, Zap } from "lucide-react";
+import { Brush, ClipboardList, Hammer, Plus, RefreshCw, RotateCcw, Search, SlidersHorizontal, Wrench, Zap } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
+import OperationsStyles from "@/components/scheduling/OperationsStyles";
 import JobTypeOptions from "@/components/job-form/JobTypeOptions";
 import CustomJobTypeInput from "@/components/job-form/CustomJobTypeInput";
 import { customerAddress, fetchJobArray, localDateValue, requireJobResponse, resolveJobType, scheduledDateLabel, scheduledTimeLabel } from "@/components/job-form/job-form-helpers";
@@ -95,18 +96,18 @@ type SelectedRelatedDocument =
   | { type: "estimate"; source: "quickbooks"; id: string };
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  scheduled: { bg: "rgba(29,78,216,0.12)", text: "#2563EB", border: "rgba(29,78,216,0.25)" },
-  in_progress: { bg: "rgba(255,68,0,0.12)", text: "#f8971f", border: "rgba(255,68,0,0.25)" },
-  completed: { bg: "rgba(152,205,0,0.12)", text: "#98CD00", border: "rgba(152,205,0,0.25)" },
-  cancelled: { bg: "rgba(255,32,78,0.12)", text: "#FF204E", border: "rgba(255,32,78,0.25)" },
-  on_hold: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af", border: "rgba(156,163,175,0.25)" },
+  scheduled: { bg: "var(--ops-blue-bg)", text: "var(--color-info)", border: "var(--ops-blue-border)" },
+  in_progress: { bg: "var(--ops-orange-bg)", text: "var(--color-warning)", border: "var(--ops-orange-border)" },
+  completed: { bg: "var(--ops-green-bg)", text: "var(--color-success)", border: "var(--ops-green-border)" },
+  cancelled: { bg: "var(--ops-red-bg)", text: "var(--color-danger)", border: "var(--ops-red-border)" },
+  on_hold: { bg: "var(--color-surface-3)", text: "var(--color-text-secondary)", border: "var(--color-border)" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
-  low: { bg: "rgba(156,163,175,0.12)", text: "#9ca3af" },
-  normal: { bg: "rgba(29,78,216,0.12)", text: "#2563EB" },
-  high: { bg: "rgba(255,68,0,0.12)", text: "#f8971f" },
-  urgent: { bg: "rgba(255,32,78,0.12)", text: "#FF204E" },
+  low: { bg: "var(--color-surface-3)", text: "var(--color-text-secondary)" },
+  normal: { bg: "var(--ops-blue-bg)", text: "var(--color-info)" },
+  high: { bg: "var(--ops-orange-bg)", text: "var(--color-warning)" },
+  urgent: { bg: "var(--ops-red-bg)", text: "var(--color-danger)" },
 };
 
 const jobTypeIcons: Record<string, typeof Wrench> = {
@@ -591,36 +592,40 @@ export default function JobsPage() {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
         <Header />
-        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="ops-production ops-workspace">
+        <OperationsStyles />
+        <div className="ops-toolbar ops-heading px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Jobs</h1>
             <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>{jobResource.loaded ? `${filteredJobs.length} jobs found` : "Jobs"}</p>
           </div>
-          <button aria-label="Refresh jobs" title="Refresh jobs" disabled={jobResource.loading} onClick={() => void loadJobs()} className="p-2 rounded-lg"><RefreshCw size={16} /></button>
-          <button onClick={() => { setMutationError(null); setShowCreateModal(true); }} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>New Job</button>
+          <button aria-label="Refresh jobs" title="Refresh jobs" disabled={jobResource.loading} onClick={() => void loadJobs()} className="ops-icon-button"><RefreshCw size={16} /></button>
+          <button onClick={() => { setMutationError(null); setShowCreateModal(true); }} className="ops-primary px-4 py-2 text-sm font-semibold"><Plus size={16} aria-hidden="true" />New Job</button>
         </div>
 
         {/* Active / Completed tabs */}
-        <div className="px-6 pt-3 pb-0 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="ops-toolbar ops-job-tabs px-6 pt-3 pb-0 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <button
+            aria-pressed={jobsTab === "active"}
             onClick={() => { setJobsTab("active"); setStatusFilter("all"); }}
             className="px-4 py-2 text-sm font-semibold transition-colors"
             style={{
-              borderBottom: jobsTab === "active" ? "2px solid #2563EB" : "2px solid transparent",
-              color: jobsTab === "active" ? "#2563EB" : "var(--color-text-muted)",
+              borderBottom: jobsTab === "active" ? "2px solid var(--color-ember)" : "2px solid transparent",
+              color: jobsTab === "active" ? "var(--color-ember)" : "var(--color-text-muted)",
               marginBottom: -1,
             }}
           >
             Active ({activeCount})
           </button>
           <button
+            aria-pressed={jobsTab === "completed"}
             onClick={() => { setJobsTab("completed"); setStatusFilter("all"); }}
             className="px-4 py-2 text-sm font-semibold transition-colors"
             style={{
-              borderBottom: jobsTab === "completed" ? "2px solid #16A34A" : "2px solid transparent",
-              color: jobsTab === "completed" ? "#16A34A" : "var(--color-text-muted)",
+              borderBottom: jobsTab === "completed" ? "2px solid var(--color-ember)" : "2px solid transparent",
+              color: jobsTab === "completed" ? "var(--color-ember)" : "var(--color-text-muted)",
               marginBottom: -1,
             }}
           >
@@ -628,7 +633,7 @@ export default function JobsPage() {
           </button>
         </div>
 
-        <div className="px-6 py-3 flex flex-wrap items-center gap-3 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+        <div className="ops-toolbar ops-job-filters px-6 py-3 flex flex-wrap items-center gap-3 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
           <input aria-label="Search jobs" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search jobs..." className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
           {jobsTab === "active" ? (
             <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
@@ -644,7 +649,7 @@ export default function JobsPage() {
           </select>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6"><div className="space-y-3">
+        <div className="ops-job-list flex-1 overflow-y-auto p-6"><div className="space-y-3">
           {jobResource.loading && <p role="status" className="text-sm">{jobResource.loaded ? "Refreshing jobs..." : "Loading jobs..."}</p>}
           {jobResource.error && <div role="alert" className="text-sm text-red-600">{jobResource.error} {jobResource.loaded && "Showing previously loaded jobs."} <button className="underline" onClick={() => void loadJobs()}>Retry</button></div>}
           {openingJob && <p role="status" className="text-sm">Opening job...</p>}
@@ -652,7 +657,7 @@ export default function JobsPage() {
           {mutationError && !showCreateModal && !selectedJob && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
           {jobResource.loaded && !jobResource.loading && !jobResource.error && filteredJobs.length === 0 && <p className="py-8 text-sm" style={{ color: "var(--color-text-secondary)" }}>{jobs.length ? "No jobs match these filters." : "No jobs yet."}</p>}
           {filteredJobs.map((job) => (
-            <button key={job.id} onClick={() => { setMutationError(null); setSelectedJob(job); }} className="w-full rounded-lg p-4 text-left" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+            <button key={job.id} onClick={() => { setMutationError(null); setSelectedJob(job); }} className="ops-job-row w-full rounded-lg p-4 text-left" style={{ border: "1px solid var(--color-border)" }}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
                   <div className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{renderJobTypeIcon(job.jobType)}</div>
@@ -673,12 +678,13 @@ export default function JobsPage() {
             </button>
           ))}
         </div></div>
+        </div>
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="ops-production fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "transparent" }}>
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCreateModal(false)} />
-          <div className="relative w-full max-w-2xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+          <div className="ops-modal relative w-full max-w-2xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}><h2 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>Create New Job</h2></div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               {mutationError && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
@@ -722,17 +728,17 @@ export default function JobsPage() {
             </div>
             <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Cancel</button>
-              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
+              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="ops-primary px-4 py-2 text-sm font-semibold">{creating ? "Creating..." : "Create Job"}</button>
             </div>
           </div>
         </div>
       )}
 
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="ops-production fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "transparent" }}>
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedJob(null)} />
-          <div className="relative w-full max-w-xl rounded-xl overflow-hidden max-h-[90vh] flex flex-col" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-            <div className="px-6 py-4 flex items-start justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="ops-modal relative w-full max-w-xl rounded-xl overflow-hidden max-h-[90vh] flex flex-col" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <div className="ops-modal-heading px-6 py-4 flex items-start justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>{selectedJob.jobNumber}</span>
@@ -744,7 +750,7 @@ export default function JobsPage() {
                 {editingJob ? (
                   <>
                     <button onClick={() => setEditingJob(false)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Cancel</button>
-                    <button disabled={savingEdit} onClick={handleSaveJobEdits} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>
+                    <button disabled={savingEdit} onClick={handleSaveJobEdits} className="ops-primary px-3 py-1.5 text-sm font-semibold">
                       {savingEdit ? "Saving..." : "Save"}
                     </button>
                   </>
@@ -862,7 +868,7 @@ export default function JobsPage() {
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>${Number(activeRelatedInvoice.totalAmount || 0).toFixed(2)}</div>
-                            <div className="text-xs" style={{ color: Number(activeRelatedInvoice.balance || 0) > 0 ? "#FF204E" : "#98CD00" }}>
+                            <div className="text-xs" style={{ color: Number(activeRelatedInvoice.balance || 0) > 0 ? "var(--color-danger)" : "var(--color-success)" }}>
                               {activeRelatedInvoice.status} • ${Number(activeRelatedInvoice.balance || 0).toFixed(2)} open
                             </div>
                           </div>
@@ -1005,7 +1011,7 @@ export default function JobsPage() {
                     return (
                       <div key={item.id} className="rounded-lg px-3 py-2" style={{ background: "var(--color-surface-1)" }}>
                         <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: done ? "rgba(152,205,0,0.18)" : "var(--color-surface-3)", color: done ? "#98CD00" : "var(--color-text-muted)" }}>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ background: done ? "var(--ops-green-bg)" : "var(--color-surface-3)", color: done ? "var(--color-success)" : "var(--color-text-muted)" }}>
                             {done ? "✓" : ""}
                           </div>
                           <div className="text-sm" style={{ color: done ? "var(--color-text-primary)" : "var(--color-text-secondary)" }}>{item.task}</div>
@@ -1054,7 +1060,7 @@ export default function JobsPage() {
             )}
             </div>
             <div className="px-6 py-4 flex justify-end border-t" style={{ borderColor: "var(--color-border)" }}>
-              <button disabled={deleting} onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
+              <button disabled={deleting} onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--ops-red-bg)", color: "var(--color-danger)", border: "1px solid var(--ops-red-border)" }}>
                 Delete Job
               </button>
             </div>

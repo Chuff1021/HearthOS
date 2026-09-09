@@ -14,10 +14,12 @@ async function bundle(entry: string, mocks: Record<string, string>) {
     plugins: [{ name: 'manual-payment-offline', setup(builder) {
       builder.onResolve({ filter: /.*/ }, args => {
         if (args.kind === 'entry-point') return undefined;
+        if (args.path === '../billing-presentation.css') return { path: args.path, namespace: 'presentation' };
         if (!Object.hasOwn(mocks, args.path)) throw new Error(`Unapproved dependency: ${args.path}`);
         return { path: args.path, namespace: 'fixture' };
       });
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: mocks[args.path], loader: 'js' }));
+      builder.onLoad({ filter: /.*/, namespace: 'presentation' }, () => ({ contents: '', loader: 'js' }));
     } }],
   });
   return result.outputFiles[0].text;

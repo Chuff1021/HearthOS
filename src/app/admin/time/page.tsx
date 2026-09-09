@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -378,8 +379,8 @@ export default function AdminTimePage() {
         <Header />
 
         {/* Toolbar */}
-        <div className="px-6 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div className="flex items-center gap-3">
+        <div className="pw-workspace pw-admin pw-heading px-6 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="pw-toolbar flex items-center gap-3">
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Time Management</h1>
             <div className="flex items-center gap-1">
               <button onClick={goPrevWeek} className="px-2 py-1 rounded" style={{ border: "1px solid var(--color-border)" }}>
@@ -405,7 +406,7 @@ export default function AdminTimePage() {
         </div>
 
         {/* Tabs */}
-        <div className="px-6 flex gap-1" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="pw-workspace pw-admin pw-tabs px-6 flex gap-1" style={{ borderBottom: "1px solid var(--color-border)" }}>
           {([["timesheet", "Timesheet"], ["approval", "Weekly Approval"], ["requests", `Edit Requests (${editRequests.length})`], ["time-off", "Time Off"]] as const).map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)} className="px-4 py-2.5 text-sm font-semibold transition-colors" style={{
               borderBottom: activeTab === tab ? "2px solid #2563EB" : "2px solid transparent",
@@ -417,13 +418,13 @@ export default function AdminTimePage() {
           ))}
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="pw-workspace pw-admin flex-1 overflow-auto p-6">
           {loading ? (
             <div className="text-center py-8" style={{ color: "var(--color-text-muted)" }}>Loading timesheet...</div>
           ) : activeTab === "timesheet" ? (
             <div className="space-y-6">
               {/* Overtime Summary */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+              <div className="pw-metrics grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
                 {gridData.map((row) => {
                   const hrs = row.weekTotal / 60;
                   const pct = Math.min(100, (hrs / 40) * 100);
@@ -455,8 +456,8 @@ export default function AdminTimePage() {
 
               {/* Weekly Grid */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="pw-table-scroll overflow-x-auto">
+                  <table className="pw-table w-full">
                     <thead>
                       <tr style={{ background: "var(--color-surface-1)" }}>
                         <th className="text-left px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)", minWidth: 140 }}>Tech</th>
@@ -604,8 +605,8 @@ export default function AdminTimePage() {
                 </div>
               </div>
 
-              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-                <table className="w-full">
+              <div className="pw-table-scroll rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                <table className="pw-table w-full">
                   <thead>
                     <tr style={{ background: "var(--color-surface-1)" }}>
                       <th className="text-left px-4 py-3 text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Employee</th>

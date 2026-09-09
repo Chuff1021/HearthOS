@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
@@ -91,7 +92,7 @@ export default function APAgingPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="pw-workspace pw-reports flex-1 overflow-y-auto p-6">
           <div className="max-w-[1400px] mx-auto space-y-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
@@ -106,7 +107,7 @@ export default function APAgingPage() {
             </div>
 
             {data && (
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="pw-metrics grid grid-cols-2 md:grid-cols-6 gap-3">
                 <Tile label="Total owed" value={fmtMoney(data.grandTotal)} accent="var(--color-text-primary)" />
                 <Tile label="Overdue" value={fmtMoney(data.overdueTotal)} accent="#DC2626" />
                 {BUCKET_ORDER.map((b) => (
@@ -121,8 +122,8 @@ export default function APAgingPage() {
               <div className="rounded-xl p-12 text-center text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>No open bills.</div>
             ) : (
               <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+                <div className="pw-table-scroll overflow-x-auto">
+                  <table className="pw-table w-full">
                     <thead>
                       <tr style={{ background: "var(--color-surface-2)" }}>
                         <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Vendor</th>

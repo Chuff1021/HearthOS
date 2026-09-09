@@ -55,7 +55,7 @@ test("primary actions and navigation have explicit keyboard focus support", () =
   let supported = false;
   css.walkRules((rule) => {
     if (rule.selector.includes(".hearth-sidebar") && rule.selector.includes(":focus-visible")) {
-      supported = rule.selector.includes(".ui-btn-primary");
+      supported ||= rule.selector.includes(".ui-btn-primary");
       assert.ok(rule.nodes.some((node) => node.type === "decl" && node.prop === "outline" && node.value.includes("2px")));
     }
   });

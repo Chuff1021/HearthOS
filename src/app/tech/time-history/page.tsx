@@ -150,7 +150,7 @@ export default function TechTimeHistoryPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-32">
+    <div className="pw-workspace pw-tech flex flex-col min-h-screen pb-32">
       <header
         className="sticky top-0 z-10 px-4 pb-4"
         style={{

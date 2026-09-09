@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import PurchaseOrderDetailsButton from "@/components/documents/PurchaseOrderDetailsButton";
+import "../billing-presentation.css";
 
 type Vendor = {
   Id: string;
@@ -713,12 +715,12 @@ export default function PurchaseOrdersPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
+    <div className="billing-page flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="billing-shell flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="billing-surface billing-heading px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Purchase Orders</h1>
             <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
@@ -728,9 +730,9 @@ export default function PurchaseOrdersPage() {
           <button onClick={() => loadAll(estimateId)} className="px-3 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--color-border)" }}>Refresh</button>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="billing-surface billing-main flex-1 overflow-y-auto p-5">
           <div className="max-w-[1900px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start pb-20">
-            <section className="min-w-0 rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <section className="billing-panel min-w-0 rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-start justify-between gap-4" style={{ borderBottom: "1px solid var(--color-border)" }}>
                 <div>
                   <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Purchase Order</div>
@@ -747,7 +749,7 @@ export default function PurchaseOrdersPage() {
                 </div>
                 <div className="xl:text-right">
                   <div className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-muted)" }}>Amount</div>
-                  <div className="text-4xl font-bold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(totals.subtotal)}</div>
+                  <div className="billing-document-amount text-4xl font-bold" style={{ color: "var(--color-text-primary)" }}>{formatMoney(totals.subtotal)}</div>
                   <div className="mt-1 text-xs font-semibold" style={{ color: "#16A34A" }}>{purchaseOrderStatus.toUpperCase()}</div>
                 </div>
               </div>
@@ -764,7 +766,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px_220px] gap-4">
+                <div className="billing-vendor-fields grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px_220px] gap-4">
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
                     <div className="relative">
@@ -860,7 +862,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 )}
 
-                <div className="rounded-xl p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+                <div className="billing-delivery rounded-xl p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                   <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-text-muted)" }}>Last Delivery</div>
                   <div className="text-sm" style={{ color: "var(--color-text-primary)" }}>{lastDelivery || "Not sent yet"}</div>
                 </div>
@@ -939,7 +941,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                <div className="billing-po-fields grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                   <div>
                     <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Purchase Order date</label>
                     <input type="date" value={txnDate} onChange={(event) => setTxnDate(event.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
@@ -973,7 +975,7 @@ export default function PurchaseOrdersPage() {
                     <button onClick={() => addLine()} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>+ Add line</button>
                   </div>
 
-                  <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
+                  <div className="billing-line-scroll rounded-xl overflow-x-auto" style={{ border: "1px solid var(--color-border)" }}>
                     <div className="min-w-[1040px]">
                       <div className="grid grid-cols-[46px_230px_minmax(360px,1fr)_76px_110px_120px_48px] gap-3 px-3 py-2 text-xs font-bold" style={{ background: "var(--color-surface-2)", color: "var(--color-text-muted)" }}>
                         <div>#</div>
@@ -1045,7 +1047,7 @@ export default function PurchaseOrdersPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <div className="w-full max-w-sm space-y-2 text-sm">
+                  <div className="billing-totals w-full max-w-sm space-y-2 text-sm">
                     <div className="flex justify-between" style={{ color: "var(--color-text-muted)" }}>
                       <span>Subtotal</span>
                       <span>{formatMoney(totals.subtotal)}</span>
@@ -1058,20 +1060,20 @@ export default function PurchaseOrdersPage() {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 px-5 py-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between" style={{ background: "var(--color-surface-1)", borderTop: "1px solid var(--color-border)" }}>
+              <div className="billing-actions sticky bottom-0 px-5 py-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between" style={{ background: "var(--color-surface-1)", borderTop: "1px solid var(--color-border)" }}>
                 <button onClick={() => { window.location.href = sourceEstimate ? `/estimates?id=${encodeURIComponent(sourceEstimate.Id)}` : "/estimates"; }} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
                 <div className="flex gap-2 justify-end">
                   <button disabled={saving || loading} onClick={() => createPO(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)", opacity: saving ? 0.7 : 1 }}>
                     {saving ? "Saving..." : "Save"}
                   </button>
-                  <button disabled={saving || loading} onClick={openSendDialog} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
+                  <button disabled={saving || loading} onClick={openSendDialog} className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
                     {saving ? "Saving..." : "Save and send"}
                   </button>
                 </div>
               </div>
             </section>
 
-            <aside className="rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+            <aside className="billing-recent rounded-xl p-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="flex items-center justify-between gap-3 mb-3">
                 <h2 className="font-semibold" style={{ color: "var(--color-text-primary)" }}>Recent POs</h2>
                 <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{purchaseOrders.length}</span>
@@ -1086,7 +1088,7 @@ export default function PurchaseOrdersPage() {
                     <div key={po.Id} className="p-3 rounded-lg" style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{po.DocNumber || `PO ${po.Id}`}</div>
+                          <PurchaseOrderDetailsButton id={po.Id} label={po.DocNumber || `PO ${po.Id}`} />
                           <div className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{po.VendorRef?.name || "Vendor"}</div>
                         </div>
                         <div className="text-right shrink-0">
@@ -1112,7 +1114,7 @@ export default function PurchaseOrdersPage() {
         </main>
 
         {sendDialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="billing-surface billing-modal fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/55" onClick={() => !saving && setSendDialogOpen(false)} />
             <div className="relative w-full max-w-[1500px] max-h-[88vh] rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
               <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
@@ -1169,7 +1171,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 </div>
 
-                <div className="p-5" style={{ background: "#777" }}>
+                <div className="billing-preview-scroll p-5" style={{ background: "#777" }}>
                   <div className="mx-auto bg-white text-black shadow-2xl" style={{ width: "560px", minHeight: "720px", padding: "34px 34px 54px" }}>
                     <div className="font-bold text-sm">AARON&apos;S FIREPLACE CO, LLC</div>
                     <div className="mt-2 text-xs leading-5">
@@ -1234,7 +1236,7 @@ export default function PurchaseOrdersPage() {
                 <button disabled={saving} onClick={() => setSendDialogOpen(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Cancel</button>
                 <div className="flex gap-2">
                   <button disabled={saving} onClick={() => window.print()} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>Print</button>
-                  <button disabled={saving} onClick={() => createPO(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
+                  <button disabled={saving} onClick={() => createPO(true)} className="billing-primary px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#16A34A", opacity: saving ? 0.7 : 1 }}>
                     {saving ? "Sending..." : "Send and close"}
                   </button>
                 </div>

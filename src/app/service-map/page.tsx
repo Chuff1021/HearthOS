@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/production-workspaces.css";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -607,7 +608,7 @@ export default function ServiceMapPage() {
       <Sidebar />
       <div className="liquid-dashboard flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="pw-workspace pw-service-map flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "#ff6a00" }}>
@@ -635,7 +636,7 @@ export default function ServiceMapPage() {
             </div>
           </div>
 
-          <section className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <section className="pw-metrics mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Metric label="Need calls" value={summary?.unscheduledTargets ?? 0} sub="red pins not scheduled" accent={statusColors.unscheduled} />
             <Metric label="Scheduled" value={summary?.scheduledTargets ?? 0} sub="green pins on calendar" accent={statusColors.scheduled} />
             <Metric label="Gas" value={summary?.gas ?? 0} sub="recent service customers" accent={categoryColors.gas} />
@@ -649,14 +650,15 @@ export default function ServiceMapPage() {
             </div>
           )}
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-            <section className="glass-panel rounded-[1.8rem] p-4">
+          <div className="pw-map-layout grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+            <section className="pw-map-panel glass-panel rounded-[1.8rem] p-4">
               <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(filterLabels) as FilterKey[]).map((key) => (
                     <button
                       key={key}
                       onClick={() => setFilter(key)}
+                      aria-pressed={filter === key}
                       className="map-glass-chip rounded-2xl px-3 py-2 text-xs font-semibold transition"
                       style={{
                         color: filter === key ? "#fff" : "var(--color-text-secondary)",
