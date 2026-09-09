@@ -50,7 +50,7 @@
   .billing-surface :is(.text-\[10px\], .text-\[11px\]):not(.billing-preview-scroll *) { font-size: 12px; }
   .billing-surface :is(.rounded-xl, .rounded-2xl) { border-radius: 8px; }
   .billing-surface :is(button, input, select, textarea),
-  .billing-surface :is(button, input, select, textarea):is(.rounded-xl, .rounded-2xl) { border-radius: 6px; }
+  .billing-surface :is(button, input, select, textarea):is(.rounded-xl, .rounded-2xl) { border-radius: 6px !important; }
   .billing-surface :is(.grid, .flex) > :is(div, label) { min-width: 0; }
 
   .billing-surface :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
