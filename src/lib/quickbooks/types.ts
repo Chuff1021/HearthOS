@@ -162,6 +162,7 @@ export interface QBVendor {
 
 export interface QBPayment {
   Id: string;
+  PrivateNote?: string;
   TxnDate: string;
   CustomerRef: {
     value: string;

@@ -2,6 +2,27 @@
 
 ## Current State
 
+### September 9, 2026: Prerelease Customer and Provider Safety
+
+Continuation on `codex/product-quality`: durable customer-create claim/recovery
+in existing audit/customer tables, new customer dialog, schedule status checking,
+PO no-replay and invoice/PO guarded token persistence are implemented and tested.
+No production writes, migrations, sync, charges, auth changes or deployment.
+Encrypted archive restored again in disposable local PostgreSQL; all 64 original
+tables unchanged. Production audit now zero after one transitive lockfile update;
+11 dev-tool findings remain. Payment recording/capture, new marked QB import
+reconciliation and reload-safe manual recording are implemented and independently
+reviewed. No historical financial records were merged or deleted. New card fees
+remain audit-only outside principal allocation; fee-income accounting is not done.
+Final local validation: 533 automated tests, typecheck, lint and optimized build
+passed; six-viewport core browser checks passed. Existing warnings remain.
+Actual authenticated candidate remains unverified: protected Clerk credentials were
+not available through secure CLI download. Browser automation recovered and Clerk
+sign-in is now open for handoff. Preview is synthetic/read-only at
+`http://127.0.0.1:62988/` (PID 89694), not a production candidate. User was asked to
+sign into Clerk; never request keys in chat or bypass auth. See
+`docs/QUALITY_PRERELEASE_2026_09_09.md`. No promotion until the remaining gates pass.
+
 ### September 9, 2026: Isolated Product Quality Candidate
 
 Current work is `/Users/fireplace/HearthOS-product-quality`, branch

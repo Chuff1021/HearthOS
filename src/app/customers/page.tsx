@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowRight, ArrowUp, Plus, RefreshCw, Search } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import CreateCustomerDialog from "@/components/customers/CreateCustomerDialog";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
 import { syncQuickBooksEntity } from "@/lib/quickbooks/browser-sync";
 
@@ -192,6 +193,7 @@ function CustomersListInner() {
                 <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Customers</h1>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <CreateCustomerDialog onCreated={() => setRefresh((value) => value + 1)} />
                 <button
                   onClick={syncCustomers}
                   disabled={syncing}

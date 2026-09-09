@@ -104,6 +104,13 @@ try{
    await page.evaluate(()=>document.fonts.ready);
    await page.waitForTimeout(350);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Page overflow at ${route} ${viewport.width}`);
+   if(route==='/schedule'&&viewport.width>=1024){
+    assert.equal(await page.locator('.grid.sticky').evaluateAll(elements=>elements.length>0&&elements.every(element=>{
+     const canvas=document.createElement('canvas');canvas.width=1;canvas.height=1;
+     const context=canvas.getContext('2d');context.fillStyle=getComputedStyle(element).backgroundColor;
+     context.fillRect(0,0,1,1);return context.getImageData(0,0,1,1).data[3]===255;
+    })),true,'Calendar headers must hide appointments scrolling underneath');
+   }
    if(route==='/schedule'&&viewport.width<1024){
     const agenda=page.getByRole('heading',{name:'This week',exact:true});
     await agenda.waitFor();
@@ -112,6 +119,21 @@ try{
    const file=path.join(output,`${route==='/'?'dashboard':route.slice(1)}-${viewport.width}.png`);
    await page.screenshot({path:file,fullPage:true});screenshots.push(file);
   }
+  await page.goto(base+'/customers');
+  await page.getByRole('button',{name:'New customer',exact:true}).click();
+  const customerDialog=page.getByRole('dialog',{name:'New customer',exact:true});
+  await customerDialog.waitFor();
+  assert.equal(await customerDialog.evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;}),true,'Customer dialog fits viewport');
+  await page.getByLabel('Display name (required)',{exact:true}).fill('QA synthetic customer');
+  await page.getByLabel('Address line 2',{exact:true}).fill('Lot 9');
+  await page.screenshot({path:path.join(output,`customer-create-${viewport.width}.png`)});
+  await customerDialog.getByRole('button',{name:'Create customer',exact:true}).click();
+  await customerDialog.getByRole('button',{name:'Check creation status',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Display name (required)',{exact:true}).isDisabled(),true);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'New customer',exact:true}).click();
+  assert.equal(await page.getByLabel('Address line 2',{exact:true}).inputValue(),'Lot 9');
+  await customerDialog.getByRole('button',{name:'Close new customer',exact:true}).click();
   if(viewport.width>=1024){
    await page.goto(base);
    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();

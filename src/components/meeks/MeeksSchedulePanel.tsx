@@ -858,8 +858,8 @@ function MeeksWeekView({
       )}
       <div className="overflow-auto">
       <div className="min-w-[1180px]">
-        <div className="grid sticky top-0 z-10" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
-          <div className="sticky left-0 z-20" style={{ background: "var(--color-surface-1)" }} />
+        <div className="grid sticky top-0 z-20" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-bg)", borderBottom: "1px solid var(--color-border)" }}>
+          <div className="sticky left-0 z-20" style={{ background: "var(--color-bg)" }} />
           {weekDates.map((date, index) => {
             const iso = isoDate(date);
             const isToday = iso === today;
@@ -1253,7 +1253,7 @@ function MeeksJobModal({
   const techNames = (job.linkedJob?.assignedTechs || job.assignedTechs || []).map((tech) => tech.name).join(", ");
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", boxShadow: "0 26px 90px rgba(15,23,42,0.28)" }} onClick={(event) => event.stopPropagation()}>
+      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", boxShadow: "0 26px 90px rgba(15,23,42,0.28)" }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">

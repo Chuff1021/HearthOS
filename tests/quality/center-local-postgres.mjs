@@ -5,7 +5,8 @@ import path from 'node:path';
 import postgres from 'postgres';
 
 export function centerIsolatedEnvironment() {
-  return { PATH: '/usr/local/bin:/usr/bin:/bin', TMPDIR: '/tmp', LC_ALL: 'C', LANG: 'C', TZ: 'UTC', NODE_ENV: 'test' };
+  return { PATH: '/usr/local/bin:/usr/bin:/bin', TMPDIR: '/tmp', LC_ALL: 'C', LANG: 'C', TZ: 'UTC', NODE_ENV: 'test',
+    ...(process.env.POSTGRES_BIN ? { POSTGRES_BIN: process.env.POSTGRES_BIN } : {}) };
 }
 
 export function centerRun(command, args, options = {}) {
@@ -26,7 +27,9 @@ export async function withCenterPostgres(work) {
   const data = path.join(directory, 'data');
   const passwordFile = path.join(directory, 'password');
   const password = randomBytes(32).toString('hex');
-  const pg = (name, args) => centerRun(`/usr/local/bin/${name}`, args);
+  const bin = process.env.POSTGRES_BIN || '/usr/local/bin';
+  if (!path.isAbsolute(bin)) throw new Error('POSTGRES_BIN must be an absolute tool directory.');
+  const pg = (name, args) => centerRun(path.join(bin, name), args);
   let initialized = false;
   const clients = [];
   try {
@@ -53,7 +56,7 @@ export async function withCenterPostgres(work) {
       for (const client of clients) await client.end({ timeout: 3 });
     } finally {
       // Check status even after a partial startup failure, before removing data.
-      const running = initialized && spawnSync('/usr/local/bin/pg_ctl', ['-D', data, 'status'], {
+      const running = initialized && spawnSync(path.join(bin, 'pg_ctl'), ['-D', data, 'status'], {
         env: centerIsolatedEnvironment(), stdio: 'ignore', timeout: 5_000,
       }).status === 0;
       if (running) pg('pg_ctl', ['-D', data, '-m', 'immediate', '-w', 'stop']);

@@ -28,6 +28,7 @@ import {
 } from '@/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { getOrCreateDefaultOrg } from '@/lib/org';
+import { reconcileMarkedPaymentImports } from '@/lib/invoices/payment-import-reconciliation';
 
 // In-memory sync status (in production, use database)
 let syncStatus: QBSyncStatus = {
@@ -502,10 +503,11 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
 // === Payments ===
 
 export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]): Promise<number> {
+  const { unmarked, reconciled } = await reconcileMarkedPaymentImports(orgId, qbPayments);
   const now = new Date();
   const invMap = await invoiceIdMap(orgId);
 
-  const rows = qbPayments.flatMap((pmt) => {
+  const rows = unmarked.flatMap((pmt) => {
     if (!pmt.Id) return [];
     const out: {
       orgId: string;
@@ -537,9 +539,9 @@ export async function persistPaymentsToDb(orgId: string, qbPayments: QBPayment[]
   // Dedupe within this batch on (qbPaymentId, invoiceId) — same composite that the unique
   // constraint enforces, so PG won't choke on duplicates inside a single INSERT.
   const deduped = dedupeByComposite(rows, (r) => `${r.qbPaymentId}::${r.invoiceId}`);
-  if (deduped.length === 0) return 0;
+  if (deduped.length === 0) return reconciled;
 
-  let written = 0;
+  let written = reconciled;
   for (const part of chunk(deduped, 1000)) {
     try {
       const ret = await db.insert(payments).values(part).onConflictDoUpdate({

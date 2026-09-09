@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { createPaymentGuard, submitPaymentRequest, type PaymentResult } from "@/lib/square/client-payment";
 
 type PaymentStatus = {
   type: "info" | "success" | "error";
@@ -12,7 +13,7 @@ type PaymentStatus = {
 const fmtMoney = (value: number) =>
   `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const CARD_FEE_RATE = 0.035;
+const CARD_FEE_PER_THOUSAND = 35;
 
 function formAmount(value: string) {
   const amount = Number(value);
@@ -26,6 +27,9 @@ export default function CustomerPayPage() {
   const cardRef = useRef<any>(null);
   const achRef = useRef<any>(null);
   const achTransactionIdRef = useRef("");
+  const achTokensRef = useRef(new Set<string>());
+  const submissionRef = useRef(createPaymentGuard());
+  const [submissionLocked, setSubmissionLocked] = useState(false);
   const paymentContextRef = useRef({
     amount: "",
     customerName: "",
@@ -52,8 +56,20 @@ export default function CustomerPayPage() {
   const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
   const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
   const amount = formAmount(form.amount);
-  const cardFee = amount * CARD_FEE_RATE;
-  const cardTotal = amount + cardFee;
+  const amountCents = Math.round(amount * 100);
+  const cardFeeCents = Math.round(amountCents * CARD_FEE_PER_THOUSAND / 1000);
+  const cardFee = cardFeeCents / 100;
+  const cardTotal = (amountCents + cardFeeCents) / 100;
+
+  function showResult(result: PaymentResult, capturedMessage: string) {
+    submissionRef.current.finish(result);
+    setSubmissionLocked(result.kind !== "rejected");
+    setStatus({
+      type: result.kind === "completed" ? "success" : result.kind === "submitted" ? "info" : "error",
+      message: result.kind === "completed" ? capturedMessage : result.message,
+      receiptUrl: result.receiptUrl,
+    });
+  }
 
   useEffect(() => {
     paymentContextRef.current = form;
@@ -72,29 +88,19 @@ export default function CustomerPayPage() {
         ? "https://sandbox.web.squarecdn.com/v1/square.js"
         : "https://web.squarecdn.com/v1/square.js";
 
-    async function createSquarePayment(sourceId: string, methodLabel: string, chargeAmount?: number) {
+    async function createSquarePayment(sourceId: string, methodLabel: string) {
       const context = paymentContextRef.current;
-      const nextAmount = chargeAmount ?? formAmount(context.amount);
-      if (!nextAmount) throw new Error("Enter an amount greater than 0.");
-
-      const res = await fetch("/api/square/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: nextAmount,
-          token: linkToken,
-          sourceId,
-          customerName: context.customerName || "Customer",
-          invoiceNumber: context.invoiceNumber || undefined,
-          buyerEmail: context.buyerEmail || undefined,
-          note: context.invoiceNumber
-            ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
-            : `${methodLabel} payment`,
-        }),
+      return submitPaymentRequest("/api/square/payments", {
+        amount: formAmount(context.amount),
+        token: linkToken,
+        sourceId,
+        customerName: context.customerName || "Customer",
+        invoiceNumber: context.invoiceNumber || undefined,
+        buyerEmail: context.buyerEmail || undefined,
+        note: context.invoiceNumber
+          ? `${methodLabel} payment for invoice ${context.invoiceNumber}`
+          : `${methodLabel} payment`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed to submit ${methodLabel} payment`);
-      return data;
     }
 
     async function mountPayments() {
@@ -116,23 +122,23 @@ export default function CustomerPayPage() {
           transactionId,
         });
         ach.addEventListener("ontokenization", async (event: any) => {
+          if (cancelled) return;
           const { tokenResult, error } = event.detail || {};
-          try {
-            if (error) throw new Error(error.message || "Bank account authorization failed.");
-            if (tokenResult?.status !== "OK" || !tokenResult?.token) {
-              throw new Error("Bank account authorization was not completed.");
+          if (error || tokenResult?.status !== "OK" || !tokenResult?.token) {
+            if (submissionRef.current.authorizationFailed("ach")) {
+              setSubmissionLocked(false);
+              setProcessingAch(false);
+              setStatus({ type: "error", message: error?.message || "Bank account authorization was not completed." });
             }
-      const data = await createSquarePayment(tokenResult.token, "e-check");
-            setStatus({
-              type: "success",
-              message: `E-check payment submitted for ${fmtMoney(formAmount(paymentContextRef.current.amount))}. Bank payments can take a few business days to settle.`,
-              receiptUrl: data.receiptUrl || undefined,
-            });
-          } catch (err) {
-            setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to submit e-check payment." });
-          } finally {
-            setProcessingAch(false);
+            return;
           }
+          if (achTokensRef.current.has(tokenResult.token) || !submissionRef.current.submit("ach")) return;
+          achTokensRef.current.add(tokenResult.token);
+          const result = await createSquarePayment(tokenResult.token, "e-check");
+          if (cancelled) return;
+          if (result.kind === "submitted") result.message += " Bank payments can take a few business days to settle.";
+          showResult(result, `E-check payment completed for ${fmtMoney(formAmount(paymentContextRef.current.amount))}.`);
+          setProcessingAch(false);
         });
         achRef.current = ach;
         setAchReady(true);
@@ -169,51 +175,48 @@ export default function CustomerPayPage() {
   }, [squareAppId, squareLocationId, squareEnv, linkToken]);
 
   async function payByCard() {
+    if (!submissionRef.current.begin("card")) return;
     setStatus(null);
-    if (!amount) return setStatus({ type: "error", message: "Enter an amount greater than 0." });
-    if (!cardRef.current) return setStatus({ type: "error", message: "Card payment form is still loading." });
-
     try {
+      if (!amount) throw new Error("Enter an amount greater than 0.");
+      if (!cardRef.current) throw new Error("Card payment form is still loading.");
+      setSubmissionLocked(true);
       setProcessingCard(true);
       const tokenResult = await cardRef.current.tokenize();
-      if (tokenResult.status !== "OK") throw new Error("Card details are incomplete or invalid.");
-
-      const res = await fetch("/api/square/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: cardTotal,
-          sourceId: tokenResult.token,
-          token: linkToken,
-          customerName: form.customerName || "Customer",
-          invoiceNumber: form.invoiceNumber || undefined,
-          buyerEmail: form.buyerEmail || undefined,
-          note: form.invoiceNumber
-            ? `Card payment for invoice ${form.invoiceNumber}. Invoice amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`
-            : `Card payment. Amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`,
-        }),
+      if (tokenResult.status !== "OK" || !tokenResult.token) throw new Error("Card details are incomplete or invalid.");
+      if (!submissionRef.current.submit("card")) return;
+      const result = await submitPaymentRequest("/api/square/payments", {
+        amount: cardTotal,
+        invoicePrincipal: amount,
+        sourceId: tokenResult.token,
+        token: linkToken,
+        customerName: form.customerName || "Customer",
+        invoiceNumber: form.invoiceNumber || undefined,
+        buyerEmail: form.buyerEmail || undefined,
+        note: form.invoiceNumber
+          ? `Card payment for invoice ${form.invoiceNumber}. Invoice amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`
+          : `Card payment. Amount ${fmtMoney(amount)} plus 3.5% card fee ${fmtMoney(cardFee)}.`,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit card payment");
-      setStatus({
-        type: "success",
-        message: `Card payment captured for ${fmtMoney(cardTotal)}, including a ${fmtMoney(cardFee)} card processing fee.`,
-        receiptUrl: data.receiptUrl || undefined,
-      });
+      showResult(result, `Card payment captured for ${fmtMoney(cardTotal)}, including a ${fmtMoney(cardFee)} card processing fee.`);
     } catch (err) {
-      setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to submit card payment." });
+      if (submissionRef.current.authorizationFailed("card")) {
+        setSubmissionLocked(false);
+        setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to authorize card payment." });
+      }
     } finally {
       setProcessingCard(false);
     }
   }
 
   async function payByBank() {
+    if (!submissionRef.current.begin("ach")) return;
     setStatus(null);
-    if (!amount) return setStatus({ type: "error", message: "Enter an amount greater than 0." });
-    if (!form.accountHolderName.trim()) return setStatus({ type: "error", message: "Enter the account holder name." });
-    if (!achRef.current) return setStatus({ type: "error", message: "Bank payment is still loading." });
-
     try {
+      if (!amount) throw new Error("Enter an amount greater than 0.");
+      if (!form.accountHolderName.trim()) throw new Error("Enter the account holder name.");
+      if (!achRef.current) throw new Error("Bank payment is still loading.");
+      paymentContextRef.current = form;
+      setSubmissionLocked(true);
       setProcessingAch(true);
       window.localStorage.setItem(`hearth-ach-${achTransactionIdRef.current}`, JSON.stringify(paymentContextRef.current));
       await achRef.current.tokenize({
@@ -223,8 +226,11 @@ export default function CustomerPayPage() {
         currency: "USD",
       });
     } catch (err) {
-      setProcessingAch(false);
-      setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to start bank payment." });
+      if (submissionRef.current.authorizationFailed("ach")) {
+        setSubmissionLocked(false);
+        setProcessingAch(false);
+        setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to start bank payment." });
+      }
     }
   }
 
@@ -254,6 +260,7 @@ export default function CustomerPayPage() {
 
           {status && (
             <div
+              role={status.type === "error" ? "alert" : "status"}
               className="rounded-lg px-3 py-2 text-sm"
               style={{
                 background: status.type === "error" ? "rgba(220,38,38,0.08)" : status.type === "success" ? "rgba(22,163,74,0.10)" : "rgba(37,99,235,0.10)",
@@ -274,6 +281,7 @@ export default function CustomerPayPage() {
             <label className="block">
               <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Amount</span>
               <input
+                disabled={submissionLocked}
                 type="number"
                 min={0}
                 step="0.01"
@@ -286,6 +294,7 @@ export default function CustomerPayPage() {
             <label className="block">
               <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Customer email</span>
               <input
+                disabled={submissionLocked}
                 type="email"
                 value={form.buyerEmail}
                 onChange={(event) => setForm((prev) => ({ ...prev, buyerEmail: event.target.value }))}
@@ -310,7 +319,7 @@ export default function CustomerPayPage() {
             </div>
             <button
               onClick={payByCard}
-              disabled={!cardReady || processingCard || !sdkReady}
+              disabled={!cardReady || submissionLocked || !sdkReady}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #f8971f, #eaa23f)" }}
             >
@@ -328,6 +337,7 @@ export default function CustomerPayPage() {
             <label className="block">
               <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>Account holder name</span>
               <input
+                disabled={submissionLocked}
                 type="text"
                 value={form.accountHolderName}
                 onChange={(event) => setForm((prev) => ({ ...prev, accountHolderName: event.target.value }))}
@@ -337,7 +347,7 @@ export default function CustomerPayPage() {
             </label>
             <button
               onClick={payByBank}
-              disabled={!achReady || processingAch || !sdkReady}
+              disabled={!achReady || submissionLocked || !sdkReady}
               className="w-full py-3 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "#16A34A", border: "1px solid rgba(22,163,74,0.35)" }}
             >

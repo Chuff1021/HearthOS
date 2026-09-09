@@ -233,6 +233,7 @@ export default function SchedulePage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [draggedJobId, setDraggedJobId] = useState<string | null>(null);
   const [draggedDuration, setDraggedDuration] = useState<number | null>(null);
@@ -243,7 +244,9 @@ export default function SchedulePage() {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerLookupError, setCustomerLookupError] = useState<string | null>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const creatingCustomerRef = useRef(false);
   const [customerCreationUncertain, setCustomerCreationUncertain] = useState(false);
+  const customerCreationPayload = useRef<Record<string, unknown> | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -508,20 +511,23 @@ export default function SchedulePage() {
     return Object.keys(errs).length === 0;
   }
 
-  async function createCustomerInline() {
-    if (creatingCustomer || customerCreationUncertain) return;
+  async function createCustomerInline(reconcile = false) {
+    if (creatingCustomerRef.current || savingRef.current || (customerCreationUncertain && !reconcile)) return;
     const name = customerQuery.trim() || form.customerName.trim();
-    if (!name) {
+    if (!reconcile && !name) {
       setCustomerLookupError("Enter a customer name first.");
       return;
     }
 
+    creatingCustomerRef.current = true;
     setCreatingCustomer(true);
     setCustomerLookupError(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
     try {
       const [firstName, ...rest] = name.split(" ");
       const lastName = rest.join(" ") || "Customer";
-      const payload = {
+      const newPayload = {
         displayName: name,
         firstName: firstName || "New",
         lastName,
@@ -530,32 +536,47 @@ export default function SchedulePage() {
           : undefined,
         active: true,
       };
+      const payload = reconcile ? customerCreationPayload.current : newPayload;
+      if (!payload) throw new Error("Missing customer creation request");
+      customerCreationPayload.current = payload;
 
       const qbRes = await fetch("/api/quickbooks/customers", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, ...(reconcile ? { action: "reconcile" } : {}) }),
       });
-      if (!qbRes.ok && qbRes.status < 500 && qbRes.status !== 408) {
-        setCustomerLookupError(`Customer creation was rejected (HTTP ${qbRes.status}). No local customer was created.`);
+      const qbData = await qbRes.json();
+      if (!qbRes.ok && qbRes.status < 500 && qbRes.status !== 408 && qbData.code !== "CUSTOMER_CREATE_REVIEW_REQUIRED") {
+        setCustomerLookupError(`Customer creation was rejected (HTTP ${qbRes.status}).`);
         return;
       }
       if (!qbRes.ok) throw new Error("Uncertain customer creation");
-      const qbData = await qbRes.json();
       const created = qbData?.customer;
       if (!created?.id || !created?.displayName) throw new Error("Uncertain customer creation");
       applyCustomer(created);
+      setCustomerCreationUncertain(false);
+      customerCreationPayload.current = null;
       setCustomerLookupError(null);
+      setSaveError(null);
     } catch {
       setCustomerCreationUncertain(true);
       setCustomerLookupError(null);
     } finally {
+      clearTimeout(timeout);
+      creatingCustomerRef.current = false;
       setCreatingCustomer(false);
     }
   }
 
   async function createJob() {
+    if (savingRef.current) return;
+    if (creatingCustomerRef.current || customerCreationUncertain) {
+      setSaveError("Resolve customer creation before saving this job.");
+      return;
+    }
     if (!validateForm()) return;
+    savingRef.current = true;
     setSaving(true);
     setSaveError(null);
     try {
@@ -616,6 +637,7 @@ export default function SchedulePage() {
     } catch {
       setSaveError("Failed to add job. Please try again.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -929,7 +951,7 @@ export default function SchedulePage() {
             /* ─────────── WEEK VIEW ─────────── */
             <div className="min-w-[980px]">
               {/* Day headers */}
-              <div className="grid sticky top-0 z-10" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+              <div className="grid sticky top-0 z-20" style={{ gridTemplateColumns: "70px repeat(7, 1fr)", background: "var(--color-bg)", borderBottom: "1px solid var(--color-border)" }}>
                 <div />
                 {weekDates.map((date, i) => {
                   const iso = isoDate(date);
@@ -1131,13 +1153,15 @@ export default function SchedulePage() {
       {/* ════════════════════ CREATE JOB MODAL ════════════════════ */}
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+          <div className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Add Scheduled Job</h2>
               <button aria-label="Close new job" title="Close new job" onClick={() => setShowCreate(false)} className="p-1 text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="space-y-3">
-              {customerCreationUncertain && <p role="alert" className="text-sm text-red-600">Customer creation outcome is unknown. Check customer records before trying again. No local customer was created.</p>}
+              {customerCreationUncertain && <div role="alert" className="text-sm text-red-600">Customer creation needs review. Do not create another copy.
+                <button type="button" disabled={creatingCustomer} onClick={() => void createCustomerInline(true)} className="ml-2 underline">{creatingCustomer ? "Checking..." : "Check creation status"}</button>
+              </div>}
               {saveError && (
                 <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(255,32,78,0.12)", border: "1px solid rgba(255,32,78,0.35)", color: "#FF204E" }}>
                   {saveError}
@@ -1146,6 +1170,7 @@ export default function SchedulePage() {
               <div>
                 <input
                   aria-label="Customer"
+                  disabled={customerCreationUncertain || creatingCustomer}
                   placeholder="Search customers..."
                   value={selectedCustomer?.name || customerQuery}
                   onChange={(e) => {
@@ -1172,7 +1197,7 @@ export default function SchedulePage() {
                 {!customerLoading && !customerLookupError && !selectedCustomer && customerQuery.trim().length >= 2 && customerResults.length === 0 && (
                   <div className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
                     <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>No matching customer found.</p>
-                    <button type="button" onClick={createCustomerInline} disabled={creatingCustomer || customerCreationUncertain} className="px-2 py-1 rounded text-xs font-semibold disabled:opacity-50" style={{ background: "#C75300", color: "white" }}>
+                    <button type="button" onClick={() => void createCustomerInline()} disabled={creatingCustomer || customerCreationUncertain} className="px-2 py-1 rounded text-xs font-semibold disabled:opacity-50" style={{ background: "#C75300", color: "white" }}>
                       {creatingCustomer ? "Creating..." : "Create Customer"}
                     </button>
                   </div>
@@ -1261,7 +1286,7 @@ export default function SchedulePage() {
                 {formErrors.assignedTechs && <p className="text-xs mt-1" style={{ color: "#FF204E" }}>{formErrors.assignedTechs}</p>}
               </div>
             </div>
-            <button onClick={createJob} disabled={saving} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold" style={{ background: "#C75300" }}>
+            <button onClick={createJob} disabled={saving || creatingCustomer || customerCreationUncertain} className="w-full mt-4 py-2.5 rounded-lg text-white font-semibold disabled:opacity-50" style={{ background: "#C75300" }}>
               {saving ? "Saving..." : "Create Job"}
             </button>
           </div>
@@ -1273,7 +1298,7 @@ export default function SchedulePage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedJob(null)}>
           <div
             className="w-full max-w-lg rounded-2xl max-h-[85vh] overflow-y-auto"
-            style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
+            style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header with color bar */}

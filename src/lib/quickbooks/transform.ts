@@ -16,6 +16,7 @@ export function transformCustomer(qbCustomer: QBCustomer) {
     phone: qbCustomer.PrimaryPhone?.FreeFormNumber,
     address: qbCustomer.BillAddr ? {
       line1: qbCustomer.BillAddr.Line1 || '',
+      line2: qbCustomer.BillAddr.Line2 || '',
       city: qbCustomer.BillAddr.City || '',
       state: qbCustomer.BillAddr.CountrySubDivisionCode || '',
       zip: qbCustomer.BillAddr.PostalCode || '',

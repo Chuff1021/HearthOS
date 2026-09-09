@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
+import { createPaymentGuard, submitPaymentRequest, type PaymentResult } from "@/lib/square/client-payment";
 
 type SquarePayment = {
   id: string;
@@ -52,6 +53,11 @@ export default function TechPaymentsPage() {
   const searchParams = useSearchParams();
   const cardContainerRef = useRef<HTMLDivElement | null>(null);
   const cardInstanceRef = useRef<any>(null);
+  const submissionRef = useRef(createPaymentGuard());
+  const confirmedPaymentsRef = useRef(new Set<string>());
+  const [submissionLocked, setSubmissionLocked] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<PaymentResult | null>(null);
+  const [newPayment, setNewPayment] = useState(false);
   const [payments, setPayments] = useState<SquarePayment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -60,6 +66,7 @@ export default function TechPaymentsPage() {
   const [checkoutUrl, setCheckoutUrl] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [error, setError] = useState("");
+  const [listError, setListError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [form, setForm] = useState({
     amount: "",
@@ -74,6 +81,9 @@ export default function TechPaymentsPage() {
   const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || "";
   const squareEnv = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT || "production";
   const visibleReference = !isOpaqueReference(form.invoiceNumber) ? form.invoiceNumber.trim() : "";
+  const paymentKey = form.invoiceNumber.trim()
+    ? `invoice:${form.invoiceNumber.trim()}`
+    : JSON.stringify([Number(form.amount), form.customerName.trim(), form.buyerEmail.trim(), form.note.trim()]);
 
   useEffect(() => {
     setForm((prev) => ({
@@ -87,12 +97,13 @@ export default function TechPaymentsPage() {
   async function loadPayments() {
     try {
       setLoadingPayments(true);
+      setListError("");
       const res = await fetch("/api/square/transactions?limit=20", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load Square payments");
       setPayments(data.payments || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load Square payments");
+      setListError(err instanceof Error ? err.message : "Failed to load Square payments");
     } finally {
       setLoadingPayments(false);
     }
@@ -162,37 +173,65 @@ export default function TechPaymentsPage() {
     [payments]
   );
 
+  function finishSubmission(result: PaymentResult) {
+    submissionRef.current.finish(result);
+    setSubmissionLocked(result.kind !== "rejected");
+    setSubmissionResult(result);
+    setReceiptUrl(result.receiptUrl || "");
+    setSuccessMessage(result.kind === "completed" ? result.message : "");
+    if (result.kind === "completed" || result.kind === "checkout") {
+      confirmedPaymentsRef.current.add(paymentKey);
+    }
+  }
+
+  function startNewPayment() {
+    if (!submissionRef.current.resetConfirmed()) return;
+    setForm({ amount: "", customerName: "", invoiceNumber: "", buyerEmail: "", buyerPhone: "", note: "" });
+    setSubmissionResult(null);
+    setSubmissionLocked(false);
+    setCheckoutUrl("");
+    setReceiptUrl("");
+    setSuccessMessage("");
+    setError("");
+    setNewPayment(true);
+  }
+
   async function createCheckout() {
+    if (!submissionRef.current.begin("checkout")) return;
     setError("");
     setCheckoutUrl("");
     setReceiptUrl("");
     setSuccessMessage("");
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
+      submissionRef.current.authorizationFailed("checkout");
       setError("Enter an amount greater than 0.");
+      return;
+    }
+    if (confirmedPaymentsRef.current.has(paymentKey)) {
+      submissionRef.current.authorizationFailed("checkout");
+      setError("This payment already has a confirmed result. Check payment status with the office before collecting again.");
       return;
     }
 
     try {
       setCreating(true);
-      const res = await fetch("/api/square/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          customerName: form.customerName || "Customer",
-          invoiceNumber: form.invoiceNumber || undefined,
-          buyerEmail: form.buyerEmail || undefined,
-          note: form.note || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || "Failed to create Square checkout link");
+      setSubmissionLocked(true);
+      setSubmissionResult(null);
+      if (!submissionRef.current.submit("checkout")) return;
+      const result = await submitPaymentRequest("/api/square/checkout", {
+        amount,
+        customerName: form.customerName || "Customer",
+        invoiceNumber: form.invoiceNumber || undefined,
+        buyerEmail: form.buyerEmail || undefined,
+        note: form.note || undefined,
+      }, true);
+      finishSubmission(result);
+      if (result.kind === "checkout" && result.url) {
+        setCheckoutUrl(result.url);
+        window.open(result.url, "_blank", "noopener,noreferrer");
+        void loadPayments();
       }
-      setCheckoutUrl(data.url);
-      window.open(data.url, "_blank", "noopener,noreferrer");
-      await loadPayments();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create Square checkout link");
     } finally {
@@ -201,46 +240,51 @@ export default function TechPaymentsPage() {
   }
 
   async function chargeCard() {
+    if (!submissionRef.current.begin("card")) return;
     setError("");
     setCheckoutUrl("");
     setReceiptUrl("");
     setSuccessMessage("");
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
+      submissionRef.current.authorizationFailed("card");
       setError("Enter an amount greater than 0.");
       return;
     }
     if (!cardInstanceRef.current) {
+      submissionRef.current.authorizationFailed("card");
       setError("Square card form is not ready yet.");
+      return;
+    }
+    if (confirmedPaymentsRef.current.has(paymentKey)) {
+      submissionRef.current.authorizationFailed("card");
+      setError("This payment already has a confirmed result. Check payment status with the office before collecting again.");
       return;
     }
     try {
       setChargingCard(true);
+      setSubmissionLocked(true);
+      setSubmissionResult(null);
       const tokenResult = await cardInstanceRef.current.tokenize();
-      if (tokenResult.status !== "OK") {
+      if (tokenResult.status !== "OK" || !tokenResult.token) {
         throw new Error("Card details are incomplete or invalid.");
       }
-      const res = await fetch("/api/square/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          sourceId: tokenResult.token,
-          customerName: form.customerName || "Customer",
-          invoiceNumber: form.invoiceNumber || undefined,
-          buyerEmail: form.buyerEmail || undefined,
-          note: form.note || undefined,
-        }),
+      if (!submissionRef.current.submit("card")) return;
+      const result = await submitPaymentRequest("/api/square/payments", {
+        amount,
+        sourceId: tokenResult.token,
+        customerName: form.customerName || "Customer",
+        invoiceNumber: form.invoiceNumber || undefined,
+        buyerEmail: form.buyerEmail || undefined,
+        note: form.note || undefined,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to charge card");
-      }
-      setReceiptUrl(data.receiptUrl || "");
-      setSuccessMessage("Square payment captured.");
-      await loadPayments();
+      finishSubmission(result);
+      if (result.kind === "completed" || result.kind === "submitted") void loadPayments();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to charge card");
+      if (submissionRef.current.authorizationFailed("card")) {
+        setSubmissionLocked(false);
+        setError(err instanceof Error ? err.message : "Failed to authorize card");
+      }
     } finally {
       setChargingCard(false);
     }
@@ -307,7 +351,7 @@ export default function TechPaymentsPage() {
 
       <div className="p-4 space-y-4">
         {error ? (
-          <div className="px-3 py-2 rounded-xl text-sm" style={{ background: "rgba(255,68,0,0.10)", border: "1px solid rgba(255,68,0,0.22)", color: "#C2410C" }}>
+          <div role="alert" className="px-3 py-2 rounded-xl text-sm" style={{ background: "rgba(255,68,0,0.10)", border: "1px solid rgba(255,68,0,0.22)", color: "#C2410C" }}>
             {error}
           </div>
         ) : null}
@@ -331,6 +375,7 @@ export default function TechPaymentsPage() {
             </div>
           </div>
           <input
+            disabled={submissionLocked}
             type="number"
             min="0"
             step="0.01"
@@ -341,6 +386,7 @@ export default function TechPaymentsPage() {
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
           <input
+            disabled={submissionLocked}
             type="text"
             placeholder="Customer name"
             value={form.customerName}
@@ -348,7 +394,17 @@ export default function TechPaymentsPage() {
             className="w-full px-3 py-3 rounded-xl"
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
-          {visibleReference ? (
+          {newPayment ? (
+            <input
+              aria-label="Invoice number"
+              placeholder="Invoice number (optional)"
+              value={form.invoiceNumber}
+              disabled={submissionLocked}
+              onChange={(e) => setForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))}
+              className="w-full px-3 py-3 rounded-xl"
+              style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
+            />
+          ) : visibleReference ? (
             <div
               className="px-3 py-3 rounded-xl text-sm"
               style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}
@@ -357,6 +413,7 @@ export default function TechPaymentsPage() {
             </div>
           ) : null}
           <input
+            disabled={submissionLocked}
             type="email"
             placeholder="Customer email"
             value={form.buyerEmail}
@@ -365,6 +422,7 @@ export default function TechPaymentsPage() {
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
           <input
+            disabled={submissionLocked}
             type="tel"
             placeholder="Customer mobile"
             value={form.buyerPhone}
@@ -373,6 +431,7 @@ export default function TechPaymentsPage() {
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
           <textarea
+            disabled={submissionLocked}
             placeholder="Note"
             value={form.note}
             onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
@@ -388,7 +447,7 @@ export default function TechPaymentsPage() {
             <div ref={cardContainerRef} className="min-h-[96px] rounded-xl p-3" style={{ background: "#fff" }} />
             <button
               onClick={chargeCard}
-              disabled={chargingCard || !squareReady}
+              disabled={submissionLocked || !squareReady}
               className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-60"
               style={{ background: "#C2410C", color: "#fff" }}
             >
@@ -398,7 +457,7 @@ export default function TechPaymentsPage() {
 
           <button
             onClick={createCheckout}
-            disabled={creating}
+            disabled={submissionLocked}
             className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-60"
             style={{ background: "linear-gradient(135deg, #FF6A00, #F59E0B)", color: "#fff" }}
           >
@@ -406,9 +465,29 @@ export default function TechPaymentsPage() {
           </button>
 
           {successMessage ? (
-            <div className="rounded-2xl p-4 text-sm" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.22)", color: "#15803D" }}>
+            <div role="status" className="rounded-2xl p-4 text-sm" style={{ background: "rgba(22,163,74,0.10)", border: "1px solid rgba(22,163,74,0.22)", color: "#15803D" }}>
               {successMessage}
             </div>
+          ) : null}
+
+          {submissionResult && submissionResult.kind !== "completed" ? (
+            <div role={submissionResult.kind === "unknown" || submissionResult.kind === "rejected" ? "alert" : "status"}
+              className="rounded-xl p-4 text-sm" style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}>
+              {submissionResult.message}
+            </div>
+          ) : null}
+
+          {submissionResult?.accountingWarning ? (
+            <div role="status" className="rounded-xl p-4 text-sm" style={{ background: "rgba(255,106,0,0.12)", color: "#C2410C" }}>
+              {submissionResult.accountingWarning}
+            </div>
+          ) : null}
+
+          {submissionResult?.kind === "completed" || submissionResult?.kind === "checkout" ? (
+            <button onClick={startNewPayment} className="w-full py-3 rounded-xl text-sm font-semibold"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+              New payment for another invoice
+            </button>
           ) : null}
 
           {checkoutUrl ? (
@@ -460,6 +539,7 @@ export default function TechPaymentsPage() {
             </div>
           </div>
 
+          {listError ? <div role="alert" className="text-sm" style={{ color: "#C2410C" }}>{listError}</div> : null}
           {loadingPayments ? (
             <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>Loading Square payments...</div>
           ) : payments.length === 0 ? (

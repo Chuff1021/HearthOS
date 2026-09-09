@@ -1,105 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { recordInvoicePayment } from '@/lib/invoices/record-payment';
-import { upsertSquarePayment, upsertSquarePaymentByOrderId } from '@/lib/square-payment-store';
+import { listSquarePayments, upsertSquarePayment, upsertSquarePaymentByOrderId } from '@/lib/square-payment-store';
+import { CaptureError, getCaptureIntent, observeCapture, projectLegacySquarePayment, resolveSquareInvoice, settleCapture,
+  squareOrganization, squarePaymentMethod, validateSquarePayment } from '@/lib/invoices/square-capture-intent';
 
-const SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
-const WEBHOOK_URL = process.env.SQUARE_WEBHOOK_URL;
-
-function verifySignature(body: string, signatureHeader: string | null) {
-  if (!SIGNATURE_KEY || !WEBHOOK_URL) return false;
-  if (!signatureHeader) return false;
-
-  const digest = crypto
-    .createHmac('sha256', SIGNATURE_KEY)
-    .update(WEBHOOK_URL + body)
-    .digest('base64');
-
-  const a = Buffer.from(digest);
-  const b = Buffer.from(signatureHeader);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
-function paymentMethodFromSquare(sourceType: string | undefined) {
-  const source = String(sourceType || '').toUpperCase();
-  if (source.includes('BANK')) return 'ach';
-  if (source.includes('CARD')) return 'credit_card';
-  return source.toLowerCase() || 'square';
+function verifySignature(body: string, signature: string | null) {
+  const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  const url = process.env.SQUARE_WEBHOOK_URL;
+  const environment = process.env.SQUARE_ENVIRONMENT || 'production';
+  if (!key || !url || !process.env.SQUARE_LOCATION_ID || !['production', 'sandbox'].includes(environment) || !signature) return false;
+  const expected = Buffer.from(createHmac('sha256', key).update(url + body).digest('base64'));
+  const actual = Buffer.from(signature);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const signature = request.headers.get('x-square-hmacsha256-signature');
-
-    if (!verifySignature(body, signature)) {
+    if (!verifySignature(body, request.headers.get('x-square-hmacsha256-signature'))) {
       return NextResponse.json({ error: 'Invalid Square webhook signature' }, { status: 401 });
     }
-
-    const payload = JSON.parse(body);
-    const eventType = payload?.type as string | undefined;
-    const payment = payload?.data?.object?.payment;
-
-    if (!payment?.id) {
+    let payload;
+    try { payload = JSON.parse(body); } catch { return NextResponse.json({ error: 'Invalid webhook.' }, { status: 400 }); }
+    if (typeof payload?.type !== 'string' || !payload.type.startsWith('payment.')) {
       return NextResponse.json({ ok: true, ignored: true });
     }
+    const payment = validateSquarePayment(payload?.data?.object?.payment, process.env.SQUARE_LOCATION_ID!);
+    if (!payment) return NextResponse.json({ error: 'Invalid Square payment.' }, { status: 400 });
 
-    if (eventType?.startsWith('payment.') || eventType?.startsWith('refund.')) {
-      const amount = Number(payment?.amount_money?.amount || 0) / 100;
-      const status = String(payment?.status || 'UNKNOWN');
-      const sourceType = payment?.source_type;
-      const invoiceNumber = payment?.reference_id ? String(payment.reference_id) : undefined;
-      const updatedAt = payment?.updated_at || new Date().toISOString();
-      const createdAt = payment?.created_at || updatedAt;
-
-      const patch = {
-        id: payment.id,
-        status,
-        amount,
-        currency: payment?.amount_money?.currency || 'USD',
-        customerName:
-          payment?.buyer_email_address ||
-          payment?.card_details?.card?.cardholder_name ||
-          'Square Customer',
-        invoiceNumber,
-        sourceType,
-        orderId: payment?.order_id,
-        receiptUrl: payment?.receipt_url,
-        createdAt,
-        updatedAt,
-        raw: payload,
-      };
-
-      if (payment?.order_id) {
-        upsertSquarePaymentByOrderId(payment.order_id, patch);
-      } else {
-        upsertSquarePayment(patch);
-      }
-
-      if (invoiceNumber && status.toUpperCase() === 'COMPLETED') {
-        await recordInvoicePayment({
-          invoiceNumber,
-          amount,
-          paymentMethod: paymentMethodFromSquare(sourceType),
-          transactionId: payment.id,
-          paidAt: new Date(createdAt),
-          notes: [
-            `Square ${sourceType || 'payment'} webhook ${payment.id}`.trim(),
-            `Status: ${status}`,
-            payment?.receipt_url ? `Receipt: ${payment.receipt_url}` : undefined,
-            payment?.buyer_email_address ? `Buyer email: ${payment.buyer_email_address}` : undefined,
-          ].filter(Boolean).join('\n'),
-        });
-      }
+    // No database or file-store access occurs before signature and payment validation.
+    const orgId = await squareOrganization();
+    const intent = payment.reference_id?.startsWith('hos_') ? await getCaptureIntent(orgId, payment.reference_id) : null;
+    if (intent && !validateSquarePayment(payment, process.env.SQUARE_LOCATION_ID!, intent)) {
+      return NextResponse.json({ error: 'Payment does not match its capture intent.' }, { status: 409 });
     }
-
+    const previous = listSquarePayments().find(row => row.id === payment.id
+      || (!intent && payment.order_id && row.orderId === payment.order_id));
+    const reference = intent ? undefined : payment.reference_id || previous?.invoiceNumber;
+    const invoice = intent?.invoiceId ? { id: intent.invoiceId, invoiceNumber: intent.invoiceNumber ?? undefined }
+      : reference ? await resolveSquareInvoice(orgId, reference) : null;
+    const project = () => {
+      const current = listSquarePayments().find(row => row.id === payment.id
+        || (!intent && payment.order_id && row.orderId === payment.order_id));
+      if (current?.status === 'COMPLETED' && payment.status !== 'COMPLETED') return;
+      const patch = { id: payment.id, status: payment.status, amount: payment.amount_money.amount / 100,
+        currency: payment.amount_money.currency, invoiceNumber: invoice?.invoiceNumber,
+        sourceType: payment.source_type, orderId: payment.order_id, receiptUrl: payment.receipt_url,
+        createdAt: payment.created_at || current?.createdAt || new Date().toISOString(),
+        updatedAt: payment.updated_at || new Date().toISOString() };
+      if (!intent && payment.order_id) upsertSquarePaymentByOrderId(payment.order_id, patch);
+      else upsertSquarePayment(patch);
+    };
+    const confirmed = intent ? (await observeCapture(intent, payment, project)) === 'confirmed' : payment.status === 'COMPLETED';
+    if (!intent) await projectLegacySquarePayment(orgId, project);
+    if (confirmed) {
+      const invoicePayment = invoice ? await recordInvoicePayment({ orgId, invoiceId: invoice.id,
+        amount: (intent?.principalCents ?? payment.amount_money.amount) / 100, paymentMethod: squarePaymentMethod(payment.source_type),
+        transactionId: payment.id, paidAt: payment.created_at ? new Date(payment.created_at) : undefined,
+        notes: `Square payment ${payment.id}` }) : undefined;
+      if (invoice && !invoicePayment?.recorded) return NextResponse.json({ error: 'Payment recording needs review.' }, { status: 409 });
+      if (intent) await settleCapture(intent, payment, invoicePayment);
+    }
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Webhook processing failed' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return NextResponse.json({ error: 'Webhook processing needs review.' }, { status: error instanceof CaptureError ? error.status : 503 });
   }
 }
 

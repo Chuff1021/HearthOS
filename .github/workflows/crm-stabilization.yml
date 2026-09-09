@@ -3,7 +3,7 @@ name: CRM stabilization checks
 on:
   pull_request:
   push:
-    branches: [main, codex/aarons-crm-stabilization]
+    branches: [main, codex/aarons-crm-stabilization, codex/product-quality]
 
 permissions:
   contents: read
@@ -14,13 +14,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run test:security
+      - run: npm run test:quality
+      - name: Locate PostgreSQL for disposable fixture databases
+        run: printf 'POSTGRES_BIN=%s\n' "$(pg_config --bindir)" >> "$GITHUB_ENV"
+      - run: npm run test:customer-persistence
+      - run: npm run test:payment-persistence
       - run: npm run typecheck
       - run: npm run lint
       - run: npm audit --omit=dev
-      - run: npm run build
+      - run: node scripts/quality-build.mjs

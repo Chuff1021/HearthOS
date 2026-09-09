@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { build } from 'esbuild';
 
@@ -38,6 +37,7 @@ async function harness(initialQuery = '') {
     'lucide-react': 'const icon = () => null; export {icon as ArrowDown, icon as ArrowRight, icon as ArrowUp, icon as Plus, icon as RefreshCw, icon as Search};',
     '@/components/layout/Sidebar': 'export default () => null;',
     '@/components/layout/Header': 'export default () => null;',
+    '@/components/customers/CreateCustomerDialog': 'export default props => fixture.jsx("button", {children: "New customer", onClick: props.onCreated});',
     '@/lib/avatar': 'export const colorFromName = () => "#555"; export const initialsFromName = () => "T";',
     '@/lib/quickbooks/browser-sync': 'export const syncQuickBooksEntity = async () => { throw new Error("Provider calls forbidden in offline tests"); };',
   };
@@ -222,14 +222,16 @@ test('malformed refresh preserves data and sorting is keyboard-operable', async 
   h.unmount();
 });
 
-test('unsupported creation control is removed: existing contracts cannot safely create a center record', async () => {
+test('confirmed customer dialog completion refreshes the database-backed list', async () => {
   const h = await harness();
   const tree = h.render();
-  assert.ok(!nodes(tree).some(node => node.type === 'button' && /New customer/.test(content(node))));
-  const legacy = readFileSync('src/lib/data-store.ts', 'utf8');
-  const qb = readFileSync('src/app/api/quickbooks/customers/route.ts', 'utf8');
-  assert.match(legacy, /id: `cust-/);
-  assert.equal((qb.match(/await createCustomerInQuickBooks\(client, qbCustomer\)/g) || []).length, 2);
+  assert.equal(h.requests.length, 1);
+  const create = nodes(tree).find(node => node.type === 'button' && /New customer/.test(content(node)));
+  assert.ok(create);
+  create.props.onClick();
+  h.render();
+  assert.equal(h.requests.length, 2);
+  assert.match(h.requests[1].url, /^\/api\/customers\/center/);
   h.unmount();
 });
 

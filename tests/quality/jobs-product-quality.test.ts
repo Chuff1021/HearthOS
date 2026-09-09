@@ -111,6 +111,50 @@ test("late related-context responses cannot replace a newer selected job", async
   } finally { h.unmount(); }
 });
 
+test("schedule blocks job save during customer review and reconciles the retained payload after reopening with an empty draft", async () => {
+  const h = await pageHarness("schedule", "create=1&title=Keep%20title&address=Keep%20address", (url, init) => {
+    if (init.method === "POST") {
+      assert.equal(url, "/api/quickbooks/customers");
+      const payload = JSON.parse(String(init.body));
+      return payload.action === "reconcile"
+        ? json({ success: true, customer: { id: "123", displayName: "New Test Customer", address: { line1: "Keep address" } } })
+        : json({}, 503);
+    }
+    return defaults(url);
+  });
+  try {
+    await h.settle(); await h.change("input", "Customer", "New Test Customer");
+    await new Promise(resolve => setTimeout(resolve, 280)); await h.settle();
+    await h.click("Create Customer");
+    const initial = JSON.parse(String(h.calls.find(call => call.init.method === "POST")!.init.body));
+    assert.equal(h.find("button", "Create Job").props.disabled, true);
+    await h.click("Create Job");
+    assert.equal(h.calls.some(call => call.url === "/api/jobs" && call.init.method === "POST"), false);
+    // Recovery must use the immutable request, not mutable or reset form fields.
+    await h.change("input", "Customer", "");
+    await h.click("Close new job"); await h.click("+ New Job");
+    await h.click("Check creation status");
+    const recovery = h.calls.filter(call => call.init.method === "POST").at(-1)!;
+    assert.deepEqual(JSON.parse(String(recovery.init.body)), { ...initial, action: "reconcile" });
+    assert.doesNotMatch(h.text(), /creation needs review/);
+    assert.equal(h.find("button", "Create Job").props.disabled, false);
+  } finally { h.unmount(); }
+});
+
+test("schedule job submission is synchronously single-flight", async () => {
+  const pending = deferred();
+  const h = await pageHarness("schedule", "create=1&customerId=c1&customerName=Test&address=10%20Main&title=Test%20visit", (url, init) => init.method === "POST" ? pending.promise : defaults(url));
+  try {
+    await h.settle();
+    const submit = h.find("button", "Create Job").props.onClick;
+    const first = submit();
+    await submit();
+    assert.equal(h.calls.filter(call => call.init.method === "POST").length, 1);
+    pending.resolve(json({}, 503)); await first; await h.settle();
+    assert.equal(h.find("button", "Create Job").props.disabled, false);
+  } finally { h.unmount(); }
+});
+
 for (const page of ["jobs", "schedule"] as const) {
   test(`${page} create retains customer prefill, legacy type, and form on HTTP failure`, async () => {
     const h = await pageHarness(page, "create=1&customerId=c1&customerName=Test&address=10%20Main%20Suite%202&title=Prefilled&jobType=legacy-type", (url, init) => init.method === "POST" ? json({}, 503) : defaults(url));
@@ -172,10 +216,14 @@ for (const outcome of ["network", "503", "malformed-success", "401"]) {
       assert.equal(h.find("input", "Job title").props.value, "Keep title");
       assert.equal(h.find("input", "Property address").props.value, "Keep address");
       if (outcome !== "401") {
-        assert.match(h.text(), /outcome is unknown/);
+        assert.match(h.text(), /creation needs review/);
         await h.change("input", "Customer", "Another search");
-        assert.match(h.text(), /outcome is unknown/);
+        assert.match(h.text(), /creation needs review/);
         assert.equal(h.find("button", "Create Customer").props.disabled, true);
+        const initial = JSON.parse(String(h.calls.find(call => call.init.method === "POST")!.init.body));
+        await h.click("Check creation status");
+        const recovery = h.calls.filter(call => call.init.method === "POST").at(-1)!;
+        assert.deepEqual(JSON.parse(String(recovery.init.body)), { ...initial, action: "reconcile" });
       } else assert.match(h.text(), /rejected \(HTTP 401\)/);
     } finally { h.unmount(); }
   });
