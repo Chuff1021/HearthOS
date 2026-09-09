@@ -168,3 +168,20 @@ synthetic and is not a production candidate.
 This final checkpoint supersedes the intermediate customer/wrapper counts above
 and the historical implementation-status appendix in the release-risk report.
 It does not supersede the remaining promotion gates.
+
+## Signed-in Clerk Inspection
+
+After the owner signed into Clerk, read-only dashboard inspection confirmed one
+HearthOS application with no production environment. Its development instance
+contains existing Aaron staff, Meeks and demo identities. The public live
+`https://hearth-os.vercel.app/sign-in` returned HTTP 200 and referenced the same
+`pro-stallion-84.clerk.accounts.dev` frontend host. This establishes that the
+existing development instance is a live dependency, not an isolated test target.
+
+No keys were revealed, users changed, sessions impersonated, or configuration
+modified. A separate test application and its credentials require owner approval
+before creation. The authenticated candidate still needs isolated data/provider
+configuration and actual role acceptance; dashboard sign-in does not satisfy it.
+Moving live authentication to a Clerk production instance is a separate planned
+identity migration, preserving existing access mappings and rollback, not a
+"Go to prod" action to perform during this quality test.

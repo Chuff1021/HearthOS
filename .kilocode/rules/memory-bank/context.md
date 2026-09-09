@@ -2,6 +2,17 @@
 
 ## Current State
 
+### September 9, 2026: Clerk Dashboard Access Confirmed
+
+Owner signed into Clerk. Read-only inspection found the HearthOS development
+instance also serves live Aaron sign-in: public live sign-in references the same
+`pro-stallion-84.clerk.accounts.dev` host. Existing staff, Meeks and demo identities
+share this instance; dashboard reports no production environment. Do not treat it
+as disposable or click Go to prod as part of acceptance. No credentials revealed,
+identity/configuration changes, or deployment performed. Separate test Clerk app
+creation needs owner confirmation; isolated authenticated runtime is still pending.
+Production-auth migration remains separate from the bounded quality release.
+
 ### September 9, 2026: Prerelease Customer and Provider Safety
 
 Continuation on `codex/product-quality`: durable customer-create claim/recovery
