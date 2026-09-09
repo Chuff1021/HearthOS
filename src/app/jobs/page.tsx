@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Brush, ClipboardList, Hammer, RefreshCw, RotateCcw, Search, SlidersHorizontal, Wrench, Zap } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import TimeSelect from "@/components/scheduling/TimeSelect";
+import JobTypeOptions from "@/components/job-form/JobTypeOptions";
+import CustomJobTypeInput from "@/components/job-form/CustomJobTypeInput";
+import { customerAddress, fetchJobArray, localDateValue, requireJobResponse, resolveJobType, scheduledDateLabel, scheduledTimeLabel } from "@/components/job-form/job-form-helpers";
+import { useJobFormResource } from "@/components/job-form/useJobFormResource";
 
 type Job = {
   id: string;
@@ -104,14 +109,23 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
   urgent: { bg: "rgba(255,32,78,0.12)", text: "#FF204E" },
 };
 
-const jobTypeIcons: Record<string, string> = {
-  installation: "🔧",
-  service: "🛠️",
-  inspection: "🔍",
-  cleaning: "🧹",
-  repair: "⚡",
-  estimate: "📋",
+const jobTypeIcons: Record<string, typeof Wrench> = {
+  installation: Hammer,
+  service: Wrench,
+  "wood-service": Wrench,
+  "pellet-service": Wrench,
+  inspection: Search,
+  cleaning: Brush,
+  repair: Zap,
+  estimate: ClipboardList,
+  "follow-up": RotateCcw,
+  custom: SlidersHorizontal,
 };
+
+function renderJobTypeIcon(jobType: string) {
+  const Icon = jobTypeIcons[jobType] || ClipboardList;
+  return <Icon size={18} aria-hidden="true" />;
+}
 
 function addMinutes(time: string, minutesToAdd: number) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -130,13 +144,7 @@ function buildPrefillTitle(prefillTitle: string | null, customerName: string | n
 }
 
 function formatTimeLabel(value: string) {
-  const [hoursRaw, minutesRaw] = value.split(":");
-  const hours = Number(hoursRaw);
-  const minutes = Number(minutesRaw || 0);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return value;
-  const suffix = hours >= 12 ? "PM" : "AM";
-  const normalizedHours = hours % 12 || 12;
-  return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+  return scheduledTimeLabel(value);
 }
 
 function checklistTemplateForJobType(jobType: string) {
@@ -166,8 +174,21 @@ function checklistTemplateForJobType(jobType: string) {
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [techs, setTechs] = useState<Tech[]>([]);
+  const jobResource = useJobFormResource<Job>("/api/jobs?limit=1000", "jobs");
+  const techResource = useJobFormResource<Tech>("/api/techs?activeOnly=true", "techs");
+  const { data: jobs, setData: setJobs, reload: loadJobs } = jobResource;
+  const techs = techResource.data;
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [openingJob, setOpeningJob] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [openRetry, setOpenRetry] = useState(0);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextRetry, setContextRetry] = useState(0);
+  const [contextJobId, setContextJobId] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewRetry, setPreviewRetry] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [jobsTab, setJobsTab] = useState<"active" | "completed">("active");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -178,6 +199,7 @@ export default function JobsPage() {
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; address?: string } | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const selectedJobIdRef = useRef<string | null>(null);
   const [jobContext, setJobContext] = useState<{
     localInvoices: RelatedDoc[];
     quickbooksInvoices: RelatedDoc[];
@@ -192,6 +214,7 @@ export default function JobsPage() {
     title: "",
     propertyAddress: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
     scheduledDate: "",
     scheduledTimeStart: "09:00",
@@ -206,30 +229,34 @@ export default function JobsPage() {
     title: "",
     propertyAddress: "",
     jobType: "service",
+    customJobType: "",
     priority: "normal",
-    scheduledDate: new Date().toISOString().split("T")[0],
+    scheduledDate: localDateValue(),
     scheduledTimeStart: "09:00",
     scheduledTimeEnd: "10:00",
     notes: "",
     assignedTechs: [] as string[],
   });
 
-  async function loadJobs() {
-    const res = await fetch("/api/jobs?limit=1000");
-    const data = await res.json();
-    setJobs(data.jobs || []);
-  }
-
-  async function loadTechs() {
-    const res = await fetch("/api/techs?activeOnly=true");
-    const data = await res.json();
-    setTechs((data.techs || []).map((t: any) => ({ id: t.id, name: t.name, color: t.color || "#2563EB" })));
-  }
-
+  const requestedJobId = searchParams.get("id") || searchParams.get("highlight");
   useEffect(() => {
-    loadJobs();
-    loadTechs();
-  }, []);
+    const controller = new AbortController();
+    setOpenError(null);
+    setOpeningJob(Boolean(requestedJobId));
+    if (!requestedJobId) return;
+    setSelectedJob(null);
+    void fetchJobArray<Job>(`/api/jobs?id=${encodeURIComponent(requestedJobId)}`, "jobs", controller.signal)
+      .then((records) => {
+        if (controller.signal.aborted) return;
+        const exactJob = records.find((job) => job.id === requestedJobId);
+        if (!exactJob) throw new Error("This job was not found or is no longer available to you.");
+        setSelectedJob(exactJob);
+        setJobsTab(["completed", "cancelled"].includes(exactJob.status) ? "completed" : "active");
+      })
+      .catch((error) => { if (!controller.signal.aborted) setOpenError(error.message || "Could not open this job."); })
+      .finally(() => { if (!controller.signal.aborted) setOpeningJob(false); });
+    return () => controller.abort();
+  }, [requestedJobId, openRetry]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -249,7 +276,7 @@ export default function JobsPage() {
       setCustomerResults((data.customers || []).map((c: any) => ({
         id: c.id,
         name: c.displayName,
-        address: c.address ? [c.address.line1, [c.address.city, c.address.state].filter(Boolean).join(", "), c.address.zip].filter(Boolean).join(" ").trim() : "",
+        address: customerAddress(c.address),
       })));
       } catch {
         if (!controller.signal.aborted) {
@@ -289,26 +316,43 @@ export default function JobsPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!selectedJob) return;
-    const nextSelectedJob = jobs.find((job) => job.id === selectedJob.id) || null;
-    setSelectedJob(nextSelectedJob);
-  }, [jobs, selectedJob]);
+    selectedJobIdRef.current = selectedJob?.id || null;
+  }, [selectedJob?.id]);
 
   useEffect(() => {
-    if (!selectedJob) {
-      setJobContext(null);
-      setSelectedRelatedDocument(null);
-      setRelatedDocumentPreview(null);
-      return;
-    }
-    fetch(`/api/jobs/context?id=${encodeURIComponent(selectedJob.id)}`)
+    // An edit session owns its draft until Save or Cancel, including during refreshes.
+    if (editingJob || savingEdit) return;
+    setSelectedJob((current) => current ? jobs.find((job) => job.id === current.id) || current : null);
+  }, [jobs, editingJob, savingEdit]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setContextJobId(null);
+    setJobContext(null);
+    setSelectedRelatedDocument(null);
+    setRelatedDocumentPreview(null);
+    setLightboxIndex(null);
+    setEditingJob(false);
+    setContextError(null);
+    setContextLoading(Boolean(selectedJob?.id));
+    if (!selectedJob?.id) return;
+    const jobId = selectedJob.id;
+    void fetch(`/api/jobs/context?id=${encodeURIComponent(jobId)}`, { signal: controller.signal })
+      .then((res) => requireJobResponse(res, "Could not load related documents"))
       .then((res) => res.json())
-      .then((data) => setJobContext(data.related || { localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }))
-      .catch(() => setJobContext({ localInvoices: [], quickbooksInvoices: [], quickbooksEstimates: [] }));
-  }, [selectedJob]);
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        if (![data.related?.localInvoices, data.related?.quickbooksInvoices, data.related?.quickbooksEstimates].every(Array.isArray)) throw new Error("Could not load related documents: invalid response.");
+        setJobContext(data.related);
+        setContextJobId(jobId);
+      })
+      .catch((error) => { if (!controller.signal.aborted) setContextError(error.message || "Could not load related documents."); })
+      .finally(() => { if (!controller.signal.aborted) setContextLoading(false); });
+    return () => controller.abort();
+  }, [selectedJob?.id, contextRetry]);
 
   useEffect(() => {
-    if (!selectedJob || !jobContext) return;
+    if (!selectedJob || !jobContext || contextJobId !== selectedJob.id) return;
     if (selectedRelatedDocument) return;
 
     const linkedInvoice = jobContext.quickbooksInvoices.find((doc) => doc.linked) || jobContext.localInvoices[0];
@@ -325,11 +369,13 @@ export default function JobsPage() {
     if (linkedEstimate) {
       setSelectedRelatedDocument({ type: "estimate", source: "quickbooks", id: linkedEstimate.id });
     }
-  }, [jobContext, selectedJob, selectedRelatedDocument]);
+  }, [jobContext, contextJobId, selectedJob, selectedRelatedDocument]);
 
   useEffect(() => {
-    if (!selectedRelatedDocument) {
+    setPreviewError(null);
+    if (!selectedRelatedDocument || contextJobId !== selectedJob?.id) {
       setRelatedDocumentPreview(null);
+      setLoadingRelatedDocument(false);
       return;
     }
     const activeDocument = selectedRelatedDocument;
@@ -344,6 +390,7 @@ export default function JobsPage() {
             ? `/api/invoices?id=${encodeURIComponent(activeDocument.id)}`
             : `/api/quickbooks/invoices?id=${encodeURIComponent(activeDocument.id)}&live=true`;
           const res = await fetch(endpoint, { cache: "no-store" });
+          await requireJobResponse(res, "Could not load invoice");
           const data = await res.json();
           if (!cancelled) {
             setRelatedDocumentPreview(res.ok ? (data.invoice || null) : null);
@@ -354,6 +401,7 @@ export default function JobsPage() {
         const res = await fetch(`/api/quickbooks/estimates?id=${encodeURIComponent(activeDocument.id)}`, {
           cache: "no-store",
         });
+        await requireJobResponse(res, "Could not load estimate");
         const data = await res.json();
         if (!cancelled) {
           setRelatedDocumentPreview(res.ok ? (data.estimate || null) : null);
@@ -361,6 +409,7 @@ export default function JobsPage() {
       } catch {
         if (!cancelled) {
           setRelatedDocumentPreview(null);
+          setPreviewError("Could not load this document. Please try again.");
         }
       } finally {
         if (!cancelled) {
@@ -374,25 +423,27 @@ export default function JobsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedRelatedDocument]);
+  }, [selectedRelatedDocument, selectedJob?.id, contextJobId, previewRetry]);
 
   useEffect(() => {
     if (!selectedJob) {
       setEditingJob(false);
       return;
     }
+    if (editingJob) return;
     setEditForm({
       title: selectedJob.title,
       propertyAddress: selectedJob.propertyAddress || "",
       jobType: selectedJob.jobType || "service",
+      customJobType: "",
       priority: selectedJob.priority || "normal",
-      scheduledDate: selectedJob.scheduledDate || new Date().toISOString().split("T")[0],
+      scheduledDate: selectedJob.scheduledDate || localDateValue(),
       scheduledTimeStart: selectedJob.scheduledTimeStart || "09:00",
       scheduledTimeEnd: selectedJob.scheduledTimeEnd || "10:00",
       notes: selectedJob.notes || "",
       assignedTechs: selectedJob.assignedTechs.map((tech) => tech.id),
     });
-  }, [selectedJob]);
+  }, [selectedJob, editingJob]);
 
   const filteredJobs = jobs.filter((job) => {
     const q = searchQuery.toLowerCase();
@@ -437,6 +488,7 @@ export default function JobsPage() {
   async function handleCreateJob() {
     if (!selectedCustomer || !formData.title) return;
     setCreating(true);
+    setMutationError(null);
     try {
       const assignedTechs = techs
         .filter((t) => formData.assignedTechs.includes(t.id))
@@ -450,7 +502,7 @@ export default function JobsPage() {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           propertyAddress: formData.propertyAddress || selectedCustomer.address || "",
-          jobType: formData.jobType,
+          jobType: resolveJobType(formData.jobType, formData.customJobType),
           priority: formData.priority,
           scheduledDate: formData.scheduledDate,
           scheduledTimeStart: formData.scheduledTimeStart,
@@ -460,32 +512,47 @@ export default function JobsPage() {
           totalAmount: 0,
         }),
       });
+      await requireJobResponse(res, "Could not create job");
       if (res.ok) {
         setShowCreateModal(false);
         setFormData({ ...formData, title: "", notes: "", assignedTechs: [], propertyAddress: "" });
         setSelectedCustomer(null);
         setCustomerQuery("");
-        loadJobs();
+        await loadJobs();
       }
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Could not create job. Please try again.");
     } finally {
       setCreating(false);
     }
   }
 
   async function handleDeleteJob(jobId: string) {
+    if (deleting) return;
     const ok = window.confirm("Delete this job?");
     if (!ok) return;
-    const res = await fetch(`/api/jobs?id=${encodeURIComponent(jobId)}`, { method: "DELETE" });
-    if (!res.ok) return;
-    setSelectedJob(null);
-    await loadJobs();
+    setDeleting(true);
+    setMutationError(null);
+    try {
+      await requireJobResponse(await fetch(`/api/jobs?id=${encodeURIComponent(jobId)}`, { method: "DELETE" }), "Could not delete job");
+      setSelectedJob((current) => current?.id === jobId ? null : current);
+      setJobs((current) => current.filter((job) => job.id !== jobId));
+      await loadJobs();
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Could not delete job. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleSaveJobEdits() {
-    if (!selectedJob) return;
+    if (!selectedJob || savingEdit) return;
+    const jobId = selectedJob.id;
     setSavingEdit(true);
+    setMutationError(null);
     try {
-      const assignedTechs = techs
+      const availableTechs = [...techs, ...selectedJob.assignedTechs.filter((assigned) => !techs.some((tech) => tech.id === assigned.id))];
+      const assignedTechs = availableTechs
         .filter((tech) => editForm.assignedTechs.includes(tech.id))
         .map((tech) => ({ id: tech.id, name: tech.name, color: tech.color }));
       const res = await fetch("/api/jobs", {
@@ -495,7 +562,7 @@ export default function JobsPage() {
           id: selectedJob.id,
           title: editForm.title,
           propertyAddress: editForm.propertyAddress,
-          jobType: editForm.jobType,
+          jobType: resolveJobType(editForm.jobType, editForm.customJobType),
           priority: editForm.priority,
           scheduledDate: editForm.scheduledDate,
           scheduledTimeStart: editForm.scheduledTimeStart,
@@ -504,9 +571,18 @@ export default function JobsPage() {
           assignedTechs,
         }),
       });
-      if (!res.ok) return;
-      setEditingJob(false);
+      await requireJobResponse(res, "Could not save job");
+      const data = await res.json();
+      const savedJob: Job | undefined = data.job;
+      if (!savedJob || savedJob.id !== jobId) throw new Error("Could not confirm the saved job. Refresh this job before trying again.");
+      setJobs((current) => current.map((job) => job.id === jobId ? savedJob : job));
+      if (selectedJobIdRef.current === jobId) {
+        setSelectedJob((current) => current?.id === jobId ? savedJob : current);
+        setEditingJob(false);
+      }
       await loadJobs();
+    } catch (error) {
+      if (selectedJobIdRef.current === jobId) setMutationError(error instanceof Error ? error.message : "Could not save job. Please try again.");
     } finally {
       setSavingEdit(false);
     }
@@ -520,9 +596,10 @@ export default function JobsPage() {
         <div className="px-6 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Jobs</h1>
-            <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>{filteredJobs.length} jobs found</p>
+            <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>{jobResource.loaded ? `${filteredJobs.length} jobs found` : "Jobs"}</p>
           </div>
-          <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>New Job</button>
+          <button aria-label="Refresh jobs" title="Refresh jobs" disabled={jobResource.loading} onClick={() => void loadJobs()} className="p-2 rounded-lg"><RefreshCw size={16} /></button>
+          <button onClick={() => { setMutationError(null); setShowCreateModal(true); }} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>New Job</button>
         </div>
 
         {/* Active / Completed tabs */}
@@ -551,30 +628,36 @@ export default function JobsPage() {
           </button>
         </div>
 
-        <div className="px-6 py-3 flex items-center gap-4 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search jobs..." className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+        <div className="px-6 py-3 flex flex-wrap items-center gap-3 flex-shrink-0" style={{ background: "var(--color-surface-1)", borderBottom: "1px solid var(--color-border)" }}>
+          <input aria-label="Search jobs" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search jobs..." className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
           {jobsTab === "active" ? (
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+            <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
               <option value="all">All Status</option><option value="scheduled">Scheduled</option><option value="in_progress">In Progress</option><option value="on_hold">On Hold</option>
             </select>
           ) : (
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+            <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
               <option value="all">All</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
             </select>
           )}
-          <select value={jobTypeFilter} onChange={(e) => setJobTypeFilter(e.target.value)} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-            <option value="all">All Types</option><option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
+          <select aria-label="Filter job type" value={jobTypeFilter} onChange={(e) => setJobTypeFilter(e.target.value)} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+            <option value="all">All Types</option><JobTypeOptions values={jobs.map((job) => job.jobType)} />
           </select>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6"><div className="space-y-3">
+          {jobResource.loading && <p role="status" className="text-sm">{jobResource.loaded ? "Refreshing jobs..." : "Loading jobs..."}</p>}
+          {jobResource.error && <div role="alert" className="text-sm text-red-600">{jobResource.error} {jobResource.loaded && "Showing previously loaded jobs."} <button className="underline" onClick={() => void loadJobs()}>Retry</button></div>}
+          {openingJob && <p role="status" className="text-sm">Opening job...</p>}
+          {openError && <div role="alert" className="text-sm text-red-600">{openError} <button className="underline" onClick={() => setOpenRetry((retry) => retry + 1)}>Retry opening job</button></div>}
+          {mutationError && !showCreateModal && !selectedJob && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
+          {jobResource.loaded && !jobResource.loading && !jobResource.error && filteredJobs.length === 0 && <p className="py-8 text-sm" style={{ color: "var(--color-text-secondary)" }}>{jobs.length ? "No jobs match these filters." : "No jobs yet."}</p>}
           {filteredJobs.map((job) => (
-            <button key={job.id} onClick={() => setSelectedJob(job)} className="w-full rounded-xl p-4 text-left" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{jobTypeIcons[job.jobType] || "📋"}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
+            <button key={job.id} onClick={() => { setMutationError(null); setSelectedJob(job); }} className="w-full rounded-lg p-4 text-left" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <div className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-lg" style={{ background: "var(--color-surface-3)" }}>{renderJobTypeIcon(job.jobType)}</div>
+                  <div className="min-w-0 break-words">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-text-muted)" }}>{job.jobNumber}</span>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: statusColors[job.status]?.bg, color: statusColors[job.status]?.text, border: `1px solid ${statusColors[job.status]?.border}` }}>{job.status.replace("_", " ").toUpperCase()}</span>
                       {job.priority !== "normal" && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: priorityColors[job.priority]?.bg, color: priorityColors[job.priority]?.text }}>{job.priority.toUpperCase()}</span>}
@@ -582,6 +665,7 @@ export default function JobsPage() {
                     <h3 className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{job.title}</h3>
                     <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{job.customerName}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{job.propertyAddress || "—"}</p>
+                    <p className="text-sm font-medium mt-2" style={{ color: "var(--color-text-primary)" }}><time dateTime={job.scheduledDate || undefined}>{scheduledDateLabel(job.scheduledDate)}</time><span className="block sm:inline">{" · "}{formatTimeLabel(job.scheduledTimeStart)}{job.scheduledTimeEnd && ` - ${formatTimeLabel(job.scheduledTimeEnd)}`}</span></p>
                   </div>
                 </div>
                 <div className="text-right"><div className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>${Number(job.totalAmount || 0).toFixed(2)}</div></div>
@@ -597,34 +681,24 @@ export default function JobsPage() {
           <div className="relative w-full max-w-2xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-border)" }}><h2 className="font-bold text-lg" style={{ color: "var(--color-text-primary)" }}>Create New Job</h2></div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <input placeholder="Search customers..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+              {mutationError && <p role="alert" className="text-sm text-red-600">{mutationError}</p>}
+              {techResource.error && <p role="alert" className="text-sm text-red-600">{techResource.error} <button className="underline" onClick={() => void techResource.reload()}>Retry technicians</button></p>}
+              <input aria-label="Search customers..." placeholder="Search customers..." value={selectedCustomer?.name || customerQuery} onChange={(e) => { setSelectedCustomer(null); setCustomerQuery(e.target.value); }} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
               {customerSearchError && <p role="alert" className="text-sm text-red-600">{customerSearchError}</p>}
               {!!customerResults.length && !selectedCustomer && <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>{customerResults.map((c) => <button key={c.id} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setFormData((prev) => ({ ...prev, propertyAddress: c.address || prev.propertyAddress })); }} className="w-full text-left px-3 py-2 text-sm">{c.name}<span className="block text-xs" style={{ color: "var(--color-text-muted)" }}>{c.address}</span></button>)}</div>}
-              <input placeholder="Job title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-              <input placeholder="Property address" value={formData.propertyAddress} onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-              <div className="grid grid-cols-2 gap-4">
-                <select value={formData.jobType} onChange={(e) => setFormData({ ...formData, jobType: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-                  <optgroup label="Service">
-                    <option value="service">Gas Service</option>
-                    <option value="wood-service">Wood Fireplace Service</option>
-                    <option value="pellet-service">Pellet Stove Service</option>
-                  </optgroup>
-                  <optgroup label="Installation">
-                    <option value="installation">Fireplace Installation</option>
-                  </optgroup>
-                  <optgroup label="Other">
-                    <option value="inspection">Inspection</option>
-                    <option value="cleaning">Chimney Sweep / Cleaning</option>
-                    <option value="repair">Repair</option>
-                    <option value="estimate">Estimate / Consultation</option>
-                  </optgroup>
+              <input aria-label="Job title" placeholder="Job title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+              <input aria-label="Property address" placeholder="Property address" value={formData.propertyAddress} onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <select aria-label="Job type" value={formData.jobType} onChange={(e) => setFormData({ ...formData, jobType: e.target.value })} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                  <JobTypeOptions values={[formData.jobType]} />
                 </select>
-                <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <input type="date" value={formData.scheduledDate} onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <TimeSelect value={formData.scheduledTimeStart} onChange={(value) => setFormData({ ...formData, scheduledTimeStart: value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <TimeSelect value={formData.scheduledTimeEnd} onChange={(value) => setFormData({ ...formData, scheduledTimeEnd: value })} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <select aria-label="Priority" value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+              {formData.jobType === "custom" && <CustomJobTypeInput value={formData.customJobType} onChange={(value) => setFormData((prev) => ({ ...prev, customJobType: value }))} />}
+                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input aria-label="Scheduled date" type="date" value={formData.scheduledDate} onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <label className="min-w-0 flex flex-col gap-1 text-xs">Start time<TimeSelect value={formData.scheduledTimeStart} onChange={(value) => setFormData({ ...formData, scheduledTimeStart: value })} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} /></label>
+                <label className="min-w-0 flex flex-col gap-1 text-xs">End time<TimeSelect value={formData.scheduledTimeEnd} onChange={(value) => setFormData({ ...formData, scheduledTimeEnd: value })} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} /></label>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>Duration</span>
@@ -648,7 +722,7 @@ export default function JobsPage() {
             </div>
             <div className="px-6 py-4 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>Cancel</button>
-              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
+              <button onClick={handleCreateJob} disabled={creating || !selectedCustomer || !formData.title} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>{creating ? "Creating..." : "Create Job"}</button>
             </div>
           </div>
         </div>
@@ -670,7 +744,7 @@ export default function JobsPage() {
                 {editingJob ? (
                   <>
                     <button onClick={() => setEditingJob(false)} className="text-sm" style={{ color: "var(--color-text-muted)" }}>Cancel</button>
-                    <button onClick={handleSaveJobEdits} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: "#2563EB", color: "white" }}>
+                    <button disabled={savingEdit} onClick={handleSaveJobEdits} className="px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: "#C75300", color: "white" }}>
                       {savingEdit ? "Saving..." : "Save"}
                     </button>
                   </>
@@ -683,24 +757,27 @@ export default function JobsPage() {
               </div>
             </div>
             <div className="overflow-y-auto flex-1">
+            {mutationError && <p role="alert" className="px-6 py-2 text-sm text-red-600">{mutationError}</p>}
+            {editingJob && techResource.error && <p role="alert" className="px-6 py-2 text-sm text-red-600">{techResource.error} <button className="underline" onClick={() => void techResource.reload()}>Retry technicians</button></p>}
             {editingJob ? (
               <div className="p-6 space-y-4">
-                <input value={editForm.title} onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <input value={editForm.propertyAddress} onChange={(e) => setEditForm((prev) => ({ ...prev, propertyAddress: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <div className="grid grid-cols-2 gap-4">
-                  <select value={editForm.jobType} onChange={(e) => setEditForm((prev) => ({ ...prev, jobType: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-                    <option value="installation">Installation</option><option value="service">Service</option><option value="inspection">Inspection</option><option value="cleaning">Cleaning</option><option value="repair">Repair</option><option value="estimate">Estimate</option>
+                <input aria-label="Job title" value={editForm.title} onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <input aria-label="Property address" value={editForm.propertyAddress} onChange={(e) => setEditForm((prev) => ({ ...prev, propertyAddress: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <select aria-label="Job type" value={editForm.jobType} onChange={(e) => setEditForm((prev) => ({ ...prev, jobType: e.target.value }))} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                    <JobTypeOptions values={[editForm.jobType]} />
                   </select>
-                  <select value={editForm.priority} onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
+                  <select aria-label="Priority" value={editForm.priority} onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
                     <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option>
                   </select>
+                {editForm.jobType === "custom" && <CustomJobTypeInput value={editForm.customJobType} onChange={(value) => setEditForm((prev) => ({ ...prev, customJobType: value }))} />}
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <input type="date" value={editForm.scheduledDate} onChange={(e) => setEditForm((prev) => ({ ...prev, scheduledDate: e.target.value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                  <TimeSelect value={editForm.scheduledTimeStart} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeStart: value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                  <TimeSelect value={editForm.scheduledTimeEnd} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeEnd: value }))} className="px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input aria-label="Scheduled date" type="date" value={editForm.scheduledDate} onChange={(e) => setEditForm((prev) => ({ ...prev, scheduledDate: e.target.value }))} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                  <label className="min-w-0 flex flex-col gap-1 text-xs">Start time<TimeSelect value={editForm.scheduledTimeStart} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeStart: value }))} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} /></label>
+                  <label className="min-w-0 flex flex-col gap-1 text-xs">End time<TimeSelect value={editForm.scheduledTimeEnd} onChange={(value) => setEditForm((prev) => ({ ...prev, scheduledTimeEnd: value }))} className="min-w-0 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} /></label>
                 </div>
-                <textarea value={editForm.notes} onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+                <textarea aria-label="Notes" value={editForm.notes} onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))} rows={3} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 <div className="flex flex-wrap gap-2">
                   {techs.map((tech) => (
                     <label key={tech.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -728,7 +805,7 @@ export default function JobsPage() {
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Schedule</div>
-                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{selectedJob.scheduledDate || "No date set"}</div>
+                <div className="font-semibold mt-1" style={{ color: "var(--color-text-primary)" }}>{scheduledDateLabel(selectedJob.scheduledDate)}</div>
                 <div className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>{formatTimeLabel(selectedJob.scheduledTimeStart)} - {formatTimeLabel(selectedJob.scheduledTimeEnd)}</div>
               </div>
               <div className="rounded-lg p-4" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
@@ -744,6 +821,9 @@ export default function JobsPage() {
               </div>
               <div className="rounded-lg p-4 md:col-span-2" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}>
                 <div className="text-xs uppercase tracking-wide mb-3" style={{ color: "var(--color-text-muted)" }}>Related Documents</div>
+                {contextLoading && <p role="status" className="text-sm">Loading related documents...</p>}
+                {contextError && <p role="alert" className="text-sm text-red-600">{contextError} <button className="underline" onClick={() => setContextRetry((retry) => retry + 1)}>Retry documents</button></p>}
+                {previewError && <p role="alert" className="text-sm text-red-600">{previewError} <button className="underline" onClick={() => setPreviewRetry((retry) => retry + 1)}>Retry preview</button></p>}
                 {(selectedRelatedDocument || loadingRelatedDocument) && (
                   <div key={selectedRelatedDocument ? `${selectedRelatedDocument.type}-${selectedRelatedDocument.id}-${selectedRelatedDocument.source}` : "loading"} className="mb-4 rounded-lg p-4 space-y-4" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
                     <div className="flex items-center justify-between gap-3">
@@ -911,7 +991,7 @@ export default function JobsPage() {
                       <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>${Number(invoice.totalAmount || 0).toFixed(2)}</div>
                     </button>
                   ))}
-                  {!jobContext?.quickbooksInvoices?.length && !jobContext?.quickbooksEstimates?.length && !jobContext?.localInvoices?.length && (
+                  {jobContext && !contextLoading && !contextError && !jobContext.quickbooksInvoices.length && !jobContext.quickbooksEstimates.length && !jobContext.localInvoices.length && (
                     <div className="text-sm" style={{ color: "var(--color-text-muted)" }}>No related invoice or estimate found yet.</div>
                   )}
                 </div>
@@ -974,7 +1054,7 @@ export default function JobsPage() {
             )}
             </div>
             <div className="px-6 py-4 flex justify-end border-t" style={{ borderColor: "var(--color-border)" }}>
-              <button onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
+              <button disabled={deleting} onClick={() => handleDeleteJob(selectedJob.id)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "rgba(255,32,78,0.12)", color: "#FF204E", border: "1px solid rgba(255,32,78,0.25)" }}>
                 Delete Job
               </button>
             </div>

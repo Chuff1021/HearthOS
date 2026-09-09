@@ -226,10 +226,10 @@ export class QuickBooksClient {
     return response.Customer;
   }
 
-  async createCustomer(customer: Partial<QBCustomer>): Promise<QBCustomer> {
+  async createCustomer(customer: Partial<QBCustomer>, requestId?: string): Promise<QBCustomer> {
     const response = await this.request<{ Customer: QBCustomer }>(
       'POST',
-      '/customer',
+      requestId ? `/customer?requestid=${encodeURIComponent(requestId)}` : '/customer',
       customer
     );
     return response.Customer;

@@ -13,8 +13,8 @@ import {
   Flame,
   Gauge,
   MapPinned,
-  Navigation,
   Radio,
+  RefreshCw,
   ReceiptText,
   Route,
   Search,
@@ -26,6 +26,11 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import OperationsLeafletMap from "@/components/dashboard/OperationsLeafletMap";
+import { assignmentCoverage, QUICK_ADD_JOB_HREF } from "@/components/dashboard/dashboard-data";
+import { useDashboardResource, type DashboardResource } from "@/components/dashboard/useDashboardResource";
+import { useAuthenticatedDisplayIdentity } from "@/components/layout/header-identity";
+import { localDateValue } from "@/components/job-form/job-form-helpers";
+import { getLocationMarkers } from "@/components/dashboard/operations-map-data";
 import { LiquidPanel, StatusPill } from "@/components/ui/liquid";
 
 type ProfitResp = {
@@ -106,22 +111,6 @@ type DispatchResp = {
   };
 };
 
-type DashboardResp = {
-  stats: {
-    totalCustomers: number;
-    totalOutstanding: number;
-    totalOverdue: number;
-    paidThisMonth: number;
-    totalRevenue: number;
-    totalInvoices: number;
-    jobsToday: number;
-    jobsCompletedToday: number;
-    jobsRemainingToday: number;
-    activeTechs: number;
-    totalTechs: number;
-  };
-};
-
 type Job = {
   id: string;
   jobNumber: string;
@@ -159,8 +148,6 @@ const fmtMoneyShort = (n: number) => {
   return fmtMoney(n);
 };
 
-const todayIso = () => new Date().toISOString().split("T")[0];
-
 function greetingFor(date: Date) {
   const hour = date.getHours();
   if (hour < 12) return "Good morning";
@@ -171,6 +158,7 @@ function greetingFor(date: Date) {
 function relativeDate(value: string | null | undefined) {
   if (!value) return "No activity";
   const diff = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(diff) || diff < 0) return "Date unavailable";
   const days = Math.max(0, Math.round(diff / 86_400_000));
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
@@ -179,47 +167,29 @@ function relativeDate(value: string | null | undefined) {
 
 export default function DashboardPage() {
   const [now, setNow] = useState(() => new Date());
-  const [profit, setProfit] = useState<ProfitResp | null>(null);
-  const [cust, setCust] = useState<CustomerResp | null>(null);
-  const [vend, setVend] = useState<VendorResp | null>(null);
-  const [dispatch, setDispatch] = useState<DispatchResp | null>(null);
-  const [dashboard, setDashboard] = useState<DashboardResp | null>(null);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [activity, setActivity] = useState<Activity[]>([]);
+  const queryDate = localDateValue(now);
+  const profitSource = useDashboardResource<ProfitResp>("profit", `/api/reports/profit-by-job?since=${queryDate.slice(0, 4)}-01-01&limit=20`);
+  const customerSource = useDashboardResource<CustomerResp>("customers", "/api/customers/center?filter=all&sort=balance&dir=desc");
+  const vendorSource = useDashboardResource<VendorResp>("vendors", "/api/vendors?filter=all");
+  const dispatchSource = useDashboardResource<DispatchResp>("dispatch", "/api/dispatch?activeOnly=true");
+  const jobsSource = useDashboardResource<Job[]>("jobs", `/api/jobs?date=${queryDate}`);
+  const activitySource = useDashboardResource<Activity[]>("activity", "/api/dashboard/activity?limit=8");
+  const { data: profit } = profitSource;
+  const { data: cust } = customerSource;
+  const { data: vend } = vendorSource;
+  const { data: dispatch } = dispatchSource;
+  const jobs = jobsSource.data ?? [];
+  const activity = activitySource.data ?? [];
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const ytdSince = `${new Date().getFullYear()}-01-01`;
-    const today = todayIso();
-
-    Promise.all([
-      fetch(`/api/reports/profit-by-job?since=${ytdSince}&limit=20`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/customers/center?filter=all&sort=balance&dir=desc", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/vendors?filter=all", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/dispatch?activeOnly=true", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/dashboard", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`/api/jobs?date=${today}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/dashboard/activity?limit=8", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([p, c, v, d, dash, todayJobs, activityData]) => {
-      if (p) setProfit(p);
-      if (c) setCust(c);
-      if (v) setVend(v);
-      if (d) setDispatch(d);
-      if (dash) setDashboard(dash);
-      if (Array.isArray(todayJobs?.jobs)) setJobs(todayJobs.jobs);
-      else if (Array.isArray(todayJobs)) setJobs(todayJobs);
-      if (activityData?.activity) setActivity(activityData.activity);
-    });
-  }, []);
-
   const ws = profit?.windowStats;
   const cm = cust?.moneyBar;
   const vm = vend?.moneyBar;
-  const stats = dashboard?.stats;
+  const coverage = assignmentCoverage(jobsSource.data);
   const customerItems = cust?.items || [];
   const atRisk = customerItems.filter((item) => item.balance > 0).slice(0, 3);
   const topRevenue = [...customerItems].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 4);
@@ -237,10 +207,10 @@ export default function DashboardPage() {
                   {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 </p>
                 <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight md:text-[2.35rem]">
-                  {greetingFor(now)}, Colton.
+                  <DashboardGreeting now={now} />
                 </h1>
               </div>
-              <Link href="/jobs/new" className="ui-btn-primary hidden shrink-0 items-center gap-2 px-4 py-3 text-sm sm:inline-flex">
+              <Link href={QUICK_ADD_JOB_HREF} className="ui-btn-primary inline-flex shrink-0 items-center gap-2 px-4 py-3 text-sm">
                 <Flame size={17} />
                 Quick Add
               </Link>
@@ -250,81 +220,75 @@ export default function DashboardPage() {
               <MetricTile
                 label="Revenue YTD"
                 value={ws ? fmtMoneyShort(ws.revenue) : "-"}
-                sublabel={ws ? `${ws.invoiceCount.toLocaleString()} invoices` : "Loading"}
+                sublabel={ws ? `${ws.invoiceCount.toLocaleString()} invoices` : sourceLabel(profitSource)}
                 accent="#12b76a"
                 icon={<TrendingUp size={18} />}
                 href="/reports/profit-by-job?preset=ytd"
-                series={[18, 24, 27, 34, 33, 41, 48, 55]}
               />
               <MetricTile
                 label="Profit YTD"
                 value={ws ? fmtMoneyShort(ws.profit) : "-"}
-                sublabel={ws?.margin != null ? `${ws.margin.toFixed(1)}% margin` : "Margin pending"}
+                sublabel={ws ? (ws.margin != null ? `${ws.margin.toFixed(1)}% margin` : "Margin unavailable") : sourceLabel(profitSource)}
                 accent="#2563eb"
                 icon={<CircleDollarSign size={18} />}
                 href="/reports/profit-by-job?preset=ytd"
-                series={[14, 18, 21, 20, 31, 33, 37, 42]}
               />
               <MetricTile
                 label="Owed To You"
                 value={cm ? fmtMoneyShort(cm.totalDue) : "-"}
-                sublabel={cm ? `${cm.openInvoiceCount} open - ${cm.overdueCount} overdue` : "Loading"}
+                sublabel={cm ? `${cm.openInvoiceCount} open - ${cm.overdueCount} overdue` : sourceLabel(customerSource)}
                 accent="#8b5cf6"
                 icon={<Users size={18} />}
                 href="/reports/ar-aging"
-                series={[45, 42, 39, 48, 44, 51, 57, 52]}
               />
               <MetricTile
                 label="You Owe"
                 value={vm ? fmtMoneyShort(vm.totalOwed) : "-"}
-                sublabel={vm ? `${vm.openBillCount} open - ${vm.overdueCount} overdue` : "Loading"}
+                sublabel={vm ? `${vm.openBillCount} open - ${vm.overdueCount} overdue` : sourceLabel(vendorSource)}
                 accent="#ef4444"
                 icon={<Banknote size={18} />}
                 href="/vendors"
-                series={[33, 28, 36, 31, 42, 39, 34, 30]}
               />
               <MetricTile
                 label="Active Techs"
-                value={String(dispatch?.stats?.activeTechs ?? stats?.activeTechs ?? "-")}
-                sublabel={`${dispatch?.stats?.onJob ?? 0} on job`}
+                value={String(dispatch?.stats?.activeTechs ?? "-")}
+                sublabel={dispatch ? `${dispatch.stats?.onJob} on job` : sourceLabel(dispatchSource)}
                 accent="var(--color-ember)"
                 icon={<Radio size={18} />}
                 href="/dispatch"
-                series={[22, 26, 24, 29, 35, 33, 38, 40]}
               />
               <MetricTile
-                label="Schedule Confidence"
-                value={scheduleConfidence(jobs, dispatch)}
-                sublabel={`${jobs.length || stats?.jobsToday || 0} jobs today`}
+                label="Jobs Assigned"
+                value={coverage === null ? "-" : `${coverage}%`}
+                sublabel={jobsSource.data ? `${jobs.length} jobs today` : sourceLabel(jobsSource)}
                 accent="#0ea5e9"
                 icon={<Gauge size={18} />}
                 href="/schedule"
-                series={[38, 39, 41, 43, 48, 46, 52, 58]}
               />
             </section>
 
-            <section className="grid grid-cols-1 gap-4 2xl:grid-cols-[0.84fr_1.52fr_0.84fr]">
+            <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.84fr)_minmax(0,1.52fr)_minmax(0,0.84fr)]">
               <div className="grid content-start gap-4">
-                <CustomerHealth customer={cust} />
-                <AtRiskAccounts accounts={atRisk} />
-                <CollectionsPanel customer={cust} vendor={vend} />
+                <DataPanel title="Open Invoices" sources={[customerSource]}><CustomerHealth customer={cust!} /></DataPanel>
+                <DataPanel title="Open Balances" sources={[customerSource]}><AtRiskAccounts accounts={atRisk} /></DataPanel>
+                <DataPanel title="Cash Exposure" sources={[customerSource, vendorSource]}><CollectionsPanel customer={cust!} vendor={vend!} /></DataPanel>
               </div>
 
               <div className="grid content-start gap-4">
-                <FieldMap dispatch={dispatch} jobs={jobs} />
-                <TodaySchedule jobs={jobs} />
+                <DataPanel title="Field Operations" sources={[dispatchSource]}><FieldMap dispatch={dispatch!} now={now.getTime()} /></DataPanel>
+                <DataPanel title="Today's Schedule" sources={[jobsSource]}><TodaySchedule jobs={jobs} /></DataPanel>
               </div>
 
               <div className="grid content-start gap-4">
-                <Recommendations customer={cust} vendor={vend} dispatch={dispatch} jobs={jobs} />
-                <JobsByStatus jobs={jobs} />
-                <ActivityRail activity={activity} />
+                <Recommendations customer={customerSource} vendor={vendorSource} dispatch={dispatchSource} />
+                <DataPanel title="Jobs By Status" sources={[jobsSource]}><JobsByStatus jobs={jobs} /></DataPanel>
+                <DataPanel title="Recent Activity" sources={[activitySource]}><ActivityRail activity={activity} /></DataPanel>
               </div>
             </section>
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-              <RevenueOverview profit={profit} topRevenue={topRevenue} />
-              <ServicePipeline jobs={jobs} />
+              <RevenueOverview profit={profitSource} customers={customerSource} topRevenue={topRevenue} />
+              <DataPanel title="Service Pipeline" sources={[jobsSource]}><ServicePipeline jobs={jobs} /></DataPanel>
             </section>
             <CommandDock />
           </div>
@@ -334,12 +298,35 @@ export default function DashboardPage() {
   );
 }
 
-function scheduleConfidence(jobs: Job[], dispatch: DispatchResp | null) {
-  const total = jobs.length;
-  if (!total) return "100%";
-  const assigned = jobs.filter((job) => job.assignedTechs?.length).length;
-  const techPressure = dispatch?.stats?.unassigned ? Math.min(18, dispatch.stats.unassigned * 3) : 0;
-  return `${Math.max(62, Math.round((assigned / total) * 100) - techPressure)}%`;
+function DashboardGreeting({ now }: { now: Date }) {
+  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    ? <AuthenticatedGreeting now={now} />
+    : <>{greetingFor(now)}.</>;
+}
+
+function AuthenticatedGreeting({ now }: { now: Date }) {
+  const identity = useAuthenticatedDisplayIdentity();
+  return <>{greetingFor(now)}{identity.isLoaded && identity.isSignedIn && identity.firstName ? `, ${identity.firstName}` : ""}.</>;
+}
+
+function sourceLabel(source: DashboardResource<unknown>) {
+  return source.status === "loading" ? "Loading" : "Data unavailable";
+}
+
+function SourceNotice({ name, source }: { name: string; source: DashboardResource<unknown> }) {
+  return <div className="flex items-center justify-between gap-3 text-sm" role={source.status === "error" ? "alert" : "status"}>
+    <span>{name}: {sourceLabel(source)}</span>
+    {source.status === "error" && <button type="button" onClick={source.retry} title={`Retry ${name}`} aria-label={`Retry ${name}`} className="glass-icon shrink-0"><RefreshCw size={16} /></button>}
+  </div>;
+}
+
+function DataPanel({ title, sources, children }: { title: string; sources: DashboardResource<unknown>[]; children: ReactNode }) {
+  const pending = sources.filter((source) => source.status !== "ready");
+  if (!pending.length) return <>{children}</>;
+  return <LiquidPanel className="p-5" strong>
+    <h2 className="text-base font-semibold">{title}</h2>
+    <div className="mt-4 space-y-3">{pending.map((source, index) => <SourceNotice key={index} name={title} source={source} />)}</div>
+  </LiquidPanel>;
 }
 
 function MetricTile({
@@ -349,7 +336,6 @@ function MetricTile({
   accent,
   icon,
   href,
-  series,
 }: {
   label: string;
   value: string;
@@ -357,10 +343,9 @@ function MetricTile({
   accent: string;
   icon: ReactNode;
   href: string;
-  series: number[];
 }) {
   const content = (
-    <LiquidPanel className="liquid-metric min-h-[142px] p-4" strong>
+    <LiquidPanel className="liquid-metric min-h-[112px] p-4" strong>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--color-text-muted)" }}>
@@ -377,7 +362,6 @@ function MetricTile({
           {icon}
         </span>
       </div>
-      <Sparkline series={series} color={accent} />
     </LiquidPanel>
   );
 
@@ -388,55 +372,19 @@ function MetricTile({
   );
 }
 
-function Sparkline({ series, color }: { series: number[]; color: string }) {
-  const max = Math.max(...series);
-  const min = Math.min(...series);
-  const points = series
-    .map((value, index) => {
-      const x = (index / (series.length - 1)) * 126 + 2;
-      const y = 45 - ((value - min) / Math.max(1, max - min)) * 34;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg className="mt-4 h-12 w-full overflow-visible" viewBox="0 0 130 52" role="img" aria-label="Trend">
-      <defs>
-        <linearGradient id={`spark-${labelSafe(color)}`} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor={color} stopOpacity="0.08" />
-          <stop offset="1" stopColor={color} stopOpacity="0.72" />
-        </linearGradient>
-      </defs>
-      <polyline points={points} fill="none" stroke={`url(#spark-${labelSafe(color)})`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {series.slice(-3).map((value, index) => {
-        const sourceIndex = series.length - 3 + index;
-        const x = (sourceIndex / (series.length - 1)) * 126 + 2;
-        const y = 45 - ((value - min) / Math.max(1, max - min)) * 34;
-        return <circle key={`${value}-${index}`} cx={x} cy={y} r="2.3" fill={color} opacity="0.86" />;
-      })}
-    </svg>
-  );
-}
-
-function labelSafe(input: string) {
-  return input.replace(/[^a-z0-9]/gi, "");
-}
-
-function CustomerHealth({ customer }: { customer: CustomerResp | null }) {
-  const total = customer?.items.length || 0;
-  const overdue = customer?.moneyBar.overdueCount || 0;
-  const healthy = Math.max(0, total - overdue);
-  const pct = total ? Math.round((healthy / total) * 100) : 100;
+function CustomerHealth({ customer }: { customer: CustomerResp }) {
+  const total = customer.moneyBar.openInvoiceCount;
+  const overdue = customer.moneyBar.overdueCount;
+  const pct = total ? Math.round((overdue / total) * 100) : null;
 
   return (
     <LiquidPanel className="p-5" strong>
-      <PanelTitle icon={<Users size={17} />} title="Customer Health" href="/customers" />
+      <PanelTitle icon={<Users size={17} />} title="Open Invoices" href="/customers" />
       <div className="mt-5 flex items-center gap-5">
-        <Donut value={pct} accent="var(--color-ember)" label={`${pct}%`} />
+        <Donut value={pct ?? 0} accent="var(--color-ember)" label={pct === null ? "-" : `${pct}%`} />
         <div className="min-w-0 flex-1 space-y-3">
-          <BarRow label="Healthy accounts" value={healthy} max={Math.max(total, 1)} color="#12b76a" />
-          <BarRow label="Overdue accounts" value={overdue} max={Math.max(total, 1)} color="var(--color-ember)" />
-          <BarRow label="Open invoices" value={customer?.moneyBar.openInvoiceCount || 0} max={Math.max(customer?.moneyBar.openInvoiceCount || 1, total)} color="#2563eb" />
+          <BarRow label="Overdue invoices" value={overdue} max={Math.max(total, 1)} color="var(--color-ember)" />
+          <BarRow label="Open invoices" value={total} max={Math.max(total, 1)} color="#2563eb" />
         </div>
       </div>
     </LiquidPanel>
@@ -446,7 +394,7 @@ function CustomerHealth({ customer }: { customer: CustomerResp | null }) {
 function AtRiskAccounts({ accounts }: { accounts: CustomerCenterItem[] }) {
   return (
     <LiquidPanel className="p-5">
-      <PanelTitle icon={<ReceiptText size={17} />} title="At-Risk Accounts" href="/customers?filter=with_balance" />
+      <PanelTitle icon={<ReceiptText size={17} />} title="Open Balances" href="/customers?filter=with_balance" />
       <div className="mt-4 space-y-2">
         {accounts.length ? accounts.map((account) => (
           <Link key={account.id} href={`/customers/${account.id}`} className="glass-row">
@@ -459,16 +407,16 @@ function AtRiskAccounts({ accounts }: { accounts: CustomerCenterItem[] }) {
             </span>
           </Link>
         )) : (
-          <EmptyLine label="No open-balance customer risk." />
+          <EmptyLine label="No customers with an open balance." />
         )}
       </div>
     </LiquidPanel>
   );
 }
 
-function CollectionsPanel({ customer, vendor }: { customer: CustomerResp | null; vendor: VendorResp | null }) {
-  const ar = customer?.moneyBar.totalDue || 0;
-  const ap = vendor?.moneyBar.totalOwed || 0;
+function CollectionsPanel({ customer, vendor }: { customer: CustomerResp; vendor: VendorResp }) {
+  const ar = customer.moneyBar.totalDue;
+  const ap = vendor.moneyBar.totalOwed;
   const max = Math.max(ar, ap, 1);
 
   return (
@@ -477,15 +425,16 @@ function CollectionsPanel({ customer, vendor }: { customer: CustomerResp | null;
       <div className="mt-4 space-y-4">
         <BarRow label="Receivables" value={ar} max={max} color="#8b5cf6" money />
         <BarRow label="Payables" value={ap} max={max} color="#ef4444" money />
-        <BarRow label="Open PO value" value={vendor?.moneyBar.openPOValue || 0} max={Math.max(vendor?.moneyBar.openPOValue || 0, max)} color="var(--color-ember)" money />
+        <BarRow label="Open PO value" value={vendor.moneyBar.openPOValue} max={Math.max(vendor.moneyBar.openPOValue, max)} color="var(--color-ember)" money />
       </div>
     </LiquidPanel>
   );
 }
 
-function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job[] }) {
-  const techs = dispatch?.techs || [];
+function FieldMap({ dispatch, now }: { dispatch: DispatchResp; now: number }) {
+  const techs = dispatch.techs;
   const selected = techs.find((tech) => tech.currentJob) || techs[0];
+  const hasLocations = getLocationMarkers(techs, now).length > 0;
 
   return (
     <LiquidPanel className="p-5" strong>
@@ -493,23 +442,18 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
         <div>
           <PanelTitle icon={<MapPinned size={17} />} title="Field Operations" href="/dispatch" />
           <p className="mt-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
-            Dispatch map, route load, GPS status, and today&apos;s active work.
+            Last-reported technician locations and dispatch assignments.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <StatusPill tone="success">{dispatch?.stats?.activeTechs ?? 0} active</StatusPill>
-          <StatusPill tone={(dispatch?.stats?.unassigned ?? 0) ? "warning" : "neutral"}>{dispatch?.stats?.unassigned ?? 0} unassigned</StatusPill>
+          <StatusPill tone="neutral">{dispatch.stats?.activeTechs} active</StatusPill>
+          <StatusPill tone={dispatch.stats?.unassigned ? "warning" : "neutral"}>{dispatch.stats?.unassigned} unassigned</StatusPill>
         </div>
       </div>
 
       <div className="grid gap-4">
-        <div className="liquid-map-stage relative min-h-[430px] overflow-hidden rounded-[1.55rem] border border-white/80">
-          <OperationsLeafletMap techs={techs} jobs={jobs} />
-          <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-[450] flex flex-wrap items-center gap-2">
-            <span className="map-glass-chip"><Navigation size={14} /> {jobs.length} jobs today</span>
-            <span className="map-glass-chip"><Radio size={14} /> {techs.filter((tech) => tech.location).length} live GPS</span>
-            <span className="map-glass-chip"><Route size={14} /> Route load synced</span>
-          </div>
+        <div className="liquid-map-stage relative overflow-hidden rounded-[1.55rem] border border-white/80" style={{ minHeight: hasLocations ? 430 : 180 }}>
+          <OperationsLeafletMap techs={techs} now={now} />
         </div>
 
         <div className="grid gap-3 xl:grid-cols-2">
@@ -523,7 +467,7 @@ function FieldMap({ dispatch, jobs }: { dispatch: DispatchResp | null; jobs: Job
                 <div>
                   <p className="text-base font-semibold">{selected.name}</p>
                   <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                    {selected.status || "available"} - {selected.jobsDone}/{selected.jobsToday} complete
+                    {selected.status || "Status unavailable"} - {selected.jobsDone}/{selected.jobsToday} complete
                   </p>
                 </div>
                 <MiniJob label="Now" job={selected.currentJob} />
@@ -582,35 +526,27 @@ function Recommendations({
   customer,
   vendor,
   dispatch,
-  jobs,
 }: {
-  customer: CustomerResp | null;
-  vendor: VendorResp | null;
-  dispatch: DispatchResp | null;
-  jobs: Job[];
+  customer: DashboardResource<CustomerResp>;
+  vendor: DashboardResource<VendorResp>;
+  dispatch: DashboardResource<DispatchResp>;
 }) {
-  const recs = [
-    customer?.moneyBar.overdueCount
-      ? `${customer.moneyBar.overdueCount} overdue customer accounts need follow-up`
-      : "Receivables have no overdue customer count",
-    dispatch?.stats?.unassigned
-      ? `${dispatch.stats.unassigned} scheduled jobs are waiting for assignment`
-      : "Dispatch queue is fully assigned",
-    vendor?.moneyBar.overdueCount
-      ? `${vendor.moneyBar.overdueCount} vendor bills are overdue`
-      : `${jobs.length} jobs are visible in today's operating plan`,
+  const recs: Array<{ name: string; source: DashboardResource<unknown>; text: string | null }> = [
+    { name: "Receivables", source: customer, text: customer.data ? `${customer.data.moneyBar.overdueCount} overdue invoices need follow-up` : null },
+    { name: "Dispatch", source: dispatch, text: dispatch.data ? `${dispatch.data.stats?.unassigned} scheduled jobs are waiting for assignment` : null },
+    { name: "Payables", source: vendor, text: vendor.data ? `${vendor.data.moneyBar.overdueCount} vendor bills are overdue` : null },
   ];
 
   return (
     <LiquidPanel className="p-5" strong>
-      <PanelTitle icon={<Bot size={17} />} title="AI Recommendations" href="/gabe" />
+      <PanelTitle icon={<Bot size={17} />} title="Operations Follow-Up" href="/gabe" />
       <div className="mt-4 space-y-3">
         {recs.map((rec, index) => (
-          <div key={rec} className="recommendation-row">
+          <div key={rec.name} className="recommendation-row">
             <span className="flex h-8 w-8 items-center justify-center rounded-2xl text-xs font-bold text-white" style={{ background: index === 0 ? "var(--color-ember)" : "#2563eb" }}>
               {index + 1}
             </span>
-            <p className="text-sm font-medium">{rec}</p>
+            <div className="min-w-0 flex-1">{rec.text ? <p className="text-sm font-medium">{rec.text}</p> : <SourceNotice name={rec.name} source={rec.source} />}</div>
           </div>
         ))}
       </div>
@@ -630,9 +566,9 @@ function JobsByStatus({ jobs }: { jobs: Job[] }) {
     <LiquidPanel className="p-5">
       <PanelTitle icon={<CheckCircle2 size={17} />} title="Jobs By Status" href="/jobs" />
       <div className="mt-5 flex items-center gap-5">
-        <Donut value={complete} accent="#2563eb" label={`${complete}%`} />
+        <Donut value={complete} accent="#2563eb" label={jobs.length ? `${complete}%` : "-"} />
         <div className="min-w-0 flex-1 space-y-3">
-          {Object.entries({ scheduled: counts.scheduled || 0, in_progress: counts.in_progress || 0, completed: counts.completed || 0 }).map(([label, value]) => (
+          {Object.entries({ scheduled: 0, in_progress: 0, completed: 0, ...counts }).map(([label, value]) => (
             <BarRow key={label} label={label.replace("_", " ")} value={value} max={total} color={statusColor(label)} />
           ))}
         </div>
@@ -658,30 +594,25 @@ function ActivityRail({ activity }: { activity: Activity[] }) {
             {item.amount != null && <span className="mono-number text-xs font-semibold">{fmtMoneyShort(item.amount)}</span>}
           </Link>
         ))}
-        {!activity.length && <EmptyLine label="No recent synced activity loaded." />}
+        {!activity.length && <EmptyLine label="No recent activity." />}
       </div>
     </LiquidPanel>
   );
 }
 
-function RevenueOverview({ profit, topRevenue }: { profit: ProfitResp | null; topRevenue: CustomerCenterItem[] }) {
-  const ws = profit?.windowStats;
+function RevenueOverview({ profit, customers, topRevenue }: { profit: DashboardResource<ProfitResp>; customers: DashboardResource<CustomerResp>; topRevenue: CustomerCenterItem[] }) {
+  const ws = profit.data?.windowStats;
   return (
     <LiquidPanel className="p-5" strong>
       <PanelTitle icon={<TrendingUp size={17} />} title="Revenue Overview" href="/reports" />
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="revenue-chart">
-          <svg viewBox="0 0 760 240" className="h-full w-full" preserveAspectRatio="none" aria-label="Revenue overview chart">
-            <path d="M20 210 C120 170 130 120 230 132 S370 80 470 94 590 52 740 32" fill="none" stroke="var(--color-ember)" strokeWidth="5" strokeLinecap="round" />
-            <path d="M20 222 C140 196 170 176 260 170 S390 142 470 150 610 122 740 104" fill="none" stroke="#94a3b8" strokeWidth="3" strokeDasharray="8 10" strokeLinecap="round" />
-            {[60, 180, 300, 420, 540, 660].map((x) => (
-              <line key={x} x1={x} x2={x} y1="20" y2="224" stroke="rgba(71,85,105,0.08)" />
-            ))}
-          </svg>
-          <div className="absolute left-5 top-5">
-            <p className="mono-number text-2xl font-semibold">{ws ? fmtMoney(ws.revenue) : "-"}</p>
-            <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Year-to-date revenue</p>
-          </div>
+        <div className="min-w-0 space-y-5 py-3">
+          <p className="mono-number break-words text-2xl font-semibold">{ws ? fmtMoney(ws.revenue) : "-"}</p>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Year-to-date revenue</p>
+          {ws ? <>
+            <BarRow label="Revenue" value={ws.revenue} max={Math.max(ws.revenue, ws.cogs + ws.billable, 1)} color="var(--color-ember)" money />
+            <BarRow label="Costs" value={ws.cogs + ws.billable} max={Math.max(ws.revenue, ws.cogs + ws.billable, 1)} color="#2563eb" money />
+          </> : <SourceNotice name="Revenue" source={profit} />}
         </div>
         <div className="space-y-2">
           <p className="text-sm font-semibold">Top Customers By Revenue</p>
@@ -692,7 +623,7 @@ function RevenueOverview({ profit, topRevenue }: { profit: ProfitResp | null; to
               <span className="mono-number text-sm">{fmtMoneyShort(customer.totalRevenue)}</span>
             </Link>
           ))}
-          {!topRevenue.length && <EmptyLine label="No customer revenue rows loaded." />}
+          {customers.status !== "ready" ? <SourceNotice name="Customer revenue" source={customers} /> : !topRevenue.length && <EmptyLine label="No customer revenue rows." />}
         </div>
       </div>
     </LiquidPanel>
@@ -711,7 +642,7 @@ function ServicePipeline({ jobs }: { jobs: Job[] }) {
   return (
     <LiquidPanel className="p-5" strong>
       <PanelTitle icon={<Route size={17} />} title="Service Pipeline" href="/jobs" />
-      <div className="mt-5 grid grid-cols-4 gap-3">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {rows.map((row) => (
           <div key={row.label} className="service-stat">
             <span className="mono-number" style={{ color: row.color }}>{row.value}</span>
@@ -756,7 +687,7 @@ function CommandDock() {
 
 function MiniJob({ label, job }: { label: string; job?: { title: string; customer: string; scheduledTime?: string } | null }) {
   return (
-    <div className="rounded-2xl bg-white/58 p-3" style={{ border: "1px solid rgba(255,255,255,0.76)" }}>
+    <div className="rounded-2xl p-3" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--color-text-muted)" }}>{label}</p>
       {job ? (
         <>
@@ -774,10 +705,10 @@ function PanelTitle({ icon, title, href }: { icon: ReactNode; title: string; hre
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2">
-        <span style={{ color: "var(--color-ember)" }}>{icon}</span>
-        <h2 className="truncate text-base font-semibold">{title}</h2>
+        <span className="shrink-0" style={{ color: "var(--color-ember)" }}>{icon}</span>
+        <h2 className="min-w-0 break-words text-base font-semibold leading-snug">{title}</h2>
       </div>
-      <Link href={href} className="text-xs font-semibold" style={{ color: "var(--color-ember)" }}>
+      <Link href={href} className="shrink-0 whitespace-nowrap text-xs font-semibold" style={{ color: "var(--color-ember)" }}>
         View <ArrowUpRight className="inline" size={13} />
       </Link>
     </div>
@@ -793,7 +724,7 @@ function Donut({ value, accent, label }: { value: number; accent: string; label:
 }
 
 function BarRow({ label, value, max, color, money }: { label: string; value: number; max: number; color: string; money?: boolean }) {
-  const width = `${Math.min(100, Math.max(3, (value / Math.max(max, 1)) * 100))}%`;
+  const width = `${Math.min(100, Math.max(0, (value / Math.max(max, 1)) * 100))}%`;
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3 text-xs">
@@ -809,7 +740,7 @@ function BarRow({ label, value, max, color, money }: { label: string; value: num
 
 function EmptyLine({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300/50 bg-white/36 p-4 text-sm" style={{ color: "var(--color-text-muted)" }}>
+    <div className="rounded-2xl border border-dashed p-4 text-sm" style={{ background: "var(--color-surface-2)", borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}>
       {label}
     </div>
   );

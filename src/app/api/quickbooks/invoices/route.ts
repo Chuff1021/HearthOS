@@ -2,7 +2,7 @@ import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { signCustomerLink } from "@/lib/security/public-links";
 import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, eq, or } from 'drizzle-orm';
-import { db, inventoryItems, invoiceLineItems, invoices as dbInvoices } from '@/db';
+import { db, inventoryItems, invoiceLineItems, invoices as dbInvoices, organizations } from '@/db';
 import { 
   getCachedInvoices, 
   getInvoicesForCustomer,
@@ -281,13 +281,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const accessDenied = await authorizeCrmApi("/api/quickbooks/invoices", "POST");
   if (accessDenied) return accessDenied;
+  let session: {
+    client: ReturnType<typeof getClientFromTokens>;
+    orgId: string;
+    accessToken: string;
+    refreshToken: string;
+    realmId: string;
+  } | undefined;
   try {
+    const org = await getOrCreateDefaultOrg();
     let accessToken = request.cookies.get('qb_access_token')?.value;
     let refreshToken = request.cookies.get('qb_refresh_token')?.value;
     let realmId = request.cookies.get('qb_realm_id')?.value;
 
     if (!accessToken || !refreshToken || !realmId) {
-      const org = await getOrCreateDefaultOrg();
       if (org.qbAccessToken && org.qbRefreshToken && org.qbRealmId) {
         accessToken = org.qbAccessToken;
         refreshToken = org.qbRefreshToken;
@@ -301,9 +308,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const client = getClientFromTokens(accessToken, refreshToken, realmId);
+    session = { client, orgId: org.id, accessToken, refreshToken, realmId };
 
     if ((body as any).action === 'sync') {
-      const client = getClientFromTokens(accessToken, refreshToken, realmId);
       const fresh = await syncInvoices(client);
       return NextResponse.json({
         success: true,
@@ -317,10 +325,7 @@ export async function POST(request: NextRequest) {
       if (!(body as any).id) {
         return NextResponse.json({ error: 'id is required to send invoice' }, { status: 400 });
       }
-      const client = getClientFromTokens(accessToken, refreshToken, realmId);
-
       if (isSmtpConfigured()) {
-        const org = await getOrCreateDefaultOrg();
         const invoice = await client.getInvoice((body as any).id);
         const recipient = String((body as any).email || invoice.BillEmail?.Address || '').trim();
         if (!recipient) {
@@ -335,8 +340,8 @@ export async function POST(request: NextRequest) {
         if (invoice.CustomerRef?.value) {
           try {
             customer = await client.getCustomer(invoice.CustomerRef.value);
-          } catch (customerErr) {
-            console.error('Failed to load invoice customer for PDF:', customerErr);
+          } catch {
+            console.error('Failed to load invoice customer for PDF.');
           }
         }
         const pdf = await renderInvoicePdf({ invoice: invoiceForPdf, paymentUrl: payUrl, customer });
@@ -387,7 +392,6 @@ export async function POST(request: NextRequest) {
       if (!(body as any).id) {
         return NextResponse.json({ error: 'id is required to update invoice' }, { status: 400 });
       }
-      const client = getClientFromTokens(accessToken, refreshToken, realmId);
       const updated = await client.updateInvoice((body as any).id, (body as any).updates || {});
       await syncInvoices(client);
       addAuditLog({
@@ -452,7 +456,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = getClientFromTokens(accessToken, refreshToken, realmId);
     const invoice = await createInvoiceInQuickBooks(client, qbInvoice);
 
     addAuditLog({
@@ -467,10 +470,30 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, invoice: transformInvoice(invoice) });
   } catch (err) {
-    console.error('Failed to create invoice:', err);
+    console.error('Failed to create invoice.');
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to create invoice' },
       { status: 500 }
     );
+  } finally {
+    // Persist client-only 401 rotation without replaying or replacing the result.
+    const tokens = session?.client.getTokens();
+    if (session && tokens && (tokens.access_token !== session.accessToken || tokens.refresh_token !== session.refreshToken)) {
+      try {
+        const updated = await db.update(organizations).set({
+          qbAccessToken: tokens.access_token,
+          qbRefreshToken: tokens.refresh_token,
+          qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+          updatedAt: new Date(),
+        }).where(and(
+          eq(organizations.id, session.orgId),
+          eq(organizations.qbRealmId, session.realmId),
+          eq(organizations.qbRefreshToken, session.refreshToken),
+        )).returning({ id: organizations.id });
+        if (updated.length !== 1) console.error('Invoice token persistence skipped: QuickBooks connection changed.');
+      } catch {
+        console.error('Invoice token persistence failed; QuickBooks connection needs review.');
+      }
+    }
   }
 }

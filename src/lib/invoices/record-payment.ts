@@ -1,10 +1,14 @@
-import { and, eq, or } from 'drizzle-orm';
-import { db, customers, invoices, organizations, payments } from '@/db';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { getClientFromTokens } from '@/lib/quickbooks/sync';
+import {
+  PaymentRecordingError, paymentCents, preparePayment, completePaymentExport, persistPaymentTokens,
+} from './payment-recording-store';
 
 type RecordInvoicePaymentInput = {
   invoiceNumber?: string;
+  invoiceId?: string;
+  orgId?: string;
+  // Invoice allocation supplied by the caller. Square retains gross/fee in its durable intent.
   amount: number;
   paymentMethod: string;
   transactionId?: string;
@@ -12,162 +16,87 @@ type RecordInvoicePaymentInput = {
   notes?: string;
 };
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function cleanInvoiceNumber(value: string | undefined) {
-  return (value || '').replace(/^QB-/i, '').trim();
-}
-
-function moneyNumber(value: unknown) {
-  const amount = Number(value || 0);
-  return Number.isFinite(amount) ? amount : 0;
-}
-
-function paidDateString(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-async function createQuickBooksPayment(input: {
-  org: typeof organizations.$inferSelect;
-  invoice: typeof invoices.$inferSelect;
-  qbCustomerId?: string | null;
-  amount: number;
-  paidAt: Date;
-  note: string;
-}) {
-  if (!input.org.qbAccessToken || !input.org.qbRefreshToken || !input.org.qbRealmId) return null;
-  if (!input.invoice.qbInvoiceId || !input.qbCustomerId) return null;
-
-  const client = getClientFromTokens(input.org.qbAccessToken, input.org.qbRefreshToken, input.org.qbRealmId);
-  const payload = {
-    CustomerRef: { value: input.qbCustomerId },
-    TotalAmt: input.amount,
-    TxnDate: paidDateString(input.paidAt),
-    PrivateNote: input.note,
-    Line: [
-      {
-        Amount: input.amount,
-        LinkedTxn: [
-          {
-            TxnId: input.invoice.qbInvoiceId,
-            TxnType: 'Invoice',
-          },
-        ],
-      },
-    ],
-  };
-
-  try {
-    return await client.createPayment(payload as any);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : '';
-    if (!message.includes('AuthenticationFailed') && !message.includes('Token expired') && !message.includes('401')) {
-      throw err;
-    }
-
-    const refreshed = await client.refreshAccessToken();
-    await db.update(organizations).set({
-      qbAccessToken: refreshed.access_token,
-      qbRefreshToken: refreshed.refresh_token || input.org.qbRefreshToken,
-      qbTokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
-      updatedAt: new Date(),
-    }).where(eq(organizations.id, input.org.id));
-
-    return await client.createPayment(payload as any);
-  }
-}
-
 export async function recordInvoicePayment(input: RecordInvoicePaymentInput) {
-  const invoiceNumber = cleanInvoiceNumber(input.invoiceNumber);
-  if (!invoiceNumber) return { recorded: false, reason: 'missing_invoice_number' as const };
-
-  const amount = moneyNumber(input.amount);
-  if (amount <= 0) return { recorded: false, reason: 'invalid_amount' as const };
-
-  const org = await getOrCreateDefaultOrg();
-  const filters = [
-    eq(invoices.qbInvoiceId, invoiceNumber),
-    eq(invoices.invoiceNumber, invoiceNumber),
-    eq(invoices.invoiceNumber, `QB-${invoiceNumber}`),
-  ];
-  if (isUuid(invoiceNumber)) filters.push(eq(invoices.id, invoiceNumber));
-
-  const [row] = await db
-    .select({
-      invoice: invoices,
-      qbCustomerId: customers.qbCustomerId,
-    })
-    .from(invoices)
-    .leftJoin(customers, eq(customers.id, invoices.customerId))
-    .where(and(eq(invoices.orgId, org.id), or(...filters)!))
-    .limit(1);
-
-  if (!row) return { recorded: false, reason: 'invoice_not_found' as const };
-
-  const paidAt = input.paidAt || new Date();
-  const existing = input.transactionId
-    ? await db
-        .select({ id: payments.id })
-        .from(payments)
-        .where(and(eq(payments.invoiceId, row.invoice.id), eq(payments.transactionId, input.transactionId)))
-        .limit(1)
-    : [];
-
-  let qbPaymentId: string | undefined;
-  let qbNote = '';
-  if (existing.length === 0) {
-    try {
-      const qbPayment = await createQuickBooksPayment({
-        org,
-        invoice: row.invoice,
-        qbCustomerId: row.qbCustomerId,
-        amount,
-        paidAt,
-        note: input.notes || `${input.paymentMethod} payment`,
-      });
-      qbPaymentId = qbPayment?.Id;
-    } catch (err) {
-      qbNote = ` QuickBooks payment sync failed: ${err instanceof Error ? err.message : 'unknown error'}`;
-      console.error('Failed to create QuickBooks payment for invoice:', err);
-    }
-
-    await db.insert(payments).values({
-      orgId: org.id,
-      invoiceId: row.invoice.id,
-      qbPaymentId,
-      amount: amount.toFixed(2),
-      paymentMethod: input.paymentMethod,
-      transactionId: input.transactionId,
-      paidAt,
-      notes: `${input.notes || ''}${qbNote}`.trim() || undefined,
-    });
+  const invoiceNumber = typeof input.invoiceNumber === 'string' ? input.invoiceNumber.trim() : '';
+  if (!invoiceNumber && !input.invoiceId) return { recorded: false as const, reason: 'missing_invoice_number' };
+  // Square's provider identity is mandatory. Never manufacture an identity for a callback.
+  if (typeof input.transactionId !== 'string' || !input.transactionId.trim()
+    || input.transactionId !== input.transactionId.trim() || input.transactionId.length > 100
+    || /[\u0000-\u001f\u007f]/.test(input.transactionId)) {
+    return { recorded: false as const, reason: 'invalid_transaction_id' };
+  }
+  const cents = typeof input.amount === 'number' ? Math.round(input.amount * 100) : NaN;
+  if (!Number.isSafeInteger(cents) || cents <= 0 || cents > 9_999_999_999 || cents / 100 !== input.amount) {
+    return { recorded: false as const, reason: 'invalid_amount' };
+  }
+  const paidAt = input.paidAt ?? new Date();
+  if (!(paidAt instanceof Date) || !Number.isFinite(paidAt.getTime())) {
+    return { recorded: false as const, reason: 'invalid_paid_at' };
+  }
+  if (typeof input.paymentMethod !== 'string' || !input.paymentMethod.trim() || input.paymentMethod.length > 50) {
+    return { recorded: false as const, reason: 'invalid_payment_method' };
   }
 
-  const paymentRows = await db
-    .select({ amount: payments.amount })
-    .from(payments)
-    .where(eq(payments.invoiceId, row.invoice.id));
+  let local: Awaited<ReturnType<typeof preparePayment>>;
+  try {
+    const orgId = input.orgId ?? (await getOrCreateDefaultOrg()).id;
+    local = await preparePayment({ orgId, invoiceNumber, invoiceId: input.invoiceId, cents, transactionId: input.transactionId,
+      paidAt, paymentMethod: input.paymentMethod, notes: input.notes });
+  } catch (error) {
+    return { recorded: false as const,
+      reason: error instanceof PaymentRecordingError ? error.code : 'recording_failed' };
+  }
 
-  const paidTotal = paymentRows.reduce((sum, payment) => sum + moneyNumber(payment.amount), 0);
-  const total = moneyNumber(row.invoice.totalAmount);
-  const balance = Math.max(0, total - paidTotal);
-  const isPaid = balance <= 0.004 && total > 0;
+  const result = { recorded: true as const, invoiceId: local.invoice.id,
+    invoiceNumber: local.invoice.invoiceNumber, balance: local.balance, paid: local.paid,
+    qbPaymentId: local.qbPaymentId, qbExportStatus: local.status, qbExportNote: local.note,
+    tokenPersistenceStatus: 'unchanged' as 'unchanged' | 'saved' | 'review_required' };
+  if (!local.shouldExport) return result;
 
-  await db.update(invoices).set({
-    balance: balance.toFixed(2),
-    status: isPaid ? 'paid' : 'sent',
-    paidAt: isPaid ? paidAt : row.invoice.paidAt,
-    updatedAt: new Date(),
-  }).where(eq(invoices.id, row.invoice.id));
-
-  return {
-    recorded: true,
-    invoiceId: row.invoice.id,
-    invoiceNumber: row.invoice.invoiceNumber,
-    balance,
-    paid: isPaid,
-    qbPaymentId,
-  };
+  let client: ReturnType<typeof getClientFromTokens> | undefined;
+  try {
+    client = getClientFromTokens(local.org.qbAccessToken!, local.org.qbRefreshToken!, local.org.qbRealmId!);
+    // The client alone owns explicit-401 refresh. Unknown outcomes never replay here.
+    const payload = {
+      CustomerRef: { value: local.qbCustomerId! }, TotalAmt: cents / 100,
+      TxnDate: paidAt.toISOString().slice(0, 10),
+      PrivateNote: `HearthOS payment: ${local.payment.id}\n${input.notes || `${input.paymentMethod} payment`}`,
+      Line: [{ Amount: cents / 100, LinkedTxn: [{ TxnId: local.invoice.qbInvoiceId!, TxnType: 'Invoice' }] }],
+    };
+    // The shared response type requires CustomerRef.name; existing create payloads use its ID only.
+    const response = await client.createPayment(payload as unknown as Parameters<typeof client.createPayment>[0]);
+    const rawLinks = response?.Line?.[0]?.LinkedTxn;
+    const links = Array.isArray(rawLinks) ? rawLinks : rawLinks && typeof rawLinks === 'object' ? [rawLinks] : [];
+    if (!response || typeof response.Id !== 'string' || !/^[0-9]{1,50}$/.test(response.Id)
+      || paymentCents(String(response.TotalAmt)) !== cents
+      || (response.UnappliedAmt !== undefined && paymentCents(String(response.UnappliedAmt)) !== 0)
+      || response.CustomerRef?.value !== local.qbCustomerId
+      || response.Line?.length !== 1 || paymentCents(String(response.Line[0].Amount)) !== cents
+      || links.length !== 1 || typeof links[0]?.TxnId !== 'string' || !/^[0-9]{1,50}$/.test(links[0].TxnId)
+      || links[0].TxnId !== local.invoice.qbInvoiceId || links[0].TxnType !== 'Invoice') {
+      throw new PaymentRecordingError('export_review_required');
+    }
+    await completePaymentExport(local, response.Id);
+    result.qbPaymentId = response.Id;
+    result.qbExportStatus = 'exported';
+    result.qbExportNote = 'QuickBooks export completed.';
+  } catch {
+    result.qbExportStatus = 'review_required';
+    result.qbExportNote = 'Local payment recorded. QuickBooks export is unresolved and needs review; do not resubmit.';
+  } finally {
+    // Token persistence must not erase a known export result or mask an unknown one.
+    try {
+      const tokens = client?.getTokens();
+      if (tokens && (tokens.access_token !== local.org.qbAccessToken || tokens.refresh_token !== local.org.qbRefreshToken)) {
+        result.tokenPersistenceStatus = await persistPaymentTokens(local.org, tokens) ? 'saved' : 'review_required';
+      }
+    } catch {
+      result.tokenPersistenceStatus = 'review_required';
+    }
+    if (result.tokenPersistenceStatus === 'review_required') {
+      result.qbExportNote += ' QuickBooks connection credentials need review.';
+      console.error('Payment token persistence needs review.');
+    }
+  }
+  return result;
 }

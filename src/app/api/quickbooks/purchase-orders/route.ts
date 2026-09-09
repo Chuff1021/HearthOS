@@ -2,7 +2,7 @@ import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateDefaultOrg } from '@/lib/org';
 import { db, organizations } from '@/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getClientFromTokens, persistPurchaseOrdersToDb } from '@/lib/quickbooks/sync';
 import { isSmtpConfigured, parseEmailList, sendSmtpEmail } from '@/lib/email/smtp';
 import { renderPurchaseOrderPdf } from '@/lib/purchase-orders/pdf';
@@ -28,20 +28,33 @@ async function getQBAuth(request: NextRequest) {
   return { ok: true as const, accessToken, refreshToken, realmId, orgId: org.id };
 }
 
-async function withRefresh<T>(auth: { accessToken: string; refreshToken: string; realmId: string; orgId: string }, fn: (client: any) => Promise<T>) {
-  let client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+type QBSession = {
+  client: ReturnType<typeof getClientFromTokens>;
+  accessToken: string;
+  refreshToken: string;
+  realmId: string;
+  orgId: string;
+};
+
+async function persistFinalTokens(session: QBSession | undefined) {
+  if (!session) return;
+  const tokens = session.client.getTokens();
+  if (!tokens || (tokens.access_token === session.accessToken && tokens.refresh_token === session.refreshToken)) return;
   try {
-    return await fn(client);
-  } catch {
-    const tokens = await client.refreshAccessToken();
-    await db.update(organizations).set({
+    const updated = await db.update(organizations).set({
       qbAccessToken: tokens.access_token,
       qbRefreshToken: tokens.refresh_token,
       qbTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
       updatedAt: new Date(),
-    }).where(eq(organizations.id, auth.orgId));
-    client = getClientFromTokens(tokens.access_token, tokens.refresh_token, auth.realmId);
-    return fn(client);
+    }).where(and(
+      eq(organizations.id, session.orgId),
+      eq(organizations.qbRealmId, session.realmId),
+      eq(organizations.qbRefreshToken, session.refreshToken),
+    )).returning({ id: organizations.id });
+    if (updated.length !== 1) console.error('Purchase order token persistence skipped: QuickBooks connection changed.');
+  } catch {
+    // Preserve both successful writes and the original uncertain outcome.
+    console.error('Purchase order token persistence failed; QuickBooks connection needs review.');
   }
 }
 
@@ -256,39 +269,48 @@ function purchaseOrderLineFromEstimateLine(line: any, idx: number) {
 export async function GET(request: NextRequest) {
   const accessDenied = await authorizeCrmApi("/api/quickbooks/purchase-orders", "GET");
   if (accessDenied) return accessDenied;
+  let session: QBSession | undefined;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+    session = { ...auth, client };
 
     if (id) {
-      const purchaseOrder = await withRefresh(auth, (client) => client.getPurchaseOrder(id));
+      const purchaseOrder = await client.getPurchaseOrder(id);
       return NextResponse.json({ purchaseOrder });
     }
 
-    const purchaseOrders = (await withRefresh(auth, (client) => client.getPurchaseOrders(300))) as any[];
+    const purchaseOrders = await client.getPurchaseOrders(300);
     return NextResponse.json({ purchaseOrders, total: purchaseOrders.length });
-  } catch (err) {
-    console.error('Failed to get QuickBooks purchase orders:', err);
+  } catch {
+    console.error('Failed to get QuickBooks purchase orders.');
     return NextResponse.json({ error: 'Failed to get purchase orders' }, { status: 500 });
+  } finally {
+    await persistFinalTokens(session);
   }
 }
 
 export async function POST(request: NextRequest) {
   const accessDenied = await authorizeCrmApi("/api/quickbooks/purchase-orders", "POST");
   if (accessDenied) return accessDenied;
+  let session: QBSession | undefined;
   try {
     const auth = await getQBAuth(request);
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
     const body = await request.json();
+    // Reuse rotations across every step; only the client may retry an explicit 401.
+    const client = getClientFromTokens(auth.accessToken, auth.refreshToken, auth.realmId);
+    session = { ...auth, client };
 
     if (body.action === 'send') {
       if (!body.id) return NextResponse.json({ error: 'id is required for send' }, { status: 400 });
-      const sentPurchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(body.id, body.email));
-      try { await persistPurchaseOrdersToDb(auth.orgId, [sentPurchaseOrder]); } catch (e) { console.error('persist after PO send failed', e); }
+      const sentPurchaseOrder = await client.sendPurchaseOrder(body.id, body.email);
+      try { await persistPurchaseOrdersToDb(auth.orgId, [sentPurchaseOrder]); } catch { console.error('Purchase order persistence after send failed.'); }
       return NextResponse.json({ success: true, purchaseOrder: sentPurchaseOrder });
     }
 
@@ -297,7 +319,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'estimateId and vendorId are required' }, { status: 400 });
       }
 
-      const estimate = await withRefresh<any>(auth, (client) => client.getEstimate(body.estimateId));
+      const estimate = await client.getEstimate(body.estimateId);
       const sourceLines = (estimate.Line || []).filter((line: any) => line.DetailType === 'SalesItemLineDetail');
       const poLines = sourceLines.map(purchaseOrderLineFromEstimateLine).filter((line: any) => Number(line.Amount || 0) > 0);
 
@@ -328,7 +350,7 @@ export async function POST(request: NextRequest) {
           amount: line.Amount,
         })),
       };
-      let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+      let purchaseOrder = await client.createPurchaseOrder(poPayload);
       let sentVia: string | null = null;
       let emailError: string | null = null;
       if (body.send) {
@@ -336,14 +358,14 @@ export async function POST(request: NextRequest) {
           const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, emailBody);
           if (smtpResult.sent) sentVia = smtpResult.sentVia;
           else {
-            purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+            purchaseOrder = await client.sendPurchaseOrder(purchaseOrder.Id, body.email);
             sentVia = 'quickbooks';
           }
         } catch (sendErr) {
           emailError = errorMessage(sendErr);
         }
       }
-      try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist PO from estimate failed', e); }
+      try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch { console.error('Purchase order persistence from estimate failed.'); }
       return NextResponse.json({ purchaseOrder, sent: Boolean(body.send && sentVia), sentVia, emailError }, { status: 201 });
     }
 
@@ -377,7 +399,7 @@ export async function POST(request: NextRequest) {
       }),
     };
 
-    let purchaseOrder = await withRefresh<any>(auth, (client) => client.createPurchaseOrder(poPayload));
+    let purchaseOrder = await client.createPurchaseOrder(poPayload);
     let sentVia: string | null = null;
     let emailError: string | null = null;
     if (body.send) {
@@ -385,17 +407,19 @@ export async function POST(request: NextRequest) {
         const smtpResult = await sendPurchaseOrderByConfiguredEmail(purchaseOrder, body);
         if (smtpResult.sent) sentVia = smtpResult.sentVia;
         else {
-          purchaseOrder = await withRefresh<any>(auth, (client) => client.sendPurchaseOrder(purchaseOrder.Id, body.email));
+          purchaseOrder = await client.sendPurchaseOrder(purchaseOrder.Id, body.email);
           sentVia = 'quickbooks';
         }
       } catch (sendErr) {
         emailError = errorMessage(sendErr);
       }
     }
-    try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch (e) { console.error('persist created PO failed', e); }
+    try { await persistPurchaseOrdersToDb(auth.orgId, [purchaseOrder]); } catch { console.error('Purchase order persistence after create failed.'); }
     return NextResponse.json({ purchaseOrder, sent: Boolean(body.send && sentVia), sentVia, emailError }, { status: 201 });
   } catch (err) {
-    console.error('Failed to create QuickBooks purchase order:', err);
+    console.error('Failed to create QuickBooks purchase order.');
     return NextResponse.json({ error: errorMessage(err) || 'Failed to create purchase order' }, { status: 500 });
+  } finally {
+    await persistFinalTokens(session);
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -19,6 +19,7 @@ interface InvoiceLineItem {
 
 interface Invoice {
   id: string;
+  localId?: string;
   invoiceNumber: string;
   customerId: string;
   customerName: string;
@@ -41,6 +42,39 @@ interface Invoice {
 interface Customer {
   id: string;
   displayName: string;
+}
+
+type ManualPaymentAttempt = { invoiceId: string; invoiceNumber: string; body: string };
+
+function canonicalManualInvoiceId(invoice: Invoice | null | undefined) {
+  const value = invoice?.localId || invoice?.id;
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value.toLowerCase() : null;
+}
+
+function manualInvoiceNumber(value: unknown) {
+  return typeof value === 'string' ? value.trim().replace(/^QB-/i, '').trim() : null;
+}
+
+function manualPaymentStorageKey(invoiceId: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(invoiceId)) {
+    throw new Error('A canonical local invoice is required');
+  }
+  return `hearthos:manual-payment:v1:${invoiceId.toLowerCase()}`;
+}
+
+function readManualPaymentAttempt(invoiceId: string): ManualPaymentAttempt | null {
+  const saved = sessionStorage.getItem(manualPaymentStorageKey(invoiceId));
+  if (saved === null) return null;
+  const attempt = JSON.parse(saved);
+  if (!attempt || attempt.invoiceId !== invoiceId || typeof attempt.invoiceNumber !== 'string'
+    || typeof attempt.body !== 'string' || attempt.body.length > 4096) throw new Error('Invalid saved payment reference');
+  const payload = JSON.parse(attempt.body);
+  if (payload?.invoiceId !== invoiceId || payload.invoiceNumber !== attempt.invoiceNumber
+    || typeof payload.requestId !== 'string' || !/^[0-9a-f-]{36}$/i.test(payload.requestId)) {
+    throw new Error('Invalid saved payment reference');
+  }
+  return { invoiceId: attempt.invoiceId, invoiceNumber: attempt.invoiceNumber, body: attempt.body };
 }
 
 interface Item {
@@ -127,6 +161,11 @@ export default function InvoicesPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const manualPaymentFlight = useRef(false);
+  const manualPaymentAttempt = useRef<ManualPaymentAttempt | null>(null);
+  const [manualPaymentPending, setManualPaymentPending] = useState<ManualPaymentAttempt | null>(null);
+  const [manualPaymentBusy, setManualPaymentBusy] = useState(false);
+  const [manualPaymentMessage, setManualPaymentMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [metricFilter, setMetricFilter] = useState<"all" | "outstanding" | "overdue" | "paid" | "draft">("all");
@@ -140,7 +179,6 @@ export default function InvoicesPage() {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [squareSignals, setSquareSignals] = useState<Record<string, { status: string; amount: number; paymentDate: string }>>({});
-  const [reconcilingSquare, setReconcilingSquare] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailInvoiceId, setEmailInvoiceId] = useState<string | null>(null);
   const [emailTo, setEmailTo] = useState("");
@@ -152,6 +190,21 @@ export default function InvoicesPage() {
   const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false);
   const selectedInvoiceId = searchParams.get("id");
   const selectedCustomerId = searchParams.get("customer");
+  const manualInvoiceId = canonicalManualInvoiceId(selectedInvoice);
+
+  useEffect(() => {
+    if (!manualInvoiceId || manualPaymentAttempt.current) return;
+    try {
+      const attempt = readManualPaymentAttempt(manualInvoiceId);
+      if (attempt) {
+        manualPaymentAttempt.current = attempt;
+        setManualPaymentPending(attempt);
+        setManualPaymentMessage(`Payment recording for ${attempt.invoiceNumber} is unconfirmed. Check the saved payment before recording another.`);
+      }
+    } catch {
+      setManualPaymentMessage('Saved payment reference could not be read. Payment recording is paused until browser storage and the local invoice are available.');
+    }
+  }, [manualInvoiceId, manualPaymentPending]);
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -391,37 +444,6 @@ export default function InvoicesPage() {
     return () => clearInterval(t);
   }, [fetchInvoices, fetchCustomers, fetchItems, fetchSquareSignals]);
 
-  useEffect(() => {
-    async function reconcileSquarePayments() {
-      const candidates = invoices.filter((inv) => {
-        const s = squareSignals[inv.invoiceNumber];
-        return !!s && s.status === 'completed' && inv.balance > 0 && s.amount >= inv.balance;
-      });
-
-      if (!candidates.length) return;
-      setReconcilingSquare(true);
-      try {
-        for (const inv of candidates) {
-          await fetch('/api/invoices', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: inv.id,
-              status: 'paid',
-              balance: 0,
-              notes: `${inv.notes || ''}${inv.notes ? '\n' : ''}Auto-marked paid from Square (${new Date().toISOString()}).`,
-            }),
-          });
-        }
-        fetchInvoices();
-      } finally {
-        setReconcilingSquare(false);
-      }
-    }
-
-    reconcileSquarePayments();
-  }, [invoices, squareSignals, fetchInvoices]);
-
   const dateFilteredInvoices = invoices.filter((inv) =>
     isWithinDateRange(dateField === "issueDate" ? inv.issueDate : inv.dueDate, dateFrom, dateTo),
   );
@@ -642,37 +664,102 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleRecordCheckPayment = async (invoice: Invoice) => {
-    const amountText = prompt("Payment amount", Number(invoice.balance || invoice.totalAmount || 0).toFixed(2));
-    if (amountText === null) return;
-    const amount = Number(amountText);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setError("Enter a payment amount greater than 0.");
-      return;
-    }
-
-    const checkNumber = prompt("Check number (optional)", "");
-    if (checkNumber === null) return;
-
+  const handleRecordCheckPayment = async (invoice?: Invoice) => {
+    if (manualPaymentFlight.current) return;
+    manualPaymentFlight.current = true;
+    setManualPaymentBusy(true);
+    let confirmedMessage: string | undefined;
+    let storageFailed = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
+      let attempt = manualPaymentAttempt.current;
+      const canonicalInvoiceId = canonicalManualInvoiceId(invoice);
+      if (!attempt && invoice && !canonicalInvoiceId) {
+        setManualPaymentMessage('Payment was not submitted. A synced local invoice is required to retain a safe payment reference.');
+        return;
+      }
+      try {
+        if (!attempt && canonicalInvoiceId) attempt = readManualPaymentAttempt(canonicalInvoiceId);
+      } catch { storageFailed = true; throw new Error('Payment reference storage unavailable'); }
+      if (attempt) {
+        manualPaymentAttempt.current = attempt;
+        setManualPaymentPending(attempt);
+      }
+      if (!attempt) {
+        if (!invoice || !canonicalInvoiceId) return;
+        const amountText = prompt("Payment amount", Number(invoice.balance || invoice.totalAmount || 0).toFixed(2));
+        if (amountText === null) return;
+        const amount = Number(amountText);
+        const cents = Math.round(amount * 100);
+        if (!Number.isSafeInteger(cents) || cents <= 0 || cents > 9_999_999_999 || cents / 100 !== amount) {
+          setError("Enter a positive payment amount with no more than two decimal places.");
+          return;
+        }
+        const checkNumber = prompt("Check number (optional)", "");
+        if (checkNumber === null) return;
+        if (checkNumber.trim().length > 50 || /[\u0000-\u001f\u007f]/.test(checkNumber)
+          || (checkNumber.trim() && `check:${invoice.invoiceNumber}:${checkNumber.trim()}`.length > 100)) {
+          setError("Enter a check number of 50 characters or fewer.");
+          return;
+        }
+        attempt = { invoiceId: canonicalInvoiceId, invoiceNumber: invoice.invoiceNumber,
+          body: JSON.stringify({ invoiceId: canonicalInvoiceId, invoiceNumber: invoice.invoiceNumber, amount, paymentMethod: "check",
+            checkNumber: checkNumber.trim() || undefined, requestId: crypto.randomUUID() }) };
+      }
+      // Retain the exact body before any write, including an explicit retry after remount.
+      try {
+        const key = manualPaymentStorageKey(attempt.invoiceId);
+        const serialized = JSON.stringify(attempt);
+        sessionStorage.setItem(key, serialized);
+        if (sessionStorage.getItem(key) !== serialized) throw new Error('Payment reference not retained');
+      } catch { storageFailed = true; throw new Error('Payment reference storage unavailable'); }
+      manualPaymentAttempt.current = attempt;
+      setManualPaymentPending(attempt);
+      setError(null);
+      setManualPaymentMessage(`Recording payment for ${attempt.invoiceNumber}...`);
+      const controller = new AbortController();
+      timeout = setTimeout(() => controller.abort(), 30_000);
       const res = await fetch("/api/invoices/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoiceNumber: invoice.invoiceNumber,
-          amount,
-          paymentMethod: "check",
-          checkNumber: checkNumber.trim() || undefined,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: attempt.body,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to record payment");
-      await fetchInvoices();
-      const refreshed = await fetch(`/api/invoices?id=${encodeURIComponent(invoice.id)}`, { cache: "no-store" });
-      const refreshedData = await refreshed.json().catch(() => ({}));
-      if (refreshed.ok && refreshedData.invoice) setSelectedInvoice(refreshedData.invoice);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to record payment");
+      const payment = data?.payment;
+      if (!res.ok || data?.success !== true || payment?.recorded !== true
+        || payment.invoiceId !== attempt.invoiceId || !manualInvoiceNumber(payment.invoiceNumber)
+        || manualInvoiceNumber(payment.invoiceNumber) !== manualInvoiceNumber(attempt.invoiceNumber)
+        || typeof payment.balance !== 'number' || !Number.isFinite(payment.balance) || payment.balance < 0
+        || typeof payment.paid !== 'boolean') throw new Error('Unconfirmed manual payment');
+      confirmedMessage = `Payment recorded locally for ${attempt.invoiceNumber}. ${payment.qbExportStatus === 'exported'
+        ? 'QuickBooks export completed.' : payment.qbExportStatus === 'pending'
+          ? 'QuickBooks export is pending.' : 'QuickBooks export needs review; do not submit this payment again.'}`;
+      if (payment.tokenPersistenceStatus === 'review_required') confirmedMessage += ' QuickBooks connection needs review.';
+      setManualPaymentMessage(confirmedMessage);
+      const patch = (row: Invoice): Invoice => canonicalManualInvoiceId(row) === attempt.invoiceId
+        ? { ...row, balance: payment.balance, status: payment.paid ? 'paid' : 'sent' } : row;
+      setInvoices(rows => rows.map(patch));
+      setSelectedInvoice(row => row ? patch(row) : row);
+      try {
+        const key = manualPaymentStorageKey(attempt.invoiceId);
+        sessionStorage.removeItem(key);
+        if (sessionStorage.getItem(key) !== null) throw new Error('Payment reference not cleared');
+      } catch { storageFailed = true; throw new Error('Payment reference storage unavailable'); }
+      manualPaymentAttempt.current = null;
+      setManualPaymentPending(null);
+      // Refresh is read-only and separate from confirmation; its failure cannot invite a new payment.
+      const refreshed = await fetch('/api/invoices', { cache: 'no-store', signal: controller.signal });
+      const refreshedData = await refreshed.json();
+      if (!refreshed.ok || !Array.isArray(refreshedData?.invoices)) throw new Error('Invoice refresh unavailable');
+      setInvoices(refreshedData.invoices);
+    } catch {
+      setManualPaymentMessage(storageFailed ? confirmedMessage
+        ? `${confirmedMessage} The saved reference could not be cleared; check this same payment before recording another.`
+        : 'Payment recording is paused because this browser cannot safely retain its payment reference. No request was sent in this attempt.'
+        : confirmedMessage ? `${confirmedMessage} Invoice refresh is unavailable; the payment remains recorded.`
+          : 'Payment recording is unconfirmed. Check this same payment before recording another; the saved payment reference is unchanged.');
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
+      manualPaymentFlight.current = false;
+      setManualPaymentBusy(false);
     }
   };
 
@@ -892,7 +979,6 @@ export default function InvoicesPage() {
             <h1 className="font-bold text-xl" style={{ color: "var(--color-text-primary)" }}>Invoices</h1>
             <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
               {loading ? "Loading..." : `${invoices.length} invoices`}
-              {reconcilingSquare ? " · reconciling Square payments…" : ""}
             </p>
           </div>
           <button
@@ -917,6 +1003,20 @@ export default function InvoicesPage() {
             {syncing ? 'Syncing...' : 'Sync QB'}
           </button>
         </div>
+
+        {manualPaymentMessage && (
+          <div className="px-6 py-3 text-sm flex flex-wrap items-center gap-3" role="status" aria-live="polite"
+            style={{ color: 'var(--color-text-primary)', borderBottom: '1px solid var(--color-border)' }}>
+            <span>{manualPaymentMessage}</span>
+            {manualPaymentPending && (
+              <button type="button" disabled={manualPaymentBusy} onClick={() => handleRecordCheckPayment()}
+                className="px-3 py-2 rounded-md font-medium disabled:opacity-50"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                {manualPaymentBusy ? 'Recording...' : 'Check Payment Recording'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Summary Stats */}
         <div
@@ -1392,7 +1492,8 @@ export default function InvoicesPage() {
                   {(selectedInvoice.status === "sent" || selectedInvoice.status === "overdue") && (
                     <button
                       onClick={() => handleRecordCheckPayment(selectedInvoice)}
-                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold"
+                      disabled={manualPaymentBusy || !!manualPaymentPending}
+                      className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
                       style={{ background: "linear-gradient(135deg, #98CD00, #98CD00)", color: "white" }}
                     >
                       Record Check Payment

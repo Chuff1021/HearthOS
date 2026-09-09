@@ -2,6 +2,52 @@
 
 ## Current State
 
+### September 9, 2026: Clerk Dashboard Access Confirmed
+
+Owner signed into Clerk. Read-only inspection found the HearthOS development
+instance also serves live Aaron sign-in: public live sign-in references the same
+`pro-stallion-84.clerk.accounts.dev` host. Existing staff, Meeks and demo identities
+share this instance; dashboard reports no production environment. Do not treat it
+as disposable or click Go to prod as part of acceptance. No credentials revealed,
+identity/configuration changes, or deployment performed. Separate test Clerk app
+creation needs owner confirmation; isolated authenticated runtime is still pending.
+Production-auth migration remains separate from the bounded quality release.
+
+### September 9, 2026: Prerelease Customer and Provider Safety
+
+Continuation on `codex/product-quality`: durable customer-create claim/recovery
+in existing audit/customer tables, new customer dialog, schedule status checking,
+PO no-replay and invoice/PO guarded token persistence are implemented and tested.
+No production writes, migrations, sync, charges, auth changes or deployment.
+Encrypted archive restored again in disposable local PostgreSQL; all 64 original
+tables unchanged. Production audit now zero after one transitive lockfile update;
+11 dev-tool findings remain. Payment recording/capture, new marked QB import
+reconciliation and reload-safe manual recording are implemented and independently
+reviewed. No historical financial records were merged or deleted. New card fees
+remain audit-only outside principal allocation; fee-income accounting is not done.
+Final local validation: 533 automated tests, typecheck, lint and optimized build
+passed; six-viewport core browser checks passed. Existing warnings remain.
+Actual authenticated candidate remains unverified: protected Clerk credentials were
+not available through secure CLI download. Browser automation recovered and Clerk
+sign-in is now open for handoff. Preview is synthetic/read-only at
+`http://127.0.0.1:62988/` (PID 89694), not a production candidate. User was asked to
+sign into Clerk; never request keys in chat or bypass auth. See
+`docs/QUALITY_PRERELEASE_2026_09_09.md`. No promotion until the remaining gates pass.
+
+### September 9, 2026: Isolated Product Quality Candidate
+
+Current work is `/Users/fireplace/HearthOS-product-quality`, branch
+`codex/product-quality`, based on verified production `19fb50f`. Six agents
+implemented a bounded dashboard/search/jobs/schedule/customer/navigation quality
+pass with synthetic browser tests and actual temporary PostgreSQL query parity.
+No production database, provider, configuration, or deployment changes were made.
+Production source worktree remains unchanged. See
+`docs/PRODUCT_QUALITY_EXECUTION_2026_09_09.md` for evidence and remaining gates.
+This is not full CRM or multi-tenant launch certification. Do not restore/reseed
+Aaron's records, deploy the foundation wholesale, or reconnect QuickBooks to
+repair a UI/access issue. The new-customer placeholder was removed pending a safe
+unified idempotent creation path. Meeks/GABE remain Aaron-only; demos separate.
+
 ### September 8, 2026: Access Incident Root Cause and Candidate Fix
 
 Authenticated browser verification on diagnostic deployment `dpl_7dX3utaMfhwg66S2we8qNRtpB4zD` showed MEMBERSHIP_NOT_FOUND: the user's verified business login email differs from the existing Colton employee contact email. Added deployment-controlled `HEARTHOS_EMPLOYEE_LOGIN_ALIASES` in production configuration, explicitly mapping that business login to the existing Colton employee UUID. No employee record, role, organization, or business record was changed. New guard permits only verified-email aliases scoped to the existing default organization, rejects ambiguous/inactive matches, and reads role from the existing employee record. Regression tests cover the actual differing-email scenario. Added `/api/access`, structured non-PII error classifications, and a client business access gate so denial cannot masquerade as empty business data. Candidate not yet promoted; working production remains rolled back until signed-in candidate verification passes.
