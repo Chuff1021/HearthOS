@@ -21,7 +21,8 @@ workflows. Banking is removed only from navigation at the owner's request; no
 route or API is deleted or added. The dashboard job link is corrected to the
 existing selected-job URL. Recent PO numbers now open the existing authorized,
 read-only document drawer in a modal; no order creation/send/delete handler is
-changed. No auth, provider, persistence, schema, migration,
+changed. The existing drawer renders date-only values without UTC day shifting;
+stored dates are unchanged. No auth, provider, persistence, schema, migration,
 upload, API, dependency, or Vercel configuration changes are included.
 
 ## Recovery And Baseline
