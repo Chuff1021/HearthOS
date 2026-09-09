@@ -115,7 +115,22 @@
   .pw-workspace .pw-dialog p > .text-white { color: var(--color-text-primary); }
   .pw-workspace .pw-dialog .flex.gap-3 { flex-wrap: wrap; }
   .pw-workspace .pw-dialog .flex > div { min-width: 0; }
+  .pw-vendors .pw-metrics > * { container-type: inline-size; }
+  .pw-vendors .pw-metrics .pw-money-value {
+    font-size: clamp(14px, 11cqi, 24px);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  .pw-vendor-contact > :is(a, span) { min-width: 0; max-width: 100%; align-items: flex-start; }
+  .pw-vendor-contact > :is(a, span) > span { min-width: 0; overflow-wrap: anywhere; }
+  .pw-vendor-contact svg { flex-shrink: 0; margin-top: 3px; }
   .pw-workspace.pw-tech h1 { font-size: 22px; }
+  .pw-tech .ui-mobile-header {
+    background: var(--pw-surface);
+    border-color: var(--pw-line);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 
   .pw-workspace .pw-heading,
   .pw-heading.pw-workspace,

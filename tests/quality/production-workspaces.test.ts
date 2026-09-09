@@ -91,3 +91,25 @@ test("legacy portals receive page styles as well as the underlying workspace", (
   assert.doesNotMatch(read("src/app/team/page.tsx"), /bg-\[#1a1a2e\]/);
   assert.doesNotMatch(read("src/app/admin/gabe-audit/page.tsx"), /bg-\[#1a1a2e\]/);
 });
+
+test("vendor tabs wrap without shifting the profile and photo capture uses the shared action style", () => {
+  const vendor = read("src/app/vendors/[id]/page.tsx");
+  assert.match(vendor, /className="pw-tabs flex flex-wrap/);
+  assert.match(vendor, /aria-pressed=\{active\}/);
+  assert.match(read("src/app/tech/job/[jobId]/page.tsx"), /className="pw-primary bg-gradient-to-r from-blue-600/);
+});
+
+test("mobile vendor values and technical manuals use bounded, readable presentation", () => {
+  const source = css.toString();
+  assert.match(source, /\.pw-vendors \.pw-metrics \.pw-money-value/);
+  assert.match(source, /font-size: clamp\(14px, 11cqi, 24px\)/);
+  assert.match(source, /\.pw-vendor-contact/);
+  assert.match(source, /\.pw-tech \.ui-mobile-header/);
+  assert.match(read("src/app/vendors/page.tsx"), /pw-money-value/);
+  const manuals = read("src/app/tech/manuals/page.tsx");
+  assert.match(manuals, /selectedModel === model \? "pw-primary text-white"/);
+  assert.match(manuals, /ingestingId === manual.id \? "var\(--color-warning\)" : "var\(--color-info\)"/);
+  for (const page of ["inventory", "vendors", "reports/profit-by-job"]) {
+    assert.doesNotMatch(read(`src/app/${page}/page.tsx`), /background:[^,}\n]*#f8971f/);
+  }
+});

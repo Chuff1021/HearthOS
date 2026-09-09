@@ -389,7 +389,7 @@ export default function ManualsPage() {
                 key={model}
                 onClick={() => setSelectedModel(model)}
                 className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
-                  selectedModel === model ? "bg-emerald-500 text-white" : "ui-card-muted"
+                  selectedModel === model ? "pw-primary text-white" : "ui-card-muted"
                 }`}
               >
                 {model}
@@ -444,7 +444,7 @@ export default function ManualsPage() {
                           className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                           style={{
                             background: ingestingId === manual.id ? "rgba(245,158,11,0.15)" : "rgba(37,99,235,0.12)",
-                            color: ingestingId === manual.id ? "#F59E0B" : "#2563EB",
+                            color: ingestingId === manual.id ? "var(--color-warning)" : "var(--color-info)",
                             border: `1px solid ${ingestingId === manual.id ? "rgba(245,158,11,0.3)" : "rgba(37,99,235,0.25)"}`,
                           }}
                         >

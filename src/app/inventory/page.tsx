@@ -594,7 +594,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setSource(opt.id)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: source === opt.id ? "#f8971f" : "var(--color-surface-2)",
+                    background: source === opt.id ? "#b4420a" : "var(--color-surface-2)",
                     color: source === opt.id ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -618,7 +618,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMonthsBack(m)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#b4420a" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -635,7 +635,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMinPct(p)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: minPct === p ? "#f8971f" : "var(--color-surface-2)",
+                    background: minPct === p ? "#b4420a" : "var(--color-surface-2)",
                     color: minPct === p ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -833,7 +833,7 @@ function FilterPill<V extends string>({ label, value, current, onClick }: { labe
       onClick={() => onClick(value)}
       className="px-3 py-2 rounded-lg text-xs font-medium transition-colors"
       style={{
-        background: active ? "#f8971f" : "var(--color-surface-1)",
+        background: active ? "#b4420a" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}
@@ -958,7 +958,7 @@ function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () 
                   onClick={() => setMonthsBack(m)}
                   className="px-3 py-1.5 rounded-lg text-sm"
                   style={{
-                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#b4420a" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}

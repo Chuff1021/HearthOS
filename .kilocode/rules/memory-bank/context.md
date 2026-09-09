@@ -13,7 +13,12 @@ The follow-up fixes those presentation gaps while preserving exact handlers,
 requests, hooks, routes, integrations, and persistence. No Banking or prototype
 pages added. Fresh read-only pre-release baseline:
 `production-baseline-2026-09-09T20-50-22-643Z.json` in the secure backup directory.
-At this checkpoint the changes are local; full page/overlay visual QA is pending.
+PR #8 is open on the follow-up branch. Typecheck, the isolated production build,
+all 199 quality tests, and the exact-handler/data-flow preservation check pass.
+Billing passes 169 checks; customer/project browser checks pass. The final frozen
+36-route workspace sweep passes 394 screenshots and 123 execution/safety checks
+after mobile vendor and contrast fixes, with zero runtime/style/geometry errors.
+See `docs/DESIGN_PAGE_AUDIT_2026_09_09.md` for coverage and explicit limits.
 No production deployment or data mutation has been performed for this follow-up.
 
 ### September 9, 2026: Approved Production Design Port
