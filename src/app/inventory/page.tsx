@@ -562,9 +562,9 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="pw-workspace pw-inventory pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
+        className="pw-dialog w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
         style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -594,7 +594,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setSource(opt.id)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: source === opt.id ? "#f8971f" : "var(--color-surface-2)",
+                    background: source === opt.id ? "#b4420a" : "var(--color-surface-2)",
                     color: source === opt.id ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -618,7 +618,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMonthsBack(m)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#b4420a" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -635,7 +635,7 @@ function PriceAuditModal({ onClose, onApplied }: { onClose: () => void; onApplie
                   onClick={() => setMinPct(p)}
                   className="px-2.5 py-1 rounded-lg text-xs"
                   style={{
-                    background: minPct === p ? "#f8971f" : "var(--color-surface-2)",
+                    background: minPct === p ? "#b4420a" : "var(--color-surface-2)",
                     color: minPct === p ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -833,7 +833,7 @@ function FilterPill<V extends string>({ label, value, current, onClick }: { labe
       onClick={() => onClick(value)}
       className="px-3 py-2 rounded-lg text-xs font-medium transition-colors"
       style={{
-        background: active ? "#f8971f" : "var(--color-surface-1)",
+        background: active ? "#b4420a" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}
@@ -929,9 +929,9 @@ function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+    <div className="pw-workspace pw-inventory pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-2xl overflow-hidden"
+        className="pw-dialog w-full max-w-lg rounded-2xl overflow-hidden"
         style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -958,7 +958,7 @@ function TrimModal({ onClose, onApplied }: { onClose: () => void; onApplied: () 
                   onClick={() => setMonthsBack(m)}
                   className="px-3 py-1.5 rounded-lg text-sm"
                   style={{
-                    background: monthsBack === m ? "#f8971f" : "var(--color-surface-2)",
+                    background: monthsBack === m ? "#b4420a" : "var(--color-surface-2)",
                     color: monthsBack === m ? "white" : "var(--color-text-secondary)",
                     border: "1px solid var(--color-border)",
                   }}
@@ -1052,7 +1052,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
 
   if (!data) {
     return (
-      <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="pw-workspace pw-inventory fixed inset-0 z-50 flex" onClick={onClose}>
         <div className="ml-auto h-full w-full md:w-[640px]" style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
           <div className="p-6 text-sm" style={{ color: "var(--color-text-muted)" }}>Loading…</div>
         </div>
@@ -1106,7 +1106,7 @@ function DetailDrawer({ itemId, onClose, onSaved }: { itemId: string; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+    <div className="pw-workspace pw-inventory fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1 bg-black/40" />
       <div
         className="h-full w-full md:w-[720px] overflow-y-auto"

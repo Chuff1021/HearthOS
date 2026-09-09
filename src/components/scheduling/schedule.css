@@ -1,0 +1,324 @@
+/* Schedule owns these surfaces; shared OperationsStyles and Meeks stay independent. */
+@media screen {
+.ops-production.ops-schedule,
+.ops-production.ops-schedule-dialog {
+  --schedule-weekend: #fafbfd;
+  --schedule-today: #fffaf6;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .ops-production.ops-schedule {
+  --schedule-weekend: #232323;
+  --schedule-today: #2b2621;
+}
+
+.ops-production.ops-schedule .ops-schedule-toolbar {
+  padding: 12px 20px;
+  gap: 12px 20px;
+}
+
+.ops-production.ops-schedule .ops-schedule-heading h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 650;
+}
+
+.ops-production.ops-schedule .ops-schedule-range {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-production.ops-schedule :is(.ops-schedule-navigation, .ops-schedule-actions) button {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.ops-production.ops-schedule :is(.ops-schedule-today, .ops-schedule-actions > .ops-primary) {
+  min-height: 36px;
+  border-radius: 5px;
+}
+
+.ops-production.ops-schedule .ops-schedule-today {
+  background: var(--color-surface-1);
+}
+
+.ops-production.ops-schedule .ops-schedule-controls {
+  padding: 2px;
+  flex-wrap: nowrap;
+  border-radius: 6px;
+}
+
+.ops-production.ops-schedule .ops-schedule-controls button {
+  min-height: 30px;
+  white-space: nowrap;
+  padding-inline: 10px;
+}
+
+.ops-production.ops-schedule .ops-schedule-controls button[aria-pressed="true"] {
+  color: var(--color-ember);
+  background: var(--ops-orange-bg);
+  box-shadow: inset 0 0 0 1px var(--ops-orange-border);
+}
+
+.ops-production.ops-schedule :is(.ops-schedule-filters, .ops-schedule-time-off) {
+  padding-inline: 20px;
+}
+
+.ops-production.ops-schedule .ops-tech-filter {
+  min-height: 34px;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-surface-1);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ops-production.ops-schedule .ops-tech-filter > span {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.ops-production.ops-schedule .ops-tech-filter[aria-pressed="true"] {
+  border-color: var(--ops-orange-border);
+  background: var(--ops-orange-bg);
+  color: var(--color-ember);
+}
+
+.ops-production.ops-schedule :is(.ops-tech-filter, .ops-schedule-today):hover {
+  box-shadow: inset 0 0 0 1px var(--color-border-hover);
+}
+
+.ops-production.ops-schedule .ops-schedule-filters select {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.ops-production.ops-schedule .ops-schedule-time-off-chip {
+  flex-wrap: wrap;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.ops-production.ops-schedule :is(.ops-schedule-slot, .ops-schedule-week-day, .ops-schedule-month-day)[data-weekend="true"] {
+  background: var(--schedule-weekend);
+}
+
+.ops-production.ops-schedule :is(.ops-schedule-slot, .ops-schedule-week-day, .ops-schedule-month-day)[data-today="true"] {
+  background: var(--schedule-today);
+}
+
+.ops-production.ops-schedule .ops-schedule-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-production.ops-schedule .ops-schedule-day-number[aria-current="date"] {
+  background: var(--ops-orange-bg);
+  color: var(--color-ember);
+  box-shadow: inset 0 -2px var(--color-ember);
+}
+
+.ops-production.ops-schedule .ops-schedule-month .ops-schedule-day-number {
+  font-size: 13px;
+}
+
+.ops-production.ops-schedule .ops-schedule-week-day {
+  padding-block: 8px;
+}
+
+.ops-production.ops-schedule .ops-calendar-event {
+  z-index: 1;
+  box-shadow: 0 1px 2px #1d29380a;
+}
+
+.ops-production.ops-schedule .ops-calendar-event:hover {
+  box-shadow: 0 2px 6px #1d293822;
+}
+
+.ops-production.ops-schedule .ops-event-content {
+  padding: 5px 6px;
+  gap: 2px;
+}
+
+.ops-production.ops-schedule .ops-event-open {
+  min-height: 16px;
+  line-height: 16px;
+}
+
+.ops-production.ops-schedule .ops-event-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+}
+
+.ops-production.ops-schedule .ops-event-customer {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ops-production.ops-schedule .ops-calendar-event[data-short="true"] .ops-event-content {
+  padding-block: 2px;
+  gap: 0;
+}
+
+.ops-production.ops-schedule .ops-calendar-event[data-short="true"] .ops-event-customer {
+  display: none;
+}
+
+.ops-production.ops-schedule .ops-event-tech {
+  max-width: 100%;
+  font-size: 11px;
+}
+
+.ops-production.ops-schedule .ops-month-event {
+  padding: 5px 6px;
+  background: var(--color-surface-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ops-production.ops-schedule section[aria-label="Schedule agenda"] h2 {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.ops-production.ops-schedule-dialog .ops-modal {
+  color: var(--color-text-primary);
+  box-shadow: 0 16px 60px #0003;
+}
+
+.ops-production.ops-schedule-dialog .ops-modal h2 {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-modal-heading {
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ops-production.ops-schedule-dialog :is(input, select, textarea, button) {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* Keep validation borders visible beneath the legacy rounded-input override. */
+.ops-production.ops-schedule-dialog .ops-modal :is(input, select, textarea)[style*="--color-danger"] {
+  border-color: var(--color-danger) !important;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-duration {
+  flex-wrap: wrap;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-duration button {
+  min-height: 32px;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-assignee {
+  min-height: 36px;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-assignee:has(input:checked) {
+  background: var(--ops-orange-bg);
+  border-color: var(--ops-orange-border);
+  color: var(--color-ember);
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-assignee :is(input, i) {
+  flex-shrink: 0;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-assignee span {
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-tech-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ops-production.ops-schedule-dialog .ops-schedule-detail-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 639px) {
+  .ops-production.ops-schedule :is(.ops-schedule-toolbar, .ops-schedule-filters, .ops-schedule-time-off) {
+    padding-inline: 16px;
+  }
+
+  .ops-production.ops-schedule .ops-schedule-heading {
+    gap: 8px 12px;
+  }
+
+  .ops-production.ops-schedule .ops-schedule-range {
+    flex-basis: 100%;
+  }
+
+  .ops-production.ops-schedule .ops-schedule-actions {
+    gap: 6px;
+  }
+
+  .ops-production.ops-schedule .ops-schedule-controls button {
+    padding-inline: 8px;
+  }
+
+  .ops-production.ops-schedule .ops-schedule-actions > .ops-primary {
+    padding-inline: 12px;
+  }
+
+  .ops-production.ops-schedule-dialog .ops-modal {
+    max-height: calc(100dvh - 32px);
+  }
+
+  .ops-production.ops-schedule-dialog :is(input:not([type="checkbox"]), select, textarea) {
+    font-size: 16px;
+  }
+
+  .ops-production.ops-schedule-dialog .ops-modal-heading > div:last-child {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+}

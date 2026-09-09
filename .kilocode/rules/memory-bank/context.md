@@ -2,6 +2,25 @@
 
 ## Current State
 
+### September 9, 2026: Page-Level Design Consistency Follow-Up
+
+Owner reported that To-Do, Schedule, and other interiors still looked old after
+the initial design release. Working from current production `e425fae` on
+`codex/design-consistency-followup` in the existing production-design worktree.
+Found unlayered legacy heading rules overriding utility sizes, old gradient
+actions, blue control selections, and dialogs outside the new page-style scopes.
+The follow-up fixes those presentation gaps while preserving exact handlers,
+requests, hooks, routes, integrations, and persistence. No Banking or prototype
+pages added. Fresh read-only pre-release baseline:
+`production-baseline-2026-09-09T20-50-22-643Z.json` in the secure backup directory.
+PR #8 is open on the follow-up branch. Typecheck, the isolated production build,
+all 199 quality tests, and the exact-handler/data-flow preservation check pass.
+Billing passes 169 checks; customer/project browser checks pass. The final frozen
+36-route workspace sweep passes 394 screenshots and 123 execution/safety checks
+after mobile vendor and contrast fixes, with zero runtime/style/geometry errors.
+See `docs/DESIGN_PAGE_AUDIT_2026_09_09.md` for coverage and explicit limits.
+No production deployment or data mutation has been performed for this follow-up.
+
 ### September 9, 2026: Approved Production Design Port
 
 Worktree `/Users/fireplace/HearthOS-production-design`, branch
@@ -13,7 +32,17 @@ Existing APIs, auth, providers, persistence, routes, and data configuration rema
 unchanged. A fresh encrypted backup passed full disposable PostgreSQL restoration;
 read-only baseline records 67 tables and the existing Aaron organization. Review
 `docs/DESIGN_PRODUCTION_RELEASE_2026_09_09.md` for evidence and rollout gates.
-At this checkpoint local QA is in progress; no production deploy has occurred.
+Released through protected PR #7 and merge `e425fae` after required CI succeeded.
+Canonical production now serves READY deployment
+`dpl_GkhJxY72QPXB4Yzufs1prKdFZiav` from a production-environment Git build. All
+business counts and financial totals match the immediately pre-merge baseline;
+66 non-organization table checksums match exactly. A restored-backup/live column
+comparison confirmed the sole organization-row change was the existing QB token
+refresh (`updated_at`, `qb_access_token`, `qb_token_expires_at`). Signed-in real
+dashboard, customers, schedule/Meeks and read-only PO details loaded successfully;
+bounded new-deployment error/500 log scans returned no entries. Prior deployment
+`dpl_2hEqatkuea22325DqDarB1CHPGuJ` remains the rollback reference. No production
+migration, data reconstruction, auth/provider configuration, or photo change.
 Do not treat earlier historical release-preparation notes as the current live
 source, and never deploy the dormant multi-tenant branch over this production line.
 

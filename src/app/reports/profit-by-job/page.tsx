@@ -432,7 +432,7 @@ function ProfitPill({ label, value, current, onClick }: { label: string; value: 
       onClick={() => onClick(value)}
       className="px-3 py-2 rounded-lg text-xs font-medium"
       style={{
-        background: active ? "#f8971f" : "var(--color-surface-1)",
+        background: active ? "#b4420a" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}
@@ -465,7 +465,7 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      <div className="pw-workspace pw-reports fixed inset-0 z-50 flex" onClick={onClose}>
         <div className="flex-1 bg-black/40" />
         <div className="h-full w-full md:w-[760px] p-5" style={{ background: "var(--color-surface-1)", borderLeft: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
           <p className="text-sm" style={{ color: "#FF204E" }}>Failed to load: {error}</p>
@@ -475,7 +475,7 @@ function ProfitDetailDrawer({ jobId, onClose }: { jobId: string; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+    <div className="pw-workspace pw-reports fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="flex-1 bg-black/40" />
       <div
         className="h-full w-full md:w-[760px] overflow-y-auto"

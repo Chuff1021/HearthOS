@@ -7,9 +7,129 @@
     --pw-muted: var(--color-text-muted, #5c6b7f);
     --pw-surface: var(--color-surface-1, #ffffff);
     --pw-soft: var(--color-surface-2, #f5f8fb);
-    --pw-selected: #edf4fc;
-    --pw-selected-text: #25599d;
+    --pw-selected: #fff1e7;
+    --pw-selected-text: #a83b08;
+    --pw-selection-line: #b4420a;
     min-width: 0;
+    font-family: var(--font-geist-sans), Arial, sans-serif;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Unlayered legacy heading/control defaults otherwise override Tailwind sizes. */
+  .pw-workspace *, .pw-workspace *::before, .pw-workspace *::after { letter-spacing: 0; }
+  .pw-workspace h1 { font-size: 25px; font-weight: 650; line-height: 1.3; }
+  .pw-workspace h2 { font-size: 16px; font-weight: 600; line-height: 1.45; }
+  .pw-workspace h3 { font-size: 14px; font-weight: 600; line-height: 1.5; }
+  .pw-workspace h4 { font-size: 13px; font-weight: 600; line-height: 1.5; }
+  .pw-workspace :is(h1, h2, h3, h4, p, label) { overflow-wrap: anywhere; }
+  .pw-workspace button {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 550;
+    border-radius: 6px;
+    transition: background-color 120ms, border-color 120ms;
+  }
+  .pw-workspace button:disabled { cursor: not-allowed; }
+  .pw-workspace :is(button, a) > svg { flex-shrink: 0; }
+  .pw-workspace :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="hidden"]), select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--pw-line) !important;
+    border-radius: 6px !important;
+    background: var(--pw-surface) !important;
+    color: var(--color-text-primary) !important;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: none;
+  }
+  .pw-workspace :is(input, textarea)::placeholder { color: var(--pw-muted); opacity: 1; }
+  .pw-workspace :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--pw-selection-line); }
+  .pw-workspace :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--pw-selection-line);
+    outline-offset: 2px;
+  }
+  .pw-workspace :is(.pw-heading, .pw-toolbar) :is(button, select) { min-height: 38px; }
+  .pw-workspace .pw-heading p { font-size: 13px; line-height: 1.55; }
+  .pw-workspace :is(.bg-orange-500, .pw-primary, button[style*="linear-gradient"], a[style*="linear-gradient"]) {
+    background: #b4420a !important;
+    color: #fff !important;
+    border: 1px solid #a83b08;
+    box-shadow: 0 1px 2px #263e6410 !important;
+    border-radius: 6px;
+  }
+  .pw-workspace :is(.bg-orange-500, .pw-primary):hover:not(:disabled) { background: #963700 !important; }
+  .pw-workspace .pw-secondary {
+    background: var(--pw-surface) !important;
+    border: 1px solid var(--pw-line);
+    color: var(--color-text-secondary) !important;
+    box-shadow: none;
+  }
+  .pw-workspace .pw-secondary:hover:not(:disabled) { background: var(--pw-soft) !important; }
+  .pw-workspace .pw-icon-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    color: var(--color-text-secondary) !important;
+    border: 1px solid var(--pw-line);
+    background: var(--pw-surface);
+    flex-shrink: 0;
+  }
+  .pw-workspace .pw-segmented { background: var(--pw-soft) !important; border: 1px solid var(--pw-line); box-shadow: none !important; padding: 3px; }
+  .pw-workspace .pw-segmented > button {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--color-text-secondary) !important;
+    box-shadow: none !important;
+    min-height: 32px;
+    border-radius: 4px;
+  }
+  .pw-workspace .pw-segmented > button[aria-pressed="true"] {
+    background: var(--pw-surface) !important;
+    border-color: var(--pw-line) !important;
+    color: var(--pw-selected-text) !important;
+    box-shadow: 0 1px 3px #263e6410 !important;
+  }
+  .pw-workspace.pw-overlay { background: rgb(20 31 45 / 40%); }
+  .pw-workspace .pw-dialog {
+    min-width: 0;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--pw-surface) !important;
+    color: var(--color-text-primary);
+    border: 1px solid var(--pw-line);
+    border-radius: 8px;
+    box-shadow: 0 20px 64px #172a3b33;
+  }
+  .pw-workspace .pw-dialog :is(.text-gray-300, .text-gray-400, .text-gray-500) { color: var(--pw-muted); }
+  .pw-workspace .pw-dialog .bg-gray-700 { color: var(--color-text-secondary); background: var(--pw-soft); }
+  .pw-workspace .pw-dialog .border-gray-700 { border-color: var(--pw-line); }
+  .pw-workspace .pw-dialog p > .text-white { color: var(--color-text-primary); }
+  .pw-workspace .pw-dialog .flex.gap-3 { flex-wrap: wrap; }
+  .pw-workspace .pw-dialog .flex > div { min-width: 0; }
+  .pw-vendors .pw-metrics > * { container-type: inline-size; }
+  .pw-vendors .pw-metrics .pw-money-value {
+    font-size: clamp(14px, 11cqi, 24px);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  .pw-vendor-contact > :is(a, span) { min-width: 0; max-width: 100%; align-items: flex-start; }
+  .pw-vendor-contact > :is(a, span) > span { min-width: 0; overflow-wrap: anywhere; }
+  .pw-vendor-contact svg { flex-shrink: 0; margin-top: 3px; }
+  .pw-workspace.pw-tech h1 { font-size: 22px; }
+  .pw-tech .ui-mobile-header {
+    background: var(--pw-surface);
+    border-color: var(--pw-line);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .pw-workspace .pw-heading,
@@ -64,7 +184,7 @@
   .pw-workspace .pw-metrics > button:hover { background: var(--pw-soft) !important; }
   .pw-workspace .pw-metrics > [aria-pressed="true"] {
     background: var(--pw-selected) !important;
-    box-shadow: inset 0 -2px #2867b9 !important;
+    box-shadow: inset 0 -2px var(--pw-selection-line) !important;
   }
 
   .pw-workspace .pw-table-scroll {
@@ -136,13 +256,27 @@
   .pw-workspace .pw-tabs > button[aria-pressed="true"] {
     color: var(--pw-selected-text) !important;
     background: var(--pw-selected) !important;
-    border-color: #2867b9 !important;
+    border-color: var(--pw-selection-line) !important;
   }
   .pw-team .pw-team-grid > * {
     min-width: 0;
     border: 1px solid var(--pw-line);
     border-radius: 6px !important;
     padding: 18px;
+  }
+  .pw-team .pw-team-contact { flex-wrap: wrap; }
+  .pw-team .pw-team-contact p { overflow-wrap: anywhere; }
+  .pw-team .pw-team-contact button { color: var(--pw-selected-text) !important; }
+  .pw-workspace .text-green-400 { color: var(--color-success); }
+  .pw-workspace .text-blue-400 { color: var(--color-info); }
+  .pw-workspace .text-red-400 { color: var(--color-danger); }
+  .pw-workspace .text-purple-400 { color: #7757a6; }
+  .pw-workspace [style*="color: rgb(152, 205, 0)"] { color: var(--color-success) !important; }
+  .pw-settings .pw-settings-section {
+    padding: 20px 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--pw-line);
+    background: transparent !important;
   }
   .pw-reports .pw-report-grid > * {
     min-width: 0;
@@ -162,10 +296,18 @@
   .pw-service-map button.map-glass-chip[aria-pressed="true"] {
     background: var(--pw-selected) !important;
     color: var(--pw-selected-text) !important;
-    box-shadow: inset 0 -2px #2867b9 !important;
+    box-shadow: inset 0 -2px var(--pw-selection-line) !important;
   }
 
   .pw-map-layout { align-items: start; }
+  .pw-workspace .pw-tracking-surface {
+    border: 1px solid var(--pw-line);
+    border-radius: 8px;
+    box-shadow: none;
+    background: var(--pw-soft);
+  }
+  .pw-workspace .pw-tracking-surface::before,
+  .pw-workspace .pw-map-reflection { display: none; }
   .pw-workspace .pw-map-panel {
     min-width: 0;
     padding: 0;
@@ -215,6 +357,15 @@
   .pw-tech > :is(main, .p-4) { min-width: 0; }
   .pw-tech > :is(main, .p-4) :is(input, select, textarea) { max-width: 100%; }
   .pw-tech > :is(main, .p-4) :is(h2, h3, label) { overflow-wrap: anywhere; }
+  .pw-tech :is(button, label).bg-blue-600,
+  .pw-tech :is(button, label).bg-blue-500 {
+    color: #fff;
+    background: #b4420a;
+  }
+  .pw-tech button.text-blue-600.border-orange-400 {
+    color: var(--pw-selected-text);
+    border-color: var(--pw-selection-line);
+  }
 
   /* These existing pages have no shared sidebar and need their own tokens. */
   .pw-standalone {
@@ -260,6 +411,14 @@
     background: #b4420a;
   }
   .pw-meeks > section { max-width: 1440px; }
+  .pw-workspace .pw-meeks-surface {
+    background: var(--pw-surface) !important;
+    border: 1px solid var(--pw-line) !important;
+    border-radius: 8px;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  .pw-integrations.pw-heading > :last-child { flex-wrap: wrap; }
   .pw-meeks .pw-meeks-heading {
     border: 0 !important;
     border-bottom: 1px solid var(--pw-line) !important;
@@ -283,9 +442,18 @@
   }
 
   :root[data-theme="dark"] .pw-workspace {
-    --pw-selected: #203b57;
-    --pw-selected-text: #a8d0ff;
+    --pw-selected: #392a21;
+    --pw-selected-text: #ffba8a;
+    --pw-selection-line: #ffae79;
+    --color-ember: #ffae79;
+    --color-success: #83d7b4;
+    --color-warning: #efbc7d;
+    --color-danger: #ff9fb1;
+    --color-info: #99c3ff;
   }
+  :root[data-theme="dark"] .pw-workspace .text-purple-400 { color: #cfb7f2; }
+  :root[data-theme="dark"] .pw-tech :is(.text-blue-600, .text-blue-500) { color: var(--color-info); }
+  :root[data-theme="dark"] .pw-tech button.text-blue-600.border-orange-400 { color: var(--pw-selected-text); }
   :root[data-theme="dark"] .pw-standalone {
     color-scheme: dark;
     --color-bg: #171717;
@@ -335,6 +503,8 @@
     .pw-service-map .pw-map-layout > aside { border-top: 1px solid var(--pw-line); padding-top: 20px; }
   }
   @media (max-width: 767px) {
+    .pw-workspace h1 { font-size: 23px; }
+    .pw-workspace :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="hidden"]), select, textarea) { font-size: 16px; }
     .pw-workspace .pw-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pw-workspace .pw-metrics > * { border-bottom: 1px solid var(--pw-line) !important; }
     .pw-tech .pw-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }

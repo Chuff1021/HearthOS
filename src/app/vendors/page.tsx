@@ -348,7 +348,7 @@ function MoneyTile({ label, value, hint, tone, onClick }: { label: string; value
       }}
     >
       <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
-      <p className="text-2xl font-bold mt-1" style={{ color: accent }}>{value}</p>
+      <p className="pw-money-value text-2xl font-bold mt-1" style={{ color: accent }}>{value}</p>
       {hint && <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>{hint}</p>}
     </Tag>
   );
@@ -361,7 +361,7 @@ function Pill<V extends string>({ label, v, cur, on }: { label: string; v: V; cu
       onClick={() => on(v)}
       className="px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors"
       style={{
-        background: active ? "#f8971f" : "var(--color-surface-1)",
+        background: active ? "#b4420a" : "var(--color-surface-1)",
         color: active ? "white" : "var(--color-text-secondary)",
         border: "1px solid var(--color-border)",
       }}

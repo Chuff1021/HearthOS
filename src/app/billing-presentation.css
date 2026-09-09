@@ -49,7 +49,8 @@
   .billing-surface p { line-height: 1.55; }
   .billing-surface :is(.text-\[10px\], .text-\[11px\]):not(.billing-preview-scroll *) { font-size: 12px; }
   .billing-surface :is(.rounded-xl, .rounded-2xl) { border-radius: 8px; }
-  .billing-surface :is(button, input, select, textarea) { border-radius: 6px; }
+  .billing-surface :is(button, input, select, textarea),
+  .billing-surface :is(button, input, select, textarea):is(.rounded-xl, .rounded-2xl) { border-radius: 6px !important; }
   .billing-surface :is(.grid, .flex) > :is(div, label) { min-width: 0; }
 
   .billing-surface :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
@@ -192,6 +193,9 @@
   .billing-table td.text-right { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .billing-table tbody tr:hover { background: var(--billing-row-hover); }
   .billing-table td a { display: inline-flex; align-items: center; min-height: 36px; }
+  .billing-table td svg { flex-shrink: 0; }
+  .billing-surface .billing-receipt-link { white-space: nowrap; flex-shrink: 0; }
+  .billing-receipt-link > svg { flex-shrink: 0; }
   .billing-expense-record > div:first-child { flex-wrap: wrap; }
   .billing-expense-record > div:first-child > :last-child { margin-left: auto; font-variant-numeric: tabular-nums; }
   .billing-expense-record > div:last-child { flex-wrap: wrap; }

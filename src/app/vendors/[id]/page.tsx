@@ -8,6 +8,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import DocumentDrawer, { type DocumentType } from "@/components/documents/DocumentDrawer";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
+import { Globe, Mail, MapPin, Phone } from "lucide-react";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Types
@@ -301,7 +302,7 @@ export default function VendorProfilePage({ params }: { params: Promise<{ id: st
 
                 {/* Tabs + content */}
                 <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
-                  <div className="flex gap-0 px-4 pt-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <div className="pw-tabs flex flex-wrap gap-0 px-4 pt-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
                     <Tab v="transactions" cur={tab} on={setTab} count={data.transactions.length}>All transactions</Tab>
                     <Tab v="bills" cur={tab} on={setTab} count={data.summary.billCount}>Bills</Tab>
                     <Tab v="pos" cur={tab} on={setTab} count={data.summary.poCount}>Purchase Orders</Tab>
@@ -417,29 +418,29 @@ function VendorHero({
             {vendor.companyName && vendor.companyName !== vendor.displayName && (
               <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>{vendor.companyName}</p>
             )}
-            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+            <div className="pw-vendor-contact mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
               {vendor.email && (
                 <a href={`mailto:${vendor.email}`} className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>✉</span>
-                  {vendor.email}
+                  <Mail size={14} style={{ color: "var(--color-text-muted)" }} />
+                  <span>{vendor.email}</span>
                 </a>
               )}
               {vendor.phone && (
                 <a href={`tel:${vendor.phone}`} className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>☎</span>
-                  {vendor.phone}
+                  <Phone size={14} style={{ color: "var(--color-text-muted)" }} />
+                  <span>{vendor.phone}</span>
                 </a>
               )}
               {vendor.website && (
                 <a href={vendor.website.startsWith("http") ? vendor.website : `https://${vendor.website}`} target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>🌐</span>
-                  {vendor.website}
+                  <Globe size={14} style={{ color: "var(--color-text-muted)" }} />
+                  <span>{vendor.website}</span>
                 </a>
               )}
               {addrParts.length > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <span style={{ color: "var(--color-text-muted)" }}>📍</span>
-                  {addrParts.join(", ")}
+                  <MapPin size={14} style={{ color: "var(--color-text-muted)" }} />
+                  <span>{addrParts.join(", ")}</span>
                 </span>
               )}
             </div>
@@ -449,7 +450,7 @@ function VendorHero({
         {/* Right: balance owed */}
         <div className="text-right">
           <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>Balance owed</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: summary.billOpenBalance > 0 ? "#F59E0B" : "var(--color-text-primary)" }}>
+          <p className="text-3xl font-bold mt-1" style={{ color: summary.billOpenBalance > 0 ? "var(--color-warning)" : "var(--color-text-primary)" }}>
             {fmtMoney(summary.billOpenBalance)}
           </p>
           {vendor.paymentTerms && (
@@ -483,7 +484,7 @@ function VendorHero({
 // Stats / tabs / table
 // ───────────────────────────────────────────────────────────────────────────
 function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "warn" | "danger" | "brand" }) {
-  const color = tone === "danger" ? "#FF204E" : tone === "warn" ? "#F59E0B" : tone === "brand" ? "#0EA5E9" : "var(--color-text-primary)";
+  const color = tone === "danger" ? "var(--color-danger)" : tone === "warn" ? "var(--color-warning)" : tone === "brand" ? "var(--color-info)" : "var(--color-text-primary)";
   return (
     <div className="p-4 rounded-xl" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
       <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--color-text-muted)" }}>{label}</p>
@@ -498,6 +499,7 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
   return (
     <button
       onClick={() => on(v)}
+      aria-pressed={active}
       className="px-4 py-2.5 text-sm font-medium relative transition-colors"
       style={{
         color: active ? "var(--color-text-primary)" : "var(--color-text-muted)",
@@ -510,8 +512,8 @@ function Tab({ v, cur, on, count, children }: { v: Tab; cur: Tab; on: (v: Tab) =
         <span
           className="ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold"
           style={{
-            background: active ? "#f8971f" : "var(--color-surface-2)",
-            color: active ? "white" : "var(--color-text-muted)",
+            background: active ? "var(--pw-selected)" : "var(--color-surface-2)",
+            color: active ? "var(--pw-selected-text)" : "var(--color-text-muted)",
           }}
         >
           {count}
@@ -610,9 +612,9 @@ function TxnTable({
 
 function DialogShell({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="pw-workspace pw-vendors fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/55" onClick={onClose} />
-      <div className="relative w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+      <div className="pw-dialog relative w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{title}</h2>
           <button onClick={onClose} className="w-9 h-9 rounded-lg text-lg" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>x</button>

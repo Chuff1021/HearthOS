@@ -204,9 +204,6 @@ export default function TeamPage() {
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                   Manage technicians and staff
                 </p>
-                <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
-                  Build: team-fix-2026-03-03-2230
-                </p>
               </div>
               <button 
                 onClick={() => setShowAddModal(true)}
@@ -316,7 +313,7 @@ export default function TeamPage() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 flex items-center gap-2">
+                        <div className="pw-team-contact mt-1 flex items-center gap-2">
                           <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>{tech.email}</p>
                           <button
                             onClick={(e) => { e.stopPropagation(); resendInvite(tech); }}
@@ -369,8 +366,8 @@ export default function TeamPage() {
 
       {/* Tech Detail Modal */}
       {selectedTech && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] w-full max-w-lg rounded-2xl p-6">
+        <div className="pw-workspace pw-team pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="pw-dialog w-full max-w-lg p-6">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
                 <div 
@@ -386,7 +383,9 @@ export default function TeamPage() {
               </div>
               <button 
                 onClick={() => setSelectedTech(null)}
-                className="text-gray-400 hover:text-white"
+                className="pw-icon-control"
+                aria-label="Close team member details"
+                title="Close"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -467,13 +466,15 @@ export default function TeamPage() {
 
       {/* Add Team Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
+        <div className="pw-workspace pw-team pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="pw-dialog w-full max-w-md p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Add Team Member</h2>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="hover:text-white"
+                className="pw-icon-control"
+                aria-label="Close add team member"
+                title="Close"
                 style={{ color: "var(--color-text-muted)" }}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -548,8 +549,8 @@ export default function TeamPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedTech && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] w-full max-w-sm rounded-2xl p-6">
+        <div className="pw-workspace pw-team pw-overlay fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="pw-dialog w-full max-w-sm p-6">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

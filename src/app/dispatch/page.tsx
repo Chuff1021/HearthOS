@@ -430,7 +430,6 @@ export default function DispatchPage() {
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {loading ? 'Loading dispatch...' : `${techs.length} techs active · ${unassignedJobs.length} unassigned jobs`}
             </p>
-            <p className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>Build: dispatch-fix-2026-03-03-2230</p>
             {gpsDebug && (
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 GPS pings: {gpsDebug.latestLocationCount} · Unmapped live: {gpsDebug.unmappedLiveCount}
@@ -450,9 +449,9 @@ export default function DispatchPage() {
                 </p>
               </div>
               <div className="pw-toolbar flex items-center gap-2">
-                <div className="inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
-                  <button onClick={() => setMapStyle('street')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'street' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'street' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'street' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Navigation</button>
-                  <button onClick={() => setMapStyle('satellite')} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition" style={{ background: mapStyle === 'satellite' ? 'linear-gradient(135deg, #ff7a1a, #f15b00)' : 'transparent', color: mapStyle === 'satellite' ? '#fff' : 'var(--color-text-secondary)', boxShadow: mapStyle === 'satellite' ? '0 10px 24px rgba(255,106,0,0.24), inset 0 1px 0 rgba(255,255,255,0.42)' : 'none' }}>Satellite</button>
+                <div className="pw-segmented inline-flex overflow-hidden rounded-2xl map-glass-chip p-1">
+                  <button onClick={() => setMapStyle('street')} aria-pressed={mapStyle === 'street'} className="px-3 py-1.5">Navigation</button>
+                  <button onClick={() => setMapStyle('satellite')} aria-pressed={mapStyle === 'satellite'} className="px-3 py-1.5">Satellite</button>
                 </div>
                 <button
                   onClick={centerOnSelectedTech}
@@ -463,9 +462,9 @@ export default function DispatchPage() {
                 </button>
               </div>
             </div>
-            <div className="premium-tracking-map liquid-map-stage h-[480px] overflow-hidden rounded-[1.7rem] relative">
+            <div className="pw-tracking-surface premium-tracking-map liquid-map-stage h-[480px] overflow-hidden rounded-[1.7rem] relative">
               <div ref={mapContainerRef} className="absolute inset-0 ops-map-canvas" />
-              <div className="ops-map-glass" />
+              <div className="pw-map-reflection ops-map-glass" />
               {liveTechs.length === 0 && (
                 <div className="absolute inset-0 z-[430] flex items-center justify-center px-6 text-center" style={{ color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.75)' }}>
                   No live GPS pings yet. Techs need to clock in on their phone app to start GPS tracking.

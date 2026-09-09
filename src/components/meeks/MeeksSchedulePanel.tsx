@@ -534,9 +534,9 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
   }
 
   return (
-    <section className={internal ? "pw-meeks-panel min-w-0 w-full p-3 sm:p-4 [&_input]:min-w-0 [&_select]:min-w-0" : "pw-meeks-panel mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
+    <section className={internal ? "pw-workspace pw-meeks-panel min-w-0 w-full p-3 sm:p-4 [&_input]:min-w-0 [&_select]:min-w-0" : "pw-workspace pw-meeks-panel mx-auto max-w-[1760px] space-y-5 px-4 py-6"}>
       <div className={internal ? "grid min-w-0 grid-cols-1 gap-4" : "grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]"}>
-        <div className={internal ? "min-w-0 rounded-2xl p-3 sm:p-5" : "rounded-[2rem] p-6"} style={glassPanel}>
+        <div className={internal ? "pw-meeks-surface min-w-0 rounded-2xl p-3 sm:p-5" : "pw-meeks-surface rounded-[2rem] p-6"} style={glassPanel}>
           <div className={internal ? "flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap" : "flex items-start justify-between gap-4"}>
             <div className={internal ? "min-w-0 flex-1 basis-56" : undefined}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--color-ember)" }}>Meeks Installed Services</p>
@@ -634,7 +634,7 @@ export default function MeeksSchedulePanel({ internal = false }: { internal?: bo
           {message && <p className="mt-4 rounded-xl px-3 py-2 text-sm" style={{ background: "rgba(255,106,0,0.1)", color: "var(--color-ember)", border: "1px solid rgba(255,106,0,0.2)" }}>{message}</p>}
         </div>
 
-        <div className="min-w-0 rounded-[2rem] overflow-hidden" style={glassPanel}>
+        <div className="pw-meeks-surface min-w-0 rounded-[2rem] overflow-hidden" style={glassPanel}>
           <MeeksToolbar
             calendarView={calendarView}
             headerLabel={headerLabel}
@@ -784,9 +784,9 @@ function MeeksToolbar({
           <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{headerLabel}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--color-border)" }}>
-            <button onClick={() => onViewChange("week")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "week" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "week" ? "#fff" : "var(--color-text-secondary)" }}>Week</button>
-            <button onClick={() => onViewChange("month")} className="px-3 py-1.5 text-xs font-semibold transition-colors" style={{ background: calendarView === "month" ? "#2563EB" : "var(--color-surface-2)", color: calendarView === "month" ? "#fff" : "var(--color-text-secondary)" }}>Month</button>
+          <div className="pw-segmented flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--color-border)" }}>
+            <button onClick={() => onViewChange("week")} aria-pressed={calendarView === "week"} className="px-3 py-1.5">Week</button>
+            <button onClick={() => onViewChange("month")} aria-pressed={calendarView === "month"} className="px-3 py-1.5">Month</button>
           </div>
           <button onClick={onRefresh} disabled={saving} className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", opacity: saving ? 0.65 : 1 }}>Refresh</button>
         </div>
@@ -1254,8 +1254,8 @@ function MeeksJobModal({
   const photos = job.linkedJob?.photos || [];
   const techNames = (job.linkedJob?.assignedTechs || job.assignedTechs || []).map((tech) => tech.name).join(", ");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", boxShadow: "0 26px 90px rgba(15,23,42,0.28)" }} onClick={(event) => event.stopPropagation()}>
+    <div className="pw-workspace pw-meeks pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="pw-dialog max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5" style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", boxShadow: "0 26px 90px rgba(15,23,42,0.28)" }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">

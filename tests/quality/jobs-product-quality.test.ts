@@ -132,7 +132,7 @@ test("schedule blocks job save during customer review and reconciles the retaine
     assert.equal(h.calls.some(call => call.url === "/api/jobs" && call.init.method === "POST"), false);
     // Recovery must use the immutable request, not mutable or reset form fields.
     await h.change("input", "Customer", "");
-    await h.click("Close new job"); await h.click("+ New Job");
+    await h.click("Close new job"); await h.click("New Job");
     await h.click("Check creation status");
     const recovery = h.calls.filter(call => call.init.method === "POST").at(-1)!;
     assert.deepEqual(JSON.parse(String(recovery.init.body)), { ...initial, action: "reconcile" });

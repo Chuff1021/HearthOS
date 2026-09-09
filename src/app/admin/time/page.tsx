@@ -740,8 +740,8 @@ export default function AdminTimePage() {
 
       {/* Edit Entry Modal */}
       {editEntry && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setEditEntry(null); setEditError(""); }}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="pw-workspace pw-admin pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { setEditEntry(null); setEditError(""); }}>
+          <div className="pw-dialog w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Edit Time Entry</h2>
             <p className="text-sm mb-4 mt-0.5" style={{ color: "var(--color-text-muted)" }}>
               {techs.find((t) => t.id === editEntry.techId)?.name || editEntry.techId}
@@ -784,8 +784,8 @@ export default function AdminTimePage() {
 
       {/* Manual Entry Modal */}
       {showManualEntry && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowManualEntry(false)}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="pw-workspace pw-admin pw-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowManualEntry(false)}>
+          <div className="pw-dialog w-full max-w-md rounded-2xl p-6" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4" style={{ color: "var(--color-text-primary)" }}>Add Manual Time Entry</h2>
             <div className="space-y-3">
               <div>
