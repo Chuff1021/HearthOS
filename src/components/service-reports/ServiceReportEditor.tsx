@@ -17,6 +17,7 @@ import {
   getServiceTemplate,
 } from "@/lib/service-reports/templates";
 import { validateReport } from "@/lib/service-reports/domain";
+import ChecklistFields from "./ChecklistFields";
 import ServiceReportHistory, {
   ReportDelivery,
   ReportRequestError,
@@ -135,6 +136,8 @@ function prefill(
   if (!context || report.status === "finalized") return report.data;
   const answers = { ...report.data.answers };
   const defaults: Record<string, string> = {
+    companyName: "AARON'S FIREPLACE CO, LLC",
+    companyContact: "(417) 732-9775 | aaronsfireplaceco@yahoo.com",
     customerName: context.customerName,
     customerContact: context.email,
     serviceAddress: context.address,
@@ -150,7 +153,7 @@ function prefill(
   for (const [id, value] of Object.entries(defaults))
     if (
       fieldIds.has(id) &&
-      answers[id] === undefined &&
+      !answers[id] &&
       value &&
       value !== "Not recorded"
     )
@@ -159,12 +162,12 @@ function prefill(
   return { ...report.data, answers };
 }
 
-const conditionLabels: Record<string, string> = {
-  S: "S - Satisfactory",
-  D: "D - Defect",
-  NA: "NA - Not applicable",
-  NI: "NI - Not inspected",
-};
+function localChecklist(context: ServiceReportContext, fuel: Fuel): ReportRecord {
+  const report: ReportRecord = { id: "", jobId: context.jobId, customerId: context.customerId,
+    revision: 0, status: "draft", photos: [], createdAt: "", updatedAt: "",
+    data: { fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: "" } };
+  return { ...report, data: prefill(report, context) };
+}
 
 function SavedPhoto({ src, caption }: { src: string; caption: string }) {
   const [failed, setFailed] = useState(false);
@@ -217,14 +220,15 @@ export default function ServiceReportEditor({
     initialContext || null,
   );
   const [selected, setSelected] = useState<ReportRecord | null>(
-    initialReports?.[0] || null,
+    initialReports?.[0] || (initialContext?.suggestedFuel ? localChecklist(initialContext, initialContext.suggestedFuel) : null),
   );
   const [data, setData] = useState<ReportData | null>(() =>
     initialReports?.[0]
       ? prefill(initialReports[0], initialContext || null)
-      : null,
+      : initialContext?.suggestedFuel ? localChecklist(initialContext, initialContext.suggestedFuel).data : null,
   );
-  const [fuel, setFuel] = useState<Fuel | "">("");
+  const [showOptionalPhotos, setShowOptionalPhotos] = useState(false);
+  const [edited, setEdited] = useState(false);
   const [loading, setLoading] = useState(!initialContext);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState("");
@@ -234,6 +238,7 @@ export default function ServiceReportEditor({
   const [creationUncertain, setCreationUncertain] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [pending, setPending] = useState<PendingPhoto | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [captions, setCaptions] = useState<Record<string, string>>({});
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const lock = useRef(false);
@@ -241,10 +246,11 @@ export default function ServiceReportEditor({
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
   const finalizeDialog = useRef<HTMLDialogElement>(null);
+  const autoSave = useRef<() => void>(() => {});
   const dirty =
     !!selected &&
     !!data &&
-    JSON.stringify(data) !== JSON.stringify(selected.data);
+    JSON.stringify(data) !== JSON.stringify(prefill(selected, context));
   const template = data ? getServiceTemplate(data.fuel) : null;
   const finalized = selected?.status === "finalized";
   const missing = data && selected ? validateReport(data, selected.photos) : [];
@@ -262,10 +268,10 @@ export default function ServiceReportEditor({
         if (controller.signal.aborted) return;
         setReports(result.reports);
         setContext(result.context);
-        setSelected(result.reports[0] || null);
-        setData(
-          result.reports[0] ? prefill(result.reports[0], result.context) : null,
-        );
+        const active = result.reports[0] || (result.context.suggestedFuel ? localChecklist(result.context, result.context.suggestedFuel) : null);
+        setSelected(active);
+        setData(active ? prefill(active, result.context) : null);
+        setEdited(false);
         setError("");
         setConflict(false);
         setCreationUncertain(false);
@@ -285,6 +291,19 @@ export default function ServiceReportEditor({
       });
     return () => controller.abort();
   }, [jobId, refresh, initialContext]);
+
+  useEffect(() => { autoSave.current = () => { if (!target.current) void run("Saving...", async () => { await save(); }); }; });
+  useEffect(() => {
+    const inputs = [camera.current, gallery.current];
+    const cancel = () => { target.current = null; setPickerOpen(false); };
+    inputs.forEach(input => input?.addEventListener("cancel", cancel));
+    return () => inputs.forEach(input => input?.removeEventListener("cancel", cancel));
+  }, []);
+  useEffect(() => {
+    if (!edited || !dirty || busy || pending || pickerOpen || conflict || creationUncertain || loading || loadFailed || error || finalized) return;
+    const timer = window.setTimeout(() => autoSave.current(), 1000);
+    return () => window.clearTimeout(timer);
+  }, [edited, dirty, data, busy, pending, pickerOpen, conflict, creationUncertain, loading, loadFailed, error, finalized]);
 
   useEffect(() => {
     if (!dirty && !pending && !busy) return;
@@ -326,7 +345,7 @@ export default function ServiceReportEditor({
     else finalizeDialog.current?.close();
   }, [finalizeOpen]);
 
-  function applyReport(report: ReportRecord) {
+  function applyReport(report: ReportRecord, submitted?: ReportData) {
     if (!report?.id || !Number.isInteger(report.revision))
       throw new Error(
         "Saved report could not be verified. Reload before retrying.",
@@ -336,7 +355,7 @@ export default function ServiceReportEditor({
       ...previous.filter((item) => item.id !== report.id),
     ]);
     setSelected(report);
-    setData(report.data);
+    setData(current => submitted && JSON.stringify(current) !== JSON.stringify(submitted) ? current : report.data);
     setConflict(false);
   }
 
@@ -377,11 +396,12 @@ export default function ServiceReportEditor({
       !window.confirm("Discard unsaved changes and pending photo?")
     )
       return;
-    setSelected(report);
-    setData(report ? prefill(report, context) : null);
+    const next = report || (context?.suggestedFuel ? localChecklist(context, context.suggestedFuel) : null);
+    setSelected(next);
+    setData(next ? prefill(next, context) : null);
+    setEdited(false);
     setPending(null);
     setCaptions({});
-    setFuel("");
     setError("");
     setNotice("");
     setConflict(false);
@@ -398,29 +418,14 @@ export default function ServiceReportEditor({
     setRefresh((value) => value + 1);
   }
 
-  async function create() {
-    if (!fuel || !context || creationUncertain || loadFailed || loading) return;
-    await run("Creating draft...", async () => {
-      try {
-        const result = await reportRequest<{ report: ReportRecord }>(
-          "/api/tech/service-reports",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jobId, fuel }),
-          },
-        );
-        applyReport(result.report);
-        setData(prefill(result.report, context));
-        setNotice(
-          "Draft created. Save the prefilled visit details with your entries.",
-        );
-      } catch (error) {
-        if (!(error instanceof ReportRequestError) || error.status >= 500)
-          setCreationUncertain(true);
-        throw error;
-      }
-    });
+  function selectFuel(fuel: Fuel) {
+    if (!context || lock.current || pending || creationUncertain) return;
+    if (dirty && !window.confirm("Change appliance type and discard these unsaved checklist entries?")) return;
+    const next = localChecklist(context, fuel);
+    setSelected(next);
+    setData(next.data);
+    setEdited(false);
+    setError("");
   }
 
   async function checkStorage() {
@@ -458,20 +463,37 @@ export default function ServiceReportEditor({
 
   async function save(): Promise<ReportRecord> {
     if (!selected || !data) throw new Error("Select a report first.");
-    if (!dirty) return selected;
+    if (creationUncertain) throw new Error("Reload the saved checklist before trying to save again.");
+    const submitted = data;
+    let base = selected;
+    if (!base.id) {
+      try {
+        const result = await reportRequest<{ report: ReportRecord }>("/api/tech/service-reports", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId, fuel: submitted.fuel }),
+        });
+        if (!result.report?.id || !Number.isInteger(result.report.revision)) throw new Error("Checklist creation could not be confirmed. Reload before retrying.");
+        base = result.report;
+        setSelected(base);
+        setReports(previous => [base, ...previous.filter(item => item.id !== base.id)]);
+      } catch (error) {
+        if (!(error instanceof ReportRequestError) || error.status >= 500) setCreationUncertain(true);
+        throw error;
+      }
+    }
+    if (JSON.stringify(submitted) === JSON.stringify(base.data)) return base;
     const result = await reportRequest<{ report: ReportRecord }>(
       "/api/tech/service-reports",
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: selected.id,
-          revision: selected.revision,
-          data,
+          id: base.id,
+          revision: base.revision,
+          data: submitted,
         }),
       },
     );
-    applyReport(result.report);
+    applyReport(result.report, submitted);
     return result.report;
   }
 
@@ -492,6 +514,7 @@ export default function ServiceReportEditor({
         template?.photoSlots.find((slot) => slot.id === slotId)?.label ||
         slotId,
     };
+    setPickerOpen(true);
     (useCamera ? camera : gallery).current?.click();
   }
 
@@ -555,6 +578,7 @@ export default function ServiceReportEditor({
     event.currentTarget.value = "";
     const destination = target.current;
     target.current = null;
+    setPickerOpen(false);
     if (!file || !destination || !selected || lock.current) return;
     const photo = { file, ...destination, revision: selected.revision };
     setPending(photo);
@@ -587,7 +611,7 @@ export default function ServiceReportEditor({
   }
 
   const readOnly =
-    !!busy || !!finalized || conflict || !!pending || loading || loadFailed;
+    (!!busy && busy !== "Saving...") || !!finalized || conflict || creationUncertain || !!pending || loading || loadFailed;
 
   return (
     <section
@@ -612,7 +636,7 @@ export default function ServiceReportEditor({
         disabled={readOnly}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Service Report</h2>
+        <h2 className="text-lg font-semibold">{template?.title || "Service"} Checklist</h2>
         <div className="flex gap-2">
           {context?.canVerifyStorage && (
             <button
@@ -636,7 +660,7 @@ export default function ServiceReportEditor({
           >
             <RefreshCw size={16} />
           </button>
-          {selected && (
+          {selected?.id && (
             <button
               type="button"
               className={reportButton}
@@ -644,12 +668,14 @@ export default function ServiceReportEditor({
               disabled={!!busy || loading}
             >
               <Plus size={16} />
-              New report
+                New checklist
             </button>
           )}
         </div>
       </div>
       {context && (
+        <details className="border-b border-[var(--color-border)] pb-2">
+          <summary className="cursor-pointer py-2 text-sm text-[var(--color-text-muted)]">{context.technicianName} · {context.serviceDate} · Job details</summary>
         <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 border-y border-[var(--color-border)] py-3 text-sm sm:grid-cols-2">
           {[
             ["Customer", context.customerName],
@@ -667,6 +693,7 @@ export default function ServiceReportEditor({
             </div>
           ))}
         </dl>
+        </details>
       )}
       {loading && <p role="status">Loading service reports...</p>}
       {error && (
@@ -688,65 +715,51 @@ export default function ServiceReportEditor({
           another draft.
         </p>
       )}
-      {!selected && !loading && !loadFailed && context && (
+      {!selected?.id && !loading && !loadFailed && context && (
         <div className="space-y-3 border-b border-[var(--color-border)] pb-4">
           <fieldset disabled={!!busy || creationUncertain}>
             <legend className="mb-2 text-sm font-semibold">
-              Appliance fuel
+              Appliance type
             </legend>
             <div className="grid grid-cols-3 gap-2">
               {(["gas", "wood", "pellet"] as const).map((value) => (
                 <label
                   key={value}
-                  className={`${reportButton} cursor-pointer capitalize ${fuel === value ? "bg-[var(--color-surface-3)]" : ""}`}
+                  className={`${reportButton} cursor-pointer capitalize ${data?.fuel === value ? "bg-[var(--color-surface-3)]" : ""}`}
                 >
                   <input
                     type="radio"
                     name={`fuel-${jobId}`}
                     value={value}
-                    checked={fuel === value}
-                    onChange={() => setFuel(value)}
+                    checked={data?.fuel === value}
+                    onChange={() => selectFuel(value)}
                   />
                   {value}
                 </label>
               ))}
             </div>
           </fieldset>
-          {context.suggestedFuel && (
-            <p className="text-sm text-[var(--color-text-muted)]">
-              Suggested from job: {context.suggestedFuel}
-            </p>
-          )}
-          <button
-            type="button"
-            className={reportButton}
-            disabled={!fuel || !!busy || creationUncertain}
-            onClick={() => void create()}
-          >
-            <Plus size={16} />
-            {busy || "Create draft"}
-          </button>
         </div>
       )}
       {selected && data && template && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
             <div>
-              <h3 className="text-base font-semibold">{template.title}</h3>
+              <h3 className="text-base font-semibold">{template.sections.flatMap(section => section.fields).filter(field => field.type === "condition" && data.answers[field.id]).length}/{template.sections.flatMap(section => section.fields).filter(field => field.type === "condition").length} checks recorded</h3>
               <p role="status" className="text-sm">
                 {busy ||
                   (finalized
                     ? `Finalized / revision ${selected.revision}`
                     : dirty
                       ? "Unsaved changes"
-                      : `Saved / revision ${selected.revision}`)}
+                      : selected.id ? "All changes saved" : "Ready")}
               </p>
             </div>
             {!finalized && (
               <button
                 type="button"
                 className={reportButton}
-                disabled={readOnly || !dirty}
+                disabled={readOnly || !!busy || !dirty}
                 onClick={() =>
                   void run("Saving...", async () => {
                     await save();
@@ -759,95 +772,8 @@ export default function ServiceReportEditor({
               </button>
             )}
           </div>
-          {template.sections.map((section, index) => (
-            <details
-              key={`${selected.id}-${section.id}`}
-              open={index === 0 ? true : undefined}
-              className="min-w-0 space-y-3 border-b border-[var(--color-border)] pb-4"
-            >
-              <summary className="cursor-pointer py-2 text-base font-semibold">
-                {section.title}
-              </summary>
-              <fieldset disabled={readOnly} className="min-w-0">
-                <legend className="sr-only">{section.title}</legend>
-                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                  {section.fields.map((field) => (
-                    <label
-                      key={field.id}
-                      className={`block min-w-0 text-sm ${field.type === "textarea" ? "sm:col-span-2" : ""}`}
-                    >
-                      <span className="block mb-1 break-words">
-                        {field.label}
-                        {field.required && (
-                          <span aria-label="required"> *</span>
-                        )}
-                      </span>
-                      {field.type === "textarea" ? (
-                        <textarea
-                          className={`${reportInput} min-h-24`}
-                          maxLength={8000}
-                          value={data.answers[field.id] || ""}
-                          onChange={(event) =>
-                            setData({
-                              ...data,
-                              answers: {
-                                ...data.answers,
-                                [field.id]: event.target.value,
-                              },
-                            })
-                          }
-                          aria-required={field.required}
-                        />
-                      ) : field.type === "condition" ||
-                        field.type === "select" ? (
-                        <select
-                          className={reportInput}
-                          value={data.answers[field.id] || ""}
-                          onChange={(event) =>
-                            setData({
-                              ...data,
-                              answers: {
-                                ...data.answers,
-                                [field.id]: event.target.value,
-                              },
-                            })
-                          }
-                          aria-required={field.required}
-                        >
-                          <option value="">Not recorded</option>
-                          {(field.options || []).map((option) => (
-                            <option key={option} value={option}>
-                              {field.type === "condition"
-                                ? conditionLabels[option] || option
-                                : option}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          className={reportInput}
-                          maxLength={8000}
-                          readOnly={field.id === "technicianName"}
-                          value={data.answers[field.id] || ""}
-                          onChange={(event) =>
-                            setData({
-                              ...data,
-                              answers: {
-                                ...data.answers,
-                                [field.id]: event.target.value,
-                              },
-                            })
-                          }
-                          aria-required={field.required}
-                        />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </details>
-          ))}
+          <ChecklistFields key={data.fuel} template={template} data={data} disabled={readOnly}
+            onChange={(id, value) => { setEdited(true); setData(current => current ? { ...current, answers: { ...current.answers, [id]: value } } : current); }} />
           <section className="space-y-4" aria-label="Report photos">
             <h3 className="text-base font-semibold">
               Report photos{" "}
@@ -861,7 +787,7 @@ export default function ServiceReportEditor({
                 replacement.
               </p>
             )}
-            {template.photoSlots.map((slot) => (
+            {template.photoSlots.filter(slot => slot.required || data.answers[slot.id] === "D" || selected.photos.some(photo => photo.slotId === slot.id) || data.photoExceptions[slot.id] || (showOptionalPhotos && !/^[GWP]\d+$/.test(slot.id))).map((slot) => (
               <div
                 key={slot.id}
                 className="min-w-0 space-y-3 border-b border-[var(--color-border)] pb-4"
@@ -901,7 +827,7 @@ export default function ServiceReportEditor({
                 </div>
                 {!finalized && (
                   <>
-                    <label className="block text-sm">
+                    <details><summary className="cursor-pointer py-2 text-xs text-[var(--color-text-muted)]">Add caption</summary><label className="block text-sm">
                       Caption
                       <input
                         className={`${reportInput} mt-1`}
@@ -915,12 +841,12 @@ export default function ServiceReportEditor({
                           }))
                         }
                       />
-                    </label>
+                    </label></details>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         className={reportButton}
-                        disabled={readOnly || selected.photos.length >= 30}
+                        disabled={readOnly || !!busy || selected.photos.length >= 30}
                         onClick={() => pickPhoto(slot.id, true)}
                         aria-label={`Camera: ${slot.label}`}
                       >
@@ -930,7 +856,7 @@ export default function ServiceReportEditor({
                       <button
                         type="button"
                         className={reportButton}
-                        disabled={readOnly || selected.photos.length >= 30}
+                        disabled={readOnly || !!busy || selected.photos.length >= 30}
                         onClick={() => pickPhoto(slot.id, false)}
                         aria-label={`Gallery: ${slot.label}`}
                       >
@@ -940,7 +866,7 @@ export default function ServiceReportEditor({
                     </div>
                   </>
                 )}
-                <label className="block text-sm">
+                <details open={data.photoExceptions[slot.id] ? true : undefined}><summary className="cursor-pointer py-2 text-xs text-[var(--color-text-muted)]">Unable to take this photo?</summary><label className="block text-sm">
                   Exception reason (at least 10 characters when provided)
                   <textarea
                     className={`${reportInput} mt-1`}
@@ -953,9 +879,10 @@ export default function ServiceReportEditor({
                         photoExceptions[slot.id] = event.target.value;
                       else delete photoExceptions[slot.id];
                       setData({ ...data, photoExceptions });
+                      setEdited(true);
                     }}
                   />
-                </label>
+                </label></details>
                 {pending?.slotId === slot.id && (
                   <div className="space-y-2" role="status">
                     {pending.preview && (
@@ -998,10 +925,11 @@ export default function ServiceReportEditor({
                 )}
               </div>
             ))}
+            {!finalized && <button type="button" className={reportButton} onClick={() => setShowOptionalPhotos(value => !value)}>{showOptionalPhotos ? "Hide additional photos" : "Additional photos"}</button>}
           </section>
-          <p className="text-sm text-[var(--color-text-secondary)]">
+          <details><summary className="cursor-pointer py-2 text-sm text-[var(--color-text-muted)]">Report scope and acknowledgment</summary><p className="text-sm text-[var(--color-text-secondary)]">
             {acknowledgmentNotice}
-          </p>
+          </p></details>
           <label className="block text-sm">
             Customer acknowledgment: receipt, or unavailable / declined with
             reason
@@ -1012,7 +940,7 @@ export default function ServiceReportEditor({
               disabled={readOnly}
               value={data.customerAcknowledgment}
               onChange={(event) =>
-                setData({ ...data, customerAcknowledgment: event.target.value })
+                { setEdited(true); setData({ ...data, customerAcknowledgment: event.target.value }); }
               }
             />
           </label>
@@ -1044,7 +972,7 @@ export default function ServiceReportEditor({
                 onClick={() => setFinalizeOpen(true)}
               >
                 <Check size={16} />
-                Review and finalize
+                Generate PDF
               </button>
             </div>
           )}
@@ -1082,7 +1010,7 @@ export default function ServiceReportEditor({
         className="m-auto w-[calc(100%_-_2rem)] max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-[var(--color-text-primary)] backdrop:bg-black/60"
       >
         <div className="space-y-4">
-          <h3 className="text-base font-semibold">Finalize service report?</h3>
+          <h3 className="text-base font-semibold">Generate service report?</h3>
           <p className="text-sm">
             I, <strong>{context?.technicianName}</strong>, confirm this report
             is accurate and authorize my electronic signature. Finalization
@@ -1130,7 +1058,7 @@ export default function ServiceReportEditor({
               }
             >
               <Check size={16} />
-              {busy || "Confirm and finalize"}
+              {busy || "Confirm and generate PDF"}
             </button>
             <button
               type="button"

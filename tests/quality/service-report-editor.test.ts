@@ -92,7 +92,10 @@ test("new reports use domain validation and independent report finalization", ()
   assert.match(source, /validateReport\(data, selected\.photos\)/);
   assert.doesNotMatch(source, /\/api\/jobs|status: ["']completed/);
   assert.match(source, /action: "finalize"/);
-  assert.match(source, /readOnly=\{field.id === "technicianName"\}/);
+  assert.match(source, /answers.technicianName = context.technicianName/);
+  const fields = readFileSync("src/components/service-reports/ChecklistFields.tsx", "utf8");
+  assert.match(fields, /automatic = new Set\(\[.*"companyName".*"technicianName"/);
+  assert.match(fields, /if \(automatic.has\(field.id\)\) return null/);
   const history = readFileSync("src/components/service-reports/ServiceReportHistory.tsx", "utf8");
   assert.match(history, /attempt\.current \|\|/);
   assert.match(history, /Email accepted by the provider\. Inbox delivery is not confirmed/);

@@ -98,7 +98,7 @@ const cases = new Map();
 const clone = value => structuredClone(value);
 function newState() {
   return {
-    reports: [], uploads: [], emails: [], operations: [], photoBytes: new Map(), failNextSave: false, canVerifyStorage: false, legacyPayloadForm: 'object',
+    reports: [], uploads: [], emails: [], operations: [], photoBytes: new Map(), failNextSave: false, saveDelay: 0, ambiguousCreate: false, canVerifyStorage: false, legacyPayloadForm: 'object',
     storageResponse: { upload: true, download: true, integrity: true, syntheticObjectRemoved: true },
     job: {
       id: contextData.jobId, jobNumber: contextData.jobNumber, customerId: contextData.customerId,
@@ -174,6 +174,7 @@ async function handler(req, res) {
         data: { fuel: body.fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: '' }, photos: [],
       };
       state.reports.unshift(record); state.operations.push('create');
+      if (state.ambiguousCreate) return reply(res, 503, { error: 'Synthetic unconfirmed create' });
       return reply(res, 201, { report: record });
     }
     if (req.method === 'POST' && body.action === 'check-storage') {
@@ -187,6 +188,8 @@ async function handler(req, res) {
     assert.ok(record, 'Mutation must identify an existing synthetic report');
     if (req.method === 'PUT') {
       assert.equal(record.status, 'draft'); assert.equal(body.revision, record.revision);
+      state.operations.push('save-start');
+      if (state.saveDelay) await delay(state.saveDelay);
       if (state.failNextSave) { state.failNextSave = false; state.operations.push('save-failed'); return reply(res, 503, { error: 'Synthetic save failure; draft was not persisted' }); }
       record.data = clone(body.data); record.revision++; state.operations.push('save');
       return reply(res, 200, { report: record });
@@ -239,14 +242,16 @@ const shot = async (page, name) => {
   await page.screenshot({ path: file }); report.screenshots.push(file);
 };
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const fieldControl = (page, field) => page.locator('label').filter({
+const conditionNames = { S: 'Satisfactory', D: 'Defect', NA: 'Not applicable', NI: 'Not inspected' };
+const fieldControl = (page, field) => field.type === 'condition' ? {
+  inputValue: async () => (await page.getByRole('radiogroup', { name: field.label, exact: true }).locator('input:checked').getAttribute('value').catch(() => null)) || '',
+  selectOption: value => page.getByRole('radiogroup', { name: field.label, exact: true }).locator(`label[title="${conditionNames[value]}"]`).click(),
+} : page.locator('label').filter({
   has: page.locator('span').filter({ hasText: new RegExp(`^${escape(field.label)}\\s*\\*?$`) }),
 }).locator(':scope > input, :scope > textarea, :scope > select');
 async function expandSections(page, template) {
-  for (const section of template.sections) {
-    const summary = page.locator('summary').filter({ hasText: new RegExp(`^${escape(section.title)}$`) });
-    if (!(await summary.evaluate(element => element.parentElement.open))) await summary.click();
-  }
+  // Test all optional inputs too; normal phone use keeps these disclosures closed.
+  await page.locator('details').evaluateAll(elements => elements.forEach(element => { element.open = true; }));
 }
 async function checkDialog(dialog) {
   assert.equal(await dialog.evaluate(element => {
@@ -303,15 +308,15 @@ async function editorFlow(page, state, fuel, width) {
   await page.goto(base);
   await page.getByRole('radio', { name: fuel, exact: true }).check();
   assert.equal(await page.getByRole('button', { name: 'Check report file connection', exact: true }).count(), 0);
-  await page.getByRole('button', { name: 'Create draft', exact: true }).click();
-  await page.getByRole('heading', { name: template.title, exact: true }).first().waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Create draft', exact: true }).count(), 0);
+  await page.getByRole('heading', { name: `${template.title} Checklist`, exact: true }).first().waitFor();
   await page.evaluate(() => document.fonts.ready);
-  const finalize = page.getByRole('button', { name: 'Review and finalize', exact: true });
+  const finalize = page.getByRole('button', { name: 'Generate PDF', exact: true });
   assert.equal(await finalize.isDisabled(), true, 'Empty report must block finalization');
-  assert.equal(state.reports[0].data.fuel, fuel);
-  assert.equal(state.operations.filter(op => op === 'create').length, 1);
-  for (const field of fields.filter(field => field.type === 'condition')) assert.equal(await fieldControl(page, field).inputValue(), '', 'No condition defaults to satisfactory');
-  assert.equal(await fieldControl(page, fields.find(field => field.id === 'customerName')).inputValue(), contextData.customerName);
+  await delay(1200);
+  assert.equal(state.reports.length, 0, 'Opening a checklist cannot create a database record');
+  for (const field of fields.filter(field => field.type === 'condition')) assert.equal(await page.getByRole('radiogroup', { name: field.label, exact: true }).locator('input:checked').count(), 0, 'No condition defaults to satisfactory');
+  for (const id of ['companyName', 'customerName', 'technicianName']) assert.equal(await fieldControl(page, fields.find(field => field.id === id)).count(), 0, 'No repetitive identity entry');
   await shot(page, `${name}-created`);
   await expandSections(page, template);
 
@@ -328,11 +333,17 @@ async function editorFlow(page, state, fuel, width) {
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByText('Report saved.', { exact: true }).waitFor();
   assert.equal(state.reports[0].data.answers.workCompleted, retained);
+  assert.equal(state.reports[0].data.fuel, fuel);
+  assert.equal(state.operations.filter(op => op === 'create').length, 1);
+  assert.equal(state.reports[0].data.answers.customerName, contextData.customerName);
+  assert.equal(state.reports[0].data.answers.technicianName, contextData.technicianName);
+  assert.ok(state.reports[0].data.answers.companyName);
 
   const answers = { ...validAnswers(template), workCompleted: retained };
   for (const [id, answer] of Object.entries(answers)) {
     const field = fields.find(field => field.id === id);
     assert.ok(field, `Template field ${id} exists`);
+    await expandSections(page, template);
     if (field.options) await fieldControl(page, field).selectOption(answer);
     else await fieldControl(page, field).fill(answer);
   }
@@ -342,6 +353,7 @@ async function editorFlow(page, state, fuel, width) {
   for (const [index, picker] of ['Camera', 'Gallery'].entries()) {
     const slot = template.photoSlots[index], section = photoSection(page, slot);
     const caption = `Synthetic ${fuel} ${slot.id} ${picker}`;
+    await expandSections(page, template);
     await section.getByLabel('Caption', { exact: true }).fill(caption);
     const chooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: `${picker}: ${slot.label}`, exact: true }).click();
@@ -357,6 +369,7 @@ async function editorFlow(page, state, fuel, width) {
     await shot(page, `${name}-${picker.toLowerCase()}-correct-slot`);
   }
   for (const slot of template.photoSlots.filter(slot => slot.required && !state.reports[0].photos.some(photo => photo.slotId === slot.id))) {
+    await expandSections(page, template);
     await photoSection(page, slot).getByLabel(/^Exception reason/).fill('Synthetic evidence exception: access unavailable during test.');
   }
   assert.equal(await finalize.isEnabled(), true, 'Required answers, photos, and documented exceptions unblock finalization');
@@ -370,8 +383,8 @@ async function editorFlow(page, state, fuel, width) {
   await fieldControl(page, work).fill(retained);
 
   const serviceDate = fields.find(field => field.id === 'serviceDate');
-  await fieldControl(page, serviceDate).fill('2026-02-30');
-  assert.equal(await finalize.isDisabled(), true, 'Impossible calendar date blocks finalization');
+  await fieldControl(page, serviceDate).fill('');
+  assert.equal(await finalize.isDisabled(), true, 'Missing calendar date blocks finalization');
   await fieldControl(page, serviceDate).fill(contextData.serviceDate);
 
   const condition = fields.find(field => field.type === 'condition');
@@ -384,6 +397,7 @@ async function editorFlow(page, state, fuel, width) {
   await fieldControl(page, fields.find(field => field.id === 'outcome')).selectOption(getServiceTemplate(fuel).sections.flatMap(section => section.fields).find(field => field.id === 'outcome').options[1]);
   assert.equal(await finalize.isDisabled(), true, 'Defect needs matching photo evidence or documented exception');
   const defectSlot = template.photoSlots.find(slot => slot.id === condition.id);
+  await expandSections(page, template);
   await photoSection(page, defectSlot).getByLabel(/^Exception reason/).fill('Synthetic defect location inaccessible for photograph.');
   assert.equal(await finalize.isEnabled(), true);
   assert.equal(state.operations.includes('finalize'), false, 'No blocked state may send a finalize request');
@@ -395,7 +409,7 @@ async function editorFlow(page, state, fuel, width) {
   await checkDialog(dialog);
   await shot(page, `${name}-finalize-confirmation`);
   assert.equal(state.operations.includes('finalize'), false, 'Review is not finalization');
-  await dialog.getByRole('button', { name: 'Confirm and finalize', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Confirm and generate PDF', exact: true }).click();
   await page.getByText('Report finalized. Job status unchanged.', { exact: true }).waitFor();
   assert.equal(state.reports[0].status, 'finalized');
   assert.equal(state.job.status, 'in_progress');
@@ -454,13 +468,108 @@ async function storageFlow(page, state, width) {
   await shot(page, `admin-storage-${width}-unverified`);
 }
 
+async function autosaveFlow(page, state) {
+  await page.goto(base);
+  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  const template = getServiceTemplate('gas');
+  await expandSections(page, template);
+  const work = fieldControl(page, template.sections.flatMap(section => section.fields).find(field => field.id === 'workCompleted'));
+  state.saveDelay = 1800;
+  await work.fill('Synthetic first observation');
+  await page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(prefix));
+  await page.getByRole('status').filter({ hasText: /^Saving\.\.\.$/ }).waitFor();
+  assert.equal(await work.isEnabled(), true, 'Autosave must not interrupt typing');
+  await work.fill('Synthetic newer observation entered during save');
+  await page.getByRole('status').filter({ hasText: /^All changes saved$/ }).waitFor();
+  assert.equal(await work.inputValue(), 'Synthetic newer observation entered during save');
+  assert.equal(state.reports[0].data.answers.workCompleted, 'Synthetic newer observation entered during save');
+  assert.equal(state.operations.filter(op => op === 'create').length, 1);
+  assert.equal(state.operations.filter(op => op === 'save').length, 2, 'Newer edits receive their own revision');
+  assert.equal(state.emails.length, 0);
+  assert.equal(state.operations.includes('finalize'), false);
+  await page.reload();
+  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  await expandSections(page, template);
+  assert.equal(await work.inputValue(), 'Synthetic newer observation entered during save');
+  const operations = clone(state.operations);
+  await delay(1500);
+  assert.deepEqual(state.operations, operations, 'Read-only reopening cannot write metadata or create reports');
+}
+
+async function uncertainCreateFlow(page, state) {
+  state.ambiguousCreate = true;
+  await page.goto(base);
+  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  const template = getServiceTemplate('gas');
+  await expandSections(page, template);
+  const work = fieldControl(page, template.sections.flatMap(section => section.fields).find(field => field.id === 'workCompleted'));
+  await work.fill('Synthetic observation retained after uncertain creation');
+  await page.getByRole('alert').filter({ hasText: /Draft creation is unconfirmed/ }).waitFor();
+  await delay(1500);
+  assert.equal(await work.inputValue(), 'Synthetic observation retained after uncertain creation');
+  assert.equal(state.operations.filter(op => op === 'create').length, 1, 'Ambiguous creation must never retry automatically');
+  assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).isDisabled(), true);
+  assert.equal(state.emails.length, 0);
+}
+
+async function pickerAutosaveFlow(page, state) {
+  await page.goto(base);
+  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  const template = getServiceTemplate('gas');
+  const condition = template.sections.flatMap(section => section.fields).find(field => field.type === 'condition');
+  await fieldControl(page, condition).selectOption('S');
+  const chooserPromise = page.waitForEvent('filechooser');
+  const slot = template.photoSlots[0];
+  await page.getByRole('button', { name: `Camera: ${slot.label}`, exact: true }).click();
+  const chooser = await chooserPromise;
+  const operations = clone(state.operations);
+  await delay(1500);
+  assert.deepEqual(state.operations, operations, 'Autosave pauses while the camera picker is open');
+  await chooser.setFiles({ name: 'camera-delay.png', mimeType: 'image/png', buffer: imageBytes });
+  await photoSection(page, slot).getByRole('img', { name: slot.label, exact: true }).waitFor();
+  assert.equal(state.uploads.length, 1, 'A photo returned after the save debounce is not discarded');
+  assert.equal(state.reports[0].data.answers[condition.id], 'S');
+  assert.equal(state.operations.filter(op => op === 'create').length, 1);
+  assert.equal(state.emails.length, 0);
+  await fieldControl(page, condition).selectOption('NA');
+  const canceled = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: `Gallery: ${slot.label}`, exact: true }).click();
+  await (await canceled).element().dispatchEvent('cancel');
+  await page.getByRole('status').filter({ hasText: /^All changes saved$/ }).waitFor();
+  assert.equal(state.reports[0].data.answers[condition.id], 'NA', 'Picker cancel resumes autosave');
+}
+
+async function existingDraftFlow(page, state) {
+  state.reports.push({ id: 'synthetic-existing', jobId: contextData.jobId, customerId: contextData.customerId,
+    revision: 4, status: 'draft', createdAt: timestamp, updatedAt: timestamp, photos: [],
+    data: { fuel: 'gas', answers: { G01: 'NI', G01_notes: 'Synthetic existing reason retained' }, photoExceptions: {}, customerAcknowledgment: '' } });
+  const before = clone(state.reports);
+  await page.goto(base);
+  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^All changes saved$/ }).waitFor();
+  await delay(1500);
+  assert.deepEqual(state.reports, before, 'Opening an older draft is read-only, even with missing automatic metadata');
+  const template = getServiceTemplate('gas');
+  const condition = template.sections.flatMap(section => section.fields).find(field => field.id === 'G02');
+  const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith(prefix));
+  await fieldControl(page, condition).selectOption('S');
+  await saved;
+  await page.getByRole('status').filter({ hasText: /^All changes saved$/ }).waitFor();
+  assert.equal(state.reports[0].data.answers.G01, 'NI');
+  assert.equal(state.reports[0].data.answers.G01_notes, before[0].data.answers.G01_notes);
+  assert.equal(state.reports[0].data.answers.technicianName, contextData.technicianName);
+  assert.ok(state.reports[0].data.answers.companyName);
+  assert.equal(state.operations.includes('create'), false, 'Continue the saved draft instead of creating another');
+}
+
 async function legacyFlow(page, state, width, representation) {
   state.legacyPayloadForm = representation;
   state.job.photos.push({ id: 'existing-photo', checklistItemId: 'previous-item', uri: `data:image/png;base64,${imageBytes.toString('base64')}`, label: 'Synthetic existing photo' });
   await page.goto(`${base}/tech/job/${contextData.jobId}`);
   await page.getByRole('button', { name: 'checklist', exact: true }).click();
   await page.getByRole('radio', { name: 'gas', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).count(), 0, 'Primary checklist cannot generate the obsolete PDF');
+  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).isDisabled(), true, 'Primary checklist requires new report answers before generating its PDF');
+  assert.ok(await page.getByRole('radiogroup').count() > 1, 'The primary checklist shows actual condition controls immediately');
   await shot(page, `current-checklist-${width}-${representation}`);
   await page.getByRole('button', { name: 'Previous checklist', exact: true }).click();
   const addPhoto = page.getByRole('button', { name: 'Add Photo', exact: true }).first();
@@ -499,6 +608,10 @@ try {
   base = `http://127.0.0.1:${server.address().port}`;
   console.log(`Synthetic service report browser verification: ${base}\nArtifacts: ${output}`);
   browser = await chromium.launch({ headless: true });
+  await scenario('autosave-race', 390, autosaveFlow);
+  await scenario('uncertain-create', 390, uncertainCreateFlow);
+  await scenario('camera-autosave', 390, pickerAutosaveFlow);
+  await scenario('existing-draft', 390, existingDraftFlow);
   for (const width of [390, 1440]) {
     for (const fuel of ['gas', 'wood', 'pellet']) await scenario(`${fuel}-${width}`, width, (page, state) => editorFlow(page, state, fuel, width));
     for (const representation of ['object', 'string']) await scenario(`legacy-${width}-${representation}`, width, (page, state) => legacyFlow(page, state, width, representation));
