@@ -2,6 +2,7 @@ import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { websiteInboxConfig } from "@/lib/website-inbox/config";
 import { inboxStatuses, parseAction, uuidPattern } from "@/lib/website-inbox/domain";
 import { websiteInboxStore } from "@/lib/website-inbox/server";
+import { verifiedWebsitePayments } from "@/lib/website-orders/server";
 
 const headers = { "Cache-Control": "private, no-store" };
 export async function GET(request: Request) {
@@ -22,6 +23,11 @@ export async function GET(request: Request) {
     const store = websiteInboxStore();
     if (id) return Response.json({ activity: await store.activity(actor.orgId, config.source, id) }, { headers });
     const result = await store.list(actor.orgId, config.source, params.get("q") || "", status, offset);
+    const paid = await verifiedWebsitePayments(actor.orgId, result.items.map(item => item.external_id));
+    for (const item of result.items) {
+      const payment = paid.find(order => order.id === item.external_id);
+      if (payment) item.payment = { status: "paid", squarePaymentId: payment.square_payment_id, paidAt: payment.paid_at.toISOString() };
+    }
     return Response.json({ configured: true, ...result }, { headers });
   } catch {
     console.warn("[website-inbox] Read unavailable");
