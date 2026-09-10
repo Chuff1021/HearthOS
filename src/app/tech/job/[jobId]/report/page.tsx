@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
 import AutoPrint from "./AutoPrint";
 import PrintButton from "./PrintButton";
+import ServiceReportEditor from "@/components/service-reports/ServiceReportEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function TechJobReportPage({
   searchParams,
 }: {
   params: Promise<{ jobId: string }>;
-  searchParams: Promise<{ print?: string }>;
+  searchParams: Promise<{ print?: string; legacy?: string }>;
 }) {
   const { jobId } = await params;
   const actor = await requireCrmActor();
@@ -60,6 +61,16 @@ export default async function TechJobReportPage({
     title: job.title,
   });
   const template = getChecklistTemplate(templateId);
+  // Old cached Generate PDF links must open the current workflow, not print an obsolete form.
+  if (!template.isInstall && resolvedSearchParams.legacy !== "1") {
+    return <main className="min-h-screen bg-[var(--color-bg)] p-4 pb-28">
+      <div className="mx-auto max-w-5xl space-y-4">
+        <Link href={`/tech/job/${jobId}`} className="inline-block py-2 text-sm underline">Back to job</Link>
+        <ServiceReportEditor jobId={jobId} />
+        <Link href={`/tech/job/${jobId}/report?legacy=1`} className="inline-block py-2 text-sm underline text-[var(--color-text-muted)]">View previous checklist</Link>
+      </div>
+    </main>;
+  }
   const form = job.checklistForm || buildInitialChecklistForm(templateId);
   const isInstall = template.isInstall;
 
@@ -81,6 +92,7 @@ export default async function TechJobReportPage({
 
   return (
     <div style={{ background: "#f3f4f6", minHeight: "100vh", padding: "24px" }}>
+      {!isInstall && <div className="print:hidden mx-auto mb-4 max-w-5xl text-sm text-gray-900">Previous checklist. <Link href={`/tech/job/${jobId}/report`} className="underline">Open current service form</Link></div>}
       <AutoPrint enabled={resolvedSearchParams.print === "1"} />
       <div style={{ maxWidth: 960, margin: "0 auto", background: "#fff", borderRadius: 16, boxShadow: "0 8px 32px rgba(15,23,42,0.1)", overflow: "hidden" }}>
 

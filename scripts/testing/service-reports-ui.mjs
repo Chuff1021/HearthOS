@@ -458,9 +458,13 @@ async function legacyFlow(page, state, width, representation) {
   state.job.photos.push({ id: 'existing-photo', checklistItemId: 'previous-item', uri: `data:image/png;base64,${imageBytes.toString('base64')}`, label: 'Synthetic existing photo' });
   await page.goto(`${base}/tech/job/${contextData.jobId}`);
   await page.getByRole('button', { name: 'checklist', exact: true }).click();
+  await page.getByRole('radio', { name: 'gas', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).count(), 0, 'Primary checklist cannot generate the obsolete PDF');
+  await shot(page, `current-checklist-${width}-${representation}`);
+  await page.getByRole('button', { name: 'Previous checklist', exact: true }).click();
   const addPhoto = page.getByRole('button', { name: 'Add Photo', exact: true }).first();
   await addPhoto.waitFor();
-  assert.equal(await page.locator('input[type=file]').count(), 2, 'Picker refs stay mounted outside the Photos tab');
+  assert.ok(await page.locator('input[type=file]').count() >= 2, 'Picker refs stay mounted outside the Photos tab');
   const template = getChecklistTemplate(inferChecklistTemplateId({ jobType: state.job.jobType, fireplaceType: 'gas', title: state.job.title }));
   const target = template.sections.flatMap(section => section.fields).find(field => field.type === 'checkbox');
   // This evidence arrived after the page loaded and must survive an atomic append.
@@ -484,7 +488,7 @@ async function legacyFlow(page, state, width, representation) {
   await savedImage.evaluate(img => img.decode());
   assert.equal(await savedImage.evaluate(img => img.complete && img.naturalWidth > 0), true);
   await shot(page, `legacy-photos-${width}-${representation}`);
-  await page.getByRole('button', { name: 'Service Report', exact: true }).click();
+  await page.getByRole('button', { name: 'checklist', exact: true }).click();
   await page.getByRole('radio', { name: 'gas', exact: true }).waitFor();
   assert.equal(await page.getByRole('region', { name: 'Service report editor', exact: true }).count(), 1, 'Actual tech Report tab mounts the editor');
 }

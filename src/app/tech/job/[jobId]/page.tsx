@@ -105,7 +105,7 @@ async function compressImage(file: File, maxDimension = 1600, quality = 0.8): Pr
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
-  const [activeTab, setActiveTab] = useState<"details" | "checklist" | "report" | "photos" | "customer">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "checklist" | "report" | "legacy" | "photos" | "customer">("details");
   const [reportOpened, setReportOpened] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{ phone?: string; email?: string; address?: string; name?: string } | null>(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
@@ -140,6 +140,11 @@ export default function JobDetailPage() {
     [checklistForm?.templateId, job.fireplaceType, job.type]
   );
   const checklistTemplate = useMemo(() => getChecklistTemplate(checklistTemplateId), [checklistTemplateId]);
+  const showingServiceForm = activeTab === "report" || (activeTab === "checklist" && !checklistTemplate.isInstall);
+  function openServiceForm() {
+    setReportOpened(true);
+    setActiveTab("report");
+  }
 
   useEffect(() => {
     async function loadJob() {
@@ -607,13 +612,15 @@ export default function JobDetailPage() {
       {/* Tab Navigation */}
       <div className="bg-[var(--color-surface-1)] border-b border-gray-800 sticky z-10" style={{ top: "calc(env(safe-area-inset-top) + 86px)" }}>
         <div className="flex overflow-x-auto">
-          {(["details", "checklist", "report", "photos", "customer"] as const).map((tab) => (
+          {(checklistTemplate.isInstall
+            ? ["details", "checklist", "report", "photos", "customer"] as const
+            : ["details", "checklist", "photos", "customer"] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => { setActiveTab(tab); if (tab === "report") setReportOpened(true); }}
-              aria-pressed={activeTab === tab}
+              onClick={() => { setActiveTab(tab); if (tab === "report" || (tab === "checklist" && !checklistTemplate.isInstall)) setReportOpened(true); }}
+              aria-pressed={activeTab === tab || (tab === "checklist" && showingServiceForm && !checklistTemplate.isInstall)}
               className={`flex-1 shrink-0 px-3 py-3 text-sm whitespace-nowrap font-medium capitalize transition-colors ${
-                activeTab === tab
+                activeTab === tab || (tab === "checklist" && showingServiceForm && !checklistTemplate.isInstall)
                   ? "text-blue-600 border-b-2 border-orange-400"
                   : "text-gray-400"
               }`}
@@ -626,7 +633,10 @@ export default function JobDetailPage() {
 
       {/* Content */}
       <div className="flex-1 p-4">
-        {reportOpened && <div hidden={activeTab !== "report"}><ServiceReportEditor key={jobId} jobId={jobId} /></div>}
+        {reportOpened && <div hidden={!showingServiceForm}>
+          <ServiceReportEditor key={jobId} jobId={jobId} />
+          {!checklistTemplate.isInstall && <button type="button" onClick={() => setActiveTab("legacy")} className="mt-5 px-3 py-2 text-sm underline text-[var(--color-text-muted)]">Previous checklist</button>}
+        </div>}
         {activeTab === "details" && (
           <div className="space-y-4">
             {/* Job Info Card */}
@@ -692,8 +702,13 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {activeTab === "checklist" && (
+        {(activeTab === "legacy" || (activeTab === "checklist" && checklistTemplate.isInstall)) && (
           <div className="space-y-4">
+            {!checklistTemplate.isInstall && <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-4 space-y-2">
+              <h2 className="font-semibold">Previous checklist</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">Saved entries from the previous form. These have not been converted into the current service report.</p>
+              <button type="button" onClick={openServiceForm} className="px-3 py-2 rounded-lg bg-[var(--color-accent)] text-white">Open current service form</button>
+            </div>}
             <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -701,11 +716,11 @@ export default function JobDetailPage() {
                   <div className="text-xs text-gray-400 mt-1">{checklistTemplate.subtitle}</div>
                 </div>
                 <button
-                  onClick={() => window.open(`/tech/job/${jobId}/report?print=1`, "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open(`/tech/job/${jobId}/report?legacy=1&print=1`, "_blank", "noopener,noreferrer")}
                   className="px-3 py-2 rounded-lg text-xs font-medium"
                   style={{ background: "rgba(37,99,235,0.14)", color: "#2563EB" }}
                 >
-                  Generate PDF
+                  {checklistTemplate.isInstall ? "Generate PDF" : "Print previous checklist"}
                 </button>
               </div>
               <div className="flex justify-between text-sm mb-2 mt-4">
@@ -1141,13 +1156,13 @@ export default function JobDetailPage() {
             {progress === 100 && checklistForm?.customerSignature && (
               <div className="space-y-2">
                 <button
-                  onClick={() => window.open(`/tech/job/${jobId}/report?print=1`, "_blank", "noopener,noreferrer")}
+                  onClick={() => window.open(`/tech/job/${jobId}/report?legacy=1&print=1`, "_blank", "noopener,noreferrer")}
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-700 py-4 rounded-xl font-semibold"
                 >
-                  Generate Customer PDF
+                  {checklistTemplate.isInstall ? "Generate Customer PDF" : "Print previous checklist"}
                 </button>
                 <button onClick={handleCompleteInspection} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-xl font-semibold">
-                  Complete &amp; Share Inspection
+                  {checklistTemplate.isInstall ? "Complete & Share Inspection" : "Complete previous checklist"}
                 </button>
               </div>
             )}
