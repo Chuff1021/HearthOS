@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:customer-persistence
       - run: npm run test:payment-persistence
       - run: node scripts/testing/website-inbox.mjs
+      - run: node scripts/testing/service-reports.mjs
       - run: npm run typecheck
       - run: npm run lint
       - run: npm audit --omit=dev

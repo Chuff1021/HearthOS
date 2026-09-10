@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/tech/service-reports": [
+      "./public/fonts/service-signature*",
+      "./node_modules/geist/dist/fonts/geist-sans/*.ttf",
+    ],
+  },
   images: {
     remotePatterns: [
       {
