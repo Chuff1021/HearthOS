@@ -3,6 +3,8 @@ import dns from "node:dns/promises";
 import net from "node:net";
 
 type SendEmailInput = {
+  attempts?: number;
+  messageId?: string;
   to: string;
   cc?: string[];
   bcc?: string[];
@@ -113,7 +115,7 @@ export async function sendSmtpEmail(input: SendEmailInput) {
   const smtpPass = envValue("SMTP_PASS");
   const fromEmail = envValue("SMTP_FROM") || smtpUser;
   const fromName = envValue("SMTP_FROM_NAME") || "Hearth OS";
-  const maxAttempts = Math.max(1, Number(process.env.SMTP_SEND_ATTEMPTS || 4));
+  const maxAttempts = input.attempts ?? Math.max(1, Number(process.env.SMTP_SEND_ATTEMPTS || 4));
   const smtpHost = envValue("SMTP_HOST");
   if (!smtpPass) {
     throw new Error("SMTP_PASS is empty. Set it to a Yahoo Mail app password, not the regular Yahoo account password.");
@@ -141,7 +143,7 @@ export async function sendSmtpEmail(input: SendEmailInput) {
     } as any);
 
     try {
-      await transporter.sendMail({
+      const result = await transporter.sendMail({
         from: `"${fromName}" <${fromEmail}>`,
         to: input.to,
         cc: input.cc?.length ? input.cc : undefined,
@@ -150,7 +152,9 @@ export async function sendSmtpEmail(input: SendEmailInput) {
         text: input.text,
         html: input.html,
         attachments: input.attachments,
+        messageId: input.messageId,
       });
+      if (input.attempts === 1 && !result.accepted?.length) throw new Error("Mail server did not accept the recipient.");
       transporter.close();
       return;
     } catch (err) {

@@ -8,6 +8,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import OperationsStyles from "@/components/scheduling/OperationsStyles";
 import DocumentDrawer, { type DocumentType } from "@/components/documents/DocumentDrawer";
+import ServiceReportHistory from "@/components/service-reports/ServiceReportHistory";
 import { colorFromName, initialsFromName } from "@/lib/avatar";
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ id: 
                     )}
                   </div>
                 </div>
+                <ServiceReportHistory key={data.customer.id} customerId={data.customer.id} email={data.customer.email || ""} />
               </>
             )}
           </div>

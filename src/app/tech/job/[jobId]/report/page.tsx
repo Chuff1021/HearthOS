@@ -3,7 +3,7 @@ import { getJob } from "@/lib/job-store";
 import { requireCrmActor } from "@/lib/security/crm-access";
 import { canAccessJob } from "@/lib/security/access-policy";
 import { notFound } from "next/navigation";
-import { buildInitialChecklistForm, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
+import { buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId } from "@/lib/job-checklists";
 import AutoPrint from "./AutoPrint";
 import PrintButton from "./PrintButton";
 
@@ -75,7 +75,9 @@ export default async function TechJobReportPage({
     ? { text: "FAILED", color: "#DC2626", bg: "rgba(220,38,38,0.08)" }
     : hasFailures
       ? { text: "CONDITIONAL", color: "#F59E0B", bg: "rgba(245,158,11,0.08)" }
-      : { text: "PASSED", color: "#16A34A", bg: "rgba(22,163,74,0.08)" };
+      : form.values["safe-for-use"] === "pass" && checklistCompletion(form).percent === 100
+        ? { text: "PASSED", color: "#16A34A", bg: "rgba(22,163,74,0.08)" }
+        : { text: "INCOMPLETE / NOT DETERMINED", color: "#64748B", bg: "rgba(100,116,139,0.08)" };
 
   return (
     <div style={{ background: "#f3f4f6", minHeight: "100vh", padding: "24px" }}>

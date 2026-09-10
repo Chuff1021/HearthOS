@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
+import ServiceReportEditor from "@/components/service-reports/ServiceReportEditor";
 import { arrayToMultiselectValue, buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId, multiselectValueToArray, type ChecklistForm } from "@/lib/job-checklists";
 
 const emptyJobData = {
@@ -104,7 +105,8 @@ async function compressImage(file: File, maxDimension = 1600, quality = 0.8): Pr
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.jobId as string;
-  const [activeTab, setActiveTab] = useState<"details" | "checklist" | "photos" | "customer">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "checklist" | "report" | "photos" | "customer">("details");
+  const [reportOpened, setReportOpened] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{ phone?: string; email?: string; address?: string; name?: string } | null>(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [checklistItems, setChecklistItems] = useState<Record<string, boolean>>({});
@@ -123,7 +125,9 @@ export default function JobDetailPage() {
   const [actionMsg, setActionMsg] = useState("");
   const [loadingJob, setLoadingJob] = useState(true);
   const [job, setJob] = useState<any>(emptyJobData);
-  const [pendingChecklistPhoto, setPendingChecklistPhoto] = useState<ChecklistPhotoTarget | null>(null);
+  const pendingChecklistPhoto = useRef<ChecklistPhotoTarget | null>(null);
+  const photoSavingRef = useRef(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -268,17 +272,20 @@ export default function JobDetailPage() {
   const progress = completion.percent;
 
   const handlePhotoCapture = () => {
-    setPendingChecklistPhoto(null);
+    if (photoSavingRef.current) return;
+    pendingChecklistPhoto.current = null;
     fileInputRef.current?.click();
   };
 
   const handlePhotoFromGallery = () => {
-    setPendingChecklistPhoto(null);
+    if (photoSavingRef.current) return;
+    pendingChecklistPhoto.current = null;
     galleryInputRef.current?.click();
   };
 
   const handleChecklistPhotoCapture = (item: ChecklistPhotoTarget) => {
-    setPendingChecklistPhoto(item);
+    if (photoSavingRef.current) return;
+    pendingChecklistPhoto.current = item;
     fileInputRef.current?.click();
   };
 
@@ -335,42 +342,51 @@ export default function JobDetailPage() {
   };
 
   const handlePhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length || photoSavingRef.current) return;
+    if (files.length > 10) {
+      setActionMsg("Choose up to 10 photos at a time. No photos were uploaded.");
+      return;
+    }
+    const target = pendingChecklistPhoto.current;
+    pendingChecklistPhoto.current = null;
+    photoSavingRef.current = true;
+    setPhotoSaving(true);
+    setActionMsg("Saving photo...");
     try {
-      const latestRes = await fetch(`/api/jobs?id=${jobId}`, { cache: "no-store" });
-      const latestData = await latestRes.json();
-      const latestJob = latestData.jobs?.[0];
-      const existingPhotos = Array.isArray(latestJob?.photos) ? latestJob.photos : (job.photos || []);
-
       const newPhotos: any[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const compressedUri = await compressImage(file);
         newPhotos.push({
-          id: `photo-${Date.now()}-${i}`,
-          type: pendingChecklistPhoto ? "checklist" : "progress",
-          label: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
-          caption: pendingChecklistPhoto ? `${pendingChecklistPhoto.task}` : file.name,
+          id: crypto.randomUUID(),
+          type: target ? "checklist" : "progress",
+          label: target ? target.task : file.name,
+          caption: target ? target.task : file.name,
           timestamp: new Date().toISOString(),
           uri: compressedUri,
-          checklistItemId: pendingChecklistPhoto ? String(pendingChecklistPhoto.id) : undefined,
+          checklistItemId: target ? String(target.id) : undefined,
         });
       }
 
-      const nextPhotos = [...existingPhotos, ...newPhotos].filter((entry, index, arr) => {
-        const signature = `${entry.uri || ""}:${entry.timestamp || ""}:${entry.label || entry.caption || ""}:${entry.checklistItemId || ""}`;
-        return arr.findIndex((candidate) => `${candidate.uri || ""}:${candidate.timestamp || ""}:${candidate.label || candidate.caption || ""}:${candidate.checklistItemId || ""}` === signature) === index;
+      const response = await fetch("/api/tech/job-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, photos: newPhotos }),
       });
-      setJob((prev: any) => ({ ...prev, photos: nextPhotos }));
-      await persistJobUpdates({ photos: nextPhotos });
-      const count = newPhotos.length;
-      setActionMsg(pendingChecklistPhoto ? `Photo saved for checklist item: ${pendingChecklistPhoto.task}` : `${count} photo${count > 1 ? "s" : ""} saved to this job.`);
+      if (!response.ok) throw new Error("Photo append failed");
+      const result = await response.json();
+      const saved = result.job;
+      // The append endpoint normalizes JPEG bytes and may reuse an existing photo ID.
+      if (saved?.id !== jobId || !Array.isArray(saved.photos) || !saved.photos.length) throw new Error("Saved photos could not be verified");
+      setJob((prev: any) => ({ ...prev, photos: saved.photos }));
+      setActionMsg(target ? `Photo saved for checklist item: ${target.task}` : `${newPhotos.length} selected photo${newPhotos.length > 1 ? "s" : ""} confirmed saved to this job.`);
     } catch {
-      setActionMsg("Photo save failed. Try again.");
+      setActionMsg("Photo save not confirmed. Select the photo again to retry; existing copies will not be added twice.");
     } finally {
-      setPendingChecklistPhoto(null);
-      event.target.value = "";
+      photoSavingRef.current = false;
+      setPhotoSaving(false);
     }
   };
 
@@ -551,6 +567,8 @@ export default function JobDetailPage() {
 
   return (
     <div className="pw-workspace pw-tech flex flex-col min-h-screen pb-32">
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSelected} disabled={photoSaving} className="hidden" />
+      <input ref={galleryInputRef} type="file" accept="image/*" onChange={handlePhotoSelected} disabled={photoSaving} multiple className="hidden" />
       {/* Header */}
       <header
         className="bg-[var(--color-surface-1)] sticky top-0 z-10 px-4 pb-4"
@@ -581,25 +599,26 @@ export default function JobDetailPage() {
       )}
 
       {actionMsg && (
-        <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(152,205,0,0.12)", border: "1px solid rgba(152,205,0,0.35)", color: "#98CD00" }}>
+        <div role="status" className="mx-4 mt-3 px-3 py-2 rounded-lg text-sm" style={{ background: "var(--color-surface-1)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
           {actionMsg}
         </div>
       )}
 
       {/* Tab Navigation */}
       <div className="bg-[var(--color-surface-1)] border-b border-gray-800 sticky z-10" style={{ top: "calc(env(safe-area-inset-top) + 86px)" }}>
-        <div className="flex">
-          {(["details", "checklist", "photos", "customer"] as const).map((tab) => (
+        <div className="flex overflow-x-auto">
+          {(["details", "checklist", "report", "photos", "customer"] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 text-sm font-medium capitalize transition-colors ${
+              onClick={() => { setActiveTab(tab); if (tab === "report") setReportOpened(true); }}
+              aria-pressed={activeTab === tab}
+              className={`flex-1 shrink-0 px-3 py-3 text-sm whitespace-nowrap font-medium capitalize transition-colors ${
                 activeTab === tab
                   ? "text-blue-600 border-b-2 border-orange-400"
                   : "text-gray-400"
               }`}
             >
-              {tab}
+              {tab === "report" ? "Service Report" : tab}
             </button>
           ))}
         </div>
@@ -607,6 +626,7 @@ export default function JobDetailPage() {
 
       {/* Content */}
       <div className="flex-1 p-4">
+        {reportOpened && <div hidden={activeTab !== "report"}><ServiceReportEditor key={jobId} jobId={jobId} /></div>}
         {activeTab === "details" && (
           <div className="space-y-4">
             {/* Job Info Card */}
@@ -1159,25 +1179,6 @@ export default function JobDetailPage() {
                 From Photos
               </button>
             </div>
-            {/* Camera input (opens camera) */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoSelected}
-              className="hidden"
-            />
-            {/* Gallery input (opens photo library) */}
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoSelected}
-              multiple
-              className="hidden"
-            />
-
             {/* Photo Gallery */}
             <div className="grid grid-cols-3 gap-2">
               {(job.photos || []).map((photo: any, index: number) => (
