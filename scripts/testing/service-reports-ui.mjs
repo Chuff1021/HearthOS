@@ -417,6 +417,7 @@ async function editorFlow(page, state, fuel, width) {
   await page.getByRole('button', { name: 'Email report', exact: true }).click();
   await page.getByLabel('Recipient', { exact: true }).fill('alternate@example.invalid');
   await page.getByRole('button', { name: 'Confirm and send', exact: true }).click();
+  await page.locator('dialog[open]').waitFor({ state: 'hidden' });
   await page.getByRole('status').filter({ hasText: /^Email accepted by the provider\. Inbox delivery is not confirmed\.$/ }).waitFor();
   assert.equal(state.emails.length, 1); assert.equal(state.emails[0].email, 'alternate@example.invalid');
   await shot(page, `${name}-email-accepted`);
