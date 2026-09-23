@@ -52,7 +52,7 @@ function bundle(page: 'public' | 'tech') {
   return bundles.get(page)!;
 }
 
-async function harness(page: 'public' | 'tech', amount = '100') {
+async function harness(page: 'public' | 'tech', amount = '100', invoice = 'INV-SYNTHETIC-1') {
   let cursor = 0;
   const hooks: any[] = [];
   let effects: (() => void)[] = [];
@@ -69,7 +69,7 @@ async function harness(page: 'public' | 'tech', amount = '100') {
   let bankOptions: any;
   let listFails = false;
   const fixture = {
-    searchParams: new URLSearchParams({ amount, customer: 'Synthetic Customer', invoice: 'INV-SYNTHETIC-1', token: 'synthetic-link-token' }),
+    searchParams: new URLSearchParams({ amount, customer: 'Synthetic Customer', invoice, token: 'synthetic-link-token' }),
     useState(initial: unknown) {
       const index = cursor++;
       if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial;
@@ -179,6 +179,18 @@ test('response validation accepts capture only with true ok, ID and actual COMPL
   for (const data of [{ ...checkout, paymentLinkId: '' }, { ...checkout, url: 'javascript:alert(1)' }, { ...checkout, ok: false }]) {
     assert.equal(classifyPaymentResponse(200, data, true).kind, 'unknown');
   }
+});
+
+test('tech payment opened without a job keeps the invoice field editable while typing', async () => {
+  const h = await harness('tech', '100', '');
+  h.change('Invoice number (optional)', '1');
+  h.change('Invoice number (optional)', '1001');
+  const request = h.card();
+  h.tokens[0].resolve({ status: 'OK', token: 'synthetic-card-token' });
+  await h.settle();
+  assert.equal(JSON.parse(String(h.requests[0].options.body)).invoiceNumber, '1001');
+  h.requests[0].resolve(Response.json({ retrySafe: true, error: 'Synthetic rejection' }, { status: 400 }));
+  await request;
 });
 
 test('ref guard excludes all methods and allows reset only after confirmed completion or checkout', () => {

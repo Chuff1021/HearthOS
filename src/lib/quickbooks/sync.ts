@@ -450,54 +450,58 @@ export async function persistInvoicesToDb(orgId: string, qbInvoices: QBInvoice[]
 
   if (parents.length === 0) return 0;
 
-  // Bulk upsert parents → returns local UUIDs keyed by qbInvoiceId
-  const idByQb = new Map<string, string>();
-  for (const part of chunk(parents, 500)) {
-    const ret = await db.insert(invoices).values(part).onConflictDoUpdate({
-      target: invoices.qbInvoiceId,
-      set: {
-        customerId: sql`excluded.customer_id`,
-        invoiceNumber: sql`excluded.invoice_number`,
-        status: sql`excluded.status`,
-        issueDate: sql`excluded.issue_date`,
-        dueDate: sql`excluded.due_date`,
-        subtotal: sql`excluded.subtotal`,
-        taxAmount: sql`excluded.tax_amount`,
-        totalAmount: sql`excluded.total_amount`,
-        balance: sql`excluded.balance`,
-        notes: sql`excluded.notes`,
-        updatedAt: now,
-      },
-    }).returning({ id: invoices.id, qbId: invoices.qbInvoiceId });
-    for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
-  }
+  // Keep each imported page atomic: a failed line import must not erase saved lines.
+  return db.transaction(async (tx) => {
+    // Bulk upsert parents → returns local UUIDs keyed by qbInvoiceId
+    const idByQb = new Map<string, string>();
+    for (const part of chunk(parents, 500)) {
+      const ret = await tx.insert(invoices).values(part).onConflictDoUpdate({
+        target: invoices.qbInvoiceId,
+        set: {
+          customerId: sql`excluded.customer_id`,
+          invoiceNumber: sql`excluded.invoice_number`,
+          status: sql`excluded.status`,
+          issueDate: sql`excluded.issue_date`,
+          dueDate: sql`excluded.due_date`,
+          subtotal: sql`excluded.subtotal`,
+          taxAmount: sql`excluded.tax_amount`,
+          totalAmount: sql`excluded.total_amount`,
+          balance: sql`excluded.balance`,
+          notes: sql`excluded.notes`,
+          updatedAt: now,
+        },
+        setWhere: eq(invoices.orgId, orgId),
+      }).returning({ id: invoices.id, qbId: invoices.qbInvoiceId });
+      for (const r of ret) if (r.qbId) idByQb.set(r.qbId, r.id);
+    }
 
-  // Replace line items in bulk
-  const allLocalIds = [...idByQb.values()];
-  for (const part of chunk(allLocalIds, 1000)) {
-    await db.delete(invoiceLineItems).where(inArray(invoiceLineItems.invoiceId, part));
-  }
-  const lineValues = qbInvoices.flatMap((inv) => {
-    const localId = inv.Id ? idByQb.get(inv.Id) : undefined;
-    if (!localId) return [];
-    const lineRows = (inv.Line || []).filter(
-      (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
-    );
-    return lineRows.map((l, idx) => ({
-      invoiceId: localId,
-      qbItemId: fitVarchar(l.SalesItemLineDetail?.ItemRef?.value, 50),
-      description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
-      quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
-      unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
-      total: String(l.Amount ?? 0),
-      order: l.LineNum ?? idx + 1,
-    }));
+    // Replace line items in bulk
+    const allLocalIds = [...idByQb.values()];
+    for (const part of chunk(allLocalIds, 1000)) {
+      await tx.delete(invoiceLineItems).where(inArray(invoiceLineItems.invoiceId, part));
+    }
+    const lineValues = qbInvoices.flatMap((inv) => {
+      const localId = inv.Id ? idByQb.get(inv.Id) : undefined;
+      if (!localId) return [];
+      const lineRows = (inv.Line || []).filter(
+        (l) => l.DetailType === 'SalesItemLineDetail' || l.DetailType === 'DescriptionOnly'
+      );
+      return lineRows.map((l, idx) => ({
+        invoiceId: localId,
+        qbItemId: fitVarchar(l.SalesItemLineDetail?.ItemRef?.value, 50),
+        description: l.Description || l.SalesItemLineDetail?.ItemRef?.name || 'Item',
+        quantity: String(l.SalesItemLineDetail?.Qty ?? 1),
+        unitPrice: String(l.SalesItemLineDetail?.UnitPrice ?? l.Amount ?? 0),
+        total: String(l.Amount ?? 0),
+        order: l.LineNum ?? idx + 1,
+      }));
+    });
+    for (const part of chunk(lineValues, 1000)) {
+      if (part.length) await tx.insert(invoiceLineItems).values(part);
+    }
+
+    return idByQb.size;
   });
-  for (const part of chunk(lineValues, 1000)) {
-    if (part.length) await db.insert(invoiceLineItems).values(part);
-  }
-
-  return idByQb.size;
 }
 
 // === Payments ===

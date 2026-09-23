@@ -170,6 +170,7 @@ async function uiHarness(options: { partial?: boolean; refreshFailure?: boolean;
     '@/components/layout/Sidebar': 'export default () => null;',
     '@/components/layout/Header': 'export default () => null;',
     '@/components/PnlModal': 'export default () => null;',
+    '@/lib/quickbooks/browser-sync': 'export const syncInvoiceWorkspace = async () => { throw new Error("Unexpected sync in manual payment test"); };',
   });
   const loaded = { exports: {} as { default: () => Element } };
   runInNewContext(code, {

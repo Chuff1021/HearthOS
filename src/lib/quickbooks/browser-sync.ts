@@ -92,3 +92,13 @@ export async function syncAllQuickBooksEntities(
   }
   return results;
 }
+
+export async function syncInvoiceWorkspace(onProgress?: (progress: QuickBooksSyncProgress) => void) {
+  // Parent customers must exist before invoices; payments reconcile after import.
+  for (const entity of ['customers', 'invoices', 'payments'] as const) {
+    const result = await syncQuickBooksEntity(entity, onProgress);
+    if (entity === 'invoices' && result.persisted !== result.fetched) {
+      throw new Error('Some invoices could not be imported. Check QuickBooks sync before treating this refresh as complete.');
+    }
+  }
+}

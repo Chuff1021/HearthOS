@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { recordInvoicePayment } from '@/lib/invoices/record-payment';
 import { listSquarePayments, upsertSquarePayment, upsertSquarePaymentByOrderId } from '@/lib/square-payment-store';
+import { getCheckoutRecord, recordCheckoutPayment } from '@/lib/square/checkout-records';
 import { CaptureError, getCaptureIntent, observeCapture, projectLegacySquarePayment, resolveSquareInvoice, settleCapture,
   squareOrganization, squarePaymentMethod, validateSquarePayment } from '@/lib/invoices/square-capture-intent';
 
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
     }
     const previous = listSquarePayments().find(row => row.id === payment.id
       || (!intent && payment.order_id && row.orderId === payment.order_id));
-    const reference = intent ? undefined : payment.reference_id || previous?.invoiceNumber;
+    const checkout = !intent && payment.order_id ? await getCheckoutRecord(orgId, payment.order_id) : null;
+    const reference = intent ? undefined : checkout?.invoiceNumber || payment.reference_id || previous?.invoiceNumber;
     const invoice = intent?.invoiceId ? { id: intent.invoiceId, invoiceNumber: intent.invoiceNumber ?? undefined }
       : reference ? await resolveSquareInvoice(orgId, reference) : null;
     const project = () => {
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
     const confirmed = intent ? (await observeCapture(intent, payment, project)) === 'confirmed' : payment.status === 'COMPLETED';
     if (!intent) await projectLegacySquarePayment(orgId, project);
     if (confirmed) {
+      if (checkout) await recordCheckoutPayment(orgId, checkout, payment);
       const invoicePayment = invoice ? await recordInvoicePayment({ orgId, invoiceId: invoice.id,
         amount: (intent?.principalCents ?? payment.amount_money.amount) / 100, paymentMethod: squarePaymentMethod(payment.source_type),
         transactionId: payment.id, paidAt: payment.created_at ? new Date(payment.created_at) : undefined,

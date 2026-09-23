@@ -67,6 +67,9 @@ export function canUseCrmApi(actor: CrmActor, route: string, method: string) {
   if (resource === "time-off-requests") return actor.role === "technician" ? read || method === "POST" : actor.role === "dispatcher";
   if (actor.role === "read_only") return read && !["banking", "tech", "expenses", "square"].includes(resource);
   if (actor.role === "technician") {
+    // Collection routes enforce organization access; techs cannot refund or administer Square.
+    if (resource === "square") return (method === "POST" && ["/api/square/payments", "/api/square/checkout"].includes(route))
+      || (read && route === "/api/square/transactions");
     if (resource === "jobs") return read || (route === "/api/jobs" && method === "PUT");
     if (["tech", "expenses"].includes(resource)) return true;
     if (resource === "invoices") return route === "/api/invoices" && method === "POST";
