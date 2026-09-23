@@ -606,7 +606,7 @@ test('real PostgreSQL capture claims, fake provider, actual routes and atomic re
             sourceId: 'synthetic-nonce', amountCents: 10000, invoiceNumber: 'INV-1', token: f.token(), maxCents: 10350 })});
           if(retry.fresh || retry.result) throw Error('replayed durable claim');
           await sql.end(); })().catch(e=>{console.error(e);process.exit(1)});`;
-      centerRun(process.execPath, ['-e', child], { cwd: root });
+      centerRun(process.execPath, ['-'], { cwd: root, input: child });
       assert.equal((await f.capture()).status, 409); assert.equal(f.calls.length, 1);
     });
     t.diagnostic('Real socket-only PostgreSQL; schema-derived tables/FKs/uniqueness; actual capture/webhook/intent/recording code; synthetic Square/QB; no production/env/provider calls or schema changes.');
