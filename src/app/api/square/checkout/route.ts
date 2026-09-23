@@ -1,6 +1,10 @@
 import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSquarePayment } from "@/lib/square-payment-store";
+import { authorizeSquareCollection } from "@/lib/square/collection-access";
+import { CollectionAccessError } from "@/lib/square/collection-policy";
+import { saveCheckoutRecord } from "@/lib/square/checkout-records";
+import { squareOrganization } from "@/lib/invoices/square-capture-intent";
 
 const SQUARE_ENV = process.env.SQUARE_ENVIRONMENT || "production";
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
@@ -30,12 +34,14 @@ export async function POST(request: NextRequest) {
     const amount = Number(body?.amount);
     const customerName = String(body?.customerName || "Customer");
     const note = body?.note ? String(body.note) : undefined;
-    const invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
+    let invoiceNumber = body?.invoiceNumber ? String(body.invoiceNumber) : undefined;
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: "amount must be greater than 0" }, { status: 400 });
     }
 
+    const invoice = await authorizeSquareCollection(invoiceNumber, amount, 'checkout', body?.customerName);
+    invoiceNumber = invoice.invoiceNumber;
     const amountMoney = Math.round(amount * 100);
     const idempotencyKey = crypto.randomUUID();
 
@@ -84,6 +90,11 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = data?.payment_link?.order_id as string | undefined;
+    if (!orderId || typeof data?.payment_link?.id !== 'string' || typeof data?.payment_link?.url !== 'string') {
+      return NextResponse.json({ retrySafe: false, error: 'Payment link needs review. Contact the office before creating another.' }, { status: 502 });
+    }
+    await saveCheckoutRecord(await squareOrganization(), { orderId, paymentLinkId: data.payment_link.id,
+      customerName: invoice.customerName, collectorEmployeeId: invoice.collectorEmployeeId, invoiceNumber, amount });
 
     upsertSquarePayment({
       id: String(data?.payment_link?.id || crypto.randomUUID()),
@@ -106,6 +117,7 @@ export async function POST(request: NextRequest) {
       orderId,
     });
   } catch (err) {
+    if (err instanceof CollectionAccessError) return NextResponse.json({ retrySafe: true, error: err.message }, { status: err.status });
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : "Unexpected Square checkout error",

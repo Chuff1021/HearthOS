@@ -58,3 +58,17 @@ test("read-only cannot mutate known resources", () => {
     for (const method of ["POST", "PUT", "DELETE", "PATCH"]) assert.equal(canUseCrmApi({ ...actor, role: "read_only" }, `/api/${route}`, method), false, `${method} ${route}`);
   }
 });
+
+test('technicians can collect payments but cannot administer Square or accounting', () => {
+  for (const route of ['/api/square/payments', '/api/square/checkout']) {
+    assert.equal(canUseCrmApi(actor, route, 'POST'), true);
+    for (const method of ['GET', 'PUT', 'PATCH', 'DELETE']) assert.equal(canUseCrmApi(actor, route, method), false);
+  }
+  assert.equal(canUseCrmApi(actor, '/api/square/transactions', 'GET'), true);
+  for (const route of ['/api/square/refunds', '/api/square/settings', '/api/square/webhook', '/api/square/transactions']) {
+    assert.equal(canUseCrmApi(actor, route, 'POST'), false);
+  }
+  for (const role of ['sales', 'dispatcher', 'read_only'] as const) {
+    assert.equal(canUseCrmApi({ ...actor, role }, '/api/square/payments', 'POST'), false);
+  }
+});

@@ -394,7 +394,7 @@ export default function TechPaymentsPage() {
             className="w-full px-3 py-3 rounded-xl"
             style={{ background: "var(--color-surface-2)", color: "var(--color-text-primary)" }}
           />
-          {newPayment ? (
+          {newPayment || !searchParams.get("invoice") ? (
             <input
               aria-label="Invoice number"
               placeholder="Invoice number (optional)"

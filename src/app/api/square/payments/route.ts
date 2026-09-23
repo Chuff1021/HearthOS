@@ -3,6 +3,8 @@ import { authorizeCrmApi } from '@/lib/security/crm-access';
 import { verifyCustomerLink } from '@/lib/security/public-links';
 import { recordInvoicePayment } from '@/lib/invoices/record-payment';
 import { listSquarePayments, upsertSquarePayment } from '@/lib/square-payment-store';
+import { authorizeSquareCollection } from '@/lib/square/collection-access';
+import { CollectionAccessError } from '@/lib/square/collection-policy';
 import { CaptureError, dollarsToCents, observeCapture, replaySettledCapture, reserveCapture, settleCapture,
   squareOrganization, squarePaymentMethod, validateSquarePayment,
   type CaptureIntent, type SquarePayment } from '@/lib/invoices/square-capture-intent';
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
     const amountCents = dollarsToCents(body?.amount);
     const principalCents = body?.invoicePrincipal === undefined ? amountCents : dollarsToCents(body.invoicePrincipal);
     const sourceId = body?.sourceId;
-    const invoiceNumber = body?.invoiceNumber;
+    let invoiceNumber = body?.invoiceNumber;
     if (!body || Array.isArray(body) || amountCents === null || principalCents === null || typeof sourceId !== 'string'
       || !sourceId.trim() || sourceId.length > 4096 || ['CASH', 'EXTERNAL'].includes(sourceId.toUpperCase())
       || (invoiceNumber !== undefined && (typeof invoiceNumber !== 'string' || !invoiceNumber.trim() || invoiceNumber.length > 100))
@@ -45,14 +47,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ retrySafe: true, error: 'Invalid payment request.' }, { status: 400 });
     }
     const claims = verifyCustomerLink(body.token || '', 'payment', invoiceNumber || '');
+    let collection: Awaited<ReturnType<typeof authorizeSquareCollection>> | undefined;
     if (!claims) {
       const denied = await authorizeCrmApi('/api/square/payments', 'POST');
-      if (denied) return NextResponse.json({ retrySafe: true, error: 'This payment link is invalid or expired.' }, { status: 403 });
+      if (denied) return NextResponse.json({ retrySafe: true, error: 'You do not have permission to collect this payment. Contact the office.' }, { status: denied.status });
+      collection = await authorizeSquareCollection(invoiceNumber, amountCents / 100, 'capture', body.customerName, { sourceId, locationId });
+      invoiceNumber = collection.invoiceNumber;
     } else if (!invoiceNumber || amountCents > claims.maxCents!) {
       return NextResponse.json({ retrySafe: true, error: 'Payment exceeds the amount authorized by this link.' }, { status: 400 });
     }
     const orgId = await squareOrganization();
-    const reservation = await reserveCapture({ orgId, locationId, sourceId, amountCents, principalCents, invoiceNumber,
+    const reservation = await reserveCapture({ orgId, locationId, sourceId, amountCents, principalCents, ...collection, invoiceNumber,
       ...(claims ? { token: body.token, maxCents: claims.maxCents } : {}) });
     const { intent } = reservation;
     if (!reservation.fresh) {
@@ -68,7 +73,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ idempotency_key: intent.id, source_id: sourceId, autocomplete: true,
         location_id: locationId, amount_money: { amount: amountCents, currency: 'USD' },
         reference_id: `hos_${intent.id}`,
-        note: [reservation.invoiceNumber ? `HearthOS payment for ${reservation.invoiceNumber}` : 'HearthOS payment', body.note].filter(Boolean).join('\n'),
+        note: [reservation.invoiceNumber ? `HearthOS payment for ${reservation.invoiceNumber}` : 'HearthOS unapplied payment',
+          collection?.customerName || body.customerName, body.note].filter(Boolean).join('\n').slice(0, 500),
         buyer_email_address: body.buyerEmail }),
     });
     let data;
@@ -110,6 +116,7 @@ export async function POST(request: NextRequest) {
     return await completeRecordedCapture(intent, payment);
   } catch (error) {
     if (reserved) return review();
+    if (error instanceof CollectionAccessError) return NextResponse.json({ retrySafe: true, error: error.message }, { status: error.status });
     if (error instanceof CaptureError) return NextResponse.json({ ok: false, code: error.code,
       retrySafe: !['CAPTURE_REVIEW_REQUIRED', 'CAPTURE_INTENT_CONFLICT', 'INVOICE_BALANCE_RESERVED',
         'INVOICE_CAPTURE_PENDING', 'ADHOC_CAPTURE_PENDING', 'INVOICE_PAYMENT_REVIEW_REQUIRED', 'PAYMENT_LINK_LIMIT'].includes(error.code),

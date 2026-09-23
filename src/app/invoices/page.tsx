@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import PnlModal from "@/components/PnlModal";
+import { syncInvoiceWorkspace } from "@/lib/quickbooks/browser-sync";
 import "../billing-presentation.css";
 
 interface InvoiceLineItem {
@@ -956,8 +957,11 @@ export default function InvoicesPage() {
   const emailInvoiceBalance = emailInvoice ? Number(emailInvoice.balance || emailInvoiceTotal) : 0;
 
   const handleSyncWithQuickBooks = async () => {
+    if (syncing) return;
     setSyncing(true);
+    setError(null);
     try {
+      await syncInvoiceWorkspace();
       await fetchInvoices();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sync with QuickBooks");

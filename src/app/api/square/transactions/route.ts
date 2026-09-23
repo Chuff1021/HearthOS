@@ -1,6 +1,7 @@
 import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { listSquarePayments } from '@/lib/square-payment-store';
+import { recordedSquareTransactions } from '@/lib/square/collection-access';
 
 type UiPayment = {
   id: string;
@@ -60,7 +61,16 @@ function mapStatus(status: string, refundedAmount?: number): UiPayment['status']
 export async function GET(request: NextRequest) {
   const accessDenied = await authorizeCrmApi("/api/square/transactions", "GET");
   if (accessDenied) return accessDenied;
-  const fallback = listSquarePayments()
+  let recorded: UiPayment[] = [];
+  try {
+    const history = await recordedSquareTransactions();
+    recorded = history.payments;
+    if (history.restricted) return NextResponse.json({ payments: recorded, source: 'collected-payments', total: recorded.length },
+      { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch {
+    return NextResponse.json({ error: 'Unable to load recorded payments.' }, { status: 503 });
+  }
+  const cached = listSquarePayments()
     .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
     .slice(0, 100)
     .map<UiPayment>((p) => ({
@@ -78,6 +88,8 @@ export async function GET(request: NextRequest) {
       notes: 'From Square webhook cache',
     }));
 
+  const fallback = [...new Map([...cached, ...recorded].map(payment => [payment.id, payment])).values()]
+    .sort((a, b) => +new Date(b.paymentDate) - +new Date(a.paymentDate)).slice(0, 100);
   try {
     if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
       return NextResponse.json({ payments: fallback, source: 'cache', total: fallback.length });
@@ -86,34 +98,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 50)));
 
-    const payload = {
-      query: {
-        sort: {
-          sort_field: 'CREATED_AT',
-          sort_order: 'DESC',
-        },
-        filter: {
-          location_id: SQUARE_LOCATION_ID,
-        },
-      },
-      limit,
-    };
-
-    const res = await fetch(`${baseUrl()}/v2/payments/search`, {
-      method: 'POST',
+    const params = new URLSearchParams({ location_id: SQUARE_LOCATION_ID, sort_order: 'DESC', limit: String(limit) });
+    const res = await fetch(`${baseUrl()}/v2/payments?${params}`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
         'Square-Version': '2024-12-18',
       },
-      body: JSON.stringify(payload),
       cache: 'no-store',
+      signal: AbortSignal.timeout(20_000),
     });
 
     const data = await res.json();
     if (!res.ok) {
       return NextResponse.json(
-        { payments: fallback, source: 'cache', total: fallback.length, squareError: data },
+        { payments: fallback, source: 'cache', total: fallback.length, warning: 'Square is unavailable; showing saved payment records.' },
         { status: 200 }
       );
     }
@@ -138,7 +138,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ payments, source: 'square', total: payments.length });
+    const merged = new Map(fallback.map(payment => [payment.id, payment]));
+    for (const payment of payments as UiPayment[]) {
+      const saved = merged.get(payment.id);
+      merged.set(payment.id, { ...payment, ...(saved ? { customerName: saved.customerName,
+        customerId: saved.customerId, invoiceId: saved.invoiceId, invoiceNumber: saved.invoiceNumber, notes: saved.notes } : {}) });
+    }
+    const result = [...merged.values()].sort((a, b) => +new Date(b.paymentDate) - +new Date(a.paymentDate)).slice(0, limit);
+    return NextResponse.json({ payments: result, source: 'square', total: result.length });
   } catch (err) {
     return NextResponse.json({ payments: fallback, source: 'cache', total: fallback.length });
   }

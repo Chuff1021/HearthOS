@@ -9,6 +9,7 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type CaptureIntent = {
   id: string; orgId: string; locationId: string; sourceHash: string; amountCents: number; principalCents: number; feeCents: number;
   invoiceId: string | null; invoiceNumber: string | null; linkHash: string | null; maxCents: number | null;
+  collectorEmployeeId?: string; customerName?: string; jobId?: string;
 };
 export type SquarePayment = {
   id: string; status: 'COMPLETED' | 'APPROVED' | 'PENDING' | 'FAILED' | 'CANCELED';
@@ -88,6 +89,7 @@ export async function getCaptureIntent(orgId: string, reference: string) {
 export async function reserveCapture(input: {
   orgId: string; locationId: string; sourceId: string; amountCents: number; principalCents?: number;
   invoiceNumber?: string; token?: string; maxCents?: number;
+  collectorEmployeeId?: string; customerName?: string; jobId?: string;
 }) {
   const principalCents = input.principalCents ?? input.amountCents;
   if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0 || input.amountCents > 9999999999
@@ -110,6 +112,8 @@ export async function reserveCapture(input: {
       invoiceId: invoice?.id ?? null, invoiceNumber: invoice?.invoiceNumber ?? null,
       linkHash: input.token === undefined ? null : verifiedLinkHash(input.token),
       maxCents: input.maxCents ?? null,
+      ...(input.collectorEmployeeId ? { collectorEmployeeId: input.collectorEmployeeId,
+        customerName: input.customerName?.slice(0, 254), jobId: input.jobId } : {}),
     };
     const [existing] = await tx.select().from(auditLogs).where(eq(auditLogs.id, intent.id));
     if (existing) {

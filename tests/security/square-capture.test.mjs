@@ -23,10 +23,17 @@ async function compile() {
   const files = { schema: 'src/db/schema.ts', intent: 'src/lib/invoices/square-capture-intent.ts',
     capture: 'src/app/api/square/payments/route.ts', webhook: 'src/app/api/square/webhook/route.ts',
     record: 'src/lib/invoices/record-payment.ts', recording: 'src/lib/invoices/payment-recording-store.ts',
-    links: 'src/lib/security/public-links.ts' };
+    links: 'src/lib/security/public-links.ts', collection: 'src/lib/square/collection-access.ts',
+    collectionPolicy: 'src/lib/square/collection-policy.ts', accessPolicy: 'src/lib/security/access-policy.ts',
+    invoiceSync: 'src/lib/quickbooks/sync.ts', checkoutRecords: 'src/lib/square/checkout-records.ts' };
   const inline = {
     db: 'export * from "fixture-schema"; export const db = __fixture.db;',
-    auth: 'export const authorizeCrmApi = async () => { __fixture.authCalls++; return __fixture.denied ? Response.json({}, {status:403}) : null; };',
+    auth: `export const authorizeCrmApi = async () => { __fixture.authCalls++; return __fixture.denied ? Response.json({}, {status:403}) : null; };
+      export const requireCrmActor = async () => __fixture.actor || {role:'owner', orgId:'${orgId}', employeeId:'${id(70)}'};`,
+    jobs: 'export const listJobs = async () => __fixture.jobs || [];',
+    server: '',
+    client: 'export class QuickBooksClient {} export const createQuickBooksClient = () => {throw new Error("Provider forbidden");};',
+    reconcile: 'export const reconcileMarkedPaymentImports = async () => {throw new Error("Unexpected payment import");};',
     org: 'export const getOrCreateDefaultOrg = async () => { throw new Error("No default-org creation allowed"); };',
     sync: 'export const getClientFromTokens = () => __fixture.qb;',
     store: `export const listSquarePayments = () => { __fixture.fileReads++; return __fixture.stored; };
@@ -37,9 +44,15 @@ async function compile() {
     'fixture-webhook': 'webhook', 'fixture-links': 'links', '@/db': 'db', '@/lib/org': 'org',
     '@/lib/security/crm-access': 'auth', '@/lib/security/public-links': 'links',
     '@/lib/invoices/square-capture-intent': 'intent', '@/lib/invoices/record-payment': 'record',
-    './payment-recording-store': 'recording', '@/lib/quickbooks/sync': 'sync', '@/lib/square-payment-store': 'store' };
+    './payment-recording-store': 'recording', '@/lib/quickbooks/sync': 'sync', '@/lib/square-payment-store': 'store',
+    '@/lib/square/collection-access': 'collection', '@/lib/square/collection-policy': 'collectionPolicy',
+    './collection-policy': 'collectionPolicy', '@/lib/security/access-policy': 'accessPolicy',
+    '@/lib/job-store': 'jobs', 'server-only': 'server', 'fixture-collection': 'collection',
+    'fixture-invoice-sync': 'invoiceSync', './client': 'client', '@/lib/invoices/payment-import-reconciliation': 'reconcile',
+    '@/lib/square/checkout-records': 'checkoutRecords', './checkout-records': 'checkoutRecords', 'fixture-checkouts': 'checkoutRecords' };
   const result = await build({ stdin: { contents: `export * from 'fixture-schema'; export * from 'fixture-intent';
-    export * from 'fixture-links'; export {POST as capture} from 'fixture-capture'; export {POST as webhook} from 'fixture-webhook';`,
+    export * from 'fixture-links'; export * from 'fixture-collection'; export * from 'fixture-checkouts'; export {persistInvoicesToDb} from 'fixture-invoice-sync';
+    export {POST as capture} from 'fixture-capture'; export {POST as webhook} from 'fixture-webhook';`,
     resolveDir: root, loader: 'ts' }, absWorkingDir: root, bundle: true, write: false, platform: 'node', format: 'cjs',
     plugins: [{ name: 'isolated-square-boundaries', setup(b) {
       b.onResolve({ filter: /.*/ }, ({ path: name }) => {
@@ -76,7 +89,7 @@ async function createSchema(sql, schema) {
     tables.set(config.name, config);
     config.foreignKeys.forEach(fk => visit(fk.reference().foreignTable));
   }
-  [schema.auditLogs, schema.invoices, schema.payments].forEach(visit);
+  [schema.auditLogs, schema.invoices, schema.invoiceLineItems, schema.payments].forEach(visit);
   const dialect = new PgDialect();
   for (const config of tables.values()) {
     const columns = config.columns.map(c => {
@@ -122,12 +135,13 @@ test('real PostgreSQL capture claims, fake provider, actual routes and atomic re
     const password = randomBytes(20).toString('hex');
     await sql.unsafe(`CREATE ROLE capture_runtime LOGIN PASSWORD ${literal(password)}`);
     await sql`GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO capture_runtime`;
+    await sql`GRANT DELETE ON invoice_line_items TO capture_runtime`;
     const client = connect('capture_runtime', password, () => queryCount++);
     const db = drizzle(client, { schema });
     // Warm the real connection before asserting pre-validation zero I/O.
     await client`SELECT 1`;
     async function seed() {
-      await sql`TRUNCATE payments, audit_logs, invoices CASCADE`;
+      await sql`TRUNCATE payments, audit_logs, invoice_line_items, invoices CASCADE`;
       for (const [key, org, customer, number, qb] of [[invoiceId, orgId, id(21), 'INV-1', '101'],
         [secondInvoice, orgId, id(21), 'INV-2', '102'], [id(13), foreignOrg, id(22), 'FOREIGN', '103']]) {
         await sql`INSERT INTO invoices (id,org_id,customer_id,invoice_number,qb_invoice_id,issue_date,subtotal,total_amount,balance,status)
@@ -177,6 +191,92 @@ test('real PostgreSQL capture claims, fake provider, actual routes and atomic re
     async function scenario(name, run) { await t.test(name, async () => { await seed(); await run(await fixture()); }); }
     const count = async table => Number((await sql.unsafe(`SELECT count(*) AS n FROM ${quote(table)}`))[0].n);
     const actions = async () => (await sql`SELECT action FROM audit_logs WHERE entity_type='square_capture' ORDER BY action`).map(r => r.action);
+
+    await scenario('invoice refresh preserves local identity and rolls back headers and lines together on failure', async f => {
+      await sql`UPDATE customers SET qb_customer_id='201' WHERE id=${id(21)}`;
+      const imported = { Id: '101', DocNumber: 'INV-1', CustomerRef: {value:'201'}, TxnDate:'2026-09-23',
+        TotalAmt:125, Balance:125, Line:[{DetailType:'SalesItemLineDetail',Amount:125,Description:'Fresh line',
+          SalesItemLineDetail:{Qty:1,UnitPrice:125}}] };
+      assert.equal(await f.api.persistInvoicesToDb(orgId, [imported]), 1);
+      assert.equal((await sql`SELECT id,total_amount FROM invoices WHERE qb_invoice_id='101'`)[0].id, invoiceId);
+      await assert.rejects(() => f.api.persistInvoicesToDb(orgId, [{...imported,TotalAmt:150,
+        Line:[{...imported.Line[0], SalesItemLineDetail:{Qty:'invalid',UnitPrice:150}}]}]));
+      assert.equal((await sql`SELECT total_amount FROM invoices WHERE id=${invoiceId}`)[0].total_amount, '125.00');
+      assert.equal((await sql`SELECT description FROM invoice_line_items WHERE invoice_id=${invoiceId}`)[0].description, 'Fresh line');
+      assert.equal(await f.api.persistInvoicesToDb(foreignOrg, [{...imported,CustomerRef:{value:'201'}}]), 0);
+    });
+
+    await scenario('technician job collection records once, replays, and scopes payment history', async f => {
+      await sql`UPDATE invoices SET balance='0.00', status='paid' WHERE id=${secondInvoice}`;
+      f.denied = false;
+      f.actor = { role: 'technician', orgId, employeeId: id(70) };
+      f.jobs = [{ id: id(80), customerId: id(21), assignedTechs: [{ id: id(70) }] }];
+      const result = await f.capture({ token: undefined, invoiceNumber: id(80) });
+      assert.equal(result.status, 200, JSON.stringify(result.body));
+      assert.equal(f.calls.length, 1);
+      assert.equal(result.body.invoicePayment.invoiceId, invoiceId);
+      assert.equal((await f.capture({ token: undefined, invoiceNumber: id(80) })).status, 200);
+      assert.equal(f.calls.length, 1);
+      const history = await f.api.recordedSquareTransactions();
+      assert.equal(history.payments.length, 1);
+      assert.equal(history.payments[0].invoiceId, invoiceId);
+      f.jobs[0].assignedTechs = [{ id: id(71) }];
+      assert.equal((await f.api.recordedSquareTransactions()).payments.length, 1);
+      f.actor.employeeId = id(71);
+      assert.deepEqual((await f.api.recordedSquareTransactions()).payments, []);
+    });
+
+    await scenario('technician can collect unassigned work while cross-tenant and over-balance attempts stay blocked', async f => {
+      f.denied = false;
+      f.actor = { role: 'technician', orgId, employeeId: id(70) };
+      f.jobs = [{ id: id(80), customerId: id(21), linkedInvoiceId: '101', assignedTechs: [{ id: id(71) }] }];
+      assert.equal((await f.capture({ token: undefined, amount: 10 })).status, 200);
+      f.jobs[0].assignedTechs = [{ id: id(70) }];
+      for (const reference of ['FOREIGN', 'absent']) {
+        assert.ok((await f.capture({ token: undefined, invoiceNumber: reference, sourceId: 'second-source' })).status >= 400);
+      }
+      assert.ok((await f.capture({ token: undefined, amount: 101, sourceId: 'second-source' })).status >= 400);
+      await assert.rejects(() => f.api.authorizeSquareCollection('INV-1', 101, 'checkout'));
+      delete f.jobs[0].linkedInvoiceId;
+      assert.equal((await f.capture({ token: undefined, invoiceNumber: id(80), customerName: 'Synthetic customer', sourceId: 'unapplied-source' })).status, 200);
+      f.actor.orgId = foreignOrg;
+      assert.equal((await f.capture({ token: undefined })).status, 403);
+      assert.equal(f.calls.length, 2);
+      assert.equal(await count('payments'), 1);
+    });
+
+    await scenario('invoice-less technician collection is durable and visible to office without a job', async f => {
+      f.denied = false;
+      f.actor = { role: 'technician', orgId, employeeId: id(70) };
+      assert.equal((await f.capture({ token: undefined, invoiceNumber: undefined, customerName: '' })).status, 400);
+      const result = await f.capture({ token: undefined, invoiceNumber: undefined, customerName: 'Synthetic walk-in' });
+      assert.equal(result.status, 200);
+      assert.equal(await count('payments'), 0);
+      f.stored = [];
+      const history = await f.api.recordedSquareTransactions();
+      assert.equal(history.payments[0].customerName, 'Synthetic walk-in');
+      assert.match(history.payments[0].notes, /reconciliation/);
+      assert.equal(history.payments[0].invoiceId, '');
+      f.actor = { role: 'owner', orgId, employeeId: id(71) };
+      assert.equal((await f.api.recordedSquareTransactions()).payments.length, 1);
+      assert.equal((await f.capture({ token: undefined, invoiceNumber: undefined, customerName: 'Synthetic walk-in' })).status, 200);
+      assert.equal(f.calls.length, 1);
+    });
+
+    await scenario('hosted checkout survives cache loss and duplicate webhooks without duplicate allocations', async f => {
+      await f.api.saveCheckoutRecord(orgId, {orderId:'hosted-order',paymentLinkId:'hosted-link',
+        customerName:'Synthetic link customer',collectorEmployeeId:id(70),invoiceNumber:'INV-1',amount:100});
+      const payment = { id:'hosted-payment', order_id:'hosted-order',status:'COMPLETED',amount_money:{amount:10000,currency:'USD'},
+        source_type:'CARD',location_id:env.SQUARE_LOCATION_ID,created_at:'2026-09-23T12:00:00Z' };
+      assert.equal((await f.webhook(payment)).status, 200);
+      assert.equal((await f.webhook(payment)).status, 200);
+      assert.equal(await count('payments'), 1);
+      f.actor = {role:'technician',orgId,employeeId:id(70)};
+      const history = await f.api.recordedSquareTransactions();
+      assert.equal(history.payments.length, 1);
+      assert.equal(history.payments[0].customerName, 'Synthetic link customer');
+      assert.equal(await f.api.getCheckoutRecord(foreignOrg,'hosted-order'), null);
+    });
 
     await scenario('missing/invalid signature, env and malformed payments perform zero DB/file I/O', async f => {
       const good = { id: 'test', status: 'COMPLETED', amount_money: { amount: 100, currency: 'USD' }, location_id: env.SQUARE_LOCATION_ID };
