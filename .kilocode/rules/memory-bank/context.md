@@ -366,6 +366,13 @@ See `.env.local.example` for all required env vars:
 
 ## Session History
 
+### SMS trial (2026-10-15)
+- Based on verified production commit `3bfe0e9`, not the separate multi-tenant work-in-progress branch.
+- Added `/settings/sms-trial`, job-level On My Way controls, and tenant/employee/recipient-restricted Twilio sample messaging.
+- Server credentials and recipient configuration are environment-only. Trial fixtures never create QuickBooks records. No real-customer automation or MMS enabled.
+- Additive schema: `scripts/sql/sms-trial.sql`; isolated recovery rehearsal: `scripts/testing/sms-trial-restore-check.mjs`.
+- Unique event ledger prevents repeated sends; ambiguous provider responses require reconciliation, never blind retries. Admin kill switch and daily cap are enforced on the server.
+
 | Date | Changes |
 |------|---------|
 | 2026-02-24 | Initial template created |

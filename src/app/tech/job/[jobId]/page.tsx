@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 import ServiceReportEditor from "@/components/service-reports/ServiceReportEditor";
+import TrialMessaging from "@/components/sms-trial/TrialMessaging";
 import { arrayToMultiselectValue, buildInitialChecklistForm, checklistCompletion, getChecklistTemplate, inferChecklistTemplateId, multiselectValueToArray, type ChecklistForm } from "@/lib/job-checklists";
 
 const emptyJobData = {
@@ -608,6 +609,8 @@ export default function JobDetailPage() {
           {actionMsg}
         </div>
       )}
+
+      {!loadingJob && job.id && <div className="mx-4 mt-3"><TrialMessaging jobId={job.id} /></div>}
 
       {/* Tab Navigation */}
       <div className="bg-[var(--color-surface-1)] border-b border-gray-800 sticky z-10" style={{ top: "calc(env(safe-area-inset-top) + 86px)" }}>

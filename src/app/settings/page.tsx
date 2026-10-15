@@ -5,6 +5,7 @@ import { Building2, Bell, CreditCard, Plug } from "lucide-react";
 import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("organization");
@@ -24,6 +25,7 @@ export default function SettingsPage() {
               <p className="text-sm mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                 Manage your organization and account settings
               </p>
+              <Link href="/settings/sms-trial" className="inline-block mt-3 text-sm font-medium text-orange-600">SMS trial settings</Link>
             </div>
 
             {/* Tabs */}
