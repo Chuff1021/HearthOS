@@ -131,6 +131,11 @@ test("database checkout: server quote → authorization → inbox → capture �
         });
       }
       if (u.endsWith("/v2/payments") && body) {
+        if (body.source_id === "cnon:decline")
+          return Response.json(
+            { errors: [{ code: "CARD_DECLINED" }] },
+            { status: 402 },
+          );
         payments++;
         const p = {
           id: "pay-" + body.reference_id,
@@ -180,6 +185,22 @@ test("database checkout: server quote → authorization → inbox → capture �
       } = await import("../../src/lib/parts-commerce/server");
       const { effectiveOffer } =
         await import("../../src/lib/parts-commerce/store");
+      const declined = await quoteCart(
+        { items: [{ key: offer.key, quantity: 1 }], address },
+        session,
+      );
+      await assert.rejects(() =>
+        authorizeQuote(
+          { quoteId: declined.quote.id, sourceId: "cnon:decline" },
+          session,
+        ),
+      );
+      const [declinedState] =
+        await sql`SELECT payment_state FROM hearth_parts_orders WHERE id=${declined.quote.id}`;
+      assert.equal(declinedState.payment_state, "failed");
+      const [released] =
+        await sql`SELECT count(*)::int AS count FROM hearth_parts_reservations WHERE order_id=${declined.quote.id}`;
+      assert.equal(released.count, 0);
       const q1 = await quoteCart(
         { items: [{ key: offer.key, quantity: 1 }], address },
         session,

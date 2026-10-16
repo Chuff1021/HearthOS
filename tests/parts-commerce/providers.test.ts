@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createPartsSquare,
+  CardRejectedError,
   createSupplierShipping,
 } from "../../src/lib/parts-commerce/providers";
 import type { Quote } from "../../src/lib/parts-commerce/domain";
@@ -146,4 +147,16 @@ test("shipping mismatch never falls back to zero or a partial quote", async () =
     return Response.json({});
   });
   await assert.rejects(() => shipping(q.lines, q.address));
+});
+
+test("a definitive card decline is distinguished from an uncertain provider timeout", async () => {
+  const client = createPartsSquare(
+    { accessToken: "test", locationId: "loc", environment: "sandbox" },
+    async () =>
+      Response.json({ errors: [{ code: "CARD_DECLINED" }] }, { status: 402 }),
+  );
+  await assert.rejects(
+    () => client.authorize(q.id, q, "order", "cnon:test"),
+    CardRejectedError,
+  );
 });

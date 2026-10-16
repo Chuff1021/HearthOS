@@ -1,5 +1,7 @@
 import { CommerceError, cents, hash, type Address, type Quote } from "./domain";
 
+export class CardRejectedError extends CommerceError {}
+
 const supplier = "https://www.stove-parts-unlimited.com";
 type ShippingLine = Quote["lines"][number];
 export function createSupplierShipping(request: typeof fetch = fetch) {
@@ -244,11 +246,30 @@ export function createPartsSquare(
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok)
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      if (
+        path === "payments" &&
+        problem.errors?.some((e: { code: string }) =>
+          [
+            "CARD_DECLINED",
+            "GENERIC_DECLINE",
+            "CVV_FAILURE",
+            "CARD_EXPIRED",
+            "INVALID_EXPIRATION",
+            "VERIFY_CVV_FAILURE",
+          ].includes(e.code),
+        )
+      )
+        throw new CardRejectedError(
+          "Card not approved. Get a new quote and try another card.",
+          402,
+        );
       throw new CommerceError(
         "Square could not confirm this action. Retry the same order; do not place a second supplier order.",
         503,
       );
+    }
     return response.json();
   }
   function verify(p: SquarePayment, id: string, q: Quote, orderId?: string) {

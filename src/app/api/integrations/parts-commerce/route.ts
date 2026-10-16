@@ -14,6 +14,8 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 const headers = { "Cache-Control": "private, no-store" };
 async function handle(request: Request) {
+  let checkoutInput:
+    { action?: string; quoteId?: string; session?: string } | undefined;
   try {
     const raw = await request.text();
     if (raw.length > 32000) throw new CommerceError("Request too large.", 413);
@@ -35,6 +37,7 @@ async function handle(request: Request) {
         headers,
       });
     const input = JSON.parse(raw);
+    checkoutInput = input;
     const session = input.session || "";
     if (!/^[a-f0-9]{64}$/.test(session))
       throw new CommerceError("Checkout session missing.", 401);
@@ -53,8 +56,25 @@ async function handle(request: Request) {
     if (!result) throw new CommerceError("Unknown checkout action.");
     return Response.json(result, { headers });
   } catch (e) {
+    let processingUnknown = false;
+    if (checkoutInput?.action === "authorize") {
+      try {
+        const status = await orderStatus(
+          checkoutInput.quoteId || "",
+          checkoutInput.session || "",
+        );
+        processingUnknown = ["pending", "authorized", "paid"].includes(
+          status.status,
+        );
+      } catch (statusError) {
+        processingUnknown = !(
+          statusError instanceof CommerceError && statusError.status === 404
+        );
+      }
+    }
     return Response.json(
       {
+        processingUnknown,
         error:
           e instanceof CommerceError
             ? e.message

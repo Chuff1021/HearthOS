@@ -27,6 +27,7 @@ import {
 import { refreshCart } from "./scanner";
 import {
   createPartsSquare,
+  CardRejectedError,
   createSupplierShipping,
   taxJarQuote,
   type SquarePayment,
@@ -268,6 +269,8 @@ export async function authorizeQuote(
     id = quote.id;
   if (!quote.manualShipping) requireCheckout();
   const source = text(input.sourceId, 1000);
+  if (!source.startsWith("cnon:"))
+    throw new CommerceError("Use the secure card form.");
   const [existing] = await sql<
     OrderRow[]
   >`SELECT * FROM hearth_parts_orders WHERE org_id=${org} AND id=${id} AND session_hash=${hash(session)}`;
@@ -341,7 +344,15 @@ export async function authorizeQuote(
     await sql`UPDATE hearth_parts_orders SET square_order_id=${orderId} WHERE org_id=${org} AND id=${id}`;
     const p = await square.authorize(id, quote, orderId, source);
     return await recordPayment(org, id, p);
-  } catch {
+  } catch (error) {
+    if (error instanceof CardRejectedError) {
+      await sql.begin(async (transaction) => {
+        const tx = transaction as unknown as Sql;
+        await tx`UPDATE hearth_parts_orders SET payment_state='failed',lease_until=NULL,last_error='Card declined',updated_at=now() WHERE org_id=${org} AND id=${id} AND payment_state='pending'`;
+        await tx`DELETE FROM hearth_parts_reservations WHERE org_id=${org} AND order_id=${id}`;
+      });
+      throw error;
+    }
     // A network timeout may have authorized the card. Keep the reservation and reconcile; never automatically retry with a new payment key.
     await sql`UPDATE hearth_parts_orders SET last_error='Authorization could not be confirmed; reconciliation required.',updated_at=now() WHERE org_id=${org} AND id=${id}`;
     throw new CommerceError(

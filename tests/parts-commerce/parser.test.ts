@@ -96,4 +96,17 @@ test("validates lower-48 destinations and unique bounded cart quantities", () =>
   assert.throws(() => parseCart([{ key: "spu:1", quantity: 0 }]));
 });
 
-test("ordinary 1–2 business day processing is available; weeks are special-order",()=>{assert.equal(parseSupplierPage(page({},"Usually Ships in 1 to 2 Business Days"),url).status,"available");assert.equal(parseSupplierPage(page({stock:null},"Usually Ships in 1 to 2 Weeks"),url).status,"special_order");});
+test("ordinary 1–2 business day processing is available; weeks are special-order", () => {
+  assert.equal(
+    parseSupplierPage(page({}, "Usually Ships in 1 to 2 Business Days"), url)
+      .status,
+    "available",
+  );
+  assert.equal(
+    parseSupplierPage(
+      page({ stock: null }, "Usually Ships in 1 to 2 Weeks"),
+      url,
+    ).status,
+    "special_order",
+  );
+});
