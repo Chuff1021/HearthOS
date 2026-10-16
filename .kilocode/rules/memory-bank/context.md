@@ -33,10 +33,16 @@ not promoted). PR #14 holds this implementation. Canonical production remains
 3bfe0e9. Browser deployment verification awaits Vercel / HearthOS sign-in;
 authenticated Vercel HTTP check reaches the app's correct SIGN_IN_REQUIRED 401.
 First CI run caught a Mac-only sample output path, now fixed to optional export.
-Production dependency audit reports existing Next critical plus Nodemailer,
-sharp and source-map-js high findings. Do not bypass the audit or claim this
-release is production-ready until reviewed, patched and tested. No customer
-record, report, email or production schema was changed during this task.
+Signed-in continuation verified the new 15-check form opens using New checklist,
+and the saved legacy draft / photos remain accessible. A native browser-control
+misclick changed Landers draft G02 from S to NI; it was immediately restored to S
+using an exact semantic locator and autosave confirmed. The draft revision advanced;
+no report was finalized or emailed. No new live checklist was saved.
+Patched the release-blocking production dependencies: Next 16.3.8 (matching ESLint
+config), Nodemailer 10.0.9, sharp 0.35.5 and source-map-js 1.2.2. Production-only
+npm audit now reports zero vulnerabilities; dev-only advisories remain out of scope.
+Reverified 253 quality tests, 61 report persistence tests, lint (warnings only).
+Final build / CI / production promotion still pending. No production schema change.
 
 ### September 9, 2026: Schedule Technician Color Follow-Up
 
