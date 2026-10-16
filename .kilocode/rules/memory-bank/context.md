@@ -459,3 +459,20 @@ See `.env.local.example` for all required env vars:
 | 2026-02-26 | Fixed QuickActions dropdown - now navigates to Jobs, Customers, Invoices, Estimate pages |
 | 2026-02-26 | Added dashboard search functionality - searches customers, jobs, invoices with dropdown results |
 | 2026-02-26 | Added comprehensive fireplace manual library - 52 Majestic + 50 other brand manuals (102 total) |
+
+## September 10, 2026: Website paid-order backend (not activated)
+
+Prepared branch `codex/website-square-orders` from live `61d66ac`. Adds signed
+server-to-server Square checkout requests, durable order snapshots/idempotency,
+verified payment-to-inbox transactions and paid inbox display. Runtime activation
+is disabled by default. No production migration, secret, charge or deployment.
+Website counterpart: `/Users/fireplace/fireplace-webstore-remove-free-shipping`
+on `codex/square-checkout-bridge`. Shipping provider, origins/package data and tax
+configuration are outstanding; frontend is still the existing order request form.
+See `docs/WEBSITE_ORDER_ACTIVATION.md` before further implementation or deployment.
+
+## October 16, 2026 — Parts commerce
+
+Added database-backed Stove Parts Unlimited stock/pricing scans, signed storefront integration, owner stock/order controls under Website Inbox, real supplier shipping quotes, TaxJar adapter and Square delayed capture. Local tax reference is 9.11%. Payments remain gated pending TaxJar registrations, Square webhook/sandbox verification and dealer shipping parity. MA-212400's owner override survives refreshes. See `docs/PARTS_COMMERCE.md` for rollout flags, tests and operational behavior.
+
+Aaron confirmed no TaxJar account and dealer shipping matches paid retail rates but excludes retail free shipping. Automatic quotes now reject any free/zero-cost supplier option for the entire cart, since the promotion hides the standard paid service; do not substitute an express service or assume a flat dealer rate. Owner-confirmed shipping and emailed checkout remain the fallback after tax setup. Real guest-cart checks verified the promotional cart is blocked and deleted, while paid mixed carts to MO/IL/TX still return four services (lowest $9.95 for those particular carts). Sixteen parser/provider tests, typecheck and provider lint passed. TaxJar Professional API access starts at $99/month with a 30-day trial per official pricing checked October 16; no subscription purchased. Tax registration states remain unanswered, and production payment/tax/shipping activation flags remain false. Earlier Square production webhook and Sandbox verification are complete; tax and shipping rollout remain outstanding.

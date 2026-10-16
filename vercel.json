@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/time-reminders",
       "schedule": "1 22 * * 1-5"
+    },
+    {
+      "path": "/api/cron/parts-scan",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/parts-orders",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

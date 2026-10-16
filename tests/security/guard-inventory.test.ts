@@ -15,6 +15,7 @@ const separateBoundaries: Record<string, string> = {
   "square/payments/route.ts": "verifyCustomerLink",
   "estimates/accept/route.ts": "verifyCustomerLink",
   "square/webhook/route.ts": "verifySignature",
+  "integrations/parts-square-webhook/route.ts": "timingSafeEqual",
   "gabe/support/chatwoot/webhook/route.ts": "timingSafeEqual",
 };
 

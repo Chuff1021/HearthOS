@@ -20,6 +20,11 @@ const script=bundle.outputFiles.find(file=>file.path.endsWith('.js')).text;
 const moduleCss=bundle.outputFiles.find(file=>file.path.endsWith('.css'))?.text||'';
 const id='11111111-1111-4111-8111-111111111111';
 const fixture={configured:true,total:1,sync:{last_checked_at:'2026-09-09T12:00:00Z',last_complete_at:'2026-09-09T12:00:00Z'},items:[{external_id:id,kind:'order',received_at:'2026-09-09T12:00:00Z',status:'new',revision:0,follow_up_at:null,payload:{id,type:'order',createdAt:'2026-09-09T12:00:00Z',name:'Example Website Customer',email:'example@example.invalid',phone:'555-0100',subject:'Replacement remote and annual inspection',message:'Please call about this part and a service appointment.',total:150,metadata:{address:'100 Example Street, Test City, MO 65738'},items:[{name:'Demonstration remote control',sku:'TEST-001',quantity:1,price:150}]}}]};
+if (process.argv.includes('--paid')) {
+  fixture.items[0].payment = { status: 'paid', squarePaymentId: 'test-confirmed-payment', paidAt: '2026-09-10T12:00:00Z' };
+  fixture.items[0].payload.items[0].quantity = 2;
+  // Stored price is a line total, so 2 items remain $150, not $300.
+}
 const server=createServer((req,res)=>{
   if(req.url==='/app.js'){res.setHeader('Content-Type','application/javascript');res.end(script);return;}
   if(req.url==='/app.css'){res.setHeader('Content-Type','text/css');res.end(css+'\n'+moduleCss+'\n@font-face{font-family:InboxGeist;src:url(/font.woff2);font-weight:100 900}:root{--font-geist-sans:InboxGeist;--font-geist-mono:monospace}');return;}
@@ -37,8 +42,8 @@ const base=`http://127.0.0.1:${server.address().port}`;
 if(serve){console.log(`Synthetic read-only Website Inbox preview: ${base}`);await new Promise(resolve=>{process.once('SIGTERM',resolve);process.once('SIGINT',resolve)});server.close();}
 else {
   const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
-  const browser=await chromium.launch();
-  const output='/tmp/hearthos-website-inbox-qa';await mkdir(output,{recursive:true});
+  const browser=await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}) });
+  const output=process.argv.includes('--paid')?'/tmp/hearthos-website-orders-qa':'/tmp/hearthos-website-inbox-qa';await mkdir(output,{recursive:true});
   try {
     for(const width of [390,1440]){
       const page=await browser.newPage({viewport:{width,height:900}});const errors=[];
@@ -51,6 +56,12 @@ else {
       await page.screenshot({path:`${output}/inbox-${width}.png`,fullPage:true});
       await page.getByRole('button',{name:/Example Website Customer/}).click();
       const dialog=page.getByRole('dialog');await dialog.waitFor();
+      if (process.argv.includes('--paid')) {
+        assert.match(await dialog.innerText(), /Paid order/);
+        assert.match(await dialog.innerText(), /Square payment test-confirmed-payment/);
+        assert.doesNotMatch(await dialog.innerText(), /Payment not collected|\$300/);
+      }
+
       assert.equal(await dialog.evaluate(el=>{const c=document.createElement('canvas');c.width=1;c.height=1;const ctx=c.getContext('2d');ctx.fillStyle=getComputedStyle(el).backgroundColor;ctx.fillRect(0,0,1,1);return ctx.getImageData(0,0,1,1).data[3]}),255);
       await dialog.getByLabel('Status',{exact:true}).selectOption('follow_up');
       await dialog.getByLabel('Follow-up date').fill('2026-09-12');
