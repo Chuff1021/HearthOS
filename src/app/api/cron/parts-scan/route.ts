@@ -4,8 +4,8 @@ import { runScanBatch } from "@/lib/parts-commerce/scanner";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export async function GET() {
-  const denied = await authorizeCron();
-  if (denied) return denied;
+  const accessDenied = await authorizeCron();
+  if (accessDenied) return accessDenied;
   if (process.env.PARTS_COMMERCE_ENABLED !== "true")
     return Response.json({ enabled: false });
   try {

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import QuoteBuilder from "./QuoteBuilder";
+import DiscoveryReview from "./DiscoveryReview";
 import { useCallback, useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
@@ -180,15 +181,7 @@ export default function PartsOperations() {
                   publishing.
                 </p>
                 {data.discoveries.map((d) => (
-                  <a
-                    key={d.url}
-                    href={d.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block break-all text-sm underline"
-                  >
-                    {d.url}
-                  </a>
+                  <DiscoveryReview key={d.url} url={d.url} saved={load} />
                 ))}
               </section>
             </>

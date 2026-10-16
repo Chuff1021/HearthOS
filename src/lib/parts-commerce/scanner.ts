@@ -207,10 +207,19 @@ export async function discover(org: string) {
   )
     return;
   if (!(await rateSlot(org))) return;
-  const page = Number(state.discovery_page) || 1;
-  const xml = await fetchSupplier(
-    `${origin}/xmlsitemap.php?type=products&page=${page}`,
-  );
+  const index = await fetchSupplier(`${origin}/xmlsitemap.php`);
+  const sitemaps = [...index.matchAll(/<loc>(.*?)<\/loc>/g)]
+    .map((m) => m[1].replace(/&amp;/g, "&"))
+    .filter((value) => {
+      const u = supplierUrl(value);
+      return u.searchParams.get("type") === "products";
+    });
+  if (!sitemaps.length)
+    throw new SupplierError("Supplier sitemap index changed.");
+  const page = Math.min(Number(state.discovery_page) || 1, sitemaps.length);
+  await new Promise((resolve) => setTimeout(resolve, 1050));
+  if (!(await rateSlot(org))) return;
+  const xml = await fetchSupplier(sitemaps[page - 1]);
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) =>
     m[1].replace(/&amp;/g, "&"),
   );
@@ -220,7 +229,7 @@ export async function discover(org: string) {
   await sql`INSERT INTO hearth_parts_discovery(org_id,url)
     SELECT ${org},value FROM jsonb_array_elements_text(${sql.json(urls)}) AS d(value)
     WHERE NOT EXISTS(SELECT 1 FROM hearth_parts p WHERE p.org_id=${org} AND p.url=d.value) ON CONFLICT DO NOTHING`;
-  await sql`UPDATE hearth_parts_scanner SET discovery_page=${page === 4 ? 1 : page + 1},last_discovery_at=CASE WHEN ${page}=4 THEN now() ELSE last_discovery_at END,discovered=(SELECT count(*) FROM hearth_parts_discovery WHERE org_id=${org} AND reviewed=false) WHERE org_id=${org}`;
+  await sql`UPDATE hearth_parts_scanner SET discovery_page=${page === sitemaps.length ? 1 : page + 1},last_discovery_at=CASE WHEN ${page}=${sitemaps.length} THEN now() ELSE last_discovery_at END,discovered=(SELECT count(*) FROM hearth_parts_discovery WHERE org_id=${org} AND reviewed=false) WHERE org_id=${org}`;
 }
 export async function runScanBatch(org: string, budgetMs = 45000) {
   await scannerReady(org);
