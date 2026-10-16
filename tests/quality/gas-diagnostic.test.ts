@@ -41,17 +41,20 @@ test("gas v2 is explicit and legacy / wood / pellet templates remain v1", () => 
   assert.throws(()=>parseReportData({...report.data,templateVersion:3}));
   assert.throws(()=>parseReportData({...report.data,fuel:"wood"}));
 });
-test("no default passes; readings, reasons, issue photos and safe outcomes enforced", () => {
+test("paper form has no extra mandatory narratives; readings, defects and photos stay honest", () => {
   const r=gasFixture(); delete r.data.answers.coBefore;
-  assert.ok(validateReport(r.data,r.photos).some(e=>e.includes("coBefore")));
-  r.data.answers.GD01="NI"; r.data.answers.GD01_notes="Inaccessible test point; follow-up required.";
+  for (const id of ['testReference','workCompleted','workPending','restrictions','outcome']) delete r.data.answers[id];
+  r.data.customerAcknowledgment='';
+  r.data.answers.GD01="NI";
   assert.deepEqual(validateReport(r.data,r.photos),[]);
+  delete r.data.answers.diagnosticResults;
   r.data.answers.GD15="D"; r.data.answers.gasLeakResult="Leak detected";
   const errors=validateReport(r.data,r.photos);
-  assert.ok(errors.some(e=>e.includes("GD15"))); assert.ok(errors.some(e=>e.includes("leak")));
+  assert.ok(errors.some(e=>e.includes("GD15"))); assert.ok(errors.some(e=>e.includes("diagnosticResults")));
   r.data.answers.gasInlet="NaN"; assert.ok(validateReport(r.data,r.photos).some(e=>e.includes("gasInlet")));
   const blank={fuel:"gas" as const,templateVersion:2 as const,answers:{},photoExceptions:{},customerAcknowledgment:""};
-  assert.equal(validateReport(blank,[]).filter(e=>/is required \(GD/.test(e)).length,15);
+  assert.equal(validateReport(blank,[]).filter(e=>/is required \(GD/.test(e)).length,0);
+  assert.deepEqual(blank.answers,{});
 });
 test("exact master retained; completed PDF contains every answer and photo with no forged customer signature", async () => {
   const master="src/assets/service-forms/aarons-gas-diagnostic-v2.pdf";

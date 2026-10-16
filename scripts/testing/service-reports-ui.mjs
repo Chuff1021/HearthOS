@@ -72,6 +72,7 @@ const bundle = await build({
   bundle: true, write: false, outdir: '/tmp/service-report-ui-bundle', platform: 'browser',
   format: 'iife', jsx: 'automatic', metafile: true, define: { 'process.env.NODE_ENV': '"production"' },
   plugins: [{ name: 'service-report-local-routing', setup(builder) {
+    builder.onResolve({ filter: /^\/service-forms\// }, args => ({ path: args.path, external: true }));
     builder.onResolve({ filter: /^next\/(navigation|link)$/ }, args => ({ path: args.path, namespace: 'service-report' }));
     builder.onLoad({ filter: /.*/, namespace: 'service-report' }, args => ({ contents: adapters[args.path], loader: 'tsx', resolveDir: root }));
   } }],
@@ -124,6 +125,7 @@ async function handler(req, res) {
   if (req.method === 'GET' && url.pathname === '/fixture.js') return reply(res, 200, js, 'application/javascript');
   if (req.method === 'GET' && url.pathname === '/fixture.css') return reply(res, 200, fixtureCss, 'text/css');
   if (req.method === 'GET' && url.pathname === '/fixture-font.woff2') return reply(res, 200, font, 'font/woff2');
+  if (req.method === 'GET' && ['/service-forms/aarons-logo.png', '/service-forms/aarons-logo-mask.png'].includes(url.pathname)) return reply(res, 200, await readFile(path.join(root, 'public', url.pathname)), 'image/png');
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === `/tech/job/${contextData.jobId}`)) {
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-src 'self'");
     return reply(res, 200, '<!doctype html><html lang="en" data-theme="light"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synthetic service report verification</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/fixture.css"></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>', 'text/html');
@@ -245,7 +247,12 @@ const shot = async (page, name) => {
 };
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const conditionNames = { S: 'Satisfactory', D: 'Defect', NA: 'Not applicable', NI: 'Not inspected' };
-const fieldControl = (page, field) => field.type === 'condition' ? {
+const fieldControl = (page, field) => field.id === 'workCompleted' ? page.getByRole('textbox', { name: /Work completed (and|&) notes/i }) : /^GD\d+$/.test(field.id) ? {
+  inputValue: async () => (await page.locator(`[data-check-id="${field.id}"] input[type=radio]:checked`).getAttribute('value').catch(() => null)) || '',
+  selectOption: value => ['N', 'S', 'D'].includes(value)
+    ? page.locator(`[data-check-id="${field.id}"]`).getByRole('radio', { name: { N: 'New', S: 'Working', D: 'Replace' }[value], exact: true }).check()
+    : page.locator(`[data-check-id="${field.id}"]`).getByRole('checkbox', { name: value === 'NA' ? 'N/A' : 'Could Not Test/Not Accessible', exact: true }).check(),
+} : field.type === 'condition' ? {
   inputValue: async () => (await page.getByRole('radiogroup', { name: field.label, exact: true }).locator('input:checked').getAttribute('value').catch(() => null)) || '',
   selectOption: value => page.getByRole('radiogroup', { name: field.label, exact: true }).locator(`label[title="${conditionNames[value]}"]`).click(),
 } : page.locator('label').filter({
@@ -310,6 +317,7 @@ async function scenario(name, width, work) {
 }
 
 async function editorFlow(page, state, fuel, width) {
+  if (fuel === 'gas') return paperGasFlow(page, state, width);
   const name = `${fuel}-${width}`, template = latestTemplate(fuel);
   const fields = template.sections.flatMap(section => section.fields);
   await page.goto(base);
@@ -449,6 +457,48 @@ async function editorFlow(page, state, fuel, width) {
   assert.equal(await page.getByRole('button', { name: 'View report', exact: true }).count(), 1);
   assert.equal(state.operations.filter(op => op === 'finalize').length, 1);
   assert.equal(state.operations.includes('check-storage'), false, 'Ordinary technician never invokes diagnostic');
+}
+
+async function paperGasFlow(page, state, width) {
+  await page.goto(base);
+  await page.getByRole('group', { name: 'Gas Diagnostic paper form', exact: true }).waitFor();
+  assert.equal(await page.getByRole('radio', { name: 'Working', exact: true }).count(), 15);
+  assert.equal(await page.locator('[data-check-id] input:checked').count(), 0);
+  assert.equal(await page.getByRole('textbox', { name: 'Customer Name', exact: true }).getAttribute('readonly'), '');
+  assert.equal(await page.getByLabel(/^Customer acknowledgment: receipt,/).count(), 0);
+  await page.getByRole('textbox', { name: 'Unit Make', exact: true }).fill('Synthetic Manufacturer');
+  await page.getByRole('textbox', { name: 'Unit Model', exact: true }).fill('Test Gas Model');
+  for (const name of ['NG', 'IPI', 'Fireplace']) await page.getByRole('radio', { name, exact: true }).check();
+  await page.locator('[data-check-id="GD02"]').getByRole('checkbox', { name: 'Could Not Test/Not Accessible', exact: true }).check();
+  await page.getByRole('textbox', { name: 'Work Completed & Notes', exact: true }).fill('Synthetic paper-form observation');
+  await page.getByRole('status').filter({ hasText: /^All changes saved$/ }).waitFor();
+  await page.reload();
+  await page.getByRole('group', { name: 'Gas Diagnostic paper form', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: 'Work Completed & Notes', exact: true }).inputValue(), 'Synthetic paper-form observation');
+  assert.equal(state.reports[0].data.answers.GD02, 'NI');
+  assert.equal(state.reports[0].data.answers.GD01, undefined);
+  const template = latestTemplate('gas');
+  await expandSections(page, template);
+  for (const slot of template.photoSlots.filter(slot => slot.required)) {
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: `Gallery: ${slot.label}`, exact: true }).click();
+    await (await chooserPromise).setFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: imageBytes });
+    await photoSection(page, slot).getByRole('img', { name: slot.label, exact: true }).waitFor();
+  }
+  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).isEnabled(), true);
+  await page.locator('[data-check-id="GD03"]').getByRole('radio', { name: 'Replace', exact: true }).check();
+  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).isEnabled(), false);
+  await page.getByRole('textbox', { name: 'Diagnostic Results/Service Required', exact: true }).fill('Synthetic replacement finding; no real appliance assessed.');
+  await expandSections(page, template);
+  await photoSection(page, template.photoSlots.find(slot => slot.id === 'GD03')).getByLabel(/^Exception reason/).fill('Synthetic evidence exception for test only.');
+  assert.equal(await page.getByRole('button', { name: 'Generate PDF', exact: true }).isEnabled(), true);
+  await checkOverflow(page);
+  await shot(page, `paper-gas-${width}`);
+  await page.getByRole('button', { name: 'Generate PDF', exact: true }).click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor();
+  await checkDialog(dialog);
+  assert.equal(state.emails.length, 0);
 }
 
 async function storageFlow(page, state, width) {

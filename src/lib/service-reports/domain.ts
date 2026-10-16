@@ -44,6 +44,7 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
   if (!Array.isArray(photos)) return ["Photos must be an array."];
   if (![1, 2].includes(data.templateVersion ?? 1) || (data.fuel !== "gas" && (data.templateVersion ?? 1) !== 1)) return ["Unsupported service report version."];
   const template = getServiceTemplate(data.fuel, data.templateVersion);
+  const paperGas = data.fuel === "gas" && data.templateVersion === 2;
   const fields = template.sections.flatMap((s) => s.fields);
   const fieldIds = new Set(fields.map((f) => f.id));
   const slots = new Set(template.photoSlots.map((s) => s.id));
@@ -69,7 +70,7 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
     if (answer && (field.type === "condition" || field.type === "select") && !field.options?.includes(answer)) {
       errors.push(`${field.label}: unsupported value "${answer}" (${field.id}).`);
     }
-    if (field.type === "condition" && ["D", "NI"].includes(answer)) reason(`${field.id}_notes`, field.label);
+    if (!paperGas && field.type === "condition" && ["D", "NI"].includes(answer)) reason(`${field.id}_notes`, field.label);
     if (field.id.startsWith("access_") && field.type === "select" && answer === "NI") reason(`${field.id}_notes`, field.label);
   }
 
@@ -102,7 +103,7 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
       errors.push(`${slot.label}: photo or documented exception of at least 10 characters required (${slot.id}).`);
     }
   }
-  if (!isSafeReportString(data.customerAcknowledgment) || data.customerAcknowledgment.trim().length < 10) {
+  if (!isSafeReportString(data.customerAcknowledgment) || (!paperGas && data.customerAcknowledgment.trim().length < 10)) {
     errors.push("Customer acknowledgment: record receipt, or unavailable / declined with a reason, in at least 10 characters.");
   } else characters += data.customerAcknowledgment.length;
   if (characters > serviceReportLimits.totalCharacters) errors.push("Report text exceeds the supported total length; split into separate reports without dropping evidence.");
@@ -124,16 +125,14 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
   if (value("outcome") === outcomeOptions[2] && !value("customerNotifiedTime")) errors.push("Do not operate outcome requires customer notification time (customerNotifiedTime).");
   if (data.fuel === "gas" && data.templateVersion === 2) {
     if (value("pilotType") === "Other") reason("pilotOther", "Other pilot system");
-    for (const [check, readings] of Object.entries(gasReadings)) {
+    for (const readings of Object.values(gasReadings)) {
       for (const [id, label] of readings) {
-        if (["N", "S", "D"].includes(value(check)) && !value(id)) errors.push(`${label} is required for a tested item (${id}).`);
         if (value(id) && (!/^\d+(\.\d+)?$/.test(value(id)) || !Number.isFinite(Number(value(id))))) errors.push(`${label}: enter a nonnegative numeric reading (${id}).`);
       }
     }
-    if (Object.values(gasReadings).flat().some(([id]) => value(id))) reason("testReference", "Manufacturer test procedure / criteria");
+    if (fields.some(f => f.type === "condition" && value(f.id) === "D") && !value("diagnosticResults")) errors.push("Record service required for Replace items in Diagnostic Results/Service Required (diagnosticResults).");
     if (value("gasLeakResult") === "Leak detected" && (value("GD15") !== "D" || value("outcome") === outcomeOptions[0])) errors.push("A detected gas leak must be recorded as an issue with restrictions and corrective work.");
-    if (["N", "S"].includes(value("GD15")) && value("gasLeakResult") !== "No leaks detected") errors.push("Working / new gas fittings require a recorded no-leaks result; otherwise choose Issue or Not checked.");
-    if (value("GD15") === "NI" && value("gasLeakResult") !== "Not tested") errors.push("An untested gas leak check must say Not tested.");
+    if (value("gasLeakResult") === "No leaks detected" && ["NI", "NA"].includes(value("GD15"))) errors.push("An untested or inapplicable gas leak check cannot claim No leaks detected (gasLeakResult).");
     for (const id of ["subtotal", "tax", "total", ...[1,2,3,4].map(n => `part${n}_cost`)]) {
       if (value(id) && (!/^\d+(\.\d{1,2})?$/.test(value(id)) || !Number.isFinite(Number(value(id))))) errors.push(`Enter a nonnegative amount with up to two decimals (${id}).`);
     }

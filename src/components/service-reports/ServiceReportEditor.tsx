@@ -19,6 +19,7 @@ import {
 } from "@/lib/service-reports/templates";
 import { validateReport } from "@/lib/service-reports/domain";
 import ChecklistFields from "./ChecklistFields";
+import GasPaperChecklist from "./GasPaperChecklist";
 import ServiceReportHistory, {
   ReportDelivery,
   ReportRequestError,
@@ -778,8 +779,10 @@ export default function ServiceReportEditor({
               </button>
             )}
           </div>
-          <ChecklistFields key={data.fuel} template={template} data={data} disabled={readOnly}
-            onChange={(id, value) => { setEdited(true); setData(current => current ? { ...current, answers: { ...current.answers, [id]: value } } : current); }} />
+          {data.fuel === "gas" && data.templateVersion === 2 ? <GasPaperChecklist data={data} disabled={readOnly} photoCount={selected.photos.length}
+            onChange={(id, value) => { setEdited(true); setData(current => current ? { ...current, answers: { ...current.answers, [id]: value } } : current); }} /> :
+            <ChecklistFields key={data.fuel} template={template} data={data} disabled={readOnly}
+              onChange={(id, value) => { setEdited(true); setData(current => current ? { ...current, answers: { ...current.answers, [id]: value } } : current); }} />}
           <section className="space-y-4" aria-label="Report photos">
             <h3 className="text-base font-semibold">
               Report photos{" "}
@@ -793,7 +796,7 @@ export default function ServiceReportEditor({
                 replacement.
               </p>
             )}
-            {template.photoSlots.filter(slot => slot.required || data.answers[slot.id] === "D" || selected.photos.some(photo => photo.slotId === slot.id) || data.photoExceptions[slot.id] || (showOptionalPhotos && !/^[GWP]\d+$/.test(slot.id))).map((slot) => (
+            {template.photoSlots.filter(slot => slot.required || data.answers[slot.id] === "D" || selected.photos.some(photo => photo.slotId === slot.id) || data.photoExceptions[slot.id] || (showOptionalPhotos && !/^(?:[GWP]|GD)\d+$/.test(slot.id))).map((slot) => (
               <div
                 key={slot.id}
                 className="min-w-0 space-y-3 border-b border-[var(--color-border)] pb-4"
@@ -933,7 +936,7 @@ export default function ServiceReportEditor({
             ))}
             {!finalized && <button type="button" className={reportButton} onClick={() => setShowOptionalPhotos(value => !value)}>{showOptionalPhotos ? "Hide additional photos" : "Additional photos"}</button>}
           </section>
-          <details><summary className="cursor-pointer py-2 text-sm text-[var(--color-text-muted)]">Report scope and acknowledgment</summary><p className="text-sm text-[var(--color-text-secondary)]">
+          {(data.fuel !== "gas" || data.templateVersion !== 2 || data.customerAcknowledgment) && <><details><summary className="cursor-pointer py-2 text-sm text-[var(--color-text-muted)]">Report scope and acknowledgment</summary><p className="text-sm text-[var(--color-text-secondary)]">
             {acknowledgmentNotice}
           </p></details>
           <label className="block text-sm">
@@ -941,7 +944,7 @@ export default function ServiceReportEditor({
             reason
             <textarea
               className={`${reportInput} mt-1 min-h-24`}
-              aria-required="true"
+              aria-required={data.fuel !== "gas" || data.templateVersion !== 2}
               maxLength={4000}
               disabled={readOnly}
               value={data.customerAcknowledgment}
@@ -949,7 +952,7 @@ export default function ServiceReportEditor({
                 { setEdited(true); setData({ ...data, customerAcknowledgment: event.target.value }); }
               }
             />
-          </label>
+          </label></>}
           {!finalized && (
             <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
               {missing.length > 0 && (

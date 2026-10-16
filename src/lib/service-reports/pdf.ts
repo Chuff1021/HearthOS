@@ -200,12 +200,14 @@ export async function renderServiceReportPdf(snapshot: ReportSnapshot, photos: A
       ["Service date", serviceDate], ["Equipment", report.equipment.trim() || "Not recorded"], ["Technician", report.technicianName],
       ["Finalized", completedAt],
     ]) row(label, value);
-    heading("Recorded outcome and restrictions");
-    paragraph(answers.outcome, "Bold", 11, answers.outcome === outcomeOptions[0] ? colors.ink : colors.alert);
-    row("Restrictions / isolation / person notified", answers.restrictions, answers.outcome !== outcomeOptions[0]);
-    row("Pending / declined work and follow-up", answers.workPending);
+    if (report.data.fuel !== "gas" || report.data.templateVersion !== 2 || answers.outcome || answers.restrictions || answers.workPending) {
+      heading("Recorded outcome and restrictions");
+      paragraph(answers.outcome, "Bold", 11, answers.outcome === outcomeOptions[0] ? colors.ink : colors.alert);
+      row("Restrictions / isolation / person notified", answers.restrictions, answers.outcome !== outcomeOptions[0]);
+      row("Pending / declined work and follow-up", answers.workPending);
+    }
     for (const field of template.sections.flatMap((s) => s.fields).filter((f) => f.type === "condition" && answers[f.id] === "D")) {
-      row(`${field.id} - recorded defect`, answers[`${field.id}_notes`], true);
+      row(`${field.id} - recorded defect`, answers[`${field.id}_notes`] || answers.diagnosticResults, true);
     }
     paragraph("S = satisfactory within recorded scope; D = defect; NA = not applicable; NI = not inspected. Optional entries not supplied are not recorded, never assumed satisfactory.", "Body", 8, colors.muted);
     const snapshotFields = new Set(["customerName", "serviceAddress", "serviceDate", "jobNumber", "technicianName"]);

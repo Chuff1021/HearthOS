@@ -4,11 +4,38 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { build } from "esbuild";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { ComponentType } from "react";
+import type { ReportData } from "../../src/lib/service-reports/domain";
 
 const compiled = build({
   entryPoints: ["src/components/service-reports/ServiceReportEditor.tsx"],
   bundle: true, write: false, platform: "node", format: "cjs", jsx: "automatic",
   external: ["react", "react/jsx-runtime", "lucide-react"],
+  plugins: [{ name: "style-free-unit-test", setup(builder) { builder.onLoad({ filter: /\.module\.css$/ }, () => ({ contents: "export default {}", loader: "js" })); } }],
+});
+
+test("paper gas UI mirrors the supplied form and only shows older extra answers when present", async () => {
+  const result = await build({ entryPoints: ["src/components/service-reports/GasPaperChecklist.tsx"], bundle: true,
+    write: false, platform: "node", format: "cjs", jsx: "automatic", external: ["react", "react/jsx-runtime"],
+    plugins: [{ name: "css", setup(b) { b.onLoad({ filter: /\.module\.css$/ }, () => ({ contents: "export default {}", loader: "js" })); } }],
+  });
+  const loaded = { exports: {} as { default: ComponentType<{ data: ReportData; disabled: boolean; photoCount: number; onChange: () => void }> } };
+  runInNewContext(result.outputFiles[0].text, { module: loaded, exports: loaded.exports, require: createRequire(import.meta.url) });
+  const data: ReportData = { fuel: "gas", templateVersion: 2, answers: {}, photoExceptions: {}, customerAcknowledgment: "" };
+  const render = () => renderToStaticMarkup(createElement(loaded.exports.default, { data, disabled: false, photoCount: 0, onChange() {} }));
+  const blank = render();
+  assert.equal((blank.match(/aria-label="Working"/g) || []).length, 15);
+  assert.equal((blank.match(/aria-label="Replace"/g) || []).length, 15);
+  assert.match(blank, /Work Completed &amp; Notes/);
+  assert.match(blank, /Diagnostic Results\/Service Required/);
+  assert.match(blank, /aria-label="Customer Name"[^>]*readOnly/);
+  assert.doesNotMatch(blank, /Additional saved information|Manufacturer.*reference|Operating outcome/);
+  assert.doesNotMatch(blank, /checked=""/);
+  data.answers.testReference = "Earlier manufacturer reference retained";
+  assert.match(render(), /Additional saved information/);
+  assert.match(render(), /Earlier manufacturer reference retained/);
 });
 
 async function compressionFixture({ decode = true, context = true, sizes = [300_000] }: { decode?: boolean; context?: boolean; sizes?: (number | null)[] } = {}) {
