@@ -35,6 +35,7 @@ async function bundle(fixture) {
     auth: 'export const authorizeCrmApi = async (...args) => __fixture.authorize ? __fixture.authorize(...args) : __fixture.denied; export const requireCrmActor = async () => __fixture.requireActor ? __fixture.requireActor() : __fixture.actor;',
     storage: 'export const putReportObject = (...args) => __fixture.deps.put(...args); export const getReportObject = (...args) => __fixture.deps.get(...args); export const verifyReportStorage = (...args) => __fixture.deps.verifyStorage(...args);',
     pdf: 'export const renderServiceReportPdf = (...args) => __fixture.deps.render(...args);',
+    verification: 'export const verifyServiceReportPdf = () => __fixture.verifyPdf();',
     smtp: 'export const isSmtpConfigured = () => __fixture.mailConfigured; export const sendSmtpEmail = async input => { __fixture.smtp.push(input); };',
     canvas: 'export const loadImage = async () => ({ width: 2, height: 2 }); export const createCanvas = () => ({ getContext: () => ({ fillRect() {}, drawImage() {} }), toBuffer: () => __fixture.photoBytes });',
   };
@@ -46,6 +47,7 @@ async function bundle(fixture) {
     '@/lib/service-reports/server': 'server', '@/lib/service-reports/store': 'store',
     '@/lib/service-reports/legacy-photos': 'legacy',
     '@/lib/service-reports/storage': 'storage',
+    '@/lib/service-reports/verification': 'verification',
     './store': 'store', './domain': 'domain', './templates': 'templates', './legacy-photos': 'legacy',
     './gas-template': 'gas',
     ...Object.fromEntries(Object.keys(files).map(name => [`fixture:${name}`, name])),
@@ -728,6 +730,33 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
       }
       assert.equal(h.calls.render.length, 0);
       assert.equal(h.calls.put.length, 0);
+    });
+
+    await t.test('PDF runtime diagnostic is admin-only, tenant scoped, synthetic and does not write reports', async () => {
+      const before = await sql`SELECT id,revision,status FROM hearth_service_reports ORDER BY id`;
+      const pdf = Buffer.from('%PDF-1.7 synthetic runtime test');
+      let renders = 0, storage = 0;
+      fixture.verifyPdf = async () => { renders++; return pdf; };
+      fixture.deps = { verifyStorage: async (org, bytes) => {
+        storage++; assert.equal(org, orgA); assert.equal(bytes, pdf);
+        return { upload: true, download: true, integrity: true, syntheticObjectRemoved: true };
+      } };
+      const request = () => new Request('https://fixture.invalid/api/tech/service-reports', {
+        method: 'POST', headers: { origin: 'https://fixture.invalid', 'content-type': 'application/json' }, body: JSON.stringify({ action: 'check-storage', orgId: orgB }),
+      });
+      fixture.actor = actorA;
+      assert.equal((await api.route.POST(request())).status, 403);
+      assert.equal(renders, 0); assert.equal(storage, 0);
+      fixture.actor = { ...actorA, role: 'owner' };
+      const response = await api.route.POST(request());
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { upload: true, download: true, integrity: true, syntheticObjectRemoved: true, pdf: true });
+      assert.equal(renders, 1); assert.equal(storage, 1);
+      fixture.verifyPdf = async () => { throw new Error('Synthetic render failure'); };
+      assert.equal((await api.route.POST(request())).status, 503);
+      assert.equal(storage, 1, 'No file is written when rendering fails');
+      assert.deepEqual(await sql`SELECT id,revision,status FROM hearth_service_reports ORDER BY id`, before);
+      fixture.actor = actorA;
     });
 
     await t.test('real server and routes enforce authorization, origin, tenant checks, and private file headers', async () => {

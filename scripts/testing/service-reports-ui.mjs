@@ -102,7 +102,7 @@ const clone = value => structuredClone(value);
 function newState() {
   return {
     reports: [], uploads: [], emails: [], operations: [], photoBytes: new Map(), failNextSave: false, saveDelay: 0, ambiguousCreate: false, canVerifyStorage: false, legacyPayloadForm: 'object',
-    storageResponse: { upload: true, download: true, integrity: true, syntheticObjectRemoved: true },
+    storageResponse: { upload: true, download: true, integrity: true, syntheticObjectRemoved: true, pdf: true },
     job: {
       id: contextData.jobId, jobNumber: contextData.jobNumber, customerId: contextData.customerId,
       customerName: contextData.customerName, propertyAddress: contextData.address,
@@ -509,16 +509,16 @@ async function storageFlow(page, state, width) {
   await button.waitFor();
   assert.deepEqual(state.operations, [], 'Admin diagnostic must not run automatically');
   await button.dblclick();
-  await page.getByRole('status').filter({ hasText: /^Private report storage verified$/ }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^PDF generation and private report storage verified$/ }).waitFor();
   assert.deepEqual(state.operations, ['check-storage'], 'Double-click issues one explicit diagnostic');
   await shot(page, `admin-storage-${width}-verified`);
   for (const flag of Object.keys(state.storageResponse)) {
-    state.storageResponse = { upload: true, download: true, integrity: true, syntheticObjectRemoved: true, [flag]: false };
+    state.storageResponse = { upload: true, download: true, integrity: true, syntheticObjectRemoved: true, pdf: true, [flag]: false };
     await button.click();
     await page.getByRole('alert').filter({ hasText: /^Report file connection check failed:/ }).waitFor();
-    assert.equal(await page.getByText('Private report storage verified', { exact: true }).count(), 0, `${flag} must be verified before success`);
+    assert.equal(await page.getByText('PDF generation and private report storage verified', { exact: true }).count(), 0, `${flag} must be verified before success`);
   }
-  assert.equal(state.operations.length, 5);
+  assert.equal(state.operations.length, 6);
   assert.deepEqual(state.reports, [], 'Diagnostic cannot create a report');
   assert.deepEqual(state.job, originalJob, 'Diagnostic cannot mutate job data');
   await checkOverflow(page);

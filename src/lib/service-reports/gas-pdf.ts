@@ -4,13 +4,14 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { ReportSnapshot } from "./domain";
 import { gasChecks } from "./gas-template";
+import { serviceReportFont } from "./pdf-assets";
 
 /** Fill the supplied master, retaining both original pages. Full answers and
  * authorized photos follow in the immutable report appendix, never clipped. */
 export async function attachGasChecklist(report: ReportSnapshot, appendix: Buffer): Promise<Buffer> {
   const pdf = await PDFDocument.load(readFileSync(path.join(process.cwd(), "src/assets/service-forms/aarons-gas-diagnostic-v2.pdf")));
   pdf.registerFontkit(fontkit);
-  const font = await pdf.embedFont(readFileSync(path.join(path.dirname(require.resolve("geist/font/sans")), "fonts/geist-sans/Geist-Regular.ttf")), { subset: true });
+  const font = await pdf.embedFont(serviceReportFont("Regular"), { subset: true });
   const page = pdf.getPage(0);
   const a = report.data.answers;
   const ink = rgb(0.08, 0.17, 0.25);

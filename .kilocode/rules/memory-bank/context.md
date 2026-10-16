@@ -2,6 +2,20 @@
 
 ## Current State
 
+### October 16, 2026: Service PDF Runtime Repair
+
+Production baseline 4086262 / dpl_ETMwfGZrpxTU3xmBYC9KtWHQoy9K was verified
+before branching. Real report saves/photo reads succeeded but finalization returned
+503. Both PDF renderers used package resolution for font paths; Turbopack emitted
+numeric module IDs into path.dirname. Shared traced filesystem font paths now
+avoid that production-only failure. Original gas PDF and saved answers are unchanged.
+The existing owner/admin storage diagnostic now renders a synthetic gas PDF with
+fonts, image and appendix before its private upload/read/checksum/cleanup round trip.
+It does not finalize customer reports, sign for staff, write database rows or email.
+Missing PDF requirements are expanded in the editor. Local checks: 256 quality
+tests, 63 isolated PostgreSQL tests, TypeScript and production build pass; lint
+has zero errors and existing unrelated warnings. Release verification pending.
+
 ### October 16, 2026: Paper-style Gas Checklist Follow-up
 
 Production baseline verified as 1635e50 / dpl_G58B5tXSRvomYmfUby68n1kc5nee.
