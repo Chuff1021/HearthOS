@@ -102,7 +102,11 @@ test("database checkout: server quote → authorization → inbox → capture �
           },
         });
       if (init?.method === "DELETE") return new Response(null, { status: 204 });
-      if (u.endsWith("/api/storefront/checkouts/cart") && init?.method === "GET") return Response.json({id:"cart"});
+      if (
+        u.endsWith("/api/storefront/checkouts/cart") &&
+        init?.method === "GET"
+      )
+        return Response.json({ id: "cart" });
       if (u.includes("/consignments?"))
         return Response.json({
           consignments: [
@@ -166,8 +170,14 @@ test("database checkout: server quote → authorization → inbox → capture �
       throw new Error(`Unexpected test boundary ${u}`);
     };
     try {
-      const { quoteCart, authorizeQuote, adminOrderAction, orderStatus } =
-        await import("../../src/lib/parts-commerce/server");
+      const {
+        quoteCart,
+        authorizeQuote,
+        adminOrderAction,
+        orderStatus,
+        emailManualQuote,
+        redeemQuote,
+      } = await import("../../src/lib/parts-commerce/server");
       const { effectiveOffer } =
         await import("../../src/lib/parts-commerce/store");
       const q1 = await quoteCart(
@@ -179,6 +189,35 @@ test("database checkout: server quote → authorization → inbox → capture �
         session,
       );
       assert.equal(q1.quote.totalCents, 1600);
+      process.env.PARTS_SHIPPING_VERIFIED = "false";
+      const manual = await emailManualQuote(
+        {
+          items: [{ sku: "ABC", quantity: 1 }],
+          address,
+          shippingCents: 500,
+          shippingMethod: "Ground",
+          reference: "SUP-QUOTE-1",
+        },
+        org,
+        "owner",
+      );
+      const [mail] =
+        await sql`SELECT payload FROM hearth_parts_outbox WHERE id=${`${manual.quoteId}:checkout`}`;
+      const token = mail.payload.body.match(/token=([a-f0-9]{64})/)[1];
+      assert.equal(
+        (await redeemQuote(manual.quoteId, token)).quote.totalCents,
+        1600,
+      );
+      await assert.rejects(() => redeemQuote(manual.quoteId, "b".repeat(64)));
+      await assert.rejects(() =>
+        quoteCart(
+          { items: [{ key: offer.key, quantity: 1 }], address },
+          session,
+        ),
+      );
+      await sql`DELETE FROM hearth_parts_outbox WHERE id=${`${manual.quoteId}:checkout`}`;
+      process.env.PARTS_SHIPPING_VERIFIED = "true";
+
       await assert.rejects(() =>
         authorizeQuote(
           { quoteId: q1.quote.id, sourceId: "cnon:test" },

@@ -240,8 +240,13 @@ async function recordPayment(org: string, id: string, p: SquarePayment) {
         state === "authorized")
     )
       return;
-    const paymentState = row.payment_state === "refunded" ? "refunded" : state;
-    await tx`UPDATE hearth_parts_orders SET square_payment_id=${p.id},payment_state=${paymentState},delayed_until=${p.delayed_until || null},receipt_url=${p.receipt_url || null},checked_at=now(),updated_at=now(),lease_until=NULL,last_error=NULL WHERE org_id=${org} AND id=${id}`;
+    const paymentState =
+      row.payment_state === "refunded"
+        ? "refunded"
+        : row.payment_state === "refunding" && state === "paid"
+          ? "refunding"
+          : state;
+    await tx`UPDATE hearth_parts_orders SET square_payment_id=${p.id},payment_state=${paymentState},delayed_until=${p.delayed_until || null},receipt_url=${p.receipt_url || null},checked_at=now(),updated_at=now(),lease_until=NULL,last_error=CASE WHEN ${paymentState}='refunding' THEN 'Refund pending; review Square if delayed.' ELSE NULL END WHERE org_id=${org} AND id=${id}`;
     if (["voided", "failed", "refunded"].includes(paymentState))
       await tx`DELETE FROM hearth_parts_reservations WHERE org_id=${org} AND order_id=${id}`;
     else
