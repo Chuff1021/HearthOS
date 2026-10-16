@@ -133,6 +133,20 @@ export function createSupplierShipping(request: typeof fetch = fetch) {
           "No supplier shipping service is available for this address.",
           409,
         );
+      // Aaron pays dealer shipping and is ineligible for the public retail
+      // promotion. That promotion can hide the paid standard service entirely;
+      // dropping it and choosing an express option would not recover that rate.
+      // Obtain an owner-confirmed quote for the complete cart instead.
+      if (
+        options.some(
+          (o: Quote["shipping"]) =>
+            o.amountCents === 0 || /\bfree\b/i.test(o.label),
+        )
+      )
+        throw new CommerceError(
+          "Standard shipping needs confirmation for this cart. Request an online quote.",
+          409,
+        );
       return options as Quote["shipping"][];
     } finally {
       if (cartId)
