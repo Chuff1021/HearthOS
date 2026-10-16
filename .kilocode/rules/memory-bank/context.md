@@ -470,3 +470,7 @@ Website counterpart: `/Users/fireplace/fireplace-webstore-remove-free-shipping`
 on `codex/square-checkout-bridge`. Shipping provider, origins/package data and tax
 configuration are outstanding; frontend is still the existing order request form.
 See `docs/WEBSITE_ORDER_ACTIVATION.md` before further implementation or deployment.
+
+## October 16, 2026 — Parts commerce
+
+Added database-backed Stove Parts Unlimited stock/pricing scans, signed storefront integration, owner stock/order controls under Website Inbox, real supplier shipping quotes, TaxJar adapter and Square delayed capture. Local tax reference is 9.11%. Payments remain gated pending TaxJar registrations, Square webhook/sandbox verification and dealer shipping parity. MA-212400's owner override survives refreshes. See `docs/PARTS_COMMERCE.md` for rollout flags, tests and operational behavior.
