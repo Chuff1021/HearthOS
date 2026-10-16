@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { createCanvas } from "canvas";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -65,6 +66,8 @@ test("exact master retained; completed PDF contains every answer and photo with 
   for(const value of ["Sample Customer","QA-100","SAMPLE-12345","QA-123","125.00","Long unique overflow detail","Sample Technician","No customer signature has been generated","new diagnostic charge"]) assert.ok(text.includes(value),value);
   for(const photo of report.photos) assert.ok(text.includes(photo.id));
   await doc.destroy();
-  mkdirSync("/Users/fireplace/output/pdf",{recursive:true});
-  writeFileSync("/Users/fireplace/output/pdf/aarons-gas-checklist-completed-SAMPLE.pdf",pdf);
+  if (process.env.GAS_CHECKLIST_SAMPLE_PATH) {
+    mkdirSync(path.dirname(process.env.GAS_CHECKLIST_SAMPLE_PATH),{recursive:true});
+    writeFileSync(process.env.GAS_CHECKLIST_SAMPLE_PATH,pdf);
+  }
 });

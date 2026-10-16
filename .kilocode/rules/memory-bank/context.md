@@ -24,8 +24,19 @@ exceptions. Customer phone and available equipment identifiers prefill from the
 linked record. Isolated PostgreSQL tests verify old/new version isolation,
 immutable PDFs, exact stored attachment emails, tenant guards and data retention.
 Synthetic completed sample: `output/pdf/aarons-gas-checklist-completed-SAMPLE.pdf`
-under the user's home directory. Release verification is in progress; do not
-claim a production rollout until the canonical deployment is verified.
+under the user's home directory (test export is opt-in through
+`GAS_CHECKLIST_SAMPLE_PATH`). Local quality 253, security 235 and isolated
+PostgreSQL 61 tests passed, alongside typecheck, targeted lint and build.
+Source 0378fb7 is READY at
+`https://hearth-2xab4jip6-chuff1021s-projects.vercel.app` (staged production,
+not promoted). PR #14 holds this implementation. Canonical production remains
+3bfe0e9. Browser deployment verification awaits Vercel / HearthOS sign-in;
+authenticated Vercel HTTP check reaches the app's correct SIGN_IN_REQUIRED 401.
+First CI run caught a Mac-only sample output path, now fixed to optional export.
+Production dependency audit reports existing Next critical plus Nodemailer,
+sharp and source-map-js high findings. Do not bypass the audit or claim this
+release is production-ready until reviewed, patched and tested. No customer
+record, report, email or production schema was changed during this task.
 
 ### September 9, 2026: Schedule Technician Color Follow-Up
 
