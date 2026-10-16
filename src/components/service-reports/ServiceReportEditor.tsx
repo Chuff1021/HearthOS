@@ -15,6 +15,7 @@ import {
 import {
   acknowledgmentNotice,
   getServiceTemplate,
+  currentServiceVersion,
 } from "@/lib/service-reports/templates";
 import { validateReport } from "@/lib/service-reports/domain";
 import ChecklistFields from "./ChecklistFields";
@@ -42,6 +43,10 @@ export type ServiceReportContext = {
   technicianId: string;
   suggestedFuel: Fuel | null;
   email: string;
+  phone?: string;
+  unitMake?: string;
+  unitModel?: string;
+  unitSerial?: string;
   canVerifyStorage?: boolean;
 };
 type ReportList = { reports: ReportRecord[]; context: ServiceReportContext };
@@ -139,14 +144,15 @@ function prefill(
     companyName: "AARON'S FIREPLACE CO, LLC",
     companyContact: "(417) 732-9775 | aaronsfireplaceco@yahoo.com",
     customerName: context.customerName,
-    customerContact: context.email,
+    customerContact: report.data.templateVersion === 2 ? context.phone || "" : context.email,
+    unitMake: context.unitMake || "", unitModel: context.unitModel || "", serial: context.unitSerial || "",
     serviceAddress: context.address,
     serviceDate: context.serviceDate,
     jobNumber: context.jobNumber,
     makeModel: equipmentText(context.equipment),
   };
   const fieldIds = new Set(
-    getServiceTemplate(report.data.fuel).sections.flatMap((section) =>
+    getServiceTemplate(report.data.fuel, report.data.templateVersion).sections.flatMap((section) =>
       section.fields.map((field) => field.id),
     ),
   );
@@ -165,7 +171,7 @@ function prefill(
 function localChecklist(context: ServiceReportContext, fuel: Fuel): ReportRecord {
   const report: ReportRecord = { id: "", jobId: context.jobId, customerId: context.customerId,
     revision: 0, status: "draft", photos: [], createdAt: "", updatedAt: "",
-    data: { fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: "" } };
+    data: { fuel, templateVersion: currentServiceVersion(fuel), answers: {}, photoExceptions: {}, customerAcknowledgment: "" } };
   return { ...report, data: prefill(report, context) };
 }
 
@@ -251,7 +257,7 @@ export default function ServiceReportEditor({
     !!selected &&
     !!data &&
     JSON.stringify(data) !== JSON.stringify(prefill(selected, context));
-  const template = data ? getServiceTemplate(data.fuel) : null;
+  const template = data ? getServiceTemplate(data.fuel, data.templateVersion) : null;
   const finalized = selected?.status === "finalized";
   const missing = data && selected ? validateReport(data, selected.photos) : [];
 
@@ -636,7 +642,7 @@ export default function ServiceReportEditor({
         disabled={readOnly}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{template?.title || "Service"} Checklist</h2>
+        <h2 className="text-lg font-semibold">{template?.title.endsWith("Checklist") ? template.title : `${template?.title || "Service"} Checklist`}</h2>
         <div className="flex gap-2">
           {context?.canVerifyStorage && (
             <button

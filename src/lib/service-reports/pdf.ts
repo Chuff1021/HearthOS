@@ -3,6 +3,7 @@ import path from "node:path";
 import { createCanvas, loadImage } from "canvas";
 import { isSafeReportString, serviceReportLimits, validateReport, type Photo, type ReportSnapshot } from "./domain";
 import { acknowledgmentNotice, getServiceTemplate, outcomeOptions } from "./templates";
+import { attachGasChecklist } from "./gas-pdf";
 
 // The standalone build follows the existing invoice renderer and embeds its PDF resources.
 const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("pdfkit");
@@ -62,7 +63,7 @@ export async function renderServiceReportPdf(snapshot: ReportSnapshot, photos: A
   // Capture inputs before decoding asynchronously so caller mutations cannot change the rendered revision.
   const report: ReportSnapshot = structuredClone(snapshot);
   const assets = report.photos.map((p) => ({ ...p, bytes: Buffer.from(photoMap.get(p.id)!.bytes) }));
-  const template = getServiceTemplate(report.data.fuel);
+  const template = getServiceTemplate(report.data.fuel, report.data.templateVersion);
   const publicLabel = `SR-${report.id.replace(/[^a-z0-9]/gi, "").slice(-8).toUpperCase()}`;
   const completedAt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", year: "numeric",
     hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(report.finalizedAt));
@@ -208,7 +209,7 @@ export async function renderServiceReportPdf(snapshot: ReportSnapshot, photos: A
     }
     paragraph("S = satisfactory within recorded scope; D = defect; NA = not applicable; NI = not inspected. Optional entries not supplied are not recorded, never assumed satisfactory.", "Body", 8, colors.muted);
     const snapshotFields = new Set(["customerName", "serviceAddress", "serviceDate", "jobNumber", "technicianName"]);
-    const statusLabels: Record<string, string> = { S: "S - Satisfactory within scope", D: "D - Defect", NA: "NA - Not applicable", NI: "NI - Not inspected" };
+    const statusLabels: Record<string, string> = { N: "New / replaced and verified", S: "S - Satisfactory within scope", D: "D - Defect", NA: "NA - Not applicable", NI: "NI - Not inspected" };
     for (const section of template.sections) {
       const fields = section.fields.filter((field) => !snapshotFields.has(field.id) && typeof answers[field.id] === "string" && answers[field.id].trim());
       if (!fields.length) continue;
@@ -260,11 +261,12 @@ export async function renderServiceReportPdf(snapshot: ReportSnapshot, photos: A
     for (let index = range.start; index < range.start + range.count; index++) {
       doc.switchToPage(index);
       doc.moveTo(LEFT, 749).lineTo(LEFT + WIDTH, 749).lineWidth(0.5).strokeColor(colors.line).stroke();
-      line(`${publicLabel} | Revision ${report.revision} | Template v1`, LEFT, 760, "Body", 8, colors.muted);
+      line(`${publicLabel} | Revision ${report.revision} | Template v${template.version}`, LEFT, 760, "Body", 8, colors.muted);
       line(`Page ${index + 1} of ${range.count}`, LEFT + WIDTH - 78, 760, "Body", 8, colors.muted);
     }
     doc.end();
-    return await result;
+    const rendered = await result;
+    return report.data.fuel === "gas" && report.data.templateVersion === 2 ? await attachGasChecklist(report, rendered) : rendered;
   } catch (error) {
     doc.destroy();
     throw error;

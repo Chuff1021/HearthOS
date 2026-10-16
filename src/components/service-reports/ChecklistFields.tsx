@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, AlertTriangle, Minus, EyeOff } from "lucide-react";
+import { Check, AlertTriangle, Minus, EyeOff, Plus } from "lucide-react";
 import { outcomeOptions, type Field, type Template } from "@/lib/service-reports/templates";
 import { validateReport, type ReportData } from "@/lib/service-reports/domain";
 import { reportInput } from "./ServiceReportHistory";
@@ -18,6 +18,12 @@ export default function ChecklistFields({ template, data, disabled, onChange }: 
 }) {
   const needed = new Set(validateReport(data, []).flatMap(error => [...error.matchAll(/\(([A-Za-z0-9_]+)\)/g)].map(match => match[1])));
   const answer = (id: string) => data.answers[id] || "";
+  const gasDiagnostic = data.fuel === "gas" && data.templateVersion === 2;
+  const choices = gasDiagnostic ? [
+    { value: "N", label: "New", title: "New / replaced and verified", Icon: Plus, color: "#2563eb" },
+    ...conditions.map(c => ({ ...c, label: c.value === "S" ? "Working" : c.value === "D" ? "Replace / issue" : c.label })),
+  ] : conditions;
+  if (gasDiagnostic && answer("pilotType") === "Other") needed.add("pilotOther");
   // Keep conditionally required details visible even after they have been answered.
   if (["Limited", "Withheld"].includes(answer("testing"))) needed.add("testingReason");
   if (["cleaningPreparation", "shutdownPreparation", "electricalPreparation"].some(id => answer(id) === "Not performed")) needed.add("cleaningPreparationReason");
@@ -57,12 +63,12 @@ export default function ChecklistFields({ template, data, disabled, onChange }: 
       {["workPending", "restrictions"].includes(field.id) && <button type="button" className="mt-1 min-h-10 px-2 text-sm underline" onClick={() => onChange(field.id, field.id === "workPending" ? "No pending or declined work reported for this visit." : "No operating restrictions identified within the recorded scope.")}>None to report</button>}
     </label>;
   }
-  const ordered = [...template.sections].sort((a, b) => Number(b.fields.some(f => f.type === "condition")) - Number(a.fields.some(f => f.type === "condition")));
+  const ordered = gasDiagnostic ? template.sections : [...template.sections].sort((a, b) => Number(b.fields.some(f => f.type === "condition")) - Number(a.fields.some(f => f.type === "condition")));
   return <div className="space-y-4">
     {ordered.map(section => {
       const checks = section.fields.filter(f => f.type === "condition");
       const related = new Set(checks.flatMap(f => [`${f.id}_notes`, `${f.id}_work`]));
-      const extras = section.fields.filter(f => f.type !== "condition" && !related.has(f.id) && !automatic.has(f.id));
+      const extras = section.fields.filter(f => f.type !== "condition" && !related.has(f.id) && !automatic.has(f.id) && !f.checkId);
       const required = extras.filter(f => f.required || f.id === "serviceDate" || needed.has(f.id));
       const optional = extras.filter(f => !required.includes(f));
       const complete = checks.filter(f => !!data.answers[f.id]).length;
@@ -77,12 +83,13 @@ export default function ChecklistFields({ template, data, disabled, onChange }: 
             const work = section.fields.find(f => f.id === `${check.id}_work`)!;
             return <div key={check.id} className="space-y-2 border-b border-[var(--color-border)] py-3 last:border-b-0">
               <p className="text-sm font-medium">{check.label.replace(/^[GWP]\d+\s/, "")}</p>
-              <div role="radiogroup" aria-label={check.label} aria-required="true" className="grid grid-cols-[1fr_1fr_1fr_1.6fr] gap-1.5">
-                {conditions.map(({ value: choice, label, title, Icon, color }) => <label key={choice} title={title} className={`relative flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-md border px-1 text-xs font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 ${disabled ? "cursor-default opacity-70" : ""}`} style={{ borderColor: value === choice ? color : "var(--color-border)", background: value === choice ? `${color}12` : "var(--color-surface-1)", color: value === choice ? color : "var(--color-text-secondary)" }}>
+              <div role="radiogroup" aria-label={check.label} aria-required="true" className={`grid ${gasDiagnostic ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-[1fr_1fr_1fr_1.6fr]"} gap-1.5`}>
+                {choices.map(({ value: choice, label, title, Icon, color }) => <label key={choice} title={title} className={`relative flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-md border px-1 text-xs font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 ${disabled ? "cursor-default opacity-70" : ""}`} style={{ borderColor: value === choice ? color : "var(--color-border)", background: value === choice ? `${color}12` : "var(--color-surface-1)", color: value === choice ? color : "var(--color-text-secondary)" }}>
                   <input className="sr-only" type="radio" name={`check-${check.id}`} value={choice} aria-label={title} checked={value === choice} onChange={() => onChange(check.id, choice)} />
                   <Icon size={15} aria-hidden="true" />{label}
                 </label>)}
               </div>
+              {section.fields.some(f => f.checkId === check.id) && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{section.fields.filter(f => f.checkId === check.id).map(field)}</div>}
               {needsReason ? <div className="space-y-2">{field(note)}<details><summary className="cursor-pointer py-2 text-xs">Work performed / reference</summary>{field(work)}</details></div>
                 : <details><summary className="cursor-pointer py-2 text-xs text-[var(--color-text-muted)]">Notes / work performed{data.answers[note.id] || data.answers[work.id] ? " (recorded)" : ""}</summary><div className="space-y-2">{field(note)}{field(work)}</div></details>}
             </div>;

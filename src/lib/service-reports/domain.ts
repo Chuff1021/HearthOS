@@ -1,8 +1,10 @@
 import { getServiceTemplate, outcomeOptions, type Fuel } from "./templates";
+import { gasReadings } from "./gas-template";
 
 export type { Fuel, Field, Template } from "./templates";
 export type ReportData = {
   fuel: Fuel;
+  templateVersion?: 1 | 2;
   answers: Record<string, string>;
   photoExceptions: Record<string, string>;
   customerAcknowledgment: string;
@@ -40,7 +42,8 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
   if (!record(data) || !["gas", "wood", "pellet"].includes(data.fuel as string)) return ["Unsupported service report fuel."];
   if (!record(data.answers) || !record(data.photoExceptions)) return ["Answers and photo exceptions must be string records."];
   if (!Array.isArray(photos)) return ["Photos must be an array."];
-  const template = getServiceTemplate(data.fuel);
+  if (![1, 2].includes(data.templateVersion ?? 1) || (data.fuel !== "gas" && (data.templateVersion ?? 1) !== 1)) return ["Unsupported service report version."];
+  const template = getServiceTemplate(data.fuel, data.templateVersion);
   const fields = template.sections.flatMap((s) => s.fields);
   const fieldIds = new Set(fields.map((f) => f.id));
   const slots = new Set(template.photoSlots.map((s) => s.id));
@@ -119,6 +122,22 @@ export function validateReport(data: ReportData, photos: Photo[]): string[] {
     reason("workPending", "Pending correction or additional inspection");
   }
   if (value("outcome") === outcomeOptions[2] && !value("customerNotifiedTime")) errors.push("Do not operate outcome requires customer notification time (customerNotifiedTime).");
+  if (data.fuel === "gas" && data.templateVersion === 2) {
+    if (value("pilotType") === "Other") reason("pilotOther", "Other pilot system");
+    for (const [check, readings] of Object.entries(gasReadings)) {
+      for (const [id, label] of readings) {
+        if (["N", "S", "D"].includes(value(check)) && !value(id)) errors.push(`${label} is required for a tested item (${id}).`);
+        if (value(id) && (!/^\d+(\.\d+)?$/.test(value(id)) || !Number.isFinite(Number(value(id))))) errors.push(`${label}: enter a nonnegative numeric reading (${id}).`);
+      }
+    }
+    if (Object.values(gasReadings).flat().some(([id]) => value(id))) reason("testReference", "Manufacturer test procedure / criteria");
+    if (value("gasLeakResult") === "Leak detected" && (value("GD15") !== "D" || value("outcome") === outcomeOptions[0])) errors.push("A detected gas leak must be recorded as an issue with restrictions and corrective work.");
+    if (["N", "S"].includes(value("GD15")) && value("gasLeakResult") !== "No leaks detected") errors.push("Working / new gas fittings require a recorded no-leaks result; otherwise choose Issue or Not checked.");
+    if (value("GD15") === "NI" && value("gasLeakResult") !== "Not tested") errors.push("An untested gas leak check must say Not tested.");
+    for (const id of ["subtotal", "tax", "total", ...[1,2,3,4].map(n => `part${n}_cost`)]) {
+      if (value(id) && (!/^\d+(\.\d{1,2})?$/.test(value(id)) || !Number.isFinite(Number(value(id))))) errors.push(`Enter a nonnegative amount with up to two decimals (${id}).`);
+    }
+  }
   if (["Unavailable", "Declined"].includes(value("acknowledgmentStatus"))) reason("acknowledgmentDelivery", "Acknowledgment delivery method and date");
   if (value("acknowledgmentStatus") === "Receipt recorded" && (!value("customerRepresentative") || !value("acknowledgmentDateTime"))) {
     errors.push("Recorded receipt requires the customer / representative name and acknowledgment date / time; it is not a generated customer signature.");

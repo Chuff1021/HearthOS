@@ -2,6 +2,48 @@
 
 ## Current State
 
+### October 16, 2026: Aaron's Supplied Gas Diagnostic Checklist
+
+Branch `codex/gas-checklist-pdf` starts from verified live `3bfe0e9`, separate
+from the unpromoted SMS trial. New gas reports explicitly use templateVersion 2;
+missing version means the original v1. Existing drafts cannot switch versions,
+and finalized reports continue serving their immutable stored PDFs. Wood and
+pellet definitions remain unchanged. No production data migration is needed.
+
+The supplied two-page master is kept byte-for-byte in
+`src/assets/service-forms/aarons-gas-diagnostic-v2.pdf`. The renderer fills this
+master and appends complete findings, authenticated technician signature,
+acknowledgment, exceptions and authorized photos using the existing private
+storage and email path. Overflow entries link to complete attached details.
+Printed threshold guidance is retained, not used for automatic safety judgments.
+Manufacturer criteria are required with recorded diagnostic readings.
+
+New checklist: 15 explicit checks, inline readings, optional parts / maintenance
+and payment record (no payment actions), five required photo slots or documented
+exceptions. Customer phone and available equipment identifiers prefill from the
+linked record. Isolated PostgreSQL tests verify old/new version isolation,
+immutable PDFs, exact stored attachment emails, tenant guards and data retention.
+Synthetic completed sample: `output/pdf/aarons-gas-checklist-completed-SAMPLE.pdf`
+under the user's home directory (test export is opt-in through
+`GAS_CHECKLIST_SAMPLE_PATH`). Local quality 253, security 235 and isolated
+PostgreSQL 61 tests passed, alongside typecheck, targeted lint and build.
+Source 0378fb7 is READY at
+`https://hearth-2xab4jip6-chuff1021s-projects.vercel.app` (staged production,
+not promoted). PR #14 holds this implementation. Canonical production remains
+3bfe0e9. Browser deployment verification awaits Vercel / HearthOS sign-in;
+authenticated Vercel HTTP check reaches the app's correct SIGN_IN_REQUIRED 401.
+First CI run caught a Mac-only sample output path, now fixed to optional export.
+Signed-in continuation verified the new 15-check form opens using New checklist,
+and the saved legacy draft / photos remain accessible. A native browser-control
+misclick changed Landers draft G02 from S to NI; it was immediately restored to S
+using an exact semantic locator and autosave confirmed. The draft revision advanced;
+no report was finalized or emailed. No new live checklist was saved.
+Patched the release-blocking production dependencies: Next 16.3.8 (matching ESLint
+config), Nodemailer 10.0.9, sharp 0.35.5 and source-map-js 1.2.2. Production-only
+npm audit now reports zero vulnerabilities; dev-only advisories remain out of scope.
+Reverified 253 quality tests, 61 report persistence tests, lint (warnings only).
+Final build / CI / production promotion still pending. No production schema change.
+
 ### September 9, 2026: Schedule Technician Color Follow-Up
 
 Branch `codex/schedule-technician-colors` starts from live `344f302`.

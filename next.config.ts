@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/tech/service-reports": [
       "./public/fonts/service-signature*",
+      "./src/assets/service-forms/*.pdf",
       "./node_modules/geist/dist/fonts/geist-sans/*.ttf",
     ],
   },
