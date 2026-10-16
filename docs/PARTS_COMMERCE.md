@@ -11,6 +11,8 @@ Stove Parts Unlimited public retail pages are the only automated supplier source
 - MA-212400: persistent out-of-stock override, “4 weeks until ready to ship”; no date-based automatic restocking.
 - Local sales tax reference: **9.11%**, supplied by Aaron on October 16, 2026. This is not a blanket interstate tax rate. TaxJar receives the destination, actual origin/nexus configuration, items and shipping.
 
+Square's dedicated production webhook was registered and its delivery test returned HTTP 200. Both hosted builds passed verification with payment gates closed. Fifteen automated tests cover parsing, quotes, token scoping, concurrent last-unit reservations, declined cards, authorization/capture, inbox persistence and tracking. No production parts payment or order was created by these tests.
+
 ## Configuration and activation
 
 HearthOS requires its existing `DATABASE_URL`, website-inbox organization/secret, Square credentials, Clerk access, SMTP and `CRON_SECRET`. A separate server-to-server `HEARTHOS_WEBSITE_ORDER_SECRET` signs the exact method/path/body with a five-minute validity window. Storefront requires the same signing secret and `HEARTHOS_COMMERCE_ORIGIN=https://hearth-os.vercel.app`. Never copy merchant tokens into the storefront or browser.
