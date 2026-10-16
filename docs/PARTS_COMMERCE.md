@@ -11,7 +11,7 @@ Stove Parts Unlimited public retail pages are the only automated supplier source
 - MA-212400: persistent out-of-stock override, “4 weeks until ready to ship”; no date-based automatic restocking.
 - Local sales tax reference: **9.11%**, supplied by Aaron on October 16, 2026. This is not a blanket interstate tax rate. TaxJar receives the destination, actual origin/nexus configuration, items and shipping.
 
-Square's dedicated production webhook was registered and its delivery test returned HTTP 200. Both hosted builds passed verification with payment gates closed. Fifteen automated tests cover parsing, quotes, token scoping, concurrent last-unit reservations, declined cards, authorization/capture, inbox persistence and tracking. No production parts payment or order was created by these tests.
+Square's dedicated production webhook was registered and its delivery test returned HTTP 200. Both hosted builds passed verification with payment gates closed. Seventeen automated tests cover parsing, quotes, token scoping, concurrent last-unit reservations, declined cards, authorization/capture, inbox persistence and tracking. No production parts payment or order was created by these tests.
 
 ## Configuration and activation
 
@@ -39,12 +39,13 @@ Reconciliation runs every five minutes. Square state is fetched rather than trus
 - `npm run typecheck`
 - `NODE_OPTIONS='--conditions=react-server' npx tsx --test tests/parts-commerce/parser.test.ts tests/parts-commerce/providers.test.ts`
 - Local database integration test: `initdb -D /tmp/aarons-parts-postgres -A trust -U parts_test`; `pg_ctl -D /tmp/aarons-parts-postgres -l /tmp/aarons-parts-postgres.log -o '-p 55439 -k /tmp' start`; then `NODE_OPTIONS='--conditions=react-server' npx tsx --test tests/parts-commerce/postgres.test.ts`. The test uses only this local cluster and a disposable schema.
+- Square Sandbox only: `node --import tsx --env-file=/path/to/sandbox.env scripts/parts-square-sandbox.ts` (refuses production credentials).
 - Read-only supplier sample: `npx tsx scripts/parts-observe.ts /absolute/storefront/root`.
 - Real shipping observation, temporary guest cart only: `npx tsx scripts/parts-shipping-observe.ts /absolute/storefront/root`.
 - Seed after migration: `node --import tsx --env-file=.env.parts.local scripts/parts-seed.ts /absolute/storefront/root`. Reruns preserve offers and overrides.
 - Manual bounded worker: `NODE_OPTIONS='--conditions=react-server' node --import tsx --env-file=.env.parts.local scripts/parts-runner.ts 45000`.
 
-An observation sample of 25 legacy product URLs produced 20 valid pages and five actual 404 responses. Ordinary 1–2 business-day processing, special orders, unknown quantities and zero stock were distinguished. Supplier checkout returned real UPS services and charges for a Republic, MO cart, and the guest cart was deleted. These are not dealer shipping parity or live Square payment verification.
+An observation sample of 25 legacy product URLs produced 20 valid pages and five actual 404 responses. Ordinary 1–2 business-day processing, special orders, unknown quantities and zero stock were distinguished. Supplier checkout returned real UPS services and charges for a Republic, MO cart, and the guest cart was deleted. These are not dealer shipping parity or production card payment verification. Square Sandbox separately verified actual authorization, stable idempotent retries, void, capture, refund request (pending), and declined-card handling using Square test tokens.
 
 ## Rollback
 
