@@ -267,6 +267,7 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
         const template = api.templates.getServiceTemplate(fuel, api.templates.currentServiceVersion(fuel));
         const field = template.sections.flatMap(section => section.fields).find(item => item.required);
         for (const kind of ['answer', 'acknowledgment', 'photo']) {
+          if (fuel === 'gas' && kind === 'acknowledgment') continue;
           const data = validData(api, fuel);
           if (kind === 'answer') delete data.answers[field.id];
           if (kind === 'acknowledgment') data.customerAcknowledgment = '';
@@ -453,7 +454,9 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
         const data = validData(api, fuel);
         data.answers[condition.id] = 'D';
         data.answers[`${condition.id}_notes`] = 'Synthetic defect requires correction before further use.';
-        data.answers.outcome = api.templates.outcomeOptions[1];
+        if (fuel === 'gas') {
+          data.answers.diagnosticResults = 'Synthetic defect requires correction before further use.';
+        } else data.answers.outcome = api.templates.outcomeOptions[1];
         let draft = await h.store.create(actorA, jobA, fuel);
         draft = await h.store.save(actorA, draft.id, 0, data);
         draft = await h.store.addPhoto(actorA, draft.id, draft.revision, 'overview', 'Not linked to the defect', photoBytes);
@@ -463,6 +466,22 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
         assert.equal(final.status, 'finalized');
         assert.ok((await stored(final)).snapshot.photos.some(photo => photo.slotId === condition.id));
       }
+    });
+
+    await t.test('paper gas form finalizes without fields absent from the supplied PDF and preserves blank checks', async () => {
+      const h = harness();
+      const data = validData(api, 'gas');
+      data.customerAcknowledgment = '';
+      for (const id of ['testReference', 'outcome', 'restrictions', 'workPending', 'workCompleted', ...Object.values(api.gas.gasReadings).flat().map(([key]) => key)]) delete data.answers[id];
+      data.answers.GD02 = 'NI';
+      let draft = await h.store.create(actorA, jobA, 'gas');
+      draft = await h.store.save(actorA, draft.id, draft.revision, data);
+      const final = await h.store.finalize(actorA, draft.id, draft.revision);
+      assert.equal(final.status, 'finalized');
+      const snapshot = (await stored(final)).snapshot;
+      assert.equal(snapshot.data.answers.GD02, 'NI');
+      assert.equal(snapshot.data.answers.GD01, undefined);
+      assert.equal(snapshot.data.customerAcknowledgment, '');
     });
 
     await t.test('actual visit date, edited address, and model reach the rendered and persisted snapshot', async () => {

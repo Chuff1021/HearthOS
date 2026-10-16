@@ -80,7 +80,7 @@ export async function attachGasChecklist(report: ReportSnapshot, appendix: Buffe
     mark(401, top, a[`part${n}_decision`] === "Accept"); mark(445, top, a[`part${n}_decision`] === "Decline");
     mark(488, top, a[`part${n}_installed`] === "Yes"); mark(535, top, a[`part${n}_prepaid`] === "Yes");
   }
-  put("See customer acknowledgment in attached report.", 53, 729, 238, 7);
+  put(report.data.customerAcknowledgment ? "See customer acknowledgment in attached report." : "Not captured", 53, 729, 238, 7);
   put(a.checkNumber, 297, 730, 40, 6.5); mark(358, 730, a.creditCard === "Yes");
   put(a.subtotal, 431, 715, 125, 7); put(a.tax, 416, 726, 140, 7); put(a.total, 421, 738, 135, 7);
   put(`Report ${report.id.slice(-8)} / revision ${report.revision} | Full notes, technician signature and photos follow.`, 50, 762, 512, 6.5);

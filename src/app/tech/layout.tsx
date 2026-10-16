@@ -41,7 +41,7 @@ export default function TechLayout({
 
   return (
     <div className={`${GeistSans.className} production-tech min-h-screen`} style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}>
-      <div className="max-w-md mx-auto min-h-screen flex flex-col">
+      <div className="max-w-md mx-auto min-h-screen flex flex-col has-[[aria-label='Gas_Diagnostic_paper_form']]:max-w-5xl">
         <TechPwaProvider />
         {clerkEnabled ? (
           <TechAuthGate>

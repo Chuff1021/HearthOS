@@ -2,6 +2,25 @@
 
 ## Current State
 
+### October 16, 2026: Paper-style Gas Checklist Follow-up
+
+Production baseline verified as 1635e50 / dpl_G58B5tXSRvomYmfUby68n1kc5nee.
+Branch codex/gas-paper-form replaces only the gas v2 editor with the supplied
+paper form's identity, New/Working/Replace grid, inline readings, work notes,
+diagnostic results and optional parts/payment fields. No manufacturer-reference,
+per-item narrative, operating-outcome or customer-acknowledgment entry is required
+for a new paper-form report. Previously saved extra answers remain editable.
+Blank checks remain blank, never satisfactory; Replace requires shared diagnostic
+results and linked photo evidence or a documented exception. Required photos,
+autosave, authenticated technician signature, immutable PDFs and email are retained.
+Customer identity is prefilled read-only. No customer signature is fabricated.
+Gas v1, wood and pellet remain unchanged. No migrations or production record edits.
+Local verification: 254 quality tests, 235 security tests, 62 isolated PostgreSQL
+tests, TypeScript, targeted ESLint and isolated production build passed. Phone
+browser QA verified camera/gallery, saved photos, autofill and paper controls
+against synthetic localhost records. Source PDF remains byte-identical.
+Release status will be recorded after protected CI and deployment verification.
+
 ### October 16, 2026: Aaron's Supplied Gas Diagnostic Checklist
 
 Branch `codex/gas-checklist-pdf` starts from verified live `3bfe0e9`, separate
