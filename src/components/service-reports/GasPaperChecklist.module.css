@@ -3,7 +3,7 @@
 .paper * { box-sizing: border-box; min-width: 0; }
 .heading { display: grid; gap: 12px; margin-bottom: 16px; }
 .company { display: flex; gap: 12px; align-items: center; font-size: 11px; overflow-wrap: anywhere; }
-.company img { width: 58px; height: 54px; object-fit: contain; mask-image: url('/service-forms/aarons-logo-mask.png'); mask-mode: luminance; mask-size: contain; mask-repeat: no-repeat; }
+.company img { width: 58px; height: 54px; object-fit: contain; }
 .heading h3 { margin: 0; padding: 14px 8px; background: #e9eaed; color: #181c22; font-size: 18px; text-align: center; font-weight: 700; }
 .identity { border: 1px solid #565d67; display: grid; }
 .identity > div + div { border-top: 1px solid #565d67; }

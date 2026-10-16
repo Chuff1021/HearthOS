@@ -48,7 +48,7 @@ export default function GasPaperChecklist({ data, disabled, photoCount, onChange
     <fieldset disabled={disabled} className={styles.paper} aria-label="Gas Diagnostic paper form">
       <div className={styles.heading}>
         <div className={styles.company}>
-          {/* This is the unchanged logo image and transparency mask embedded in the supplied PDF. */}
+          {/* Original PDF logo, with its embedded transparency applied to the PNG. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/service-forms/aarons-logo.png" alt="Aaron's Fireplace Company" width={80} height={74} />
           <div><strong>AARON&apos;S FIREPLACE COMPANY</strong><br />611 E Harrison St | Republic, MO 65738<br />(417) 732-9775<br />aaronsfireplaceco@yahoo.com</div>
