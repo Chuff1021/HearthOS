@@ -148,6 +148,7 @@ test("storage diagnostic is explicitly clicked, role-gated and verifies cleanup"
   assert.match(action, /await run\("Checking report file connection/);
   assert.match(action, /JSON\.stringify\(\{ action: "check-storage" \}\)/);
   assert.match(action, /syntheticObjectRemoved !== true/);
-  assert.match(action, /Private report storage verified/);
+  assert.match(action, /PDF generation and private report storage verified/);
+  assert.match(action, /result\.pdf !== true/);
   assert.doesNotMatch(action, /jobId|customerId|applyReport|setData/);
 });

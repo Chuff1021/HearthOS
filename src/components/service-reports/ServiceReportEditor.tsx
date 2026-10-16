@@ -444,13 +444,14 @@ export default function ServiceReportEditor({
           download: boolean;
           integrity: boolean;
           syntheticObjectRemoved: boolean;
+          pdf: boolean;
         }>("/api/tech/service-reports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "check-storage" }),
         });
         if (
-          result.upload !== true ||
+          result.pdf !== true || result.upload !== true ||
           result.download !== true ||
           result.integrity !== true ||
           result.syntheticObjectRemoved !== true
@@ -459,7 +460,7 @@ export default function ServiceReportEditor({
             "The server did not confirm every storage check and cleanup.",
           );
         }
-        setNotice("Private report storage verified");
+        setNotice("PDF generation and private report storage verified");
       } catch (error) {
         throw new Error(
           `Report file connection check failed: ${error instanceof Error ? error.message : "Storage could not be verified."}`,
@@ -956,7 +957,7 @@ export default function ServiceReportEditor({
           {!finalized && (
             <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
               {missing.length > 0 && (
-                <details>
+                <details open>
                   <summary className="cursor-pointer text-sm font-medium">
                     {missing.length} required entries remaining
                   </summary>

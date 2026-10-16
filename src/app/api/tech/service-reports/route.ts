@@ -3,6 +3,7 @@ import { authorizeCrmApi } from "@/lib/security/crm-access";
 import { reportActor, reportFailure, reportJson, privateHeaders, serviceReportContext, serviceReportStore, reportSql, uuid, assertMailConfigured } from "@/lib/service-reports/server";
 import { ReportError } from "@/lib/service-reports/store";
 import { verifyReportStorage } from "@/lib/service-reports/storage";
+import { verifyServiceReportPdf } from "@/lib/service-reports/verification";
 export const maxDuration = 60;
 export const runtime = "nodejs";
 
@@ -33,7 +34,8 @@ export async function POST(request: Request) {
     const store = serviceReportStore();
     if (body.action === "check-storage") {
       if (!["owner","admin"].includes(actor.role)) throw new ReportError("Administrator access required.",403);
-      return Response.json(await verifyReportStorage(actor.orgId),{headers:privateHeaders});
+      const pdf = await verifyServiceReportPdf();
+      return Response.json({ ...await verifyReportStorage(actor.orgId, pdf), pdf: true },{headers:privateHeaders});
     }
     if (!body.action) {
       if (!uuid(body.jobId)) throw new ReportError("Invalid job ID.");

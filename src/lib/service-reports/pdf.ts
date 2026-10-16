@@ -4,6 +4,7 @@ import { createCanvas, loadImage } from "canvas";
 import { isSafeReportString, serviceReportLimits, validateReport, type Photo, type ReportSnapshot } from "./domain";
 import { acknowledgmentNotice, getServiceTemplate, outcomeOptions } from "./templates";
 import { attachGasChecklist } from "./gas-pdf";
+import { serviceReportFont } from "./pdf-assets";
 
 // The standalone build follows the existing invoice renderer and embeds its PDF resources.
 const PDFDocument = require("pdfkit/js/pdfkit.standalone.js") as typeof import("pdfkit");
@@ -80,9 +81,8 @@ export async function renderServiceReportPdf(snapshot: ReportSnapshot, photos: A
   // Observe stream failures even when preflight or drawing throws before awaiting the result.
   void result.catch(() => undefined);
   try {
-    const geist = path.join(path.dirname(require.resolve("geist/font/sans")), "fonts/geist-sans");
-    doc.registerFont("Body", readFileSync(path.join(geist, "Geist-Regular.ttf")));
-    doc.registerFont("Bold", readFileSync(path.join(geist, "Geist-SemiBold.ttf")));
+    doc.registerFont("Body", serviceReportFont("Regular"));
+    doc.registerFont("Bold", serviceReportFont("SemiBold"));
     doc.registerFont("Signature", readFileSync(path.join(process.cwd(), "public/fonts/service-signature-Allura-Regular.ttf")));
     const fontFaces = new Map<string, FontFace>();
     for (const font of ["Body", "Bold", "Signature"]) { doc.font(font); fontFaces.set(font, doc._font.font); }

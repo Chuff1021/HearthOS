@@ -26,13 +26,13 @@ export async function getReportObject(key: string, checksum: string) {
 }
 
 /** Administrator diagnostic: only its own random synthetic object can be removed. */
-export async function verifyReportStorage(orgId: string) {
-  const key = `service-reports/${orgId}/verification/${crypto.randomUUID()}.txt`;
-  const bytes = Buffer.from("HearthOS synthetic report storage verification");
+export async function verifyReportStorage(orgId: string, pdf?: Buffer) {
+  const key = `service-reports/${orgId}/verification/${crypto.randomUUID()}.${pdf ? "pdf" : "txt"}`;
+  const bytes = pdf ?? Buffer.from("HearthOS synthetic report storage verification");
   const {client,bucket} = storage();
   let uploaded = false;
   try {
-    const checksum = await putReportObject(key,bytes,"text/plain"); uploaded = true;
+    const checksum = await putReportObject(key,bytes,pdf ? "application/pdf" : "text/plain"); uploaded = true;
     if (!(await getReportObject(key,checksum)).equals(bytes)) throw new Error("Storage verification failed.");
   } finally {
     if (uploaded) await client.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),{abortSignal:AbortSignal.timeout(20_000)});
