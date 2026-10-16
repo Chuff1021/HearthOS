@@ -1,3 +1,4 @@
+import { gasDiagnosticTemplate } from "./gas-template";
 export type Fuel = "gas" | "wood" | "pellet";
 export type Field = {
   id: string;
@@ -5,10 +6,11 @@ export type Field = {
   type: "text" | "textarea" | "condition" | "select";
   required?: boolean;
   options?: string[];
+  checkId?: string;
 };
 export type Template = {
   id: Fuel;
-  version: 1;
+  version: 1 | 2;
   title: string;
   sections: { id: string; title: string; fields: Field[] }[];
   photoSlots: { id: string; label: string; required: boolean }[];
@@ -269,7 +271,11 @@ export const serviceTemplates: Record<Fuel, Template> = {
   ]),
 };
 
-export function getServiceTemplate(fuel: Fuel): Template {
+export function getServiceTemplate(fuel: Fuel, version: number = 1): Template {
   if (fuel !== "gas" && fuel !== "wood" && fuel !== "pellet") throw new Error("Unsupported service report fuel");
+  if (fuel === "gas" && version === 2) return gasDiagnosticTemplate;
+  if (version !== 1) throw new Error("Unsupported service report version");
   return serviceTemplates[fuel];
 }
+
+export function currentServiceVersion(fuel: Fuel): 1 | 2 { return fuel === "gas" ? 2 : 1; }

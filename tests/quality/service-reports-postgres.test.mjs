@@ -23,6 +23,7 @@ async function bundle(fixture) {
   const files = {
     store: 'src/lib/service-reports/store.ts', domain: 'src/lib/service-reports/domain.ts',
     templates: 'src/lib/service-reports/templates.ts', server: 'src/lib/service-reports/server.ts',
+    gas: 'src/lib/service-reports/gas-template.ts',
     legacy: 'src/lib/service-reports/legacy-photos.ts', legacyRoute: 'src/app/api/tech/job-photos/route.ts',
     policy: 'src/lib/security/access-policy.ts', route: `${routes}/route.ts`,
     pdfRoute: `${routes}/[id]/pdf/route.ts`, uploadRoute: `${routes}/[id]/photos/route.ts`,
@@ -46,6 +47,7 @@ async function bundle(fixture) {
     '@/lib/service-reports/legacy-photos': 'legacy',
     '@/lib/service-reports/storage': 'storage',
     './store': 'store', './domain': 'domain', './templates': 'templates', './legacy-photos': 'legacy',
+    './gas-template': 'gas',
     ...Object.fromEntries(Object.keys(files).map(name => [`fixture:${name}`, name])),
   };
   const output = await build({
@@ -117,15 +119,21 @@ function dependencies(api) {
   return { deps, objects, calls, fail, contexts };
 }
 
-function validData(api, fuel = 'gas') {
-  const template = api.templates.getServiceTemplate(fuel);
+function validData(api, fuel = 'gas', version = api.templates.currentServiceVersion(fuel)) {
+  const template = api.templates.getServiceTemplate(fuel, version);
   const answers = {};
   for (const field of template.sections.flatMap(section => section.fields)) {
     if (field.required) answers[field.id] = field.options?.[0] ?? 'Synthetic fixture record';
   }
   Object.assign(answers, { serviceDate: '2026-09-10', customerRepresentative: 'Fixture Customer', acknowledgmentDateTime: '2026-09-10T12:00:00Z' });
+  if (fuel === 'gas' && version === 2) {
+    delete answers.customerRepresentative; delete answers.acknowledgmentDateTime;
+    for (const rows of Object.values(api.gas.gasReadings)) for (const [key] of rows) answers[key] = '0';
+    answers.testReference = 'Synthetic manufacturer procedure reference';
+    answers.customerContact = '';
+  }
   if (fuel === 'wood') Object.assign(answers, { totalFlues: '1', scan: 'Not performed', scanReason: 'No scan requested for this fixture visit.' });
-  const data = { fuel, answers, photoExceptions: Object.fromEntries(template.photoSlots.filter(slot => slot.required)
+  const data = { fuel, templateVersion: version, answers, photoExceptions: Object.fromEntries(template.photoSlots.filter(slot => slot.required)
     .map(slot => [slot.id, 'Synthetic fixture: evidence unavailable for this recorded requirement.'])),
   customerAcknowledgment: 'Fixture customer receipt recorded and findings explained.' };
   assert.deepEqual(api.domain.validateReport(data, []), [], `${fuel} fixture must satisfy the real domain`);
@@ -142,6 +150,7 @@ async function seed(sql) {
   await sql`INSERT INTO organizations VALUES (${orgA},'default','{"preserve":"organization-a"}'),(${orgB},'foreign','{"preserve":"organization-b"}')`;
   await sql`INSERT INTO users VALUES (${employeeA},${orgA},'Fixture A','{"preserve":"user-a"}'),(${employeeB},${orgB},'Fixture B','{"preserve":"user-b"}')`;
   await sql`INSERT INTO customers VALUES (${customerA},${orgA},'QB-A','customer@example.invalid','{"preserve":"customer-a"}'),(${customerB},${orgB},'QB-B','foreign@example.invalid','{"preserve":"customer-b"}')`;
+  await sql`ALTER TABLE customers ADD COLUMN phone text`;
   for (const [job, customer, employee] of [[jobA, customerA, employeeA], [jobB, customerB, employeeB]]) {
     const payload = { customerId: customer, assignedTechs: [{ id: employee }], title: 'Synthetic gas service', jobNumber: 'FIXTURE', customerName: 'Fixture Customer', propertyAddress: '123 Test Street', scheduledDate: '2026-09-10', fireplaceUnit: { type: 'gas', brand: 'Synthetic', model: 'Fixture' }, untouchedNotes: 'Must not change' };
     // The production default job uses a JSONB string containing JSON, not a JSONB object.
@@ -207,7 +216,7 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
         ids.add(draft.id);
         assert.equal(draft.revision, 0);
         assert.equal(draft.status, 'draft');
-        assert.deepEqual(draft.data, { fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: '' });
+        assert.deepEqual(draft.data, { fuel, templateVersion: api.templates.currentServiceVersion(fuel), answers: {}, photoExceptions: {}, customerAcknowledgment: '' });
         const data = validData(api, fuel);
         const saved = await h.store.save(actorA, draft.id, 0, data);
         assert.equal(saved.revision, 1);
@@ -217,6 +226,22 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
         assert.ok((await h.store.list(actorA, { customerId: customerA })).some(item => item.id === final.id));
       }
       assert.equal(ids.size, 3);
+    });
+
+    await t.test('legacy gas drafts stay v1; clients cannot silently upgrade or downgrade existing evidence', async () => {
+      const h = harness();
+      const old = await h.store.create(actorA, jobA, 'gas');
+      const legacy = validData(api, 'gas', 1); delete legacy.templateVersion;
+      await sql`UPDATE hearth_service_reports SET data=${sql.json(legacy)} WHERE id=${old.id}`;
+      const before = await stored(old);
+      await rejects(h.store.save(actorA, old.id, 0, validData(api)), 409);
+      assert.deepEqual(await stored(old), before);
+      const saved = await h.store.save(actorA, old.id, 0, legacy);
+      const final = await h.store.finalize(actorA, old.id, saved.revision);
+      assert.equal((await stored(final)).snapshot.data.templateVersion, undefined);
+      const current = await h.store.create(actorA, jobA, 'gas');
+      await rejects(h.store.save(actorA, current.id, 0, legacy), 409);
+      assert.equal((await stored(current)).data.templateVersion, 2);
     });
 
     await t.test('concurrent optimistic saves have one winner and stale writes do not overwrite', async () => {
@@ -239,7 +264,7 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
     await t.test('missing required answers, acknowledgment, and photo evidence reject finalization', async () => {
       const h = harness();
       for (const fuel of ['gas', 'wood', 'pellet']) {
-        const template = api.templates.getServiceTemplate(fuel);
+        const template = api.templates.getServiceTemplate(fuel, api.templates.currentServiceVersion(fuel));
         const field = template.sections.flatMap(section => section.fields).find(item => item.required);
         for (const kind of ['answer', 'acknowledgment', 'photo']) {
           const data = validData(api, fuel);
@@ -424,7 +449,7 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
     await t.test('defects require evidence linked to that condition, not an unrelated photo', async () => {
       const h = harness();
       for (const fuel of ['gas', 'wood', 'pellet']) {
-        const condition = api.templates.getServiceTemplate(fuel).sections.flatMap(section => section.fields).find(field => field.type === 'condition');
+        const condition = api.templates.getServiceTemplate(fuel, api.templates.currentServiceVersion(fuel)).sections.flatMap(section => section.fields).find(field => field.type === 'condition');
         const data = validData(api, fuel);
         data.answers[condition.id] = 'D';
         data.answers[`${condition.id}_notes`] = 'Synthetic defect requires correction before further use.';
@@ -657,7 +682,7 @@ test('service reports: disposable PostgreSQL persistence and security', { timeou
     await t.test('aggregate text overflow and unsafe notes cannot become finalized evidence', async () => {
       const h = harness();
       const oversized = validData(api);
-      const fields = api.templates.getServiceTemplate('gas').sections.flatMap(section => section.fields).filter(field => field.type === 'textarea');
+      const fields = api.templates.getServiceTemplate('gas', 2).sections.flatMap(section => section.fields).filter(field => field.type === 'textarea');
       let length = 0;
       for (const field of fields) {
         oversized.answers[field.id] = 'n'.repeat(api.domain.serviceReportLimits.fieldCharacters);

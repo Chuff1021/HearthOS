@@ -27,12 +27,13 @@ export async function serviceReportContext(actor: CrmActor, jobId: string): Prom
   const [row] = await sql`SELECT payload FROM hearth_jobs_store WHERE id=${jobId}`;
   const job = decodeLegacyJob(row?.payload);
   if (!job || !canAccessJob(actor, { assignedTechs: Array.isArray(job.assignedTechs) ? job.assignedTechs : [] })) throw new ReportError("Job not found.", 404);
-  const [customer] = await sql`SELECT id, email FROM customers WHERE org_id=${actor.orgId} AND (id::text=${String(job.customerId || "")} OR qb_customer_id=${String(job.customerId || "")}) LIMIT 1`;
+  const [customer] = await sql`SELECT id, email, phone FROM customers WHERE org_id=${actor.orgId} AND (id::text=${String(job.customerId || "")} OR qb_customer_id=${String(job.customerId || "")}) LIMIT 1`;
   if (!customer) throw new ReportError("Link this job to a customer record before creating its service report.", 409);
   const text = String(job.fireplaceUnit?.type || job.title || "").toLowerCase();
   const fuels = (["gas", "wood", "pellet"] as const).filter(fuel => new RegExp(`\\b${fuel}\\b`).test(text));
   return { jobId, jobNumber: String(job.jobNumber || ""), customerId: String(customer.id), customerName: String(job.customerName || ""), address: String(job.propertyAddress || ""),
     serviceDate: String(job.scheduledDate || ""), equipment: [job.fireplaceUnit?.brand,job.fireplaceUnit?.model].filter(Boolean).join(" "),
+    phone: customer.phone || "", unitMake: String(job.fireplaceUnit?.brand || ""), unitModel: String(job.fireplaceUnit?.model || ""), unitSerial: String(job.fireplaceUnit?.serialNumber || ""),
     technicianId: actor.employeeId, technicianName: actor.name, suggestedFuel: fuels.length === 1 ? fuels[0] : null, email: customer.email || "", canVerifyStorage: ["owner","admin"].includes(actor.role) };
 }
 export function serviceReportStore() {

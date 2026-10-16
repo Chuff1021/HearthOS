@@ -13,6 +13,7 @@ import tailwind from '@tailwindcss/postcss';
 
 // No Next server, environment loading, provider clients, or production API execution.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const serveOnly = process.argv.includes('--serve');
 const require = createRequire(import.meta.url);
 const bundledModules = path.join(homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules');
 let chromium;
@@ -77,10 +78,11 @@ const bundle = await build({
 });
 assert.ok(!Object.keys(bundle.metafile.inputs).some(file => /(?:src\/app\/api\/|service-reports\/(?:server|store|storage)\.)/.test(file)), 'Production server modules must never enter the fixture');
 const domainBundle = await build({
-  absWorkingDir: root, stdin: { contents: `export {validateReport} from './src/lib/service-reports/domain';export {getServiceTemplate} from './src/lib/service-reports/templates';export {getChecklistTemplate,inferChecklistTemplateId} from './src/lib/job-checklists';export {decodeLegacyJob} from './src/lib/service-reports/legacy-photos';`, resolveDir: root },
+  absWorkingDir: root, stdin: { contents: `export {validateReport} from './src/lib/service-reports/domain';export {getServiceTemplate} from './src/lib/service-reports/templates';export {gasReadings} from './src/lib/service-reports/gas-template';export {getChecklistTemplate,inferChecklistTemplateId} from './src/lib/job-checklists';export {decodeLegacyJob} from './src/lib/service-reports/legacy-photos';`, resolveDir: root },
   bundle: true, write: false, platform: 'node', format: 'esm',
 });
-const { validateReport, getServiceTemplate, getChecklistTemplate, inferChecklistTemplateId, decodeLegacyJob } = await import(`data:text/javascript;base64,${Buffer.from(domainBundle.outputFiles[0].text).toString('base64')}`);
+const { validateReport, getServiceTemplate, gasReadings, getChecklistTemplate, inferChecklistTemplateId, decodeLegacyJob } = await import(`data:text/javascript;base64,${Buffer.from(domainBundle.outputFiles[0].text).toString('base64')}`);
+const latestTemplate = fuel => getServiceTemplate(fuel, fuel === 'gas' ? 2 : 1);
 const css = (await postcss([tailwind()]).process(await readFile(path.join(root, 'src/app/globals.css'), 'utf8'), { from: path.join(root, 'src/app/globals.css') })).css;
 const js = bundle.outputFiles.find(file => file.path.endsWith('.js')).text;
 const moduleCss = bundle.outputFiles.find(file => file.path.endsWith('.css'))?.text || '';
@@ -118,7 +120,7 @@ function reply(res, status, body, contentType = 'application/json') {
 async function handler(req, res) {
   const url = new URL(req.url, base);
   const caseId = /(?:^|;\s*)service-report-case=([^;]+)/.exec(req.headers.cookie || '')?.[1];
-  const state = cases.get(caseId);
+  const state = cases.get(caseId || (serveOnly ? 'manual' : ''));
   if (req.method === 'GET' && url.pathname === '/fixture.js') return reply(res, 200, js, 'application/javascript');
   if (req.method === 'GET' && url.pathname === '/fixture.css') return reply(res, 200, fixtureCss, 'text/css');
   if (req.method === 'GET' && url.pathname === '/fixture-font.woff2') return reply(res, 200, font, 'font/woff2');
@@ -171,7 +173,7 @@ async function handler(req, res) {
       const record = {
         id: `synthetic-report-${state.reports.length + 1}`, jobId: body.jobId, customerId: contextData.customerId,
         revision: 1, status: 'draft', createdAt: timestamp, updatedAt: timestamp,
-        data: { fuel: body.fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: '' }, photos: [],
+        data: { fuel: body.fuel, templateVersion: body.fuel === 'gas' ? 2 : 1, answers: {}, photoExceptions: {}, customerAcknowledgment: '' }, photos: [],
       };
       state.reports.unshift(record); state.operations.push('create');
       if (state.ambiguousCreate) return reply(res, 503, { error: 'Synthetic unconfirmed create' });
@@ -277,6 +279,11 @@ function validAnswers(template) {
     if (field.required) answers[field.id] = field.type === 'condition' ? 'S' : field.options?.[0] || 'Synthetic recorded observation';
   }
   Object.assign(answers, { serviceDate: contextData.serviceDate, acknowledgmentStatus: 'Unavailable', acknowledgmentDelivery: 'Synthetic email handoff on 2026-09-10' });
+  if (template.id === 'gas' && template.version === 2) {
+    delete answers.acknowledgmentStatus; delete answers.acknowledgmentDelivery;
+    for (const rows of Object.values(gasReadings)) for (const [id] of rows) answers[id] = '0';
+    answers.testReference = 'Synthetic manufacturer reference';
+  }
   if (template.id === 'wood') Object.assign(answers, { totalFlues: '1', scan: 'Not performed', scanReason: 'Synthetic Level 1 scope; no internal scan requested' });
   return answers;
 }
@@ -303,13 +310,13 @@ async function scenario(name, width, work) {
 }
 
 async function editorFlow(page, state, fuel, width) {
-  const name = `${fuel}-${width}`, template = getServiceTemplate(fuel);
+  const name = `${fuel}-${width}`, template = latestTemplate(fuel);
   const fields = template.sections.flatMap(section => section.fields);
   await page.goto(base);
   await page.getByRole('radio', { name: fuel, exact: true }).check();
   assert.equal(await page.getByRole('button', { name: 'Check report file connection', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Create draft', exact: true }).count(), 0);
-  await page.getByRole('heading', { name: `${template.title} Checklist`, exact: true }).first().waitFor();
+  await page.getByRole('heading', { name: template.title.endsWith('Checklist') ? template.title : `${template.title} Checklist`, exact: true }).first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   const finalize = page.getByRole('button', { name: 'Generate PDF', exact: true });
   assert.equal(await finalize.isDisabled(), true, 'Empty report must block finalization');
@@ -470,8 +477,8 @@ async function storageFlow(page, state, width) {
 
 async function autosaveFlow(page, state) {
   await page.goto(base);
-  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
-  const template = getServiceTemplate('gas');
+  await page.getByRole('heading', { name: 'Gas Diagnostic Checklist', exact: true }).waitFor();
+  const template = latestTemplate('gas');
   await expandSections(page, template);
   const work = fieldControl(page, template.sections.flatMap(section => section.fields).find(field => field.id === 'workCompleted'));
   state.saveDelay = 1800;
@@ -488,7 +495,7 @@ async function autosaveFlow(page, state) {
   assert.equal(state.emails.length, 0);
   assert.equal(state.operations.includes('finalize'), false);
   await page.reload();
-  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Gas Diagnostic Checklist', exact: true }).waitFor();
   await expandSections(page, template);
   assert.equal(await work.inputValue(), 'Synthetic newer observation entered during save');
   const operations = clone(state.operations);
@@ -499,8 +506,8 @@ async function autosaveFlow(page, state) {
 async function uncertainCreateFlow(page, state) {
   state.ambiguousCreate = true;
   await page.goto(base);
-  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
-  const template = getServiceTemplate('gas');
+  await page.getByRole('heading', { name: 'Gas Diagnostic Checklist', exact: true }).waitFor();
+  const template = latestTemplate('gas');
   await expandSections(page, template);
   const work = fieldControl(page, template.sections.flatMap(section => section.fields).find(field => field.id === 'workCompleted'));
   await work.fill('Synthetic observation retained after uncertain creation');
@@ -514,8 +521,8 @@ async function uncertainCreateFlow(page, state) {
 
 async function pickerAutosaveFlow(page, state) {
   await page.goto(base);
-  await page.getByRole('heading', { name: 'Gas Service Checklist', exact: true }).waitFor();
-  const template = getServiceTemplate('gas');
+  await page.getByRole('heading', { name: 'Gas Diagnostic Checklist', exact: true }).waitFor();
+  const template = latestTemplate('gas');
   const condition = template.sections.flatMap(section => section.fields).find(field => field.type === 'condition');
   await fieldControl(page, condition).selectOption('S');
   const chooserPromise = page.waitForEvent('filechooser');
@@ -607,6 +614,10 @@ try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
   console.log(`Synthetic service report browser verification: ${base}\nArtifacts: ${output}`);
+  if (serveOnly) {
+    cases.set('manual', newState());
+    await new Promise(resolve => { process.once('SIGTERM', resolve); process.once('SIGINT', resolve); });
+  } else {
   browser = await chromium.launch({ headless: true });
   await scenario('autosave-race', 390, autosaveFlow);
   await scenario('uncertain-create', 390, uncertainCreateFlow);
@@ -616,6 +627,7 @@ try {
     for (const fuel of ['gas', 'wood', 'pellet']) await scenario(`${fuel}-${width}`, width, (page, state) => editorFlow(page, state, fuel, width));
     for (const representation of ['object', 'string']) await scenario(`legacy-${width}-${representation}`, width, (page, state) => legacyFlow(page, state, width, representation));
     await scenario(`admin-storage-${width}`, width, (page, state) => storageFlow(page, state, width));
+  }
   }
 } catch (error) { report.failures.push({ name: 'runner', error: error.stack }); }
 finally {

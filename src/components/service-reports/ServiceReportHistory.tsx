@@ -358,7 +358,7 @@ export default function ServiceReportHistory({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold break-words">
-                  {getServiceTemplate(report.data.fuel).title}
+                  {getServiceTemplate(report.data.fuel, report.data.templateVersion).title}
                 </h3>
                 <p className="text-xs text-[var(--color-text-muted)]">
                   Revision {report.revision} / {report.status} /{" "}
@@ -388,7 +388,7 @@ export default function ServiceReportHistory({
               .map(([slot, reason]) => (
                 <p key={slot} className="text-sm break-words">
                   <strong>
-                    {getServiceTemplate(report.data.fuel).photoSlots.find(
+                    {getServiceTemplate(report.data.fuel, report.data.templateVersion).photoSlots.find(
                       (item) => item.id === slot,
                     )?.label || slot}
                     :
@@ -403,7 +403,7 @@ export default function ServiceReportHistory({
                     Recorded findings and photos
                   </summary>
                   <div className="mt-3 space-y-3">
-                    {getServiceTemplate(report.data.fuel).sections.map(
+                    {getServiceTemplate(report.data.fuel, report.data.templateVersion).sections.map(
                       (section) => (
                         <section key={section.id}>
                           <h4 className="text-sm font-semibold">
@@ -441,6 +441,7 @@ export default function ServiceReportHistory({
                           {photo.caption ||
                             getServiceTemplate(
                               report.data.fuel,
+                              report.data.templateVersion,
                             ).photoSlots.find(
                               (slot) => slot.id === photo.slotId,
                             )?.label ||

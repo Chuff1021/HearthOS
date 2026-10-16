@@ -1,12 +1,12 @@
 import type { Sql } from "postgres";
 import type { CrmActor } from "../security/access-policy";
-import { getServiceTemplate } from "./templates";
+import { currentServiceVersion, getServiceTemplate } from "./templates";
 import { validateReport, type Fuel, type Photo, type ReportData, type ReportSnapshot } from "./domain";
 
 export class ReportError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
-export type ReportContext = Omit<ReportSnapshot, "id" | "revision" | "finalizedAt" | "data" | "photos"> & { email: string; suggestedFuel: Fuel | null; canVerifyStorage?: boolean };
+export type ReportContext = Omit<ReportSnapshot, "id" | "revision" | "finalizedAt" | "data" | "photos"> & { email: string; phone?: string; unitMake?: string; unitModel?: string; unitSerial?: string; suggestedFuel: Fuel | null; canVerifyStorage?: boolean };
 type Row = { id: string; job_id: string; customer_id: string; revision: number; status: string; data: ReportData; snapshot: ReportSnapshot | null; pdf_key: string; pdf_checksum: string; created_at: Date; updated_at: Date; finalized_at: Date | null };
 type PhotoRow = { id: string; slot_id: string; caption: string; object_key: string; checksum: string };
 type Dependencies = {
@@ -21,7 +21,8 @@ export function parseReportData(input: unknown, fuel?: Fuel): ReportData {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new ReportError("Invalid report data.");
   const raw = input as ReportData;
   if (!["gas", "wood", "pellet"].includes(raw.fuel) || (fuel && raw.fuel !== fuel)) throw new ReportError("Choose the correct service form before starting a new report.");
-  const template = getServiceTemplate(raw.fuel);
+  if (![1,2].includes(raw.templateVersion ?? 1) || (raw.fuel !== "gas" && (raw.templateVersion ?? 1) !== 1)) throw new ReportError("Unsupported report template version.");
+  const template = getServiceTemplate(raw.fuel, raw.templateVersion);
   const fieldIds = new Set(template.sections.flatMap(s => s.fields.map(f => f.id)));
   const slots = new Set(template.photoSlots.map(s => s.id));
   const strings = (value: unknown, keys: Set<string>) => {
@@ -34,7 +35,7 @@ export function parseReportData(input: unknown, fuel?: Fuel): ReportData {
     return result;
   };
   if (typeof raw.customerAcknowledgment !== "string" || raw.customerAcknowledgment.length > 4000) throw new ReportError("Invalid acknowledgment.");
-  return { fuel: raw.fuel, answers: strings(raw.answers, fieldIds), photoExceptions: strings(raw.photoExceptions, slots), customerAcknowledgment: raw.customerAcknowledgment };
+  return { fuel: raw.fuel, ...(raw.templateVersion ? { templateVersion: raw.templateVersion } : {}), answers: strings(raw.answers, fieldIds), photoExceptions: strings(raw.photoExceptions, slots), customerAcknowledgment: raw.customerAcknowledgment };
 }
 
 export function createServiceReportStore(sql: Sql, deps: Dependencies) {
@@ -71,7 +72,7 @@ export function createServiceReportStore(sql: Sql, deps: Dependencies) {
     },
     async create(actor: CrmActor, jobId: string, fuel: Fuel) {
       const context = await deps.context(actor, jobId);
-      const data = parseReportData({ fuel, answers: {}, photoExceptions: {}, customerAcknowledgment: "" });
+      const data = parseReportData({ fuel, templateVersion: currentServiceVersion(fuel), answers: {}, photoExceptions: {}, customerAcknowledgment: "" });
       const [report] = await sql<Row[]>`INSERT INTO hearth_service_reports(id,org_id,job_id,customer_id,data,created_by)
         VALUES (${crypto.randomUUID()},${actor.orgId},${jobId},${context.customerId},${sql.json(data)},${actor.employeeId}) RETURNING *`;
       return view(sql, actor, report);
@@ -81,6 +82,7 @@ export function createServiceReportStore(sql: Sql, deps: Dependencies) {
         const tx = transaction as unknown as Sql;
         const report = await row(tx, actor, id, true); editable(report, revision);
         const data = parseReportData(input, report.data.fuel);
+        if ((data.templateVersion ?? 1) !== (report.data.templateVersion ?? 1)) throw new ReportError("This report uses a different checklist version. Reload it or start a new report; existing answers have not been changed.", 409);
         const [saved] = await tx<Row[]>`UPDATE hearth_service_reports SET data=${tx.json(data)},revision=revision+1,updated_at=now() WHERE org_id=${actor.orgId} AND id=${id} RETURNING *`;
         return view(tx, actor, saved);
       });
@@ -90,7 +92,7 @@ export function createServiceReportStore(sql: Sql, deps: Dependencies) {
       return sql.begin(async transaction => {
         const tx = transaction as unknown as Sql;
         const report = await row(tx, actor, id, true); editable(report, revision);
-        if (!getServiceTemplate(report.data.fuel).photoSlots.some(s => s.id === slotId)) throw new ReportError("Unknown photo requirement.");
+        if (!getServiceTemplate(report.data.fuel, report.data.templateVersion).photoSlots.some(s => s.id === slotId)) throw new ReportError("Unknown photo requirement.");
         if ((await photos(tx, actor, id)).length >= 30) throw new ReportError("This report has reached its 30-photo limit.");
         const photoId = crypto.randomUUID();
         const key = `service-reports/${actor.orgId}/${id}/photos/${photoId}.jpg`;
@@ -122,7 +124,8 @@ export function createServiceReportStore(sql: Sql, deps: Dependencies) {
         const photoRows = await photos(tx, actor, id);
         const context = await deps.context(actor, report.job_id);
         if (context.customerId !== report.customer_id) throw new ReportError("The job's customer changed. Start a new report for the correct customer.", 409);
-        const finalData: ReportData = { ...report.data, answers: { ...report.data.answers, technicianName: actor.name } };
+        const finalData: ReportData = { ...report.data, answers: { ...report.data.answers, technicianName: actor.name,
+          ...(report.data.templateVersion === 2 ? { customerContact: context.phone || "" } : {}) } };
         const errors = validateReport(finalData, photoRows.map(photoView));
         if (errors.length) throw new ReportError(errors.slice(0,8).join(" "));
         const serviceDate = finalData.answers.serviceDate;

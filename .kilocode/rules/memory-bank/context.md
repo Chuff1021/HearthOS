@@ -2,6 +2,31 @@
 
 ## Current State
 
+### October 16, 2026: Aaron's Supplied Gas Diagnostic Checklist
+
+Branch `codex/gas-checklist-pdf` starts from verified live `3bfe0e9`, separate
+from the unpromoted SMS trial. New gas reports explicitly use templateVersion 2;
+missing version means the original v1. Existing drafts cannot switch versions,
+and finalized reports continue serving their immutable stored PDFs. Wood and
+pellet definitions remain unchanged. No production data migration is needed.
+
+The supplied two-page master is kept byte-for-byte in
+`src/assets/service-forms/aarons-gas-diagnostic-v2.pdf`. The renderer fills this
+master and appends complete findings, authenticated technician signature,
+acknowledgment, exceptions and authorized photos using the existing private
+storage and email path. Overflow entries link to complete attached details.
+Printed threshold guidance is retained, not used for automatic safety judgments.
+Manufacturer criteria are required with recorded diagnostic readings.
+
+New checklist: 15 explicit checks, inline readings, optional parts / maintenance
+and payment record (no payment actions), five required photo slots or documented
+exceptions. Customer phone and available equipment identifiers prefill from the
+linked record. Isolated PostgreSQL tests verify old/new version isolation,
+immutable PDFs, exact stored attachment emails, tenant guards and data retention.
+Synthetic completed sample: `output/pdf/aarons-gas-checklist-completed-SAMPLE.pdf`
+under the user's home directory. Release verification is in progress; do not
+claim a production rollout until the canonical deployment is verified.
+
 ### September 9, 2026: Schedule Technician Color Follow-Up
 
 Branch `codex/schedule-technician-colors` starts from live `344f302`.
