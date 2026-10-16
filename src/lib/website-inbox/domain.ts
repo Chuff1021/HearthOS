@@ -10,6 +10,7 @@ export type WebsiteSubmission = {
 export type InboxRecord = {
   external_id: string; kind: WebsiteSubmission["type"]; received_at: string;
   payload: WebsiteSubmission; status: InboxStatus; follow_up_at: string | null; revision: number;
+  partsOrder?: { paymentState: string; fulfillmentState: string };
   payment?: { status: "paid"; squarePaymentId: string; paidAt: string };
 };
 export const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

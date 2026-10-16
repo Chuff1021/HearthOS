@@ -2,6 +2,7 @@ import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { websiteInboxConfig } from "@/lib/website-inbox/config";
 import { inboxStatuses, parseAction, uuidPattern } from "@/lib/website-inbox/domain";
 import { websiteInboxStore } from "@/lib/website-inbox/server";
+import { commerceDb } from "@/lib/parts-commerce/store";
 import { verifiedWebsitePayments } from "@/lib/website-orders/server";
 
 const headers = { "Cache-Control": "private, no-store" };
@@ -27,6 +28,17 @@ export async function GET(request: Request) {
     for (const item of result.items) {
       const payment = paid.find(order => order.id === item.external_id);
       if (payment) item.payment = { status: "paid", squarePaymentId: payment.square_payment_id, paidAt: payment.paid_at.toISOString() };
+    }
+    if(process.env.PARTS_COMMERCE_ENABLED === "true" && result.items.length) {
+      const sql=commerceDb();
+      const orders=await sql<Array<{id:string;payment_state:string;fulfillment_state:string;square_payment_id:string;updated_at:Date}>>`SELECT id,payment_state,fulfillment_state,square_payment_id,updated_at FROM hearth_parts_orders WHERE org_id=${actor.orgId} AND id IN ${sql(result.items.map(item=>item.external_id))}`;
+      for(const item of result.items) {
+        const order=orders.find(order=>order.id===item.external_id);
+        if(order) {
+          item.partsOrder={paymentState:order.payment_state,fulfillmentState:order.fulfillment_state};
+          if(order.payment_state==="paid") item.payment={status:"paid",squarePaymentId:order.square_payment_id,paidAt:order.updated_at.toISOString()};
+        }
+      }
     }
     return Response.json({ configured: true, ...result }, { headers });
   } catch {
