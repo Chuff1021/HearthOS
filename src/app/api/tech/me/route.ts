@@ -23,7 +23,7 @@ export async function GET() {
     const authEmail = actor.email;
     const authName = actor.name;
     const effectiveTech = tech;
-    const latestLocations = await getLatestLocationsByTech();
+    const latestLocations = await getLatestLocationsByTech(actor.orgId);
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
@@ -46,7 +46,7 @@ export async function GET() {
 
     const completedToday = todaysJobs.filter((job) => job.status === "completed").length;
     const activeJob = jobs.find((job) => job.status === "in_progress") || null;
-    const mileage = await getMileageSummary(effectiveTech.id);
+    const mileage = await getMileageSummary(effectiveTech.id, actor.orgId);
 
     const isOwner = actor.role === "owner";
 

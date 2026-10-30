@@ -6,7 +6,7 @@ export type MapTech = {
   location?: { lat: number; lng: number; timestamp: string; accuracy?: number } | null;
 };
 
-export const STALE_LOCATION_MS = 30 * 60 * 1000;
+export const STALE_LOCATION_MS = 5 * 60 * 1000;
 
 export function validatedLocation(value: unknown, now: number) {
   if (!value || typeof value !== "object" || !Number.isFinite(now)) return null;
@@ -35,7 +35,7 @@ export function escapeMapHtml(value: string) {
 }
 
 export function locationLabel(marker: LocationMarker) {
-  const age = marker.stale ? "Older than 30 min" : "Reported within 30 min";
+  const age = marker.stale ? "Older than 5 min" : "Reported within 5 min";
   const accuracy = marker.accuracy === null ? "Accuracy unavailable" : `Accuracy +/-${Math.round(marker.accuracy)} m`;
   return `${marker.tech.name} - ${age}. Reported ${new Date(marker.reportedAt).toLocaleString()}. ${accuracy}`;
 }

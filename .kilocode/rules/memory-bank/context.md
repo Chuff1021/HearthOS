@@ -2,6 +2,23 @@
 
 ## Current State
 
+### October 30, 2026: GPS Reliability Repair
+
+Branch codex/gps-tracking-reliability starts from f4021c9, verified against live
+dpl_CYVrZC2tiEd547N44VbMP5HpTNUk (738 identical source files; two documentation
+differences only). Do not release the older origin/main over the website-order
+production changes. Replaced the fragile watch-only runtime with fresh foreground
+fixes, session checks, resume/online/permission recovery, bounded uploads and
+honest server-confirmed status. Clock-out invalidates in-flight eligibility;
+identity changes/unmount discard callbacks. Browser background GPS is not promised.
+Location reads/writes validate the employee's organization; no schema migration.
+No first-name/email matching or another employee's fallback coordinates on dispatch.
+Both maps label reports older than five minutes; dispatch suppresses stale ETAs.
+Existing customer/job/financial records and employee mappings remain untouched.
+Dedicated mocked-device tests plus socket-only PostgreSQL route/storage tests cover
+failure recovery, forged identity, organization isolation and persistence failures.
+Production release and actual-phone acceptance are pending verification.
+
 ### October 16, 2026: Service PDF Runtime Repair
 
 Production baseline 4086262 / dpl_ETMwfGZrpxTU3xmBYC9KtWHQoy9K was verified

@@ -28,11 +28,11 @@ test("freshness ages actual timestamps and retains stale reports as explicitly h
   const tech = { id: "t", name: "Test Technician", location };
   const [recent] = getLocationMarkers([tech], now);
   assert.equal(recent.stale, false);
-  assert.match(locationLabel(recent), /Reported within 30 min/);
+  assert.match(locationLabel(recent), /Reported within 5 min/);
   const [older] = getLocationMarkers([tech], now + STALE_LOCATION_MS);
   assert.equal(older.stale, true);
   assert.match(markerHtml(older), /Older report/);
-  assert.match(locationLabel(older), /Older than 30 min/);
+  assert.match(locationLabel(older), /Older than 5 min/);
   assert.match(locationLabel(older), /Accuracy \+\/-12 m/);
   assert.doesNotMatch(locationLabel(recent), /live|synced|On Job/i);
 });

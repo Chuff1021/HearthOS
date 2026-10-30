@@ -1,4 +1,4 @@
-import { authorizeCrmApi } from "@/lib/security/crm-access";
+import { authorizeCrmApi, requireCrmActor } from "@/lib/security/crm-access";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +8,6 @@ import { updateJobRecord } from "@/lib/job-store";
 import { getLatestLocationsByTech } from "@/lib/tech-location-store";
 import { getTechDirectory } from "@/lib/tech-directory";
 
-function firstName(name: string) {
-  return String(name || '').trim().toLowerCase().split(/\s+/)[0] || '';
-}
-
 export async function GET(request: NextRequest) {
   const accessDenied = await authorizeCrmApi("/api/dispatch", "GET");
   if (accessDenied) return accessDenied;
@@ -19,17 +15,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
 
-    const latestLocations = await getLatestLocationsByTech();
+    const actor = await requireCrmActor();
+    const latestLocations = await getLatestLocationsByTech(actor.orgId);
     const directoryTechs = await getTechDirectory();
 
     const baseTechs = directoryTechs.map((t) => {
-      const techEmail = String((t as any).email || '').toLowerCase();
-      const tFirstName = firstName(t.name);
-      const loc = latestLocations.find((l) =>
-        l.techId === t.id ||
-        (!!techEmail && String(l.techEmail || '').toLowerCase() === techEmail) ||
-        (!!tFirstName && !!l.techName && firstName(l.techName) === tFirstName)
-      );
+      const loc = latestLocations.find((l) => l.techId === t.id);
       const isGenericName = /\bservice\s*tech(?:nician)?\b/i.test(t.name || '');
       const resolvedName = (isGenericName && loc?.techName) ? loc.techName : t.name;
       return {
