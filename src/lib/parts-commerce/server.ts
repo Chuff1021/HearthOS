@@ -153,6 +153,7 @@ export async function quoteCart(
     items: unknown;
     address: Record<string, unknown>;
     shippingId?: string;
+    journeyId?: string;
   },
   session: string,
 ) {
@@ -169,6 +170,11 @@ export async function quoteCart(
       429,
     );
   const lines = await pricedLines(org, cart);
+  let cartSessionId: string | undefined;
+  if (input.journeyId && uuid.test(input.journeyId)) {
+    const [journey] = await sql`SELECT id FROM hearth_cart_sessions WHERE org_id=${org} AND id=${input.journeyId} AND session_hash=${hash(session)}`;
+    cartSessionId = journey?.id;
+  }
   const shipping = await createSupplierShipping()(lines, address);
   const selected = input.shippingId
     ? shipping.find((o) => o.id === input.shippingId)
@@ -178,6 +184,7 @@ export async function quoteCart(
   const tax = await taxJarQuote(lines, address, selected.amountCents);
   const quote: Quote = {
     id: randomUUID(),
+    ...(cartSessionId ? { cartSessionId } : {}),
     address,
     lines,
     shipping: selected,

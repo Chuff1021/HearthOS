@@ -24,6 +24,7 @@ test("database checkout: server quote → authorization → inbox → capture �
         .replace(/^BEGIN;/, " ")
         .replace(/COMMIT;\s*$/, " "),
     );
+    await sql.unsafe((await fs.readFile("scripts/sql/cart-activity.sql", "utf8")).replace(/^BEGIN;/, "").replace(/COMMIT;\s*$/, ""));
     const org = randomUUID(),
       session = "a".repeat(64);
     await sql`INSERT INTO organizations VALUES(${org},'default')`;
@@ -201,15 +202,19 @@ test("database checkout: server quote → authorization → inbox → capture �
       const [released] =
         await sql`SELECT count(*)::int AS count FROM hearth_parts_reservations WHERE order_id=${declined.quote.id}`;
       assert.equal(released.count, 0);
+      const ownCart = randomUUID(), foreignCart = randomUUID();
+      await sql`INSERT INTO hearth_cart_sessions(org_id,id,session_hash) VALUES(${org},${ownCart},${hash(session)}),(${org},${foreignCart},${hash("b".repeat(64))})`;
       const q1 = await quoteCart(
-        { items: [{ key: offer.key, quantity: 1 }], address },
+        { items: [{ key: offer.key, quantity: 1 }], address, journeyId: ownCart },
         session,
       );
       const q2 = await quoteCart(
-        { items: [{ key: offer.key, quantity: 1 }], address },
+        { items: [{ key: offer.key, quantity: 1 }], address, journeyId: foreignCart },
         session,
       );
       assert.equal(q1.quote.totalCents, 1600);
+      assert.equal(q1.quote.cartSessionId, ownCart);
+      assert.equal(q2.quote.cartSessionId, undefined);
       process.env.PARTS_SHIPPING_VERIFIED = "false";
       const manual = await emailManualQuote(
         {

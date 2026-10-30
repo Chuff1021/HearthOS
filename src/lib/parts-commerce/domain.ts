@@ -40,6 +40,7 @@ export type Offer = {
 };
 export type Quote = {
   id: string;
+  cartSessionId?: string;
   address: Address;
   lines: Array<
     CartLine & {

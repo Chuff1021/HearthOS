@@ -8,6 +8,7 @@ import {
 } from "@/lib/parts-commerce/server";
 import { publishDiscoveredPart } from "@/lib/parts-commerce/scanner";
 import { commerceDb } from "@/lib/parts-commerce/store";
+import { cartActivityReport } from "@/lib/parts-commerce/cart-activity";
 
 const headers = { "Cache-Control": "private, no-store" };
 async function handle(request: Request) {
@@ -18,6 +19,8 @@ async function handle(request: Request) {
     if (actor.orgId !== org)
       throw new CommerceError("Parts service unavailable.", 404);
     if (request.method === "GET") {
+      if (new URL(request.url).searchParams.get("view") === "carts")
+        return Response.json(await cartActivityReport(org), { headers });
       const q = (new URL(request.url).searchParams.get("q") || "").slice(
         0,
         100,

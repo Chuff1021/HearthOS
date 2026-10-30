@@ -35,6 +35,9 @@ export default function WebsiteInboxPage() {
   const [refresh, setRefresh] = useState(0);
   const syncLock = useRef(false);
   useEffect(() => {
+    setQuery(new URLSearchParams(window.location.search).get("q") || "");
+  }, []);
+  useEffect(() => {
     const abort = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true); setError("");
@@ -67,7 +70,7 @@ export default function WebsiteInboxPage() {
     finally { syncLock.current = false; setSyncing(false); }
   }
   return <div className="website-inbox flex h-screen overflow-hidden" style={{ background: "var(--color-bg)" }}><Sidebar/><div className="min-w-0 flex-1 flex flex-col overflow-hidden"><Header/><main className="pw-workspace pw-website-inbox flex-1 overflow-y-auto p-4 lg:p-6 pb-24 lg:pb-6 space-y-5" style={{ color: "var(--color-text-primary)" }}>
-    <Link href="/website-inbox/parts" className="inline-block text-sm underline">Parts stock &amp; orders</Link>
+    <div className="flex flex-wrap gap-5 text-sm"><Link href="/website-inbox/parts" className="underline">Parts stock &amp; orders</Link><Link href="/website-inbox/parts#cart-activity" className="underline">Carts &amp; checkout follow-up</Link></div>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="text-2xl font-semibold">Website Inbox</h1><p className="text-sm text-[var(--color-text-secondary)]">Aaron&apos;s Fireplace Co.</p></div>
       <button className="ui-btn-primary flex items-center gap-2 px-4 py-2" disabled={syncing || !data?.configured} onClick={sync}><RefreshCw size={16} className={syncing ? "animate-spin" : ""}/>{syncing ? "Checking website..." : "Check website"}</button>
@@ -132,7 +135,7 @@ function RequestDialog({ item, close, saved }: { item: InboxRecord; close: () =>
       <div className="text-sm break-words"><p>{contact.email}</p><p>{contact.phone}</p>{contact.metadata?.address && <p>{contact.metadata.address}</p>}</div>
       <section><h3 className="font-semibold break-words">{contact.subject || "Message"}</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm">{contact.message || "No additional message"}</p></section>
       {contact.metadata && <dl className="grid sm:grid-cols-2 gap-3 text-sm">{Object.entries(contact.metadata).filter(([key]) => !["address", "paymentStatus", "fulfillmentStatus", "squarePaymentId", "squareOrderId", "receiptUrl", "itemPriceBasis"].includes(key)).map(([key, value]) => <div key={key}><dt className="text-[var(--color-text-secondary)]">{key.replace(/([A-Z])/g, " $1")}</dt><dd className="break-words whitespace-pre-wrap">{value}</dd></div>)}</dl>}
-      {item.kind === "order" && <section><h3 className="font-semibold">{item.payment || item.partsOrder ? "Ordered items" : "Requested items"}</h3><ul className="divide-y mt-2">{contact.items?.map((line, index) => <li className="py-2 text-sm flex justify-between gap-3" key={index}><span className="break-words min-w-0">{line.quantity} × {line.name}{line.sku && <span className="block text-[var(--color-text-secondary)]">{line.sku}</span>}</span><span className="shrink-0">{money(line.price)}</span></li>)}</ul><p className="mt-2 text-sm font-semibold">{contact.total === undefined ? "Price to confirm" : `${money(contact.total)} ${item.partsOrder ? item.partsOrder.paymentState : item.payment ? "paid" : "estimated total"}`} · {item.payment ? `Square payment ${item.payment.squarePaymentId}` : item.partsOrder ? item.partsOrder.paymentState : "Payment not collected by website checkout"}</p></section>}
+      {(item.kind === "order" || contact.metadata?.checkoutFollowUp === "true") && <section><h3 className="font-semibold">{contact.metadata?.checkoutFollowUp === "true" ? "Cart items (estimates)" : item.payment || item.partsOrder ? "Ordered items" : "Requested items"}</h3><ul className="divide-y mt-2">{contact.items?.map((line, index) => <li className="py-2 text-sm flex justify-between gap-3" key={index}><span className="break-words min-w-0">{line.quantity} × {line.name}{line.sku && <span className="block text-[var(--color-text-secondary)]">{line.sku}</span>}</span><span className="shrink-0">{money(line.price)}</span></li>)}</ul><p className="mt-2 text-sm font-semibold">{contact.total === undefined ? "Price to confirm" : `${money(contact.total)} ${item.partsOrder ? item.partsOrder.paymentState : item.payment ? "paid" : "estimated total"}`} · {item.payment ? `Square payment ${item.payment.squarePaymentId}` : item.partsOrder ? item.partsOrder.paymentState : "Payment not collected by website checkout"}</p></section>}
       <form className="border-t pt-4 space-y-3" onSubmit={e => { e.preventDefault(); void save(); }}>
         <h3 className="font-semibold">Follow-up</h3>
         <fieldset disabled={saving || Boolean(attempt.current)} className="grid sm:grid-cols-2 gap-3 disabled:opacity-70">

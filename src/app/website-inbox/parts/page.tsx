@@ -2,6 +2,7 @@
 import Link from "next/link";
 import QuoteBuilder from "./QuoteBuilder";
 import DiscoveryReview from "./DiscoveryReview";
+import CartActivityPanel from "./CartActivityPanel";
 import { useCallback, useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
@@ -100,6 +101,7 @@ export default function PartsOperations() {
               {error}
             </p>
           )}
+          <CartActivityPanel />
           {data && (
             <>
               <section className="grid grid-cols-2 gap-3 md:grid-cols-4">

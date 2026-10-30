@@ -1,5 +1,6 @@
 import { verifyOrderRequest } from "@/lib/website-orders/domain";
 import { CommerceError } from "@/lib/parts-commerce/domain";
+import { recordCartActivity } from "@/lib/parts-commerce/cart-activity";
 import {
   authorizeQuote,
   catalog,
@@ -42,7 +43,9 @@ async function handle(request: Request) {
     if (!/^[a-f0-9]{64}$/.test(session))
       throw new CommerceError("Checkout session missing.", 401);
     const result =
-      input.action === "interest"
+      input.action === "cart_activity"
+        ? await recordCartActivity(commerceOrg(), input, session)
+        : input.action === "interest"
         ? await recordPartsInterest(input.items)
         : input.action === "quote"
           ? await quoteCart(input, session)
