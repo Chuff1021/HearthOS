@@ -26,11 +26,14 @@ canonical remains on the original deployment pending signed-in dispatch QA.
 Actual-phone foreground acceptance and locked-screen limitations remain explicit.
 
 CI additionally caught newly published advisories in the existing production
-dependencies. Release candidate upgrades Next/eslint-config-next to locked 16.4.3,
+dependencies. Release candidate upgrades Next to locked 16.4.3,
 Nodemailer to 10.3.1 and Undici to 7.30.1. Production npm audit is now clean;
 development-tool advisories are not claimed resolved. Security (235) and quality
 (272) tests pass again with these versions. The fe40c2d stage above is superseded
 and must not be promoted; a rebuilt patched stage is required.
+Keep eslint-config-next pinned to the existing 16.3.8 rule set: the newer lint
+config introduced unrelated repository-wide effect-rule errors. This does not
+change the patched Next runtime or weaken the existing lint/security gates.
 
 ### October 16, 2026: Service PDF Runtime Repair
 
