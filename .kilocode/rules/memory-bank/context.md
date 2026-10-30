@@ -459,3 +459,37 @@ See `.env.local.example` for all required env vars:
 | 2026-02-26 | Fixed QuickActions dropdown - now navigates to Jobs, Customers, Invoices, Estimate pages |
 | 2026-02-26 | Added dashboard search functionality - searches customers, jobs, invoices with dropdown results |
 | 2026-02-26 | Added comprehensive fireplace manual library - 52 Majestic + 50 other brand manuals (102 total) |
+
+## September 10, 2026: Website paid-order backend (not activated)
+
+Prepared branch `codex/website-square-orders` from live `61d66ac`. Adds signed
+server-to-server Square checkout requests, durable order snapshots/idempotency,
+verified payment-to-inbox transactions and paid inbox display. Runtime activation
+is disabled by default. No production migration, secret, charge or deployment.
+Website counterpart: `/Users/fireplace/fireplace-webstore-remove-free-shipping`
+on `codex/square-checkout-bridge`. Shipping provider, origins/package data and tax
+configuration are outstanding; frontend is still the existing order request form.
+See `docs/WEBSITE_ORDER_ACTIVATION.md` before further implementation or deployment.
+
+## October 16, 2026 — Parts commerce
+
+Added database-backed Stove Parts Unlimited stock/pricing scans, signed storefront integration, owner stock/order controls under Website Inbox, real supplier shipping quotes, TaxJar adapter and Square delayed capture. Local tax reference is 9.11%. Payments remain gated pending TaxJar registrations, Square webhook/sandbox verification and dealer shipping parity. MA-212400's owner override survives refreshes. See `docs/PARTS_COMMERCE.md` for rollout flags, tests and operational behavior.
+
+Aaron confirmed no TaxJar account and dealer shipping matches paid retail rates but excludes retail free shipping. Automatic quotes now reject any free/zero-cost supplier option for the entire cart, since the promotion hides the standard paid service; do not substitute an express service or assume a flat dealer rate. Owner-confirmed shipping and emailed checkout remain the fallback after tax setup. Real guest-cart checks verified the promotional cart is blocked and deleted, while paid mixed carts to MO/IL/TX still return four services (lowest $9.95 for those particular carts). Sixteen parser/provider tests, typecheck and provider lint passed. TaxJar Professional API access starts at $99/month with a 30-day trial per official pricing checked October 16; no subscription purchased. Tax registration states remain unanswered, and production payment/tax/shipping activation flags remain false. Earlier Square production webhook and Sandbox verification are complete; tax and shipping rollout remain outstanding.
+
+
+## October 30, 2026 — Cart activity and checkout contacts
+
+Added durable cart sessions (`scripts/sql/cart-activity.sql`), signed `cart_activity` integration events, and the private Carts & checkout follow-up report in Website Inbox → Parts. Counts nonempty cart/checkout sessions, contact submissions, phone-button clicks, 30-minute inactivity and verified online authorizations. Counts visits rather than unique people; no historical abandonment data existed. Public ingestion returns no contact information, and cart UUIDs are bound to the HttpOnly checkout cookie. One unpaid contact request per cart is upserted directly into the existing inbox without resetting owner follow-up status; items are estimates, never an authorized order. The Website Inbox supports prefilled search links and shows follow-up cart items. Existing payment/tax/shipping gates remain unchanged. Automated database isolation, deduplication, inactivity/conversion tests and 235 security checks pass. Local Android Chromium and iPhone WebKit tests exercised the real signed controller and local PostgreSQL: contact persistence through blocked checkout, phone clicks, no duplicates and no horizontal overflow. Owner report component rendering was verified with real local report data; its API denies unauthenticated access.
+
+Promoted backend `https://hearth-6j1narhn3-chuff1021s-projects.vercel.app` (`dpl_CYVrZC2tiEd547N44VbMP5HpTNUk`) and storefront `https://fireplace-webstore-9px236epq-chuff1021s-projects.vercel.app` (`dpl_5KQmLZbFVJeEtdukyubCSB7jRmdG`) to their existing production domains. Public mobile verification confirmed anonymous cart/checkout/call events reached PostgreSQL, phone checkout and the disclosure were visible, and no horizontal overflow occurred. Repeated events counted once, unsigned events/report access were denied, and payment gates remained closed. Test cart rows were deleted; no production lead, email or charge was generated. Local test servers and PostgreSQL were stopped. Next dev generated the appended AGENTS.md guidance; the installed route-handler and server/client-component guides were read.
+
+## October 30, 2026 — SEO catalog reads and traffic attribution
+
+The signed parts catalog endpoint now supports bounded source-key reads (up to 48), exact slug lookups and discovered-only pages. These use the existing organization scope, effective offers, owner overrides and payment readiness checks. Existing full-catalog pagination remains compatible. The storefront can render one SKU or a 20-item result page without downloading 32K live offers; newly published scanner additions remain discoverable.
+
+Added an additive `scripts/sql/cart-attribution.sql` migration: private cart sessions retain only a coarse traffic channel and public landing path. The server strips unexpected fields, rejects private paths/query strings, preserves the first source and keeps the existing browser-session isolation. Checkout contacts retain this context in inbox metadata. The private cart report shows channel totals and each cart's landing path. These counts cover tracked cart sessions, not all traffic or paid revenue. No contacts or query strings are placed into generic analytics. Existing orders/payments/gates are unchanged.
+
+Production migration applied and its column verified October 30. Validation: 22 commerce tests (including bounded reads, source sanitization, preservation, private inbox and local PostgreSQL checkout), 235 security tests, TypeScript and targeted ESLint. Deployment verification is documented with the release results in `docs/PARTS_COMMERCE.md`.
+
+Promoted runtime `33d90b7` to `https://hearth-os.vercel.app` using deployment `dpl_6iRG9q3y2Tbto3ydf831gnuMaHCF` (`hearth-awy1a39ky-chuff1021s-projects.vercel.app`). Matching storefront runtime `29f3350c` is live at aaronsfireplaceco.com. Protected catalog/cart smoke and public storefront SEO checks passed; temporary anonymous verification cart removed. No error-level runtime logs in the release verification window. No charge, email, order or Google ownership grant occurred. Production parts payment/shipping/tax verification gates remain unchanged.

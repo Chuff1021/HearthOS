@@ -141,3 +141,8 @@ bun typecheck      # Run TypeScript type checking
 - None required for base template
 - Add as needed for features
 - Use `.env.local` for local development
+
+
+### Cart sessions (October 2026)
+
+`hearth_cart_sessions` uses the existing PostgreSQL connection; migration: `scripts/sql/cart-activity.sql`. Browser cart activity travels through the existing signed commerce endpoint. `src/lib/parts-commerce/cart-activity.ts` validates events, persists sessions/inbox follow-ups transactionally, and computes the organization-scoped last-30-day report. No new database, analytics subscription or credentials are required.
