@@ -25,6 +25,13 @@ Staged production fe40c2d: hearth-8i1letfmg-chuff1021s-projects.vercel.app;
 canonical remains on the original deployment pending signed-in dispatch QA.
 Actual-phone foreground acceptance and locked-screen limitations remain explicit.
 
+CI additionally caught newly published advisories in the existing production
+dependencies. Release candidate upgrades Next/eslint-config-next to locked 16.4.3,
+Nodemailer to 10.3.1 and Undici to 7.30.1. Production npm audit is now clean;
+development-tool advisories are not claimed resolved. Security (235) and quality
+(272) tests pass again with these versions. The fe40c2d stage above is superseded
+and must not be promoted; a rebuilt patched stage is required.
+
 ### October 16, 2026: Service PDF Runtime Repair
 
 Production baseline 4086262 / dpl_ETMwfGZrpxTU3xmBYC9KtWHQoy9K was verified
