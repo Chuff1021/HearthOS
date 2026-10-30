@@ -17,7 +17,13 @@ Both maps label reports older than five minutes; dispatch suppresses stale ETAs.
 Existing customer/job/financial records and employee mappings remain untouched.
 Dedicated mocked-device tests plus socket-only PostgreSQL route/storage tests cover
 failure recovery, forged identity, organization isolation and persistence failures.
-Production release and actual-phone acceptance are pending verification.
+Verified locally: quality suite (271 tests before final selection regression;
+272 with that test), security suite (235), eight isolated GPS PostgreSQL checks,
+TypeScript, ESLint (zero errors; existing warnings), and isolated production build.
+Synthetic phone UI verified failed upload, recovery, denial and permission restore.
+Staged production fe40c2d: hearth-8i1letfmg-chuff1021s-projects.vercel.app;
+canonical remains on the original deployment pending signed-in dispatch QA.
+Actual-phone foreground acceptance and locked-screen limitations remain explicit.
 
 ### October 16, 2026: Service PDF Runtime Repair
 
