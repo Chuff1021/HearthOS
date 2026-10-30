@@ -34,7 +34,7 @@ async function handle(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401, headers });
     commerceOrg();
     if (request.method === "GET")
-      return Response.json(await catalog(url.searchParams.get("after") || ""), {
+      return Response.json(await catalog(url.searchParams.get("after") || "", 2000, url.searchParams.has("keys") ? url.searchParams.get("keys")!.split(",") : undefined, url.searchParams.get("slug") || undefined, url.searchParams.get("discovered") === "true"), {
         headers,
       });
     const input = JSON.parse(raw);

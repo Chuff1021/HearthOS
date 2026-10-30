@@ -63,3 +63,11 @@ Checkout prominently displays **417-732-9775** and also displays it alongside th
 Normal online quotes bind the cart UUID only after checking cookie ownership; only verified orders carrying that bound UUID count as online authorizations. Manual emailed checkout links and phone orders may require manual reconciliation with a follow-up. The existing payment/tax/shipping activation flags are unchanged.
 
 Production rollout on October 30 passed hosted build checks, signed event persistence and deduplication, rejection of unsigned events, private report access, and preservation of the payment gate. A mobile browser on the actual public domain verified the phone section, privacy notice, cart/checkout/call persistence and absence of horizontal overflow. Synthetic anonymous cart records were removed afterward; no production follow-up lead, email or charge was created by verification.
+
+## SEO and cart source reporting — October 30, 2026
+
+- Apply `scripts/sql/cart-attribution.sql` before deploying the attribution reader/writer. It is additive and idempotent; existing carts show unattributed until a source is recorded. Production applied and verified October 30.
+- Signed GET catalog accepts `keys=spu:ID,...` (max 48), `slug=canonical-slug`, and `discovered=true` with the existing `after` cursor. Request HMAC still covers the entire query string; all reads are organization-scoped. Full paging is retained for backward compatibility.
+- Cart source fields are only `channel` and `landingPath`. No full URLs, referrers, search queries, ad IDs or contact data enter source attribution. The first valid source wins; fields are context, not trusted order/payment proof.
+- The private Website Inbox → Parts → Carts report now groups carts, checkouts, saved contacts, phone clicks and authorizations by channel. This is a cart funnel, not a count of all website visitors or captured sales. Phone orders need manual reconciliation.
+- New public contact requests also carry the safe channel/landing context through the existing inbox metadata path. Consent for order assistance does not enroll the customer into marketing.

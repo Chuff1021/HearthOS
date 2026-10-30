@@ -18,6 +18,7 @@ import {
 } from "./domain";
 import {
   commerceDb,
+  readParts,
   effectiveOffer,
   outbox,
   publishOrder,
@@ -86,10 +87,12 @@ function requireCheckout() {
       503,
     );
 }
-export async function catalog(after = "", limit = 2000) {
+export async function catalog(after = "", limit = 2000, keys?: string[], slug?: string, discoveredOnly = false) {
+  if (keys && (!keys.length || keys.length > 48 || keys.some(k => !/^spu:\d+$/.test(k)))) throw new CommerceError("Invalid catalog keys.");
+  if (slug && (!/^[a-z0-9-]{1,220}$/.test(slug))) throw new CommerceError("Invalid catalog slug.");
   const org = commerceOrg(),
     sql = commerceDb();
-  const rows = await sql<
+  const rows = slug ? await sql<PartRow[]>`SELECT * FROM hearth_parts WHERE org_id=${org} AND catalog->>'slug'=${slug} AND NOT duplicate ORDER BY key LIMIT 1` : discoveredOnly ? await sql<PartRow[]>`SELECT * FROM hearth_parts WHERE org_id=${org} AND catalog->>'discovered'='true' AND key>${after} ORDER BY key LIMIT ${Math.min(limit, 2000)}` : keys ? await readParts(org, [...new Set(keys)], sql) : await sql<
     PartRow[]
   >`SELECT * FROM hearth_parts WHERE org_id=${org} AND key>${after} ORDER BY key LIMIT ${Math.min(limit, 2000)}`;
   return {
@@ -123,7 +126,7 @@ export async function catalog(after = "", limit = 2000) {
       };
     }),
     next:
-      rows.length === Math.min(limit, 2000) ? rows[rows.length - 1].key : null,
+      !slug && !keys && rows.length === Math.min(limit, 2000) ? rows[rows.length - 1].key : null,
   };
 }
 async function pricedLines(org: string, cart: CartLine[], requirePilot = true) {

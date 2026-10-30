@@ -28,9 +28,10 @@ test("durable cart funnel → contact → deduplicated private inbox, isolation,
     await sql`CREATE TABLE hearth_website_inbox(org_id uuid,source text,external_id uuid,kind text,received_at timestamptz,payload jsonb,status text DEFAULT 'new',PRIMARY KEY(org_id,source,external_id))`;
     await sql`CREATE TABLE hearth_parts_orders(org_id uuid,session_hash text,snapshot jsonb,payment_state text)`;
     await sql.unsafe((await fs.readFile("scripts/sql/cart-activity.sql", "utf8")).replace(/^BEGIN;/, "").replace(/COMMIT;\s*$/, ""));
+    await sql.unsafe((await fs.readFile("scripts/sql/cart-attribution.sql", "utf8")).replace(/^BEGIN;/, "").replace(/COMMIT;\s*$/, ""));
     const org = randomUUID(), otherOrg = randomUUID(), id = randomUUID(), session = "a".repeat(64);
     await sql`INSERT INTO organizations VALUES(${org}),(${otherOrg})`;
-    const input = { journeyId: id, event: "cart", items: [item] };
+    const input = { journeyId: id, event: "cart", items: [item], attribution: { channel: "organic", landingPath: "/product/test-part", email: "must-not-be-saved@example.com" } };
     await recordCartActivity(org, input, session, sql);
     await recordCartActivity(org, { ...input, event: "checkout" }, session, sql);
     const contact = { name: "Test Customer", email: "customer@example.com", phone: "417-555-0100" };
@@ -45,6 +46,12 @@ test("durable cart funnel → contact → deduplicated private inbox, isolation,
     assert.equal(inbox[0].payload.phone, "417-555-0101");
     assert.equal(inbox[0].payload.items[0].price, 25);
     assert.match(inbox[0].payload.metadata.paymentStatus, /Not collected/);
+    assert.equal(inbox[0].payload.metadata.trafficChannel, "organic");
+    assert.equal(inbox[0].payload.metadata.landingPage, "/product/test-part");
+    assert.equal((await cartActivityReport(org, sql)).channels[0].contacts, 1);
+    await recordCartActivity(org, { ...input, event: "heartbeat", attribution: { channel: "paid", landingPath: "/" } }, session, sql);
+    const [originalSource] = await sql`SELECT attribution FROM hearth_cart_sessions WHERE org_id=${org}`;
+    assert.deepEqual(originalSource.attribution, { channel: "organic", landingPath: "/product/test-part" });
     await assert.rejects(() => recordCartActivity(org, { ...input, event: "contact", contact }, "b".repeat(64), sql), { status: 404 });
     assert.equal((await cartActivityReport(otherOrg, sql)).summary.carts, 0);
     await recordCartActivity(org, { ...input, event: "call" }, session, sql);
@@ -69,5 +76,13 @@ test("durable cart funnel → contact → deduplicated private inbox, isolation,
     await sql.end();
     await admin.unsafe(`DROP SCHEMA ${schema} CASCADE`);
     await admin.end();
+  }
+});
+
+test("cart attribution strips extra fields and rejects URL queries or non-public paths", () => {
+  const input = { journeyId: randomUUID(), event: "cart", items: [item] };
+  assert.deepEqual(parseCartActivity({ ...input, attribution: { channel: "organic", landingPath: "/parts/napoleon", email: "private" } }).attribution, { channel: "organic", landingPath: "/parts/napoleon" });
+  for (const landingPath of ["/contact?email=person@example.com", "/admin/customers/secret", "https://evil.example", "/checkout"]) {
+    assert.deepEqual(parseCartActivity({ ...input, attribution: { channel: "organic", landingPath } }).attribution, {});
   }
 });

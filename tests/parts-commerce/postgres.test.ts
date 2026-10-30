@@ -25,6 +25,7 @@ test("database checkout: server quote → authorization → inbox → capture �
         .replace(/COMMIT;\s*$/, " "),
     );
     await sql.unsafe((await fs.readFile("scripts/sql/cart-activity.sql", "utf8")).replace(/^BEGIN;/, "").replace(/COMMIT;\s*$/, ""));
+    await sql.unsafe((await fs.readFile("scripts/sql/cart-attribution.sql", "utf8")).replace(/^BEGIN;/, "").replace(/COMMIT;\s*$/, ""));
     const org = randomUUID(),
       session = "a".repeat(64);
     await sql`INSERT INTO organizations VALUES(${org},'default')`;
@@ -177,6 +178,7 @@ test("database checkout: server quote → authorization → inbox → capture �
     };
     try {
       const {
+        catalog,
         quoteCart,
         authorizeQuote,
         adminOrderAction,
@@ -186,6 +188,17 @@ test("database checkout: server quote → authorization → inbox → capture �
       } = await import("../../src/lib/parts-commerce/server");
       const { effectiveOffer } =
         await import("../../src/lib/parts-commerce/store");
+      // Bounded product reads preserve org scope and never expose neighboring rows.
+      assert.equal((await catalog("", 2000, [offer.key])).items.length, 1);
+      assert.equal((await catalog("", 2000, ["spu:999999"])).items.length, 0);
+      assert.equal((await catalog("", 2000, [offer.key])).next, null);
+      await assert.rejects(() => catalog("", 2000, ["invalid"]));
+      await assert.rejects(() => catalog("", 2000, Array(49).fill(offer.key)));
+      await sql`UPDATE hearth_parts SET catalog=catalog || ${sql.json({ slug: "test-part", discovered: true })} WHERE org_id=${org}`;
+      assert.equal((await catalog("", 2000, undefined, "test-part")).items[0].sku, offer.sku);
+      assert.equal((await catalog("", 2000, undefined, undefined, true)).items.length, 1);
+      assert.equal((await catalog("", 2000, undefined, "not-found")).items.length, 0);
+      await assert.rejects(() => catalog("", 2000, undefined, "<invalid>"));
       const declined = await quoteCart(
         { items: [{ key: offer.key, quantity: 1 }], address },
         session,

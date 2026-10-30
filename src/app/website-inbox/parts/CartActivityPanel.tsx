@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 type Report = {
+  channels?: Array<{ channel: string; carts: number; checkout: number; contacts: number; calls: number; authorized: number }>;
   startedAt: string | null;
   summary: { carts: number; checkout: number; contacts: number; calls: number; inactive: number; completed: number };
   recent: Array<{ id: string; createdAt: string; lastSeenAt: string; status: string; called: boolean;
-    contact: { name: string; email: string; phone: string } | null;
+    attribution?: { channel: string; landingPath: string }; contact: { name: string; email: string; phone: string } | null;
     items: Array<{ name: string; sku: string; quantity: number }> }>;
 };
 export default function CartActivityPanel() {
@@ -34,6 +35,7 @@ export default function CartActivityPanel() {
           <div key={key} className="rounded border p-3"><p className="text-sm">{label}</p><p className="mt-1 text-2xl font-bold">{report.summary[key].toLocaleString()}</p></div>)}
       </div>
       <p className="text-xs">{report.startedAt ? `First tracked cart: ${new Date(report.startedAt).toLocaleString()}.` : "Tracking starts with the first new cart visit. Past abandoned carts cannot be recovered."} Phone orders are not automatically matched to these totals.</p>
+      {Boolean(report.channels?.length) && <div><h3 className="font-semibold">Traffic sources for tracked carts</h3><p className="mt-1 text-xs">First observed landing in the browser session. Referrer restrictions can hide the source. These are cart sessions, not all site visitors or confirmed sales.</p><div className="mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Source", "Carts", "Checkout", "Contacts", "Phone clicks", "Authorized"].map(label => <th key={label} className="p-2 text-left">{label}</th>)}</tr></thead><tbody>{report.channels?.map(row => <tr key={row.channel} className="border-t"><th className="p-2 text-left font-medium">{row.channel}</th>{[row.carts,row.checkout,row.contacts,row.calls,row.authorized].map((v,i) => <td key={i} className="p-2">{v}</td>)}</tr>)}</tbody></table></div></div>}
       {!report.recent.length && <p>No cart visits recorded yet.</p>}
       <div className="max-h-[36rem] space-y-3 overflow-y-auto">
         {report.recent.map((cart) => <article key={cart.id} className="rounded border p-4">
@@ -41,6 +43,7 @@ export default function CartActivityPanel() {
             <div><h3 className="font-semibold">{cart.contact?.name || "Anonymous cart"}</h3><p className="mt-1 text-sm">{cart.status}{cart.called ? " · Clicked to call" : ""}</p></div>
             <p className="text-xs">Last activity: {new Date(cart.lastSeenAt).toLocaleString()}</p>
           </div>
+          {cart.attribution?.channel && <p className="mt-2 break-words text-xs">Source: {cart.attribution.channel} · Landing: {cart.attribution.landingPath}</p>}
           {cart.contact && <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 break-all text-sm">
             {cart.contact.phone && <a href={`tel:${cart.contact.phone.replace(/[^+\d]/g, "")}`} className="underline">{cart.contact.phone}</a>}
             {cart.contact.email && <a href={`mailto:${cart.contact.email}`} className="underline">{cart.contact.email}</a>}
