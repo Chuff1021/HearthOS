@@ -29,6 +29,7 @@ jobs:
       - run: npm run test:payment-persistence
       - run: node scripts/testing/website-inbox.mjs
       - run: node scripts/testing/service-reports.mjs
+      - run: node --test tests/quality/tech-gps-postgres.test.mjs
       - run: npm run typecheck
       - run: npm run lint
       - run: npm audit --omit=dev

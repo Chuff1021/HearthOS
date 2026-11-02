@@ -8,6 +8,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { createTrackingTileLayer, hasMapboxTiles, mapboxProviderLabel } from "@/lib/mapbox";
+import { escapeMapHtml, STALE_LOCATION_MS } from "@/components/dashboard/operations-map-data";
 
 type Tech = {
   id: string;
@@ -43,6 +44,8 @@ export default function DispatchPage() {
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const selectedTechIdRef = useRef<string>("");
   const [loading, setLoading] = useState(true);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+  const dispatchRequestRef = useRef<AbortController | null>(null);
   const [gpsDebug, setGpsDebug] = useState<{
     latestLocationCount: number;
     unmappedLiveCount: number;
@@ -57,7 +60,8 @@ export default function DispatchPage() {
 
   const selectedTech = techs.find((t) => t.id === selectedTechId);
   const liveTechs = techs.filter((t) => t.location);
-  const selectedLocation = selectedTech?.location || liveTechs[0]?.location || null;
+  const selectedLocation = selectedTech?.location || null;
+  const selectedLocationStale = !!selectedLocation && Date.now() - Date.parse(selectedLocation.timestamp) > STALE_LOCATION_MS;
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -100,7 +104,7 @@ export default function DispatchPage() {
   function markerHtml(color: string, active: boolean, initials: string) {
     const size = active ? 26 : 22;
     const ring = active ? "rgba(255,68,0,0.35)" : "rgba(37,99,235,0.30)";
-    return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:system-ui;">${(initials || '?').slice(0,2).toUpperCase()}</div>`;
+    return `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${ring};border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:system-ui;">${escapeMapHtml((initials || '?').slice(0,2).toUpperCase())}</div>`;
   }
 
   function haversineMiles(a: [number, number], b: [number, number]) {
@@ -162,18 +166,28 @@ export default function DispatchPage() {
   }, [selectedTechId]);
 
   async function loadDispatch() {
-    setLoading(true);
+    if (dispatchRequestRef.current) return;
+    const controller = new AbortController();
+    dispatchRequestRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 20_000);
     try {
-      const res = await fetch('/api/dispatch?activeOnly=true', { cache: 'no-store' });
+      const res = await fetch('/api/dispatch?activeOnly=true', { cache: 'no-store', signal: controller.signal });
+      if (!res.ok) throw new Error('Dispatch refresh failed');
       const data = await res.json();
+      if (controller.signal.aborted) return;
       setTechs(data.techs || []);
       setUnassignedJobs(data.unassignedJobs || []);
       setGpsDebug(data.gpsDebug || null);
+      setDispatchError(null);
       // Only auto-select first tech if nothing is selected yet
       if (!selectedTechIdRef.current && data.techs?.length) {
         setSelectedTechId(data.techs[0].id);
       }
+    } catch {
+      setDispatchError('Unable to refresh dispatch. Showing last received information; retrying automatically.');
     } finally {
+      clearTimeout(timeout);
+      if (dispatchRequestRef.current === controller) dispatchRequestRef.current = null;
       setLoading(false);
     }
   }
@@ -191,7 +205,7 @@ export default function DispatchPage() {
   useEffect(() => {
     loadDispatch();
     const t = setInterval(loadDispatch, 5000);
-    return () => clearInterval(t);
+    return () => { clearInterval(t); dispatchRequestRef.current?.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -285,7 +299,9 @@ export default function DispatchPage() {
 
     for (const t of liveTechs) {
       const active = t.id === selectedTechId;
-      const color = active ? '#f8971f' : '#2563EB';
+      const stale = Date.now() - new Date(t.location!.timestamp).getTime() > 5 * 60 * 1000;
+      const color = stale ? '#b7791f' : active ? '#f8971f' : '#2563EB';
+      const tooltip = escapeMapHtml(`${displayTechName(t)} · ${stale ? 'Last known: ' : ''}${formatAge(t.location!.timestamp)} · ±${Math.round(t.location!.accuracy || 0)}m`);
       const initials = deriveInitials(displayTechName(t), t.initials);
       const icon = L.divIcon({ html: markerHtml(color, active, initials), className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
       const latlng: [number, number] = [t.location!.lat, t.location!.lng];
@@ -294,9 +310,10 @@ export default function DispatchPage() {
       if (existing) {
         existing.setLatLng(latlng);
         existing.setIcon(icon);
+        existing.setTooltipContent(tooltip);
       } else {
         const marker = L.marker(latlng, { icon })
-          .bindTooltip(`${displayTechName(t)} · ${formatAge(t.location!.timestamp)} · ±${Math.round(t.location!.accuracy || 0)}m`);
+          .bindTooltip(tooltip);
         addLayer(marker);
         marker.on('click', () => setSelectedTechId(t.id));
         markersRef.current.set(t.id, marker);
@@ -363,6 +380,7 @@ export default function DispatchPage() {
     const ctx = mapRef.current;
     if (!ctx) return;
     const { map, L } = ctx;
+    let cancelled = false;
 
     async function drawRouteToNextJob() {
       if (routeLineRef.current) {
@@ -372,14 +390,14 @@ export default function DispatchPage() {
       setSelectedRouteEtaMin(null);
       setSelectedOffRouteMiles(null);
 
-      if (!selectedTech?.location || !selectedTech?.nextJob?.address) return;
+      if (!selectedTech?.location || !selectedTech?.nextJob?.address || selectedLocationStale) return;
 
       const address = selectedTech.nextJob.address.trim();
       if (!address) return;
 
       const dest = await geocodeAddress(address);
 
-      if (!dest) return;
+      if (!dest || cancelled) return;
 
       const current: [number, number] = [selectedTech.location.lat, selectedTech.location.lng];
       const milesToNext = haversineMiles(current, dest);
@@ -389,12 +407,14 @@ export default function DispatchPage() {
       if (selectedTech.currentJob?.address) {
         const startAddress = selectedTech.currentJob.address.trim();
         const start = startAddress ? await geocodeAddress(startAddress) : null;
+        if (cancelled) return;
         if (start) {
           setSelectedOffRouteMiles(pointToSegmentMiles(current, start, dest));
         }
       }
 
       const route = await routeToNextJob(current, dest);
+      if (cancelled) return;
       if (route?.durationMin) {
         setSelectedRouteEtaMin(route.durationMin);
       }
@@ -407,8 +427,11 @@ export default function DispatchPage() {
       }).addTo(map);
     }
 
-    drawRouteToNextJob();
-  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng, selectedTech?.nextJob?.address, mapReadyTick]);
+    void drawRouteToNextJob().catch(() => {
+      if (!cancelled) { setSelectedRouteEtaMin(null); setSelectedOffRouteMiles(null); }
+    });
+    return () => { cancelled = true; };
+  }, [selectedTechId, selectedTech?.location?.lat, selectedTech?.location?.lng, selectedTech?.nextJob?.address, selectedLocationStale, mapReadyTick]);
 
   function centerOnSelectedTech() {
     const ctx = mapRef.current;
@@ -428,8 +451,9 @@ export default function DispatchPage() {
           <div>
             <h1 className="font-bold text-xl" style={{ color: 'var(--color-text-primary)' }}>Dispatch</h1>
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              {loading ? 'Loading dispatch...' : `${techs.length} techs active · ${unassignedJobs.length} unassigned jobs`}
+              {loading ? 'Loading dispatch...' : `${techs.length} team members · ${liveTechs.filter(t => Date.now() - new Date(t.location!.timestamp).getTime() <= 5 * 60 * 1000).length} recent GPS signals · ${unassignedJobs.length} unassigned jobs`}
             </p>
+            {dispatchError && <p role="status" className="text-xs mt-1 text-amber-700">{dispatchError}</p>}
             {gpsDebug && (
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 GPS pings: {gpsDebug.latestLocationCount} · Unmapped live: {gpsDebug.unmappedLiveCount}
@@ -443,7 +467,7 @@ export default function DispatchPage() {
           <div className="pw-map-panel xl:col-span-2 rounded-3xl p-5 glass-panel" style={{ border: '1px solid rgba(255,255,255,0.72)' }}>
             <div className="pw-heading mb-3 flex items-center justify-between gap-2">
               <div>
-                <h2 className="font-semibold">Dispatch Map (Live GPS)</h2>
+                <h2 className="font-semibold">Dispatch Map</h2>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                   {mapboxProviderLabel()} · {hasMapboxTiles() ? 'high-detail employee tracking map' : 'Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable Mapbox'}
                 </p>
@@ -474,10 +498,10 @@ export default function DispatchPage() {
             {selectedLocation && (
               <div className="mt-2 text-xs space-y-1" style={{ color: 'var(--color-text-muted)' }}>
                 <div>
-                  Tracking: {selectedTech ? displayTechName(selectedTech) : 'Live Tech'} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                  {selectedLocationStale ? 'Last known location' : 'Reported location'}: {selectedTech ? displayTechName(selectedTech) : ''} @ {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)} · {formatAge(selectedLocation.timestamp)}
                 </div>
                 <div>
-                  {selectedTech?.nextJob?.address ? `Route line to next job: ${selectedTech.nextJob.address}` : 'No next-job route available'}
+                  {selectedLocationStale ? 'Waiting for a fresh GPS signal before calculating a route.' : selectedTech?.nextJob?.address ? `Route line to next job: ${selectedTech.nextJob.address}` : 'No next-job route available'}
                   {selectedRouteEtaMin ? ` · ETA ~ ${selectedRouteEtaMin} min` : ''}
                 </div>
                 {selectedOffRouteMiles !== null && selectedOffRouteMiles > 2 && (
@@ -521,7 +545,7 @@ export default function DispatchPage() {
             </div>
 
             <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)' }}>
-              <h3 className="font-semibold mb-2">Live GPS Feed</h3>
+              <h3 className="font-semibold mb-2">Last Reported Locations</h3>
               <div className="space-y-2 max-h-36 overflow-auto">
                 {liveTechs.length > 0 ? liveTechs.map((t) => {
                   const ageMs = t.location ? Date.now() - new Date(t.location!.timestamp).getTime() : 0;
@@ -531,7 +555,7 @@ export default function DispatchPage() {
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold">{displayTechName(t)}</div>
                         <div className="text-[10px] font-semibold" style={{ color: stale ? '#F59E0B' : '#16A34A' }}>
-                          {formatAge(t.location!.timestamp)}
+                          {stale ? 'Stale · ' : 'Recent · '}{formatAge(t.location!.timestamp)}
                         </div>
                       </div>
                       <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
@@ -557,14 +581,13 @@ export default function DispatchPage() {
                 <h3 className="font-semibold mb-2">GPS Signal Diagnostic</h3>
                 <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
                   {gpsDebug.latestLocationCount === 0
-                    ? 'No GPS pings received in the last 24 hours.'
-                    : `${gpsDebug.latestLocationCount} device(s) pinging in last 24h`}
+                    ? 'No saved GPS locations in the last 30 days.'
+                    : `${gpsDebug.latestLocationCount} saved device locations in the last 30 days`}
                 </p>
                 {gpsDebug.allPings.length > 0 ? (
                   <div className="space-y-1">
                     {gpsDebug.allPings.map((p, i) => {
-                      const ageMs = Date.now() - new Date(p.timestamp).getTime();
-                      const matched = techs.some((t) => t.location?.timestamp === p.timestamp);
+                      const matched = techs.some((t) => t.id === p.techId);
                       return (
                         <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded" style={{ background: 'var(--color-surface-3)' }}>
                           <span style={{ color: matched ? '#16A34A' : '#F59E0B' }}>
@@ -574,7 +597,7 @@ export default function DispatchPage() {
                         </div>
                       );
                     })}
-                    {gpsDebug.allPings.some((p) => !techs.some((t) => t.location?.timestamp === p.timestamp)) && (
+                    {gpsDebug.allPings.some((p) => !techs.some((t) => t.id === p.techId)) && (
                       <p className="text-[11px] mt-1" style={{ color: '#F59E0B' }}>
                         ! = pinging but not matched to a team member. Check that their email in Settings matches their login.
                       </p>

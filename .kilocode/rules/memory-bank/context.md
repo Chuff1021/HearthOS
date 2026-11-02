@@ -2,6 +2,39 @@
 
 ## Current State
 
+### October 30, 2026: GPS Reliability Repair
+
+Branch codex/gps-tracking-reliability starts from f4021c9, verified against live
+dpl_CYVrZC2tiEd547N44VbMP5HpTNUk (738 identical source files; two documentation
+differences only). Do not release the older origin/main over the website-order
+production changes. Replaced the fragile watch-only runtime with fresh foreground
+fixes, session checks, resume/online/permission recovery, bounded uploads and
+honest server-confirmed status. Clock-out invalidates in-flight eligibility;
+identity changes/unmount discard callbacks. Browser background GPS is not promised.
+Location reads/writes validate the employee's organization; no schema migration.
+No first-name/email matching or another employee's fallback coordinates on dispatch.
+Both maps label reports older than five minutes; dispatch suppresses stale ETAs.
+Existing customer/job/financial records and employee mappings remain untouched.
+Dedicated mocked-device tests plus socket-only PostgreSQL route/storage tests cover
+failure recovery, forged identity, organization isolation and persistence failures.
+Verified locally: quality suite (271 tests before final selection regression;
+272 with that test), security suite (235), eight isolated GPS PostgreSQL checks,
+TypeScript, ESLint (zero errors; existing warnings), and isolated production build.
+Synthetic phone UI verified failed upload, recovery, denial and permission restore.
+Staged production fe40c2d: hearth-8i1letfmg-chuff1021s-projects.vercel.app;
+canonical remains on the original deployment pending signed-in dispatch QA.
+Actual-phone foreground acceptance and locked-screen limitations remain explicit.
+
+CI additionally caught newly published advisories in the existing production
+dependencies. Release candidate upgrades Next to locked 16.4.3,
+Nodemailer to 10.3.1 and Undici to 7.30.1. Production npm audit is now clean;
+development-tool advisories are not claimed resolved. Security (235) and quality
+(272) tests pass again with these versions. The fe40c2d stage above is superseded
+and must not be promoted; a rebuilt patched stage is required.
+Keep eslint-config-next pinned to 16.3.8 and eslint-plugin-react-hooks to 7.0.1:
+the transitive 7.1.1 update introduced unrelated repository-wide effect-rule errors. This does not
+change the patched Next runtime or weaken the existing lint/security gates.
+
 ### October 16, 2026: Service PDF Runtime Repair
 
 Production baseline 4086262 / dpl_ETMwfGZrpxTU3xmBYC9KtWHQoy9K was verified

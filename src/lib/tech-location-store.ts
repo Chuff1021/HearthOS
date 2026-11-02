@@ -22,9 +22,10 @@ let sqlClient: ReturnType<typeof postgres> | null = null;
 let initPromise: Promise<void> | null = null;
 
 function getSql() {
-  if (!process.env.DATABASE_URL) return null;
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
+  if (!url) throw new Error('Location storage is not configured');
   if (!sqlClient) {
-    sqlClient = postgres(process.env.DATABASE_URL, {
+    sqlClient = postgres(url, {
       max: 3,
       idle_timeout: 20,
       connect_timeout: 10,
@@ -57,33 +58,36 @@ async function ensureTable() {
       await sql`create index if not exists idx_tech_locations_live_email_ts on tech_locations_live (tech_email, ts desc);`;
     })();
   }
-  await initPromise;
+  try { await initPromise; } catch (error) { initPromise = null; throw error; }
 }
 
-export async function addLocationPoint(point: TechLocationPoint) {
+export async function addLocationPoint(point: TechLocationPoint, orgId: string) {
   const sql = getSql();
   if (!sql) return point;
   await ensureTable();
 
-  await sql`
+  const inserted = await sql`
     insert into tech_locations_live
       (tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts)
-    values
-      (${point.techId}, ${point.techName || null}, ${point.techEmail || null}, ${point.lat}, ${point.lng}, ${point.accuracy ?? null}, ${point.speed ?? null}, ${point.heading ?? null}, ${point.timestamp});
+    select ${point.techId}, ${point.techName || null}, ${point.techEmail || null}, ${point.lat}, ${point.lng}, ${point.accuracy ?? null}, ${point.speed ?? null}, ${point.heading ?? null}, ${point.timestamp}
+    where exists (select 1 from users u where u.id::text = ${point.techId} and u.org_id = ${orgId} and u.is_active = true)
+    returning id;
   `;
+  if (!inserted.length) throw new Error('Employee location access denied');
 
   // Probabilistic 30-day pruning (runs ~1% of inserts to avoid write amplification)
   if (Math.random() < 0.01) {
     await sql`
       delete from tech_locations_live
-      where ts < now() - interval '30 days';
+      where ts < now() - interval '30 days'
+        and exists (select 1 from users u where u.id::text = tech_locations_live.tech_id and u.org_id = ${orgId});
     `;
   }
 
   return point;
 }
 
-export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
+export async function getLatestLocationsByTech(orgId: string): Promise<TechLocationPoint[]> {
   const sql = getSql();
   if (!sql) return [];
   await ensureTable();
@@ -102,7 +106,8 @@ export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
     select distinct on (tech_id)
       tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
     from tech_locations_live
-    where ts >= now() - interval '24 hours'
+    where ts >= now() - interval '30 days' and ts <= now() + interval '30 seconds'
+      and exists (select 1 from users u where u.id::text = tech_locations_live.tech_id and u.org_id = ${orgId})
     order by tech_id, ts desc;
   `;
 
@@ -119,7 +124,7 @@ export async function getLatestLocationsByTech(): Promise<TechLocationPoint[]> {
   }));
 }
 
-export async function getLocationHistory(techId: string, limit = 100): Promise<TechLocationPoint[]> {
+export async function getLocationHistory(techId: string, limit: number, orgId: string): Promise<TechLocationPoint[]> {
   const sql = getSql();
   if (!sql) return [];
   await ensureTable();
@@ -138,6 +143,7 @@ export async function getLocationHistory(techId: string, limit = 100): Promise<T
     select tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
     from tech_locations_live
     where tech_id = ${techId}
+      and exists (select 1 from users u where u.id::text = tech_locations_live.tech_id and u.org_id = ${orgId})
     order by ts desc
     limit ${Math.max(1, Math.min(limit, 1000))};
   `;
@@ -197,7 +203,7 @@ function sumMiles(points: TechLocationPoint[]) {
   return Number(total.toFixed(1));
 }
 
-export async function getMileageSummary(techId: string): Promise<TechMileageSummary> {
+export async function getMileageSummary(techId: string, orgId: string): Promise<TechMileageSummary> {
   const sql = getSql();
   if (!sql) return { dayMiles: 0, weekMiles: 0, monthMiles: 0 };
   await ensureTable();
@@ -216,6 +222,7 @@ export async function getMileageSummary(techId: string): Promise<TechMileageSumm
     select tech_id, tech_name, tech_email, lat, lng, accuracy, speed, heading, ts
     from tech_locations_live
     where tech_id = ${techId}
+      and exists (select 1 from users u where u.id::text = tech_locations_live.tech_id and u.org_id = ${orgId})
       and ts >= now() - interval '31 days'
     order by ts asc;
   `;

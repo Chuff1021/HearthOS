@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
 import TechBottomNav from "@/components/tech/TechBottomNav";
 import { useGpsStatus } from "@/components/tech/GpsStatusContext";
+import { RotateCw } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function ProfilePage() {
     clockIn: "--",
   });
   const [isClockedIn, setIsClockedIn] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [techId, setTechId] = useState<string>("");
   const [techName, setTechName] = useState<string>("");
   const [techEmail, setTechEmail] = useState<string>("");
@@ -68,6 +70,7 @@ export default function ProfilePage() {
             : "--",
         });
         setIsClockedIn(Boolean(data.clockEntry));
+        setIsOwner(Boolean(data.isOwner));
       } catch {
         // no-op
       }
@@ -88,20 +91,7 @@ export default function ProfilePage() {
   }, [isLoaded]);
 
   async function requestLocationPermission() {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      gps.update({ error: "Geolocation not supported." });
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        gps.update({ gpsPermission: "granted", error: null });
-      },
-      (err) => {
-        gps.update({ gpsPermission: "denied", error: err.message || "Location permission denied." });
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
+    window.dispatchEvent(new Event("hearth-gps-retry"));
   }
 
   async function submitTimeOffRequest() {
@@ -185,13 +175,13 @@ export default function ProfilePage() {
         <div className="bg-[var(--color-surface-1)] rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">GPS Tracking</h3>
-            <div className={`flex items-center gap-1 text-xs ${gps.isTracking ? "text-green-400" : "text-gray-500"}`}>
+            <div className={`flex items-center gap-1 text-xs ${gps.isTracking ? "text-green-700" : "text-gray-500"}`}>
               <div className={`w-2 h-2 rounded-full ${gps.isTracking ? "bg-green-400 animate-pulse" : "bg-gray-500"}`} />
-              {gps.isTracking ? "Active" : isClockedIn ? "Starting..." : "Clock in to track"}
+              {gps.isTracking ? "Connected" : gps.error ? "Needs attention" : isClockedIn || isOwner ? "Waiting for GPS" : "Clocked out"}
             </div>
           </div>
 
-          {gps.isTracking && gps.lastPingAt && (
+          {gps.lastPingAt && (
             <div className="bg-[var(--color-surface-3)] rounded-lg p-3 mb-3">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,9 +189,9 @@ export default function ProfilePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <div>
-                  <p className="text-sm font-medium">GPS Active</p>
+                  <p className="text-sm font-medium">Last confirmed by dispatch</p>
                   <p className="text-xs text-gray-400">
-                    Last ping: {new Date(gps.lastPingAt).toLocaleTimeString()}
+                    {new Date(gps.lastPingAt).toLocaleString()}
                     {gps.accuracy != null ? ` · ±${Math.round(gps.accuracy)}m` : ""}
                   </p>
                 </div>
@@ -210,27 +200,29 @@ export default function ProfilePage() {
           )}
 
           {gps.error && (
-            <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-2 mb-3 text-xs text-red-300">
+            <div role="status" className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 mb-3 text-xs" style={{ color: "var(--color-text-primary)" }}>
               {gps.error}
             </div>
           )}
 
           <div className="space-y-3">
-            {gps.gpsPermission !== "granted" && (
+            {(isClockedIn || isOwner) && (
               <button
                 onClick={requestLocationPermission}
                 className="w-full py-2 rounded-lg text-sm font-medium"
                 style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
               >
-                Request Location Permission
+                <RotateCw size={16} className="inline mr-2" aria-hidden="true" />
+                {gps.gpsPermission === "denied" || gps.gpsPermission === "prompt" ? "Enable Location / Retry GPS" : "Retry GPS"}
               </button>
             )}
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               GPS Permission: {gps.gpsPermission}
             </div>
             <div className="text-xs" style={{ color: isClockedIn ? "#15803D" : "var(--color-text-muted)" }}>
-              Shift: {isClockedIn ? "Clocked in — GPS auto-tracking" : "Clocked out — GPS paused"}
+              {isOwner ? "Owner location sharing" : isClockedIn ? "Clocked in" : "Clocked out - GPS paused"}
             </div>
+            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Foreground GPS only. Location updates pause when your phone locks or HearthOS is in the background.</p>
           </div>
         </div>
 

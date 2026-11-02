@@ -94,7 +94,7 @@ export default function OperationsLeafletMap({ techs, now }: { techs: MapTech[];
         <div ref={mapEl} className="ops-map-canvas" role="region" aria-label="Last-reported technician locations" />
         <div className="pointer-events-none absolute left-3 right-16 top-3 z-[450]">
           <p className="w-fit rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-700" role="status">
-            {markerData.length} last-reported locations - {staleCount} older than 30 min
+            {markerData.length} last-reported locations - {staleCount} older than 5 min
             {!ready && !error && <span className="mt-1 block">Loading map...</span>}
           </p>
           {error && <div className="pointer-events-auto mt-2 flex items-center gap-2 rounded-lg bg-white/95 p-2 text-xs text-slate-700" role="alert">
